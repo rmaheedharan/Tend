@@ -377,3 +377,161 @@ ADR text are W2-F1 (file-URL precondition) and W2-F4 (not the on-device store).
 |---|---|---|---|---|
 | 2026-11-20 | Developer (via Orchestrator) | Reviewer | received (round 1) | Commit `b593d41` on `m1/persistence` (PR #6), branch head `aaa08f0`. Inputs: dev-notes WI-M1-02 and ADR-0004 (Proposed). |
 | 2026-11-20 | Reviewer | Orchestrator → Acceptance Tester | accepted — APPROVE | No Blocker or Major. Four Minor tickets: W2-F1 (file-URL precondition, P-2 defence in depth), W2-F2 (`fileExists` treats any `stat` failure as "no file"), W2-F3 (non-finite dates differ between the stores, PO), W2-F4 (protection class and durability if the store ships on device). Two Nits: W2-F5, W2-F6. 75 tests, 0 failures, 0 warnings locally (Linux, Swift 6.2). Reviewer mutations RM-1 and RM-2 turned the suite red. ADR-0004 confirmed by the Reviewer. Not committed (per instructions). |
+
+---
+
+## WI-M1-03 round 1 — [PR #7](https://github.com/rmaheedharan/Tend/pull/7) (`m1/rule-of-three-selector`, commit `813be42`)
+
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 1
+- **Diff reviewed:** `git diff 7556df7...813be42` (base `main` at `7556df7`). It adds 5 new `Sources/TendCore/Selection/`
+  files, 3 new test suites, 3 new test support files and the WI-M1-03 dev-notes section. It does not touch WI-M1-01/02
+  sources, the scanner, or any protected path.
+  **Owned ACs:** AC-M1-08, AC-M1-09, AC-M1-10, AC-M1-11, AC-M1-12, AC-M1-13, AC-M1-14 (Gate), AC-M1-15, AC-M1-16, plus
+  `E(a, D)` as the shared basis for WI-M1-04 (AC-M1-03, AC-M1-17…21). **Keeps green:** AC-M1-02, AC-M1-23.
+  **Requirements:** FR-B1, UX-2, FR-B2 (basis only). **Inputs:** [brief.md](brief.md) v2 (Definitions, Q1–Q3, Q7,
+  Q11–Q14), [design.md](design.md) (binding naming list, forbidden names, D-1…D-3), [plan.md](plan.md) (WI-M1-03, risks
+  R-3, R-4, R-5, R-12), and [dev-notes.md](dev-notes.md) (WI-M1-03 section).
+- **Verified by the Reviewer (Linux container, Swift 6.2 via the Docker wrapper, worktree at `813be42`):**
+  `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` exited 0 with
+  **"✔ Test run with 104 tests in 14 suites passed after 10.979 seconds."** It had 0 failures and 0 warnings.
+  - Logs: `AC-M1-14 gate: seeds 1...1000, 1000 households, 273931 tasks (min 50, max 500 per household), 10147
+    contextually valid per the oracle`.
+  - `AC-M1-15: seeds 1...1000 (50-500 tasks) and 100001...101000 (0-49 tasks), 2000 households, 14 with no tasks;
+    selection sizes 0/1/2/3 = 494/307/197/1002`.
+  - `AC-M1-16: 2000 property households … and 500 tie-heavy households (seeds 200001...200500) match the oracle's
+    order; 434 tie-heavy selections hold a windowEnd tie, 1117 resurfaced items selected`.
+- **Reviewer mutation RM-3** (applied in the review worktree, then restored with `git checkout`; `git status` was clean
+  afterwards). In `ContextValidity.swift:41`, `case .deferred: isRestOver(at: now)` was changed to
+  `case .deferred: true`, so resting tasks become offerable. Result: **red.** AC-M1-12 case (b) "deferred until now + 1 s
+  (resting)" failed, and the AC-M1-14 gate recorded many oracle failures. This adds to the Developer's nine recorded
+  mutations (M-a…M-i).
+
+### Summary
+This is a clean, well-tested item. The engine now enforces the Rule of Three in its types, and the gate property tests
+check it against an oracle that I judge to be independent.
+
+- **UX-2, the type-level cap (AC-M1-13).**
+  - `NowSelection` stores three private optionals (`NowSelection.swift:16-18`) and has no mutating API. Its only
+    public initialiser returns `nil` for more than 3 items or for a repeated ID (`:28-30`).
+  - Both `select` overloads return `NowSelection`.
+  - I listed every `public` declaration in `Sources/`. The only `[HouseholdTask]` in the public API is
+    `Household.tasks` (the stored household, WI-M1-01), the two inputs, and `NowSelection.items`, which is capped at 3.
+  - The validity predicate, `Slot`, `SlotCalendar` and `ranksBefore` are internal. The working array is a local.
+  - A `Mirror` test pins the storage at three optional fields. Nothing lets a surface see more than 3 items.
+- **Oracle independence (R-4). Judged independent.**
+  - `ContextOracle.swift` imports only the public API. It reads stored fields and `Moment` fields, and calls no
+    production helper: not `isRestOver`, `windowIsOpen`, `accepts`, `SlotCalendar` or `ranksBefore`.
+  - Each step uses a different method from production:
+    - Slot membership: an hour table plus modular weekday arithmetic, against resolved `[start, end)` intervals in
+      production.
+    - Energy, weather and state: tables, against `switch`.
+    - Ranking: a full tuple sort and prefix, against a running top three.
+    - `E`: a 15-minute brute-force scan, against walking slot boundaries.
+  - The only shared dependency is Foundation's `Calendar`. The DST and `E` example tests pin expected instants as
+    hand-written UTC strings, so a Foundation calendar defect would not pass silently through both sides.
+  - `ContextValidityTests` checks the oracle against hand tables (`ContextValidityTests.swift:20-21`).
+  - I checked the two documented assumptions and accept them: all slot starts fall on quarter hours in the 16 zones,
+    and the hour-based and interval-based views agree on DST days. Fall-back repeats an hour just below a transition,
+    and both views put the repeated hour in the same daypart.
+- **DST policy (Q11, R-3).** `SlotCalendar.wallClock` (`SlotCalendar.swift:59-64`) uses `.nextTime` / `.first` exactly
+  as the brief says.
+  - Day arithmetic is anchored at local noon (`:66-76`), so a missing midnight (Santiago) cannot shift a day.
+  - The tests pin both policies in New York with UTC instants, the 6 h and 8 h night slots, eight `E` cases on DST
+    days, and Samoa's skipped 30 December 2011.
+  - 134 gate moments and 156 `E` anchors fall within 12 h of a DST change.
+  - Linux only (see RF-1).
+- **`E(a, D)` (Q14).** `nextAllowedStart` (`SlotCalendar.swift:116-127`) walks days −1…15 in ascending order, and slots
+  in time order within a day. The first hit is therefore the earliest one. It returns `anchor` when the anchor is
+  inside an allowed slot, otherwise the start of the next allowed slot. `windowEnd = s.addingTimeInterval(D)` is the
+  brief's `s + D`. A 1,000-case property against the brute-force oracle passed; the longest move was 155 h.
+- **Naming deviation.** `nextEligibleWindow(from:duration:calendar:timeZone:)` versus the design's
+  `nextEligibleWindow(from:duration:)`: **accepted.** The base name is unchanged, and the extra labels are needed so
+  that `E` resolves slots in the injected calendar and zone (CLAUDE.md §3). They mirror
+  `Rescheduler.reschedule(_:at:calendar:timeZone:)`. design.md allows a change "only by recording the reason in the dev
+  handoff note", and dev-notes records it. The Designer should ratify it in the naming list (RF-5).
+- **D-1 / D-2 / D-3.**
+  - D-1: the code says `isRestOver` / "rest over", never "lapsed".
+  - D-2: no stored field was added to any model type, and nothing keeps an earlier window. `nextEligibleWindow` is
+    pure.
+  - D-3: `ranksBefore` (`NowSelector.swift:41-48`) is exactly the four-key AC-M1-16 order, with no score, priority or
+    weight.
+  - A grep of the added lines for the design-forbidden list found only the comments that say there is no score.
+- **`@testable import`.** In the new files it appears only in `SlotCalendarTests.swift:8`, to pin `wallClock` and
+  `slot(containing:)`. The other `@testable` uses are WI-M1-02 files that already existed. Every other new test uses
+  the public API, and `ContextValidityTests` checks each case through `NowSelector` (`SelectionFixtures.isSelected`).
+- **Swift 6 concurrency.**
+  - All new types are value types and `Sendable`.
+  - There is no `@unchecked Sendable`, no `nonisolated(unsafe)` and no `Task {}`.
+  - The static corpora (`SelectionCorpus.gate` / `.small`) are immutable `let` values of `Result<[SelectionCase], any
+    Error>`, which is `Sendable`.
+- **Architecture and determinism.**
+  - Every new source imports only Foundation.
+  - There is no `Date()`, no `.current` and no unseeded randomness. All test randomness goes through `SplitMix64`.
+  - AC-M1-02 and AC-M1-23 scans still show 0 hits.
+- **Performance (R-5).** `select` makes one O(n) pass with an O(3) insert and computes the slot of `now` once. The whole
+  suite runs in about 11 s.
+
+I found no Blocker or Major.
+
+### Findings
+| ID | Severity | file:line | Problem | Required change | Status |
+|---|---|---|---|---|---|
+| W3-F1 | Minor | `Sources/TendCore/Selection/SlotCalendar.swift:59-64` | **The DST policy and slot boundaries are proven on Linux only (R-3).** On Swift 6.2, Linux and Darwin both use swift-foundation's `Calendar`, so the risk is lower than it was. But iOS 26 runs the system Foundation, which is not the binary these tests ran against. | Rerun `SlotCalendarTests`, `ContextValidityTests` and the AC-M1-14/15/16 properties on the macOS lane when it exists (M3), as dev-notes already lists. No change in this PR. | Open (ticket, M3 macOS lane) |
+| W3-F2 | Minor (watch, for WI-M1-04) | `SlotCalendar.swift:151` | **Floating-point `windowEnd` and AC-M1-20.** Reviewer analysis, not run here: (1) Dates near today are in the binade [2^29, 2^30) s since 2001, so ulp is about 1.19e-7 s. (2) `windowEnd = fl(s + D)`, and `windowEnd − s` is exact (Sterbenz), so after **pass 1** the duration `D₁` is `D` rounded to that ulp grid, which may differ from the stored `D₀` by ≤ 1 ulp. (3) From pass 2 on, `s` is either the previous `windowEnd` (on the grid) or a whole-second slot start (on the grid), so `s + D₁` is exact and `D` stays bit-identical. (4) This holds unless a pass crosses a binade edge: 2018-01-05 18:48:32Z (2^29 s) or 2035-01-10 13:37:04Z (2^30 s). There ulp doubles and `D` can round once more. AC-M1-20 compares pass N with **pass 1**, so it should hold for corpus dates. A test case that runs N = 60 week-long passes across 2035-01-10 could see one more rounding. | WI-M1-04: in the AC-M1-20 property, compare `windowEnd − windowStart` by `bitPattern`, and include one task whose passes cross 2035-01-10 13:37:04Z. If that case differs, take a reading of "identical" to the PO, or snap `s` to a grid. Do not loosen the comparison silently. No change in this PR. | Open (watch, WI-M1-04) |
+| W3-F3 | Nit | `SlotCalendar.swift:150`; `NowSelector.swift:37` | **Two "cannot happen" fallbacks are silent.** `nextEligibleWindow` falls back to `?? anchor`, and `select` falls back to `?? .empty`. If an invariant ever broke, these would hide it: an `E` that starts outside an allowed slot, or an empty selection where valid tasks exist. The property tests would catch the second, but only for corpus inputs. | Optional: add `assertionFailure("…")` before each fallback, so a debug or test run fails loudly. Release behaviour stays calm. | Open (optional) |
+| W3-F4 | Nit | `NowSelection.swift:28` | **`NowSelection.init?(items:)` is public**, so any caller can wrap ≤ 3 arbitrary tasks, including ones that are not contextually valid, as a "Now selection". The UX-2 cap still holds, so this is not a law issue. AC-M1-13's wording ("constructing one with 4+ items … returns nil") allows a public initialiser. | Optional, revisit in M3: state in the doc comment that surfaces must obtain a `NowSelection` only from `NowSelector`, or make the initialiser `internal` once tests use `@testable` for it. | Open (optional) |
+| W3-F5 | Nit | `SlotCalendar.swift:143-148`; design.md naming list | **The naming list still shows `nextEligibleWindow(from:duration:)`.** The deviation is accepted (see Summary). | iOS Designer: update the design.md "Next window" row to `nextEligibleWindow(from:duration:calendar:timeZone:)` at the next design touch. | Open (Designer) |
+| W3-F6 | Nit | `NowSelector.swift:26-29` | **The brief does not define duplicate task IDs** (dev-notes decision 4). With duplicates, the count can be below `min(3, valid)` because two copies of one ID count as one. The repository's upsert keeps IDs unique, so M1 cannot reach this. | PO, only if the M2 parser or M5 sync can produce duplicate IDs. This matches the Developer's own follow-up. | Open (PO, deferred) |
+
+**AC trace (owned ACs):**
+| AC | Code | Test(s) | Reviewer result |
+|---|---|---|---|
+| AC-M1-08 | `EnergyLevel.accepts`, `effortForMatching` (`ContextValidity.swift:11-17, 32-34`) | 3 × 4 parameterised, plus stored effort stays `high` | **Met.** M-a and M-b turn it red. |
+| AC-M1-09 | `SlotCalendar.slots/slot(containing:)`, `Slot.isAllowed` | 12 boundaries incl. `hh:59:59.999`, all 15 daypart sets plus the default set; Tokyo / Los Angeles instant; zone-wins-over-calendar | **Met.** The exact millisecond boundaries the AC names are covered. |
+| AC-M1-10 | night owned by its start day (`SlotCalendar.swift:85-112`) | 7 weekdays at 10:00, Friday 23:00 ✗, Saturday 01:00 ✗, Monday 01:00 ✓ and their edges; Los Angeles / Auckland | **Met.** M-d turns it red. |
+| AC-M1-11 | `isSafeForWeatherDependentTasks` | 5 weathers × both tasks | **Met.** M-c turns it red. |
+| AC-M1-12 | `isOfferable`, `windowIsOpen` (half-open) | 9 cases a–i with a sub-second `now`, plus maintenance and resurfaced | **Met.** RM-3 turns case (b) red. |
+| AC-M1-13 | `NowSelection` (3 optional slots, failable init), `NowSelector` | 4…10 → `nil`, duplicate → `nil`, `Mirror` storage, 100 valid → 3, purity; public API listing in dev-notes, confirmed by the Reviewer's `public` grep | **Met.** |
+| AC-M1-14 (Gate) | `NowSelector.select` | seeds 1…1000, 1,000 households, 50–500 tasks (min 50, max 500), 16 zones, every state incl. resting and rest over, window positions incl. `windowEnd == now` from the generator; ≤ 3, no duplicates, oracle-valid, element of the household; the seed is printed on failure | **Met.** The oracle is independent (see Summary). |
+| AC-M1-15 | as above | 2,000 households (incl. 0–49 tasks, 14 empty); `count == min(3, oracle valid)`; all sizes 0–3 occur; empty and all-invalid (500 tasks, +100 y) → `.empty` | **Met.** |
+| AC-M1-16 | `ranksBefore` + running top three | five resurfaced, equal-`windowEnd` ties, critical vs non-critical, 51 input orders; property: 2,000 corpus + 500 tie-heavy households equal the oracle's sorted prefix | **Met.** M-e and M-i turn it red. |
+| `E(a, D)` (basis) | `nextAllowedStart`, `nextEligibleWindow` | 11 examples, purity and duration, DST policy, DST nights, 8 DST cases, Samoa, 1,000-case brute-force property | **Met** for WI-M1-03's scope. W3-F2 is the watch item for AC-M1-20. |
+| AC-M1-02, AC-M1-23 | all of `Sources/` (20 files) | WI-M1-01 scans | **Still met.** 0 hits. |
+
+### Checklist
+- [x] Correctness against the ACs. Every owned AC is traced above to code and a test.
+- [x] Tests are meaningful. Hand-written tables check both production and the oracle. The property tests are seeded
+  and print the seed on failure, the corpus is large, and coverage is asserted. Nine Developer mutations and RM-3 all
+  turned the suite red. No test is skipped or weakened.
+- [x] Swift 6 concurrency is safe. Everything is a value type and `Sendable`; there are no unsafe escapes and no tasks.
+- [x] No force unwraps and no `try!` in product code. The `?? anchor` and `?? .empty` fallbacks are W3-F3.
+- [x] Privacy (P-1…P-4). This is pure computation on injected values, with no I/O and no networking.
+- [x] UX-2 and UX-3 are enforced in the engine. The type caps the selection at 3, and D-1…D-3 are clean.
+- [x] Accessibility (UI): n.a., there is no UI in M1.
+- [x] Performance. One O(n) pass, and the slot of `now` is computed once. The whole suite runs in about 11 s.
+- [x] No new dependency without an ADR. Only Foundation is used.
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | pass | The ≤ 3 cap is in the engine type (FR-B1, AC-M1-13): three storage slots, and a failable initialiser that rejects 4+ items or a repeated ID. Every public "what to do now" path returns `NowSelection`. A public-API grep found no unbounded "now" list. AC-M1-14/15 prove the cap over 2,000 households. W3-F4 is a Nit about provenance, not about the cap. |
+| UX-3 Zero-Guilt | pass | No overdue state, counter or original-window field (D-2). The ranking key is fixed and does not grow with time (D-3). The code says "rest over" (D-1). An empty selection is a calm result (AC-M1-15). AC-M1-02 scan: 0 hits. |
+| UX-4 Design craft | n.a. | No UI in M1. |
+| P-1 On-device inference | n.a. | No AI. |
+| P-2 No data leaves device (except user iCloud) | pass | Weather is injected, never fetched (Q8). There is no I/O. AC-M1-23 scan: 0 hits. |
+| P-3 Cloud escalation only via PCC + ADR | n.a. | No cloud path. |
+| P-4 Media not persisted without consent | n.a. | No media. |
+
+### Open questions
+- **Developer (WI-M1-04):** W3-F2. Assert duration identity by `bitPattern` in AC-M1-20, and add a case that crosses
+  2035-01-10 13:37:04Z.
+- **iOS Designer:** W3-F5. Ratify the `calendar:timeZone:` labels in the naming list.
+- **Orchestrator:** dev-notes still says "PR: opened by the Orchestrator (link to be added)". The link is PR #7.
+  **Documenter:** add traceability rows for AC-M1-08…16 and for `E(a, D)` as the basis of AC-M1-03 and AC-M1-17…21.
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-20 | Developer (via Orchestrator) | Reviewer | received (round 1) | PR #7, commit `813be42` on `m1/rule-of-three-selector`, base `main` `7556df7`. Inputs: dev-notes WI-M1-03, brief v2, design.md, plan.md. |
+| 2026-11-20 | Reviewer | Orchestrator → Acceptance Tester | accepted — APPROVE | No Blocker or Major. Two Minor tickets: W3-F1 (Darwin rerun of the DST and slot tests, M3) and W3-F2 (floating-point duration watch for WI-M1-04 / AC-M1-20). Four Nits: W3-F3…W3-F6. The local run gave "Test run with 104 tests in 14 suites passed after 10.979 seconds" (Linux, Swift 6.2, `-warnings-as-errors`, 0 warnings). RM-3 turned the suite red. The oracle is judged independent (R-4). The naming deviation is accepted. |
