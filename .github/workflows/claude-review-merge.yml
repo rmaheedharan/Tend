@@ -1,7 +1,18 @@
 # Auto review and merge with the Merge Gatekeeper agent.
 # Setup (once, by a repo admin):
 #   1. Install the Claude GitHub App on this repo: https://github.com/apps/claude
-#   2. Add secret ANTHROPIC_API_KEY (or CLAUDE_CODE_OAUTH_TOKEN; then swap the input below).
+#   2. Auth uses Workload Identity Federation (GitHub OIDC -> short-lived Anthropic token). No API key secret.
+#      In the Claude Console > Workload identity > Connect workload > GitHub Actions:
+#        issuer https://token.actions.githubusercontent.com (JWKS: discovery), a service account in the
+#        workspace, and a federation rule with subject prefix  repo:<owner>/<repo>:*  and
+#        audience https://api.anthropic.com.
+#      Then add these repo variables (Settings > Secrets and variables > Actions > Variables).
+#      They are identifiers, not secrets:
+#        ANTHROPIC_FEDERATION_RULE_ID   (fdrl_...)
+#        ANTHROPIC_ORGANIZATION_ID      (organization UUID)
+#        ANTHROPIC_SERVICE_ACCOUNT_ID   (svac_...)
+#        ANTHROPIC_WORKSPACE_ID         (wrkspc_..., optional if the rule targets one workspace)
+#      Do not also set an ANTHROPIC_API_KEY input: a static key would win over federation.
 #   3. Add repo variable AUTO_MERGE_ENABLED = true  (set to false to pause auto-merge at any time).
 #   4. Settings > General: tick "Allow auto-merge".
 #   5. Settings > Actions > General > Workflow permissions: "Read and write permissions".
@@ -57,7 +68,12 @@ jobs:
       - name: Run Merge Gatekeeper
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Workload Identity Federation: the action fetches a GitHub OIDC token (needs id-token: write)
+          # and exchanges it for a short-lived Anthropic token.
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             You are the Tend Merge Gatekeeper for pull request #${{ env.PR_NUMBER }} in ${{ github.repository }}.
