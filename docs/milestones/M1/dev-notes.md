@@ -1,4 +1,4 @@
-# M1 Developer Handoff — WI-M1-01, WI-M1-02 (later sections: WI-M1-03…04)
+# M1 Developer Handoff — WI-M1-01, WI-M1-02, WI-M1-03 (later section: WI-M1-04)
 
 One section per work item. Each section follows the dev-notes template.
 
@@ -442,3 +442,209 @@ Device ACs: none in M1 (brief).
 |---|---|---|---|---|
 | 2026-11-20 | Orchestrator | Developer | accepted | WI-M1-02 started on `m1/persistence`, stacked on `m1/core-model` (WI-M1-01 under review). Mid-task note: PO decisions Q17/Q18 confine file I/O to `JSONFileHouseholdRepository.swift`. This is followed. |
 | 2026-11-20 | Developer | Reviewer (via Orchestrator) | sent (H4) | WI-M1-02 built test-first. 73 tests, 11 suites, 0 failures, 0 warnings on Linux Swift 6.2.4. ADR-0004 Proposed. R-8 finding: `replaceItemAt` loses data on Linux, so the store uses `.atomic`. No naming deviations. Not verified on macOS. Not committed. |
+
+---
+
+## WI-M1-03 — Slot calendar and `E(a, D)`, context filter, `NowSelection` and the Rule-of-Three selector, gate property tests
+
+- **Owner:** Developer  ·  **Branch:** `m1/rule-of-three-selector` (from `main` at `7556df7`, which includes WI-M1-01 and
+  WI-M1-02)  ·  **PR:** _opened by the Orchestrator (link to be added)_  ·  **ADRs:** none new. ADR-0001 applies
+  (Foundation only; `now`, calendar, time zone and weather are injected).
+- **Requirements:** FR-B1, UX-2, plus the shared basis for FR-B2; S-M1-03, S-M1-04. **Owns** AC-M1-08…16. AC-M1-14 is
+  a gate AC. AC-M1-02 and AC-M1-23 stay green over the larger `Sources/` tree. Risks R-3, R-4, R-5 and R-12.
+- **Inputs:** [brief.md](brief.md) v2 (Definitions: Daypart, Slot, energy match, weather-safe, effective state, window
+  open/passed, contextually valid, `E(a, D)`; Q1–Q3, Q7, Q11–Q14), [design.md](design.md) (`Moment`, `NowSelection`,
+  `NowSelector`, `nextEligibleWindow(from:duration:)`, the UX-2 bypass ban, D-1, D-3), [plan.md](plan.md) (WI-M1-03
+  scope).
+- **Out of scope:** the rescheduler, completion and determinism (WI-M1-04). Nothing in this item changes a task.
+
+### What changed
+- **`Sources/TendCore/Selection/`** (5 new files, Foundation only; no change to the model or persistence files):
+  - `Moment.swift`: `public struct Moment` with the design's members (`now`, `calendar`, `timeZone`, `weather`,
+    `energy`). The injected `timeZone` is applied to the stored calendar, so the zone argument wins over the
+    calendar's own zone.
+  - `SlotCalendar.swift`:
+    - `Daypart.startHour` (internal).
+    - Internal `Slot` (daypart, owning weekday, `[start, end)`) and internal `SlotCalendar`:
+      - wall-clock boundaries come from `date(bySettingHour:…, matchingPolicy: .nextTime, repeatedTimePolicy:
+        .first)` (Q11);
+      - days are anchored at local noon, which exists on every day;
+      - `slot(containing:)` checks the day's own four slots and the previous day's night;
+      - `nextAllowedStart(from:dayparts:weekdays:)` gives `s` in `E(a, D)`.
+    - The public `HouseholdTask.nextEligibleWindow(from:duration:calendar:timeZone:)` returns
+      `(windowStart: s, windowEnd: s + duration)`.
+  - `ContextValidity.swift`: the brief's "contextually valid at `now`" as an **internal**
+    `isContextuallyValid(in:slotOfNow:)`. It uses these helpers:
+    - `EnergyLevel.accepts(_:)` (Q1);
+    - `WeatherCondition.isSafeForWeatherDependentTasks` (Q3);
+    - `effortForMatching`: maintenance counts as low; the stored effort is unchanged;
+    - `isOfferable(at:)`: effective state, where a deferral whose rest is over counts as active (Q12, D-1).
+  - `NowSelection.swift`: `public struct NowSelection` with `capacity = 3`, `empty`, `init?(items:)`, `items`, `count`
+    and `isEmpty`. Storage is three private optionals (`first`, `second`, `third`), so the type has nowhere to put a
+    fourth item. `init?(items:)` returns `nil` for more than 3 items or for a repeated task ID. There is no mutating API.
+  - `NowSelector.swift`: `public enum NowSelector`.
+    - `select(from: Household, in: Moment)` and `select(from: [HouseholdTask], in: Moment)` both return `NowSelection`.
+    - The slot of `now` is computed once per call. One pass keeps a running top three; there is no full sort.
+    - `ranksBefore` is the exact AC-M1-16 key: no score, priority or weight, and no randomness.
+- **Tests** (`Tests/TendCoreTests/`): 29 new test functions in 3 new suites. **104 tests in 14 suites in total.**
+  - `ContextValidityTests.swift` covers AC-M1-08…12. Each case is checked through the **public** API (a one-task
+    household is selected exactly when the task is valid) **and** against the oracle. The expected values are tables
+    written by hand from the brief, so the oracle is tested as well.
+  - `NowSelectorTests.swift` covers AC-M1-13…16: the gate property and the ranking examples. It also holds
+    `TieCorpus`, a set of tie-heavy households for the AC-M1-16 property.
+  - `SlotCalendarTests.swift`: `E(a, D)` examples, the DST policy, night slots across DST, a calendar day that does not
+    exist (Samoa, 30 December 2011), and a 1,000-case property against a brute-force oracle. It uses
+    `@testable import` to reach `SlotCalendar.wallClock` and `slot(containing:)`.
+  - `Support/ContextOracle.swift`: the **independent oracle** (R-4). See "Things the reviewer should look at closely".
+  - `Support/SelectionCorpus.swift`: the seeded property corpus. It reuses `HouseholdGenerator` and `SplitMix64`
+    (WI-M1-02) and adds a random context per seed: 16 named zones, `now` within ±3 years of the reference date with a
+    sub-second part (a quarter of cases within ±12 h of a DST change in the chosen zone), weather and energy. The
+    corpus is built once per test process and shared.
+  - `Support/SelectionFixtures.swift`: named zones, a Gregorian calendar built in the test, local-time and UTC
+    instants, `openTask`, and `isSelected`.
+- **Docs:** this section and the title line of this file.
+- **Not touched:** the WI-M1-01/02 sources, the scanner, `CLAUDE.md`, `.claude/**`, `.github/**`,
+  `docs/governance/**`, `docs/PRD.md`, `docs/milestones/STATUS.md`.
+
+### Public API added (AC-M1-13 listing, for the Reviewer's naming, UX-2, D-2 and D-3 check; R-12)
+```
+public struct Moment: Hashable, Sendable {
+  public let now: Date; public let calendar: Calendar; public let timeZone: TimeZone
+  public let weather: WeatherCondition; public let energy: EnergyLevel
+  public init(now: Date, calendar: Calendar, timeZone: TimeZone, weather: WeatherCondition, energy: EnergyLevel) }
+public struct NowSelection: Hashable, Sendable {
+  public static let capacity = 3; public static let empty: NowSelection
+  public init?(items: [HouseholdTask])            // nil for > 3 items or a repeated task ID
+  public var items: [HouseholdTask] { get }       // ≤ 3, ranked
+  public var count: Int { get }; public var isEmpty: Bool { get } }
+public enum NowSelector {
+  public static func select(from household: Household, in moment: Moment) -> NowSelection
+  public static func select(from tasks: [HouseholdTask], in moment: Moment) -> NowSelection }
+extension HouseholdTask {
+  public func nextEligibleWindow(from anchor: Date, duration: TimeInterval, calendar: Calendar, timeZone: TimeZone)
+    -> (windowStart: Date, windowEnd: Date) }
+```
+- **Every way to ask "what to do now" returns `NowSelection`.** No public API returns an unbounded list of "now"
+  items. The validity predicate, `Slot`, `SlotCalendar`, the ranking comparator and the working array inside `select`
+  are all `internal` or `private`. `[HouseholdTask]` appears in the public API only as an *input*
+  (`select(from:)`, `NowSelection.init?(items:)`) and as `NowSelection.items` (≤ 3). `Household.tasks` (WI-M1-01) is
+  the stored household, not a "now" surface.
+- **Naming-list deviations (one):** `nextEligibleWindow(from:duration:)` has two extra arguments,
+  `calendar:timeZone:`. Reason: `E(a, D)` must resolve slots in the injected calendar and zone (CLAUDE.md §3). A
+  method on the task is the only place that knows the allowed dayparts and weekdays. The labels match the design's
+  `Rescheduler.reschedule(_:at:calendar:timeZone:)`. The name itself is unchanged and passes the forbidden list.
+- **Additions not in the naming list:** `NowSelection.empty`, `NowSelection.count`, and a second `select(from:in:)`
+  overload over `[HouseholdTask]`. All of them are capped or are inputs.
+- No new stored field on any model type (D-2). Nothing ranks by time elapsed since a window ended (D-3). A grep of
+  `Selection/` for the design-forbidden list finds only the comment that says there is no score.
+
+### Decisions the Reviewer should know (technical, reversible; no product meaning changed)
+1. **Slots are intervals built from resolved boundaries.** Membership is `start ≤ t < end`; it is not the local hour.
+   With the Q11 policies, the slots tile time with no gap. On a fall-back night the repeated hour stays inside the
+   slot it started in.
+2. **A day is anchored at local noon.** Day arithmetic uses `date(byAdding: .day)` from noon, then sets the boundary
+   hour, so a nonexistent midnight cannot shift a day (for example `America/Santiago`).
+3. **`E` searches up to 15 days ahead and starts one day early**, because before 05:00 the anchor is in the previous
+   day's night slot. Allowed sets are never empty (AC-M1-25), so a real slot is always found within 8 days. The
+   property's longest move is 155 h. If the calendar cannot resolve a day at all, `E` returns `s = anchor`. This is
+   documented, cannot be reached with Gregorian, and is never a crash.
+4. **A repeated task ID in the input:** only the better-ranked copy can be chosen, and `NowSelection` refuses
+   duplicates. The repository already keeps IDs unique (upsert), so this is defence in depth. It is not a product
+   rule, because the brief does not define duplicate IDs.
+5. **`select` returns `NowSelection(items:) ?? .empty`.** The fallback cannot fire, because the loop keeps ≤ 3
+   distinct IDs. The property tests would show it if it did (AC-M1-15 count check).
+6. **`windowEnd = s.addingTimeInterval(D)`**, exactly as the brief writes `s + D`. See the AC-M1-20 risk under Known
+   limitations.
+
+### AC coverage
+| AC | Test(s) (Swift Testing display names; suite) | Result |
+|---|---|---|
+| AC-M1-08 | "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all". 3 × 4 parameterised (energy × low / normal / high / high deep clean in maintenance). Also asserts the stored effort stays `high`. | PASS (Linux), 12 cases |
+| AC-M1-09 | "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" (12 boundaries: 04:59, 04:59:59.999, 05:00, 11:59, 11:59:59.999, 12:00, 16:59, 16:59:59.999, 17:00, 21:59, 21:59:59.999, 22:00, Berlin). Each case checks the 4 single-daypart tasks, all 15 non-empty daypart sets and the default set. "AC-M1-09: one instant in two injected time zones follows each zone's local daypart" (Tokyo 19:00 / Los Angeles 02:00). "AC-M1-09: the injected time zone wins over the time zone carried by the injected calendar". | PASS (Linux) |
+| AC-M1-10 | "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" (15 cases: 10:00 on each of 7 days; Friday 23:00 ✗; Saturday 01:00 ✗; Saturday 04:59:59.999 ✗; Saturday 05:00 ✓; Saturday 23:00 ✓; Monday 01:00 ✓; Monday 04:59:59.999 ✓; Monday 05:00 ✗). "AC-M1-10: an instant that is Sunday 10:00 in one injected zone and Monday in another follows the injected zone" (Los Angeles / Auckland). | PASS (Linux) |
+| AC-M1-11 | "AC-M1-11: a weather-dependent task is valid only in clear or cloudy weather; others ignore the weather" (5 cases, both tasks each). | PASS (Linux) |
+| AC-M1-12 | "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" (9 cases a–i, sub-second `now`). (c), (d), (e), (h) are valid; (a), (b), (f), (g), (i) are not. Also "AC-M1-12: maintenance and resurfaced tasks with an open window are valid; the selector does not change them". | PASS (Linux) |
+| AC-M1-13 | "AC-M1-13: NowSelection holds 0 to 3 items and cannot be constructed with 4 or more" (4…10 → `nil`). "AC-M1-13: NowSelection rejects the same task twice". "AC-M1-13: NowSelection stores exactly three optional task slots, so a fourth item has nowhere to go" (Mirror log: `["first: Optional<HouseholdTask>", "second: Optional<HouseholdTask>", "third: Optional<HouseholdTask>"]`). "AC-M1-13: the selector returns a NowSelection of 3 even when 100 tasks are valid". "AC-M1-13 / Q13: the selector returns tasks unchanged and does not move a task whose window ended". Public API listing above. | PASS (Linux) + Reviewer API inspection |
+| AC-M1-14 (Gate) | "AC-M1-14 (Gate): over 1,000 seeded households of 50-500 tasks every selection has at most 3 items, no duplicates, and every item passes the independent oracle". Log: `seeds 1...1000, 1000 households, 273931 tasks (min 50, max 500 per household), 10147 contextually valid per the oracle`; `selection sizes 0/1/2/3 = 20/42/49/889; 16 time zones, 5 weather values, 3 energy levels, 134 moments within 12 h of a DST change; task states seen: [active, completed, deferred (rest over), deferred (resting), maintenance, resurfaced]`. Each item is also checked to be an unchanged element of the household. Every failure message prints the seed and context. Window positions (ended, ends at `now`, open, starts at `now`, upcoming) come from the generator; their coverage is proven by WI-M1-02's `GeneratorTests`. | PASS (Linux) |
+| AC-M1-15 | "AC-M1-15: the selection size equals min(3, number of contextually valid tasks) for 50-500 and 0-49 task households". Log: `seeds 1...1000 (50-500 tasks) and 100001...101000 (0-49 tasks), 2000 households, 14 with no tasks; selection sizes 0/1/2/3 = 494/307/197/1002`; the test requires every size to occur. "AC-M1-15: an empty household and a 500-task household with nothing valid give an empty selection without error". | PASS (Linux) |
+| AC-M1-16 | Examples: "…five resurfaced criticals compete; only the three with the earliest windowEnd are returned, ahead of an earlier active task"; "…equal windowEnd ties go to critical tasks first, then ascending ID"; "…a non-resurfaced critical ranks after a non-critical with an earlier windowEnd, and before one with the same windowEnd"; "…the order does not depend on the order of the household's tasks" (50 seeded shuffles plus reversed). Property: "AC-M1-16: over the property households and 500 tie-heavy households the items are exactly the oracle's sorted first min(3, n)". Log: `2000 property households … and 500 tie-heavy households (seeds 200001...200500) match the oracle's order; 434 tie-heavy selections hold a windowEnd tie, 1117 resurfaced items selected`. | PASS (Linux) |
+| `E(a, D)` (basis for AC-M1-03/17…21, owned by WI-M1-04) | "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" (11 cases); "E(a, D): the task is not changed and only the requested duration is used"; "R-3 / Q11: a nonexistent local time resolves to the next instant, a repeated one to its first occurrence"; "R-3: a night slot across a DST change runs from 22:00 to 05:00 local (6 h in spring, 8 h in autumn) and belongs to Saturday"; "R-3: E(a, D) on DST days in America/New_York" (8 cases); "R-3: a calendar day that does not exist (Samoa skipped Friday 30 December 2011) moves a Friday task to the next Friday"; "E(a, D): over 1,000 seeded tasks, anchors and time zones the window equals the brute-force oracle's, with windowEnd = s + D". Log: `seeds 300001...301000, 1000 cases, 265 start at the anchor, 735 move to a later slot, 156 anchors within 12 h of a DST change, longest move 155 h`. | PASS (Linux) |
+| AC-M1-02, AC-M1-23 (still clean) | `AC-M1-02 scan: 20 files scanned … 0 hits`; `AC-M1-23 scan: 20 files scanned … 0 hits`. The new code never writes `.now` without a receiver (only `moment.now`), and uses no `append(contentsOf:)`, no `random`, and no `Calendar.current`. | PASS (Linux) |
+
+**Tests fail when the behaviour breaks.** Each mutation was applied to `Sources/TendCore/Selection/`, the full suite was
+run, and the source was restored (checked with `diff` against a saved copy):
+
+| Mutation | Tests that went red |
+|---|---|
+| M-a: normal energy accepts high effort | AC-M1-08, AC-M1-14 (oracle), AC-M1-15, AC-M1-16 property (673 issues) |
+| M-b: maintenance not counted as low | AC-M1-08, AC-M1-12 maintenance test, AC-M1-15, AC-M1-16 property |
+| M-c: `unknown` weather counted as safe | AC-M1-11, AC-M1-14, AC-M1-15, AC-M1-16 property |
+| M-d: weekday ignored | both AC-M1-10 tests, AC-M1-14, AC-M1-15, AC-M1-16 property (3,425 issues) |
+| M-e: ranking keys 2 and 3 swapped | AC-M1-16 critical-vs-non-critical example, AC-M1-16 property |
+| M-f: DST repeated-time policy `.last` | R-3 / Q11 DST policy test |
+| M-g: `E` never starts at the anchor | `E` examples, DST cases, `E` property |
+| M-h: `E` ignores the previous day's night slot | `E` examples, DST cases, `E` property |
+| M-i: the running top three drops the best item | all four AC-M1-16 tests |
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors`: **104 tests in 14 suites passed**, 0 failures, 0 skipped, 0 warnings, about 15 s | ✔ container, Swift 6.2.4 (`swift:6.2-noble` via the Docker wrapper) | — | — | — | Linux CI runs the same command on the PR. The Gatekeeper should confirm "Test run with 104 tests" in the CI log (R-6). |
+| Runtime (R-5) | ✔ The shared corpus is built once (about 5 s). AC-M1-14: 5.6 s; AC-M1-15: 5.8 s; AC-M1-16 property: 6.2 s (these run in parallel and share the corpus). The whole run is about 15 s of wall time, against about 10 s before this item. | — | — | — | Well inside the 20-minute CI timeout |
+| Named zones and DST (R-3): New York spring and autumn 2026, Samoa 2011, 16 zones in the properties | ✔ container (tzdata present) | — | — | — | **Darwin not checked.** Foundation's `date(bySettingHour:…)` policies were probed on Linux only. The macOS lane (M3) should rerun `SlotCalendarTests` and the gate properties. |
+| AC-M1-08…16 | ✔ container | — | — | — | — |
+
+No AC in this item needs a device.
+
+### Things the reviewer should look at closely
+- **Oracle independence (R-4), in `Support/ContextOracle.swift`.** The oracle calls no `TendCore` function. It only reads
+  public stored fields and `Moment`'s fields. Each step uses a different method from production:
+  - **daypart and weekday:** the oracle reads the local `hour` and `weekday` components and has a written-out hour
+    table. "Before 05:00 belongs to the previous weekday" is modular arithmetic on the weekday number. Production
+    builds `[start, end)` slot intervals from resolved boundaries.
+  - **energy, weather and state:** the oracle uses written-out tables. Production uses `switch`.
+  - **ranking:** the oracle does a full sort on a tuple key and takes the prefix. Production keeps a running top three
+    with a comparator.
+  - **`E`:** the oracle scans forward in 15-minute steps. Production walks slot boundaries.
+
+  Both sides share the injected `Calendar` (Foundation) and the brief's definitions; nothing else is shared. The
+  hand-written tables in `ContextValidityTests` check the oracle too.
+- **Oracle assumption.** The 15-minute brute-force `E` oracle assumes that every zone offset and DST change falls on a
+  quarter hour. That holds for all 16 test zones and for Samoa in the years used. It does not hold for historical
+  (pre-1970) local mean times, which the tests do not use.
+- **Two ways to classify the same instant.** The hour-based oracle and the interval-based production code could only
+  disagree in a zone whose DST change crosses a daypart boundary hour (05, 12, 17 or 22). No zone in the corpus does
+  this. 134 gate moments and 156 `E` anchors fall within 12 h of a DST change, and all agree.
+- **`@testable import TendCore`** in `SlotCalendarTests.swift`. It is the only new use, and it reaches
+  `SlotCalendar.wallClock` and `slot(containing:)` to pin the Q11 DST policy directly. Every other new test uses the
+  public API.
+- **The one naming deviation** (`calendar:timeZone:` on `nextEligibleWindow`) and the extra `NowSelection.count`,
+  `NowSelection.empty` and array overload (see the API listing).
+- **Seeds and toolchains.** The corpus seeds replay on the same toolchain. Review W2-F6 also applies here, because
+  `Int.random(in:using:)` maps seeds to ranges.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| **Risk for WI-M1-04, AC-M1-20:** `windowEnd = s + D` is a `Double` addition. `(s + D) − s` can differ from `D` by 1 ulp for some `s`, so "`windowEnd − windowStart` identical after N passes" may not hold bit-for-bit. `E` here does exactly what the brief writes (tests check `windowEnd == s.addingTimeInterval(D)`). WI-M1-04 should measure this over its N = 1…60 property before choosing a fix. Options are to compare durations within 1 ulp (needs a PO reading of "identical") or to round `s` to a representable grid. No AC change is proposed here. | Minor (watch) | Developer, WI-M1-04 |
+| Darwin rerun of the DST and slot tests (R-3) | Minor | M3 macOS CI lane |
+| Duplicate task IDs have no product rule; the selector keeps the better-ranked copy (decision 4) | Nit | PO, only if duplicate IDs can ever arise (M2 parser, M5 sync) |
+| `docs/product/TRACEABILITY.md` rows for AC-M1-08…16 | — | Product Documenter |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | pass | The cap is in the engine type. `NowSelection` has three storage slots, and its only initialiser rejects 4+ items or a repeated task. Both `select` overloads return it. No public unbounded "now" list exists: the predicate, slots, comparator and working array are internal or private. Proven by AC-M1-13 and by the AC-M1-14/15 properties over 2,000 households. |
+| UX-3 Zero-Guilt | pass | No new stored field and no counter (D-2). Ranking is the fixed four-key order; nothing grows with time (D-3). The code says "rest over" (`isRestOver`, D-1), never "lapsed". Test names and logs say "window ended", never "missed". An empty selection is a normal result, not an error. AC-M1-02 scan: 20 files, 0 hits. |
+| UX-4 Design craft | n.a. | No UI in M1. |
+| P-1 On-device inference | n.a. | No AI. |
+| P-2 No data leaves device (except user iCloud) | pass | Pure computation on injected values. Weather is an input and is never fetched (Q8). AC-M1-23 scan: 20 files, 0 hits. |
+| P-3 Cloud escalation only via PCC + ADR | n.a. | No cloud path. |
+| P-4 Media not persisted without consent | n.a. | No media. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-20 | Orchestrator | Developer | accepted | WI-M1-03 on `m1/rule-of-three-selector`. Mid-task: the branch was brought up to date with `main` at `7556df7` (PRs #3, #5, #6 merged; fast-forward). |
+| 2026-11-20 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first. 104 tests in 14 suites, 0 failures, 0 warnings on Linux Swift 6.2.4. AC-M1-08…16 PASS on Linux, with the AC-M1-14 gate over 1,000 households. Nine mutations, all red. One naming deviation (`calendar:timeZone:` on `nextEligibleWindow`). AC-M1-20 floating-point risk flagged for WI-M1-04. Not verified on Darwin. |
