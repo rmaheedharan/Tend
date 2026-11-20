@@ -95,6 +95,8 @@ reviews it independently and merges it only if the review is `APPROVE`, all chec
 it, and no protected file (`CLAUDE.md`, `docs/PRD.md`, `.claude/**`, `.github/**`, `docs/governance/**`,
 `docs/milestones/STATUS.md`) is touched. Changes to the team's own rules always need a human merge. The repo variable
 `AUTO_MERGE_ENABLED` is the kill switch. A merge never means a milestone is accepted.
+Since 2026-11-20 (D-028) the workflow is off (`AUTO_MERGE_ENABLED=false`): the orchestrator session runs the
+`merge-gatekeeper` agent locally and merges only on its `DECISION: MERGE`, under the same rules G1–G8.
 
 ### The delivery loop (per milestone)
 
@@ -153,7 +155,8 @@ Build in five vertical slices, **M1 → M5**, as defined in PRD §4. Gate status
 
 ```bash
 # Core engine (platform-independent)
-swift test --package-path Packages/TendCore
+swift build --package-path Packages/TendCore -Xswiftc -warnings-as-errors
+swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors   # same as CI (AC-M1-24)
 
 # App (macOS + Xcode 26 required)
 # xcodegen generate && xcodebuild test -scheme Tend -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
@@ -180,7 +183,6 @@ docs/product/                 ← user-facing docs, traceability, changelog, rel
    supported with adaptive layout from M3; no iPad-only features. Confirm before M3.
 2. **Private Cloud Compute.** Third-party access to PCC through `FoundationModels` may not exist for
    our use case. Default: on-device only, degrade gracefully. Confirm before M2.
-3. **Weather context (FR-B1, FR-A1).** WeatherKit sends a location-derived request to Apple; treat as
-   allowed under P-2 only with coarse location and an ADR. Confirm before M1 closes (the engine takes
-   weather as an injected input either way).
+3. **Weather context (FR-B1, FR-A1).** *Resolved 2026-11-20 (D-023):* the owner allows WeatherKit with
+   coarse location only; an ADR is required before wiring (M3/M4). The engine keeps weather as an injected input.
 4. **Naming.** PRD uses "Hearth" in places. Treated as Tend. PO to clean the PRD text when convenient.
