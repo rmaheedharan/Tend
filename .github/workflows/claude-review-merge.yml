@@ -4,8 +4,10 @@
 #   2. Auth uses Workload Identity Federation (GitHub OIDC -> short-lived Anthropic token). No API key secret.
 #      In the Claude Console > Workload identity > Connect workload > GitHub Actions:
 #        issuer https://token.actions.githubusercontent.com (JWKS: discovery), a service account in the
-#        workspace, and a federation rule with subject prefix  repo:<owner>/<repo>:*  and
-#        audience https://api.anthropic.com.
+#        workspace, and a federation rule with audience https://api.anthropic.com and a subject
+#        prefix copied from the job's real token. GitHub's subject includes IDs, e.g.
+#        repo:<owner>@<owner_id>/<repo>@<repo_id>:pull_request, so use
+#        repo:<owner>@<owner_id>/<repo>@<repo_id>:  (plus claim repository_owner = <owner>).
 #      Then add these repo variables (Settings > Secrets and variables > Actions > Variables).
 #      They are identifiers, not secrets:
 #        ANTHROPIC_FEDERATION_RULE_ID   (fdrl_...)
