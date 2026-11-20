@@ -242,8 +242,15 @@ result can be reproduced, trusted and tested on any machine without touching the
   `TimeZone.current`, `TimeZone.autoupdatingCurrent`, `Locale.current`, `Locale.autoupdatingCurrent`,
   `ProcessInfo`, `UUID()`, `SystemRandomNumberGenerator`, any call to `.random(`, `.randomElement(`, `.shuffled(` or
   `.shuffle(` whose argument list does not contain `using:`, `URLSession`, `URLRequest`, `URLConnection`,
-  `NSURLConnection`, `Socket`, `NSStream`, `Stream(`, `Host(`, `Host.current`, and string literals containing `http://`
-  or `https://`. A negative test proves the scanner detects each pattern when planted.  *Verification:* unit (source
+  `NSURLConnection`, `Socket`, `NSStream`, `Stream(`, `InputStream(`, `OutputStream(`, `getStreamsToHost`, `Host(`,
+  `Host.current`, `URL(string:`, `arc4random` (any `arc4random*`), `drand48`, `erand48`, `lrand48`, `srand48`, `rand(`,
+  `random()`, and string literals containing `http://` or `https://`. `contentsOf:` (e.g. `Data(contentsOf:)`,
+  `String(contentsOf:)`) is banned everywhere **except** in the source file(s) implementing the JSON file repository,
+  which the scan test names in a fixed allowlist; there it is allowed only because `URL(string:` is banned and file URLs
+  come from file-path initialisers. Exactly two type names are exempt from the `Stream(` pattern: `AsyncStream` and
+  `AsyncThrowingStream` (Swift concurrency, not networking); no other exemption may be added without a PO decision.
+  Names are matched at camelCase word boundaries. A negative test proves the scanner detects each pattern when planted,
+  and a positive test proves `AsyncStream(` / `AsyncThrowingStream(` and allowlisted `contentsOf:` are not reported.  *Verification:* unit (source
   scan) + Linux build  *Evidence expected:* test name + log.
 - **AC-M1-24** **(Gate)** Given the M1 merge commit, when `swift test --package-path Packages/TendCore` runs on Linux
   CI (Swift 6.2, strict concurrency), then 100% of tests pass with 0 failures, 0 skipped/disabled tests, and 0 compiler
@@ -282,6 +289,8 @@ Documenter/human owner should copy them into `DECISIONS.md` as D-002… on the n
 | Q14 | What exactly is the "next eligible window"? (T-02) | `E(a, D)` as defined above: start at `a` if `a` is inside an allowed slot, else at the start of the next allowed slot; keep the original duration `D`. All kinds, recurring included, move by this rule when a window passes (never skipped, never doubled); recurrence `interval` applies only on completion, anchored at `now + interval` days. Keeping `D` means a task given a week gets another week, and nothing shrinks or grows. (PO decision) | M1 (decided) |
 | Q15 | What happens with degenerate inputs? (T-04) | They are rejected as model invariants at construction and on decode (AC-M1-25), never silently repaired. A task can't be both critical and deep clean; `maintenance` only on deep cleans; `resurfaced` only on criticals. M2's parser must map its output onto these invariants. (PO decision) | M1 (decided); M2 parser |
 | Q16 | Scan scope for banned words and banned APIs (T-05, T-06)? | Whole-token match after camelCase/underscore/digit split, identifiers and string literals only; comments are excluded (they are not user-facing or model state). Banned API list is the closed list in AC-M1-23. (PO decision) | M1 (decided) |
+| Q17 | Review Q-R1: may `AsyncStream(` / `AsyncThrowingStream(` be used when `Stream(` is matched at camelCase boundaries? (P-2) | Yes. These two names exactly are exempt; they are Swift concurrency types and send nothing off the device. Any further exemption needs a PO decision, never a Developer allowlist. AC-M1-23 updated. (PO decision, after build start: tightening only, no AC removed) | M1 (decided) |
+| Q18 | Review Q-R2: extend the AC-M1-23 list with `getStreamsToHost`, `contentsOf:` with a URL, `arc4random*`, `drand48`? (P-2, determinism) | Yes. Added `getStreamsToHost`, `InputStream(`/`OutputStream(`, `URL(string:`, `arc4random*`, `drand48`/`erand48`/`lrand48`/`srand48`, `rand(`, `random()`. `contentsOf:` is banned except in the JSON file repository's file(s), named in the scan's fixed allowlist; banning `URL(string:` keeps those reads local. Planner: re-check the scanner work item and the persistence item (AC-M1-04…07) against this. (PO decision, after build start: tightening only) | M1 (decided) |
 
 ## Tester testability review
 - [x] Every AC is observable and measurable  - [x] Device ACs identified (none expected in M1)  - Reviewer note:
@@ -398,3 +407,4 @@ Documenter/human owner should copy them into `DECISIONS.md` as D-002… on the n
 | 2026-11-20 | Acceptance Tester | Product Owner | returned | Testability review: 3 Major (T-01 `deferred` contradiction; T-02 "next eligible window" undefined; T-03 `windowEnd == now` boundary and whether validity checks `windowEnd`) and 5 Minor (T-04…T-08). Gate-line coverage is complete. No device ACs. Box 1 left unticked until T-01…T-03 are resolved; PO to revise and resend. |
 | 2026-11-20 | Product Owner | Acceptance Tester | resent for testability review | Brief v2 resolves T-01…T-08: new definitions (slot, effective state, window open/passed, `E(a, D)`, invariants), rescheduling rules R0–R4, rewritten AC-M1-02/03/10/12/16/17–21/23, new AC-M1-25 (25 ACs). New PO decisions Q11–Q16 are in the Assumptions table (to be copied to DECISIONS.md by the governance owner). No human-owner question added. |
 | 2026-11-20 | Acceptance Tester | Product Owner | accepted | v2 re-review: T-01…T-08 resolved. All 25 ACs are observable, measurable and Linux-verifiable. Gate lines are fully covered. No device ACs. Two nits (N-1, N-2) on scanner precision for the Developer and Reviewer. PO may hand off to the Work Planner (H1). |
+| 2026-11-20 | Reviewer (WI-M1-01 review.md) | Product Owner | answered | Q-R1 → Q17: `AsyncStream`/`AsyncThrowingStream` exact exemption. Q-R2 → Q18: AC-M1-23 list extended; `contentsOf:` only in the file repository's allowlisted file(s); `URL(string:` banned. AC-M1-23 tightened, not weakened. Planner to re-check affected items; copy Q17/Q18 to DECISIONS.md with Q1–Q16. |

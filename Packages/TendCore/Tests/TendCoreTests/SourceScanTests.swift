@@ -42,6 +42,15 @@ struct SourceScanTests {
         }
         print("AC-M1-23 scan: \(importCount) import statements found")
 
+        // Q18: `contentsOf:` is allowed only in the allowlisted file name(s); each name may exist at most once.
+        let allowlisted = sources.filter {
+            SourceScanner.contentsOfAllowlist.contains(($0.name as NSString).lastPathComponent)
+        }
+        print("AC-M1-23 scan: contentsOf: allowlist \(SourceScanner.contentsOfAllowlist.sorted()), "
+              + "\(allowlisted.count) allowlisted files present: \(allowlisted.map(\.name))")
+        #expect(allowlisted.count <= SourceScanner.contentsOfAllowlist.count,
+                "an allowlisted file name appears more than once under Sources/")
+
         let hits = sources.flatMap { SourceScanner.apiHits(in: $0.text, file: $0.name) }
         print("AC-M1-23 scan: \(hits.count) hits")
         for hit in hits { print("AC-M1-23 hit: \(hit)") }
