@@ -74,8 +74,6 @@ jobs:
           anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
           anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
           anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
-          # TEMPORARY: diagnose the federation sign-in error. Remove before merge.
-          show_full_output: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             You are the Tend Merge Gatekeeper for pull request #${{ env.PR_NUMBER }} in ${{ github.repository }}.
