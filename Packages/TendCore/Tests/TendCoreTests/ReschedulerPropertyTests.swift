@@ -180,33 +180,35 @@ struct ReschedulerPropertyTests {
     /// 2^-23 s to 2^-22 s (review W3-F2).
     static let binadeEdge = Date(timeIntervalSinceReferenceDate: 1_073_741_824)
 
-    /// Review W3-F2, measured (open PO question Q21 in dev-notes; AC-M1-20 is not changed). Below 2^30 s a `Date` is
-    /// a multiple of 2^-23 s, above it of 2^-22 s. A duration that is an odd number of 2^-23 s steps cannot be kept
-    /// once `s + D` lands on the coarser grid, so `windowEnd - windowStart` changes once by exactly one 2^-23 s step
-    /// (about 119 ns): at the pass whose window first reaches the edge, or at the next one (when that pass's `s` is the
-    /// first start above the edge). This test pins that behaviour exactly, so any further drift fails: exactly one
-    /// change, at one of those two passes, by exactly one step, and the duration is bit-identical before and after
-    /// it; every other part of the structure is identical for all N. The AC-M1-20 gate test above keeps its
-    /// strict bit-pattern comparison over its corpus (2024–2029), which crosses no edge.
-    @Test("W3-F2 measurement: across 2035-01-10 13:37:04Z (2^30 s) the window duration changes at most once, by exactly one 2^-23 s rounding step, then never again; structure otherwise identical")
+    /// Review W3-F2, measured (PO question Q21; AC-M1-20 is not changed). Below 2^30 s a `Date` is a multiple of
+    /// 2^-23 s, above it of 2^-22 s. Both duration parities run (review R4-F1):
+    /// - an odd number of 2^-23 s steps cannot be held once `s + D` lands on the coarser grid, so
+    ///   `windowEnd - windowStart` changes exactly once, by exactly one 2^-23 s step (about 119 ns), at the pass whose
+    ///   window first reaches the edge or at the next one, and is bit-identical before and after;
+    /// - an even number of steps fits both grids, so the duration never changes.
+    /// Every other part of the structure is identical for all N. Assertions are exact, with no tolerance. The AC-M1-20
+    /// gate test above keeps its strict bit-pattern comparison over its corpus (2024–2029), which crosses no edge.
+    @Test("W3-F2 / Q21 measurement: across 2035-01-10 13:37:04Z (2^30 s) an odd-step duration changes exactly once by one 2^-23 s step (at the edge pass or the next), an even-step duration never changes; structure otherwise identical")
     func structureAcrossBinadeEdge() throws {
         let fineStep = (Self.binadeEdge.timeIntervalSinceReferenceDate - 1).ulp
         #expect(fineStep == 0x1p-23 && Self.binadeEdge.timeIntervalSinceReferenceDate.ulp == 0x1p-22)
         var report: [String] = []
         var crossings = 0
+        var oddChains = 0, oddChangedOnce = 0, evenChains = 0, evenUnchanged = 0
         for seed in UInt64(610_001)...610_012 {
             var rng = SplitMix64(seed: seed)
             let zone = try SelectionFixtures.zone(
                 SelectionCorpus.zoneIdentifiers[Int.random(in: 0..<SelectionCorpus.zoneIdentifiers.count, using: &rng)])
             let start = Self.binadeEdge.addingTimeInterval(-Double(Int.random(in: 20...40, using: &rng)) * 86_400)
-            // A week-long window whose fractional part is an odd multiple of the fine grid (2^-23 s), so the coarse grid
-            // above the edge (2^-22 s) cannot always hold `s + D`.
-            let fineSteps = 2 * Int.random(in: 0..<(1 << 21), using: &rng) + 1
-            let duration = 7 * 86_400 + Double(fineSteps) * fineStep
-            for rule in RuleType.allCases {
+            // Week-long windows of both parities (review R4-F1, Q21): a fractional part that is an odd multiple of the
+            // fine grid (2^-23 s) cannot be held by the coarse grid above the edge (2^-22 s); an even multiple can.
+            let k = Int.random(in: 1..<(1 << 21), using: &rng)
+            let parityCases = [(steps: 2 * k + 1, odd: true), (steps: 2 * k, odd: false)]
+            for (parity, rule) in parityCases.flatMap({ parity in RuleType.allCases.map { (parity, $0) } }) {
+                let duration = 7 * 86_400 + Double(parity.steps) * fineStep
                 let task = try Self.endedTask(rule: rule, kind: .recurring, now: start, using: &rng, duration: duration)
                 let runs = try Self.structures(of: task, from: start, passes: 60, zone: zone, room: Self.room)
-                let label = "seed \(seed), \(rule.rawValue)"
+                let label = "seed \(seed), \(rule.rawValue), \(parity.odd ? "odd" : "even")-step"
                 #expect(runs[0].task.windowEnd < Self.binadeEdge && runs[59].task.windowStart > Self.binadeEdge,
                         "\(label): the chain must cross the edge")
                 crossings += 1
@@ -221,10 +223,19 @@ struct ReschedulerPropertyTests {
                 }
                 let durations = runs.map { Double(bitPattern: $0.structure.durationBits) }
                 let changes = durations.indices.dropFirst().filter { durations[$0] != durations[$0 - 1] }
-                // Only a duration that is an odd number of fine steps does not fit the coarse grid.
+                // Only a duration that is an odd number of fine steps does not fit the coarse grid. The parity is read
+                // from the pass-1 duration itself, so it is exactly what the chain carries.
                 let isOddSteps = (durations[0] / fineStep).truncatingRemainder(dividingBy: 2) == 1
+                #expect(isOddSteps == parity.odd, "\(label): pass 1 carries the generated parity exactly")
                 #expect(changes.count == (isOddSteps ? 1 : 0),
                         "\(label): \(isOddSteps ? "exactly one change" : "no change"), saw passes \(changes.map { $0 + 1 })")
+                if isOddSteps {
+                    oddChains += 1
+                    if changes.count == 1 { oddChangedOnce += 1 }
+                } else {
+                    evenChains += 1
+                    if changes.isEmpty { evenUnchanged += 1 }
+                }
                 if let change = changes.first {
                     #expect(change == edgePass || change == edgePass + 1,
                             "\(label): the change is at the edge pass N = \(edgePass + 1) or the next, not N = \(change + 1)")
@@ -235,8 +246,11 @@ struct ReschedulerPropertyTests {
                 }
             }
         }
-        print("W3-F2 measurement: \(crossings) chains cross \(Self.binadeEdge) (2^30 s); one step = \(fineStep) s; "
-              + "\(report.count) chains change their duration once, by one step: " + report.joined(separator: "; "))
+        print("W3-F2 / Q21 measurement: \(crossings) chains cross \(Self.binadeEdge) (2^30 s); one step = \(fineStep) s; "
+              + "odd-step \(oddChains) chains, \(oddChangedOnce) changed exactly once; "
+              + "even-step \(evenChains) chains, \(evenUnchanged) unchanged; changes: " + report.joined(separator: "; "))
+        #expect(oddChains > 0 && evenChains > 0, "both parities must run (R4-F1)")
+        #expect(oddChangedOnce == oddChains && evenUnchanged == evenChains)
         #expect(!report.isEmpty, "the case must exercise the rounding it documents")
     }
 

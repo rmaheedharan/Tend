@@ -891,3 +891,38 @@ No AC in this item needs a device.
 |---|---|---|---|---|
 | 2026-11-20 | Orchestrator | Developer | accepted | WI-M1-04 on `m1/rescheduler`, stacked on `m1/rule-of-three-selector` at `813be42` (PR #7 under review). Scope also covers the scanner (Q19/Q20; F-7…F-9) and W2-F1. Mid-task: W3-F2 note received, and `f7018cb` (WI-M1-03 review) was merged in (fast-forward). |
 | 2026-11-20 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (stub run red, then green). 127 tests in 17 suites, 0 failures, 0 warnings on Linux Swift 6.2. AC-M1-03, 17…22 PASS on Linux. AC-M1-24 local only (needs CI on the M1 merge commit). 21 mutations, all red. Open: Q21 (PO, AC-M1-20 at the 2035 binade edge), decision 1 (no RNG parameter). Not verified on Darwin. Pushed; no PR opened. |
+
+### WI-M1-04 round 2 (review [WI-M1-04 round 1](review.md): CHANGES REQUIRED, R4-F1 Major)
+- **R4-F1 (Major), fixed.** The AC-M1-20 edge test (`ReschedulerPropertyTests.swift`, `structureAcrossBinadeEdge`) now
+  runs **both duration parities**. For each of 12 seeds and each rule type (R2, R3, R4) it runs one chain with an
+  odd-step duration (`7 d + (2k + 1) × 2^-23 s`) and one with an even-step duration (`7 d + 2k × 2^-23 s`, k ≥ 1).
+  That is 72 chains, each crossing 2035-01-10 13:37:04Z (2^30 s), each 60 passes. Every assertion is exact; there is
+  no tolerance anywhere:
+  - every chain: the pass-1 duration carries the generated parity exactly, and key paths, non-window values and
+    collection counts are identical for all N;
+  - odd-step: exactly one change, at the pass whose window first reaches the edge or the next pass, by exactly one
+    2^-23 s step, bit-identical before and after;
+  - even-step: no change at all (`changes.isEmpty`);
+  - guards: at least one chain of each parity ran, all odd chains changed exactly once, and all even chains stayed
+    unchanged.
+  - New name: "W3-F2 / Q21 measurement: across 2035-01-10 13:37:04Z (2^30 s) an odd-step duration changes exactly once
+    by one 2^-23 s step (at the edge pass or the next), an even-step duration never changes; structure otherwise
+    identical".
+  - Log: `72 chains cross 2035-01-10 13:37:04 +0000 (2^30 s); one step = 1.1920928955078125e-07 s; odd-step 36 chains,
+    36 changed exactly once; even-step 36 chains, 36 unchanged`.
+  - **Mutation:** add one ulp to `windowEnd` on every pass above the edge (drift). The test went red (140 issues;
+    `odd-step 36 chains, 0 changed exactly once; even-step 36 chains, 0 unchanged`). Source restored.
+  - The AC-M1-20 gate test is unchanged (strict `bitPattern` over 360 chains). `brief.md` is not edited for Q21; the
+    Orchestrator records the PO's wording.
+- **R4-F7 (Nit), applied.** Both "cannot happen" fallbacks in `Completion.swift` now call `assertionFailure` first:
+  the missing recurrence interval (model invariant AC-M1-25) and an unresolvable calendar day. Debug and test builds
+  stop loudly; release keeps the calm fallback value. The fallbacks are unreachable, so the suite is unaffected. W3-F3's
+  older fallbacks in `SlotCalendar` and `NowSelector` (WI-M1-03) are not touched, to keep this round narrow.
+- **Run:** `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` → **"Test run with 127 tests in
+  17 suites passed after 95.392 seconds"**, 0 failures, 0 skipped, 0 warnings (Linux container, Swift 6.2). AC-M1-02
+  and AC-M1-23 scans: 23 files, 0 hits. Not verified on Darwin; AC-M1-24 still needs CI on the M1 merge commit.
+
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-20 | Reviewer | Developer (via Orchestrator) | returned (round 1: CHANGES REQUIRED) | R4-F1 Major: the edge test ran odd-step durations only. R4-F7 Nit optional. |
+| 2026-11-20 | Developer | Reviewer (via Orchestrator) | sent (round 2) | R4-F1 fixed: both parities, exact asserts, count guards, drift mutation red. R4-F7 applied (`assertionFailure`). 127 tests, 0 failures, 0 warnings. |

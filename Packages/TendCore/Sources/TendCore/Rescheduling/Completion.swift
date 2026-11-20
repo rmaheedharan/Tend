@@ -38,10 +38,23 @@ extension HouseholdTask {
         case .oneOff, .restock:
             result.state = .completed
         case .recurring:
-            // A recurring task always has an interval of at least one day (AC-M1-25); 1 is never used in practice.
-            let days = recurrenceIntervalDays ?? 1
-            let anchor = slots.sameWallClockTime(as: now, daysLater: days)
-                ?? now.addingTimeInterval(Double(days) * 86_400)  // only if the calendar cannot resolve the day
+            // Both fallbacks are unreachable (review R4-F7 / W3-F3): a recurring task always has an interval of at
+            // least one day (AC-M1-25), and a Gregorian calendar resolves every day. Debug and test builds stop loudly;
+            // a release build stays calm with the fallback value.
+            let days: Int
+            if let interval = recurrenceIntervalDays {
+                days = interval
+            } else {
+                assertionFailure("recurring task without an interval (model invariant AC-M1-25)")
+                days = 1
+            }
+            let anchor: Date
+            if let sameTime = slots.sameWallClockTime(as: now, daysLater: days) {
+                anchor = sameTime
+            } else {
+                assertionFailure("the injected calendar could not resolve the day \(days) days after now")
+                anchor = now.addingTimeInterval(Double(days) * 86_400)
+            }
             let window = nextEligibleWindow(
                 from: anchor, duration: windowEnd.timeIntervalSince(windowStart), slots: slots)
             result.windowStart = window.windowStart
