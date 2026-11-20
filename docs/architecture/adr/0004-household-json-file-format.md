@@ -63,6 +63,13 @@
      The standard writer is `.atomic`. The seam is `internal`, so only tests can replace it.
   4. Edits (`upsertTask`, `removeTask`, `updateRoom`) read, edit and save inside the actor. They write nothing if the
      read fails.
+- **Local file URLs only (note added 2026-11-20, review W2-F1; P-2, brief Q19).** `init(fileURL:)` throws
+  `unreadableFile` for any URL that is not a local file URL (for example `https:`, `http:`, `ftp:`, `data:` or a
+  relative URL without a scheme). The check runs in the initialiser, before any read or write, so `Data(contentsOf:)`
+  can never be handed a remote URL. This matters because, on Darwin, `Data(contentsOf:)` would fetch an `http(s)` URL
+  over the network. Tests: `FileRepositoryLoadErrorTests` "W2-F1 / P-2: a repository refuses a URL that is not a local
+  file URL before any read or write" and "W2-F1: a file URL from a path is accepted". The Acceptance Tester confirmed
+  it independently (acceptance.md, charter C-4 (b)).
 
 ## Consequences
 - AC-M1-05 is proven over 200 seeded households and awkward dates by comparing bit patterns. AC-M1-07 is proven by
