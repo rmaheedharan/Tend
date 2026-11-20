@@ -535,3 +535,201 @@ I found no Blocker or Major.
 |---|---|---|---|---|
 | 2026-11-20 | Developer (via Orchestrator) | Reviewer | received (round 1) | PR #7, commit `813be42` on `m1/rule-of-three-selector`, base `main` `7556df7`. Inputs: dev-notes WI-M1-03, brief v2, design.md, plan.md. |
 | 2026-11-20 | Reviewer | Orchestrator → Acceptance Tester | accepted — APPROVE | No Blocker or Major. Two Minor tickets: W3-F1 (Darwin rerun of the DST and slot tests, M3) and W3-F2 (floating-point duration watch for WI-M1-04 / AC-M1-20). Four Nits: W3-F3…W3-F6. The local run gave "Test run with 104 tests in 14 suites passed after 10.979 seconds" (Linux, Swift 6.2, `-warnings-as-errors`, 0 warnings). RM-3 turned the suite red. The oracle is judged independent (R-4). The naming deviation is accepted. |
+
+---
+
+## WI-M1-04 round 1 — [PR #8](https://github.com/rmaheedharan/Tend/pull/8) (`m1/rescheduler`, head `dcf3d2c` = code commit `5ce6640` + merge of `main`)
+
+- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 1
+- **Diff reviewed:** `git diff origin/main...dcf3d2c` (base `main` at `d29f874`, which contains WI-M1-03). 19 files:
+  3 new `Sources/TendCore/Rescheduling/` files, additive `SlotCalendar.swift` changes, the W2-F1 change to
+  `JSONFileHouseholdRepository.swift` / `HouseholdStoreError.swift`, 3 new test suites, the new
+  `Support/RescheduleOracle.swift`, scanner and generator changes, `brief.md` (Q19/Q20 rows) and the WI-M1-04 dev-notes
+  section. No protected path is touched (`CLAUDE.md`, `docs/PRD.md`, `.claude/**`, `.github/**`, `docs/governance/**`,
+  `docs/milestones/STATUS.md`).
+  **Owned ACs:** AC-M1-03, AC-M1-17, AC-M1-18, AC-M1-19, AC-M1-20 (Gate), AC-M1-21 (Gate), AC-M1-22, AC-M1-24 (Gate, local
+  part). **Also in scope:** AC-M1-23 as amended by PO decisions Q19/Q20, tickets F-7…F-9, W2-F1, W3-F2.
+  **Requirements:** FR-B1, FR-B2, FR-B3 (data), UX-2, UX-3, P-2. **Inputs:** [brief.md](brief.md) (R0–R4, `E(a, D)`,
+  Q11–Q14, Q19, Q20), [design.md](design.md) (naming list, D-1…D-3), [plan.md](plan.md) (WI-M1-04, R-4, R-5, R-12),
+  [dev-notes.md](dev-notes.md) (WI-M1-04), and the PO's answer to **Q21** relayed by the Orchestrator during this review.
+- **Verified by the Reviewer** (Linux container, Swift 6.2 via the Docker wrapper, clean worktree at `dcf3d2c`):
+  `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` exited 0 with
+  **"✔ Test run with 127 tests in 17 suites passed after 93.738 seconds."** 0 failures, 0 warnings, 1 m 54 s wall time
+  including the build.
+  - `AC-M1-20: seeds 600001...600040, 360 chains (R2, R3, R4 x one-off, recurring, restock), 21600 pass comparisons
+    against pass 1 (N = 1...60), duration compared by bit pattern, longest chain moved 844 days`.
+  - `W3-F2 measurement: 36 chains cross 2035-01-10 13:37:04 +0000 (2^30 s); one step = 1.1920928955078125e-07 s; 36
+    chains change their duration once, by one step` (at N = 3, 5 or 7, signs + and −).
+  - `AC-M1-21: seeds 400001...400500, 500 households, 135474 tasks (min 50, max 500 per household), 108303 with ended
+    windows (54138 ending exactly at now; 15018 rest over, 14941 resting, 30337 completed)`; `outcomes unchanged 68626,
+    restEnded 3823, lightened 22485, broughtBackGently 22622, movedToNextWindow 17918; selection sizes 0/1/2/3 after the
+    pass = 0/1/2/497`.
+  - `AC-M1-22: 10 households (seeds 400001...400010), 1000 repeated runs …: all identical`.
+- **Reviewer probe RP-1** (a scratch copy of the package outside the repo; nothing in the PR changed). In
+  `ReschedulerPropertyTests.swift:204` the duration generator was changed from `2k + 1` (odd) to `2k` (even, k ≥ 1)
+  fine steps, and only `structureAcrossBinadeEdge` was run. Result: **0 of 36 even-step chains changed their duration**
+  across 2^30 s, so production behaves as Q21 requires. The only failure was the guard at `:240` (`!report.isEmpty`).
+  This shows that the shipped test runs **odd-step durations only**: its "no change for even steps" branch (`:225-227`)
+  is never exercised. See R4-F1.
+
+### Summary
+The engine code is correct, small and law-clean. The one Major finding is about **evidence**: the AC-M1-20 edge test
+does not yet cover the even-step half of the PO's Q21 reading.
+
+- **R0–R4 vs the brief (AC-M1-17…21).** `Rescheduler.reschedule(_:at:slots:)` (`Rescheduler.swift:107-139`) follows the
+  binding order exactly.
+  - R0: `completed` or `isResting(at:)` (`until > now`) returns the task unchanged.
+  - R1: `isRestOver(at:)` (`until <= now`) sets `active`. If the window has not ended, it returns `restEnded`.
+  - Window ended (`windowEnd <= now`, half-open per Q13): new window = `E(now, D)` with `D = windowEnd − windowStart`.
+    Then deep clean → `maintenance` (R2), critical → `resurfaced` (R3), otherwise the state stays `active` (R4).
+  - The model invariants (AC-M1-25) make the deep-clean-before-critical order safe, and they rule out `maintenance` or
+    `resurfaced` on an R4 task. Only `state`, `windowStart` and `windowEnd` are written. A second pass is a no-op,
+    because the new `windowEnd > now` (`D > 0`).
+  - The hand-computed tables in `ReschedulerTests.swift` pin exact UTC starts for `windowEnd == now`, inside/outside a
+    slot, the night slot both ways across midnight, DST spring/autumn and the repeated 01:30. They also check `D` by
+    `bitPattern` and every other field. AC-M1-21 (d) checks every task of 500 households against the oracle.
+- **Completion (AC-M1-03).** `Household.complete` (`Completion.swift:17-29`) and `HouseholdTask.completed(at:slots:)`
+  (`:34-52`) match (a)–(c).
+  - The recurring anchor `sameWallClockTime` (`SlotCalendar.swift:120-136`) uses noon-anchored day arithmetic, then
+    `date(bySettingHour:…, .nextTime, .first)`. That is the Q11 policy. The dev-notes probe explains why
+    `date(byAdding: .day)` is not used, and mutation MS-3 pins the gap behaviour.
+  - Sub-second preservation via `t − floor(t)` is correct, because zone offsets are whole seconds.
+  - Completing a resting deferral completes it. AC-M1-03 lists `deferred`, so that is right.
+  - Returning `false` for an unknown or already completed ID is outside the brief, but it is calm and documented.
+- **UX-3 / D-1 / D-2 / D-3.**
+  - No stored field was added. The `Mirror` test (`ReschedulerTests.swift`, "no escalation field") pins the 15 stored
+    labels to the design list after 20 passes, and the encoded keys too.
+  - `RescheduleOutcome` is returned, never stored. `promptTone` is computed and always `.gentle`, and `PromptTone` has
+    one case (AC-M1-18).
+  - There is no counter, no original window, no history (`completedAt` is the latest completion only, as the design
+    row says) and no score.
+  - A grep of `Rescheduling/` and the `SlotCalendar.swift` diff for the design-forbidden list finds only comments that
+    say "never a count" or "never lapsed". AC-M1-02 scan: 0 hits.
+- **Oracle independence (R-4). Judged independent.**
+  - `Support/RescheduleOracle.swift` imports only the public API. It calls no engine function: not `Rescheduler`,
+    `SlotCalendar`, `nextEligibleWindow`, `isRestOver` or `windowHasEnded`. It rebuilds expected tasks through the
+    public validating initialiser, which is the model.
+  - R0–R4 is a `switch` on the stored state with its own `until > now` and `windowEnd <= now` tests.
+  - `E` reuses `ContextOracle.nextAllowedStart`, the brute-force 15-minute scan that WI-M1-03 already judged
+    independent.
+  - The recurring anchor works differently from production: UTC day arithmetic, then solving `local = utc + offset`
+    over the offsets seen ±2 days, with `nextDaylightSavingTimeTransition` for a gap. Production uses
+    `bySettingHour`/`.nextTime`.
+  - The only shared piece is the one-line sub-second fraction `t − floor(t)`. MS-2 shows that dropping it turns tests
+    red, so this is not a tautology.
+  - The documented limit (non-DST offset gaps such as Samoa 2011 are outside the oracle's gap branch) is acceptable.
+    No corpus zone hits it, and the hand tables are the second line of defence.
+- **AC-M1-20 and Q21.** The PO answered Q21 during this review: "identical" means bit-identical within a binade, with
+  no tolerance. Only at a binade edge may the duration change once, at the pass that first reaches the edge or the next
+  one. Evidence must be a strict `bitPattern` gate over the realistic corpus, plus a named edge test with an explicit
+  edge predicate that shows exactly one ±1-step change for odd-step durations and **none for even ones**.
+  - The gate test (`ReschedulerPropertyTests.swift:131-177`) compares every pass N = 1…60 with pass 1 using exact
+    `bitPattern` equality, with no tolerance. It also compares exact key sets, byte-equal canonical JSON of the
+    non-window values, and collection counts. **This meets the gate part.**
+  - The edge test (`:191-241`) has an explicit edge predicate (`edgePass = firstIndex { windowEnd >= binadeEdge }`,
+    `change == edgePass || change == edgePass + 1`). It uses exact equality only (`changes.count == …`,
+    `abs(Δ) == fineStep`), and it checks structure for all N. It is honest and not weakened.
+  - **But it only generates odd-step durations** (`:204`, `2k + 1`), so the even-step clause is untested (RP-1). That
+    is R4-F1.
+  - The "one step" size is also worded differently in Q21 and in the code (R4-F2).
+- **W3-F2.** Closed by the strict gate and the edge test. The remaining evidence gap is tracked as R4-F1.
+- **Scanner vs Q19/Q20 (AC-M1-23). Matches exactly, and the tightening is acceptable.**
+  - Q19: `NSURL`, `URLComponents` and `CFURL` are banned at camelCase boundaries. `urlLoadingInitPattern` covers exactly
+    the eight listed types with `(contentsOf:` or `.init(contentsOf:`, plus any `.init(contentsOf:`, and only outside
+    the fixed allowlist.
+  - Q20: all 14 names are present (`clockNames`, `networkingNames`, `socket(` as a call name).
+  - Planted positives cover every new name, including `Foundation.Data(`, `Data . init ( contentsOf :`,
+    `.init(contentsOf:`, `Glibc.socket(` and `gethostbyname2`. Near-misses cover `append`/`insert(contentsOf:)`,
+    `String(contentsOfFile:)`, `MyData(`, `NSURLish`, `fileURLComponent`, `ContinuousClockwise`, `machAbsoluteTime`,
+    `freeaddrinfo`, `websocket(` and `let socket = 1`. The coverage test includes `clockNames` and the URL-loading rule.
+  - Matching `DispatchTimeInterval` as a hit is stricter than "whole type names", but it follows the AC's general
+    camelCase-boundary rule. I accept it as tightening only.
+  - F-7 (`Name.init(`) is closed. The Q17 exemption stays exact: `MyAsyncStream.init(` is a planted hit.
+  - **F-7, F-8 and F-9 are closed.**
+- **W2-F1. Closed.** `init(fileURL:)` is `throws(HouseholdStoreError)` and rejects `!fileURL.isFileURL` before storing
+  anything (`JSONFileHouseholdRepository.swift:29-38`). The test covers `https`, `http`, `ftp`, `data:` and a
+  scheme-less relative URL, through both initialisers, and asserts the writer is never called. Reusing `unreadableFile`
+  keeps the design's four-case error list.
+- **No RNG parameter (plan deviation). Accepted.** An input the engine must never read would misstate the API, and the
+  approved `NowSelector` (WI-M1-03) has none either. The AC-M1-22 clause "two different RNG seeds give identical
+  outputs" is then met by construction: no engine API takes an RNG, and AC-M1-23 bans every ambient RNG. The test's
+  perturbation of an unrelated generator adds little. The Work Planner should amend plan.md WI-M1-04 ("takes an
+  injected RNG"), and the Acceptance Tester should read AC-M1-22's seed clause this way (R4-F4).
+- **Naming deviation `Household.complete(_:at:calendar:timeZone:)`. Accepted.** It is the same reason as WI-M1-03's
+  accepted `E` labels: the recurring anchor must resolve in the injected calendar and zone (CLAUDE.md §3). It lives on
+  `Household` because it also tends the room. design.md allows a recorded deviation, and dev-notes records it. The
+  Designer should ratify it in the naming list (R4-F5).
+- **Swift 6 concurrency.** New sources are pure value-type code. The test-only `WriteCallCounter` is
+  `final class: Sendable` over `Synchronization.Mutex`, which is available under the package's iOS 26 / macOS 26 floor.
+  There is no `@unchecked Sendable`, no `nonisolated(unsafe)` and no `Task {}`.
+- **Architecture.** Every new source imports only Foundation. There is no new dependency. AC-M1-23 scan: 0 hits.
+- **Performance (R-5).** The suite went from about 11 s to about 94 s (AC-M1-21's brute-force `E` oracle over 135k
+  tasks dominates, and AC-M1-22 shares the lazily built corpus). The production pass is O(n) with one `SlotCalendar`
+  per pass. The suite is far inside the 20-minute CI timeout, and no AC count was lowered. Watch the first CI run
+  (R4-F6).
+
+### Findings
+| ID | Severity | file:line | Problem | Required change | Status |
+|---|---|---|---|---|---|
+| R4-F1 | **Major** | `Tests/TendCoreTests/ReschedulerPropertyTests.swift:204, 225-227, 240` | **The AC-M1-20 edge test does not show "no change for even-step durations", which the PO's Q21 answer requires as evidence for this Gate AC.** The generator is `2 * k + 1`, so all 36 chains are odd-step and the `isOddSteps ? 1 : 0` branch never takes the `0` side. RP-1 shows production is right (0/36 even chains change), so this is missing evidence, not a code defect. Under the review rules, a missing test for an AC condition is Major. | Make the edge test generate both parities. For example, per seed, run each rule with one odd-step duration (`2k + 1`) and one even-step duration (`2k`, k ≥ 1). Keep the exact assertions. Add guards that at least one even chain and at least one odd chain ran, and that every even chain had `changes.isEmpty`. Log the counts (e.g. `odd n changed once; even m unchanged`). No tolerance anywhere. Update the test name and dev-notes evidence to match. | Open |
+| R4-F2 | Minor (PO wording, before Q21 is recorded) | `ReschedulerPropertyTests.swift:193-194, 231`; Q21 text as relayed | **The step size in Q21 as relayed ("exactly one ulp of the coarser grid") does not match the arithmetic or the test.** Above 2^30 s the coarse ulp is 2^-22 s. An odd multiple of 2^-23 s added to a coarse-grid `s` lies exactly halfway between two coarse points, so round-to-nearest moves it by **2^-23 s**: one ulp of the finer grid below the edge, which is half a coarse ulp. The test asserts `abs(Δ) == fineStep` (2^-23 s), and the measured log agrees (`one step = 1.1920928955078125e-07 s`). If Q21 is recorded as written, the Tester would read the correct test as non-conforming. | **PO / Orchestrator:** record Q21 as "changes once by exactly one ulp of the finer grid below the edge (2^-23 s at 2^30 s; half an ulp of the coarser grid)", or as "by exactly one rounding step of `s + D`". No Developer change is needed if the PO confirms. | Open (PO) |
+| R4-F3 | Minor (process) | `docs/milestones/M1/brief.md` (Q19/Q20 rows, handoff row) in Developer commit `5ce6640` | **The PO-owned brief was committed by the Developer** ("the PO's uncommitted Q19/Q20 edits, committed unchanged"). The text matches what the Reviewer asked for in Q-R3/Q-R4 and is tightening only, so nothing is wrong in substance. But the brief's provenance should be the PO's. | PO: confirm in the brief's handoff log that the committed Q19/Q20 text is the PO's decision, when Q21 is recorded. In future, the PO commits PO-owned edits. | Open (PO) |
+| R4-F4 | Nit | `docs/milestones/M1/plan.md` WI-M1-04 ("engine takes an injected RNG … must not use it"); `ReschedulerPropertyTests.swift:331-362` | **Plan deviation: no RNG parameter.** Accepted on the merits (see Summary). The AC-M1-22 seed clause is met by construction, so the two-seed perturbation in the test proves little on its own. | Work Planner: amend plan.md to match. Acceptance Tester: read AC-M1-22's seed clause as "no engine input is random; ambient RNG banned by AC-M1-23". Reopen only if the PO wants the unused parameter. | Open (Planner / Tester) |
+| R4-F5 | Nit | `Completion.swift:17-19`; design.md naming list (`complete(_:at:)`) | **Naming deviation**, accepted (same reason as W3-F5). | iOS Designer: update the naming list to `Household.complete(_:at:calendar:timeZone:)` together with W3-F5. | Open (Designer) |
+| R4-F6 | Nit (watch, R-5) | `ReschedulerPropertyTests.swift:245-327`; `Support/RescheduleOracle.swift:40-48` | **Runtime is about 94 s (was about 11 s).** The brute-force `E` oracle over about 108k ended tasks dominates. This is fine against the 20-minute CI limit, but CI runners can be 2–4× slower. | Record the CI duration of the first run in dev-notes. If it ever gets tight, speed up the oracle (e.g. a 15-minute scan that skips whole disallowed days). Never lower the AC counts. | Open (watch) |
+| R4-F7 | Nit | `Completion.swift:42-44` | **W3-F3 carried:** two silent "cannot happen" fallbacks are new (`recurrenceIntervalDays ?? 1`, `now + days × 86,400 s`). | Optional: `assertionFailure` before each, together with W3-F3. | Open (optional) |
+
+Closed by this PR (verified in the diff and tests): **F-7, F-8 (via Q19), F-9 (via Q20), W2-F1, W3-F2** (the residual
+evidence gap is R4-F1).
+
+**AC trace (owned ACs):**
+| AC | Code | Test(s) | Reviewer result |
+|---|---|---|---|
+| AC-M1-03 | `Completion.swift:17-52`, `SlotCalendar.sameWallClockTime` | (a) 2 kinds × 5 states; (b) 9 hand cases incl. New York gap 02:30:15.250 → 03:00, repeated 01:30 → first, Berlin weekly/weekend; (c) no room / unknown room; isolation; 300-household oracle property (4,250 completions, 45 near DST) | **Met.** MC-1…MC-4, MS-1…MS-3 red. |
+| AC-M1-17 | `Rescheduler.swift:129-131` | 8 window cases × 3 start states incl. `windowEnd == now`, night across midnight, DST days; low-energy selection after the lightening | **Met.** |
+| AC-M1-18 | `Rescheduler.swift:132-134`, `promptTone` | 8 × 3 states; 20-pass tone/labels/keys test | **Met.** No escalation field. |
+| AC-M1-19 | `Rescheduler.swift:135-136` | 3 kinds × 8 cases (interval not applied); R1 + ended; R0; R1 only; open/upcoming unchanged | **Met.** |
+| AC-M1-20 (Gate) | whole pass | strict `bitPattern` gate over 360 chains × 60; W3-F2 edge test (odd-step only) | **Gate part met. Edge evidence incomplete under Q21: R4-F1 (Major).** |
+| AC-M1-21 (Gate) | whole pass | 500 households, 135,474 tasks, (a)–(f) incl. oracle order after the pass | **Met.** Oracle independent. |
+| AC-M1-22 | whole pass + selector | 10 households × 100 runs, two seeds | **Met** (seed clause by construction, R4-F4). |
+| AC-M1-23 (Q19/Q20) | `Support/SourceScanner.swift` | 117 planted, coverage, near-miss, positive tests; real scan 23 files, 0 hits | **Met.** |
+| AC-M1-24 (Gate) | — | local run above | **Local part met.** CI on the M1 merge commit is the Tester's / Gatekeeper's. |
+| AC-M1-02 | all `Sources/` | scan, 23 files | **Still met.** 0 hits. |
+
+### Checklist
+- [x] Correctness vs ACs. Code meets AC-M1-03 and 17…23. AC-M1-20 evidence is incomplete under Q21 (R4-F1).
+- [ ] Tests meaningful: mostly yes. There are 21 Developer mutations, all red. The oracle is independent and seeded, and
+  coverage is asserted. **Except** that the even-step branch of the edge test is dead (RP-1, R4-F1).
+- [x] Swift 6 concurrency safe. Value types only; the test `Mutex` counter is `Sendable`.
+- [x] No force unwraps / `try!` in product code. Silent fallbacks are R4-F7 / W3-F3.
+- [x] Privacy (P-1…P-4). No I/O in the engine. W2-F1 adds a file-URL-only boundary; the AC-M1-23 guard is stricter.
+- [x] UX-2/UX-3 enforced in engine. No unbounded "now" list; no counter, original window, history or score.
+- [x] Accessibility (UI): n.a., no UI in M1.
+- [x] Performance. O(n) pass; test runtime watched (R4-F6).
+- [x] No new dependency without ADR. Foundation only (`Synchronization` in the test target only, part of the toolchain).
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface; completion and rescheduling are engine calls. |
+| UX-2 Rule of Three | pass | No new "what to do now" API. `Rescheduler` returns the stored household, and the per-task overload returns one task. AC-M1-21 (f) proves selection after a pass is ≤ 3, valid, `min(3, n)` and oracle-ordered over 500 households. |
+| UX-3 Zero-Guilt | pass | Ended windows become `maintenance`, `resurfaced` or a new window; there is no overdue state (FR-B2). No counter, original window, history or time-growing score (D-2, D-3; pinned by the `Mirror`/key test after 20 passes). The structure does not grow over 60 passes (AC-M1-20 gate). The tone is fixed `gentle` (AC-M1-18). The code says "rest ended", never "lapsed" (D-1). AC-M1-02 scan: 0 hits. |
+| UX-4 Design craft | n.a. | No UI in M1. |
+| P-1 On-device inference | n.a. | No AI. |
+| P-2 No data leaves device (except user iCloud) | pass | Pure computation on injected values. W2-F1 refuses non-file URLs before any read or write. AC-M1-23 is stricter (Q19/Q20, F-7): 23 files, 0 hits. |
+| P-3 Cloud escalation only via PCC + ADR | n.a. | No cloud path. |
+| P-4 Media not persisted without consent | n.a. | No media. |
+
+### Open questions
+- **PO (R4-F2):** before Q21 is recorded in brief.md, correct the step size to "one ulp of the finer grid (2^-23 s at
+  2^30 s), i.e. half an ulp of the coarser grid". As relayed ("one ulp of the coarser grid", 2^-22 s), it contradicts
+  the measured and correct behaviour.
+- **PO (R4-F3):** confirm the Q19/Q20 brief text committed by the Developer is the PO's.
+- **Work Planner (R4-F4):** amend plan.md WI-M1-04 (no RNG parameter). **iOS Designer (R4-F5):** naming list.
+- **Developer:** R4-F1 only. Everything else in this round is optional or for other roles.
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-20 | Developer (via Orchestrator) | Reviewer | received (round 1) | PR #8, head `dcf3d2c` (code `5ce6640` + merge of `main` `d29f874`) on `m1/rescheduler`. Inputs: dev-notes WI-M1-04, brief (R0–R4, Q19, Q20), design.md, plan.md. Mid-review: the PO's Q21 answer, relayed by the Orchestrator. |
+| 2026-11-20 | Reviewer | Orchestrator → Developer | returned — CHANGES REQUIRED | One Major: R4-F1 (the AC-M1-20 edge test never runs even-step durations, so Q21's "none for even ones" is unproven; RP-1 shows the code is right). Minor to PO: R4-F2 (Q21 step size is 2^-23 s, not a coarse ulp) and R4-F3 (brief provenance). Nits: R4-F4…F7. Closed: F-7, F-8, F-9, W2-F1, W3-F2. Local run: "Test run with 127 tests in 17 suites passed after 93.738 seconds" (Linux, Swift 6.2, `-warnings-as-errors`, 0 warnings). Oracle judged independent (R-4). RNG-parameter and naming deviations accepted. |
