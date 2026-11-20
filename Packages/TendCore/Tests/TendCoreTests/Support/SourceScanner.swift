@@ -7,7 +7,11 @@
 //   (nit N-2). Single-line, multi-line `"""`, and raw `#"…"#` / `#"""…"""#` strings are supported, including
 //   interpolation `\(…)` / `\#(…)`, whose contents are treated as code again (so `"\(Date())"` is still a call).
 // - Escapes in literal text are decoded (`\n`, `\t`, `\u{…}`, …) so `"\nlate"` yields the token `late`.
-// - API patterns are matched on the code text only, at identifier boundaries (nit N-1: `startDate()` is not `Date()`).
+// - API rules are matched on the code text only (string-literal text is not code; interpolations are). Two kinds:
+//   * time, ID and randomness patterns at identifier boundaries (nit N-1: `startDate()` is not `Date()`), including
+//     `Date.init()` / `UUID.init()` and an implicit-member `.now` with no receiver (review F-2);
+//   * networking names at camelCase word boundaries, using the same word split as the AC-M1-02 tokeniser, so
+//     `URLSessionWebSocketTask`, `CFSocketCreate` and `InputStream(` are hits (review F-1, brief AC-M1-23).
 //
 // Known limits (documented in dev-notes, risk R-12): regex literals (`/…/`, `#/…/#`) are lexed as code, and
 // tokens are whole tokens after the camelCase split, so a split spelling such as `overDue` is a Reviewer check.
@@ -43,33 +47,61 @@ enum SourceScanner {
         "overdue", "late", "lateness", "missed", "failed", "behind", "penalty", "debt", "streak",
     ]
 
-    /// AC-M1-23 closed list of banned API patterns, matched on code at identifier boundaries.
-    /// `\b`-style boundaries are written as explicit look-arounds so `.` before a pattern still matches
-    /// (`Foundation.Date()` is a hit) while `startDate()` is not.
-    static let bannedAPIPatterns: [(name: String, regex: String)] = [
-        ("Date()", #"(?<![\p{L}\p{N}_])Date\s*\(\s*\)"#),
-        ("Date.now", #"(?<![\p{L}\p{N}_])Date\s*\.\s*now(?![\p{L}\p{N}_])"#),
-        ("Date(timeIntervalSinceNow", #"(?<![\p{L}\p{N}_])Date\s*\(\s*timeIntervalSinceNow(?![\p{L}\p{N}_])"#),
-        ("timeIntervalSinceNow", #"(?<![\p{L}\p{N}_])timeIntervalSinceNow(?![\p{L}\p{N}_])"#),
-        ("Calendar.current", #"(?<![\p{L}\p{N}_])Calendar\s*\.\s*current(?![\p{L}\p{N}_])"#),
-        ("Calendar.autoupdatingCurrent", #"(?<![\p{L}\p{N}_])Calendar\s*\.\s*autoupdatingCurrent(?![\p{L}\p{N}_])"#),
-        ("TimeZone.current", #"(?<![\p{L}\p{N}_])TimeZone\s*\.\s*current(?![\p{L}\p{N}_])"#),
-        ("TimeZone.autoupdatingCurrent", #"(?<![\p{L}\p{N}_])TimeZone\s*\.\s*autoupdatingCurrent(?![\p{L}\p{N}_])"#),
-        ("Locale.current", #"(?<![\p{L}\p{N}_])Locale\s*\.\s*current(?![\p{L}\p{N}_])"#),
-        ("Locale.autoupdatingCurrent", #"(?<![\p{L}\p{N}_])Locale\s*\.\s*autoupdatingCurrent(?![\p{L}\p{N}_])"#),
-        ("ProcessInfo", #"(?<![\p{L}\p{N}_])ProcessInfo(?![\p{L}\p{N}_])"#),
-        ("UUID()", #"(?<![\p{L}\p{N}_])UUID\s*\(\s*\)"#),
-        ("SystemRandomNumberGenerator", #"(?<![\p{L}\p{N}_])SystemRandomNumberGenerator(?![\p{L}\p{N}_])"#),
-        ("URLSession", #"(?<![\p{L}\p{N}_])URLSession(?![\p{L}\p{N}_])"#),
-        ("URLRequest", #"(?<![\p{L}\p{N}_])URLRequest(?![\p{L}\p{N}_])"#),
-        ("URLConnection", #"(?<![\p{L}\p{N}_])URLConnection(?![\p{L}\p{N}_])"#),
-        ("NSURLConnection", #"(?<![\p{L}\p{N}_])NSURLConnection(?![\p{L}\p{N}_])"#),
-        ("Socket", #"(?<![\p{L}\p{N}_])Socket(?![\p{L}\p{N}_])"#),
-        ("NSStream", #"(?<![\p{L}\p{N}_])NSStream(?![\p{L}\p{N}_])"#),
-        ("Stream(", #"(?<![\p{L}\p{N}_])Stream\s*\("#),
-        ("Host(", #"(?<![\p{L}\p{N}_])Host\s*\("#),
-        ("Host.current", #"(?<![\p{L}\p{N}_])Host\s*\.\s*current(?![\p{L}\p{N}_])"#),
+    /// Regex look-arounds for an identifier boundary. `.` before a pattern still matches (`Foundation.Date()` is a
+    /// hit) while `startDate()` is not.
+    private static let leftBoundary = #"(?<![\p{L}\p{N}_])"#
+    private static let rightBoundary = #"(?![\p{L}\p{N}_])"#
+
+    /// AC-M1-23 closed-list patterns matched at **identifier boundaries** (N-1): ambient time, IDs, randomness and
+    /// `URL(string:`. `Date()`, `UUID()` and `URL(string:` also match the explicit `.init` spelling (review F-2).
+    static let identifierPatterns: [(name: String, regex: String)] = [
+        ("Date()", leftBoundary + #"Date\s*(?:\.\s*init\s*)?\(\s*\)"#),
+        ("Date.now", leftBoundary + #"Date\s*\.\s*now"# + rightBoundary),
+        ("Date(timeIntervalSinceNow",
+         leftBoundary + #"Date\s*(?:\.\s*init\s*)?\(\s*timeIntervalSinceNow"# + rightBoundary),
+        ("timeIntervalSinceNow", leftBoundary + "timeIntervalSinceNow" + rightBoundary),
+        ("Calendar.current", leftBoundary + #"Calendar\s*\.\s*current"# + rightBoundary),
+        ("Calendar.autoupdatingCurrent", leftBoundary + #"Calendar\s*\.\s*autoupdatingCurrent"# + rightBoundary),
+        ("TimeZone.current", leftBoundary + #"TimeZone\s*\.\s*current"# + rightBoundary),
+        ("TimeZone.autoupdatingCurrent", leftBoundary + #"TimeZone\s*\.\s*autoupdatingCurrent"# + rightBoundary),
+        ("Locale.current", leftBoundary + #"Locale\s*\.\s*current"# + rightBoundary),
+        ("Locale.autoupdatingCurrent", leftBoundary + #"Locale\s*\.\s*autoupdatingCurrent"# + rightBoundary),
+        ("ProcessInfo", leftBoundary + "ProcessInfo" + rightBoundary),
+        ("UUID()", leftBoundary + #"UUID\s*(?:\.\s*init\s*)?\(\s*\)"#),
+        ("SystemRandomNumberGenerator", leftBoundary + "SystemRandomNumberGenerator" + rightBoundary),
+        ("URL(string:", leftBoundary + #"URL\s*(?:\.\s*init\s*)?\(\s*string\s*:"#),
+        ("arc4random*", leftBoundary + #"arc4random[\p{L}\p{N}_]*"#),
+        ("drand48", leftBoundary + "drand48" + rightBoundary),
+        ("erand48", leftBoundary + "erand48" + rightBoundary),
+        ("lrand48", leftBoundary + "lrand48" + rightBoundary),
+        ("srand48", leftBoundary + "srand48" + rightBoundary),
+        ("rand(", leftBoundary + #"rand\s*\("#),
+        ("random()", leftBoundary + #"random\s*\(\s*\)"#),
     ]
+
+    /// AC-M1-23 networking names matched at **camelCase word boundaries** (review F-1): the name's words must appear
+    /// as consecutive words of an identifier, using `subTokens(of:)` (the AC-M1-02 split). So `URLSessionDataTask`,
+    /// `URLSessionWebSocketTask`, `CFSocketCreate` and `SocketPort` are hits; `Sockets` and `XURLSession` are not.
+    static let networkingNames: [String] = [
+        "URLSession", "URLRequest", "URLConnection", "NSURLConnection", "Socket", "NSStream", "getStreamsToHost",
+    ]
+
+    /// AC-M1-23 networking call names: the name's words must be the **last** words of an identifier that is followed
+    /// by `(`. Reported as `Stream(`, `InputStream(`, `OutputStream(`, `Host(`.
+    static let networkingCallNames: [String] = ["Stream", "InputStream", "OutputStream", "Host"]
+
+    /// AC-M1-23 (brief Q17, PO decision): exactly these two identifiers are exempt from the `Stream(` rule. Swift
+    /// concurrency types; no other exemption without a PO decision.
+    static let streamCallExemptions: Set<String> = ["AsyncStream", "AsyncThrowingStream"]
+
+    /// AC-M1-23 (brief Q18): `contentsOf:` is banned except in these source files (matched by file name). They are the
+    /// JSON file repository's files, which arrive in WI-M1-02. Any change to this list needs a PO decision.
+    static let contentsOfAllowlist: Set<String> = ["JSONFileHouseholdRepository.swift"]
+    static let contentsOfPattern = leftBoundary + #"contentsOf\s*:"#
+
+    /// Words that may directly precede an implicit-member `.now` (`return .now`, `case .now`); after any other word the
+    /// dot has a receiver (`moment.now`).
+    static let keywordsBeforeImplicitMember: Set<String> = ["return", "case", "in", "throw", "try", "await", "yield", "then"]
 
     /// AC-M1-23: randomness calls that are banned unless their argument list contains `using:`.
     static let randomCallNames: [String] = ["random", "randomElement", "shuffled", "shuffle"]
@@ -118,13 +150,22 @@ enum SourceScanner {
             }
         }
 
-        for pattern in bannedAPIPatterns {
+        for pattern in identifierPatterns {
             for match in matches(of: pattern.regex, in: code) {
                 hits.append(ScanHit(file: file, line: match.line, rule: pattern.name, excerpt: match.text))
             }
         }
 
+        hits.append(contentsOf: implicitNowHits(in: code, file: file))
+        hits.append(contentsOf: networkingHits(in: code, file: file))
         hits.append(contentsOf: randomCallHits(in: code, file: file))
+
+        let fileName = (file as NSString).lastPathComponent
+        if !contentsOfAllowlist.contains(fileName) {
+            for match in matches(of: contentsOfPattern, in: code) {
+                hits.append(ScanHit(file: file, line: match.line, rule: "contentsOf:", excerpt: match.text))
+            }
+        }
 
         for literal in lexed.literals {
             let lower = literal.text.lowercased()
@@ -133,6 +174,98 @@ enum SourceScanner {
             }
         }
         return hits
+    }
+
+    /// Networking names at camelCase word boundaries (review F-1). See `networkingNames`, `networkingCallNames`.
+    static func networkingHits(in code: String, file: String) -> [ScanHit] {
+        var hits: [ScanHit] = []
+        let scalars = Array(code.unicodeScalars)
+        let identifiers = matches(of: #"[\p{L}\p{N}_]+"#, in: code)
+        for (position, identifier) in identifiers.enumerated() {
+            let identifierWords = subTokens(of: identifier.text)
+            for name in networkingNames where containsWords(subTokens(of: name), in: identifierWords, atEnd: false) {
+                hits.append(ScanHit(file: file, line: identifier.line, rule: name, excerpt: identifier.text))
+            }
+            let next = nextNonWhitespace(in: scalars, from: identifier.endOffset)
+            if next.map({ scalars[$0] }) == "(" {
+                for name in networkingCallNames
+                where containsWords(subTokens(of: name), in: identifierWords, atEnd: true) {
+                    if name == "Stream" && streamCallExemptions.contains(identifier.text) { continue }
+                    hits.append(ScanHit(file: file, line: identifier.line, rule: "\(name)(",
+                                        excerpt: identifier.text + "("))
+                }
+            }
+            // `Host.current`: an identifier ending in the word `Host`, then `.`, then an identifier starting `current`.
+            if containsWords(["Host"], in: identifierWords, atEnd: true),
+               let dot = next, scalars[dot] == ".",
+               position + 1 < identifiers.count,
+               let member = nextNonWhitespace(in: scalars, from: dot + 1),
+               identifiers[position + 1].startOffset == member,
+               subTokens(of: identifiers[position + 1].text).first == "current" {
+                hits.append(ScanHit(file: file, line: identifier.line, rule: "Host.current",
+                                    excerpt: identifier.text + "." + identifiers[position + 1].text))
+            }
+        }
+        return hits
+    }
+
+    /// `needle` occurs as consecutive words of `haystack` (case-sensitive); with `atEnd`, as its last words.
+    static func containsWords(_ needle: [String], in haystack: [String], atEnd: Bool) -> Bool {
+        guard !needle.isEmpty, needle.count <= haystack.count else { return false }
+        if atEnd { return Array(haystack.suffix(needle.count)) == needle }
+        for start in 0...(haystack.count - needle.count)
+        where Array(haystack[start..<(start + needle.count)]) == needle {
+            return true
+        }
+        return false
+    }
+
+    /// Implicit-member `.now` with no receiver, which in a `Date` context is `Date.now` (review F-2):
+    /// `at now: Date = .now`, `select(at: .now)`, `return .now`, `x ?? .now`. Receiver forms such as `moment.now`,
+    /// `self.now`, `f().now`, `xs[0].now`, `x?.now` and a member chain continued on the next line are not hits.
+    static func implicitNowHits(in code: String, file: String) -> [ScanHit] {
+        var hits: [ScanHit] = []
+        let scalars = Array(code.unicodeScalars)
+        for match in matches(of: #"\.\s*now"# + rightBoundary, in: code) {
+            var index = match.startOffset - 1
+            var sawWhitespace = false
+            while index >= 0, scalars[index].properties.isWhitespace {
+                sawWhitespace = true
+                index -= 1
+            }
+            var hasReceiver = false
+            if index >= 0 {
+                let previous = scalars[index]
+                if isIdentifierScalar(previous) {
+                    var wordStart = index
+                    while wordStart > 0, isIdentifierScalar(scalars[wordStart - 1]) { wordStart -= 1 }
+                    var word = String.UnicodeScalarView()
+                    word.append(contentsOf: scalars[wordStart...index])
+                    hasReceiver = !keywordsBeforeImplicitMember.contains(String(word))
+                } else if previous == ")" || previous == "]" || previous == "}" {
+                    hasReceiver = true
+                } else if previous == "?" || previous == "!" || previous == ">" {
+                    // `x?.now`, `x!.now`, `Box<T>.now` are receivers; `a ?? .now`, `c ? .now : d`, `a > .now` are not.
+                    let doubled = previous == "?" && index > 0 && scalars[index - 1] == "?"
+                    hasReceiver = !sawWhitespace && !doubled
+                }
+            }
+            if !hasReceiver {
+                hits.append(ScanHit(file: file, line: match.line, rule: "Date.now", excerpt: "implicit " + match.text))
+            }
+        }
+        return hits
+    }
+
+    static func isIdentifierScalar(_ scalar: Unicode.Scalar) -> Bool {
+        scalar.properties.isAlphabetic || scalar.properties.numericType != nil || scalar == "_"
+    }
+
+    /// Index of the first non-whitespace scalar at or after `start`, if any.
+    static func nextNonWhitespace(in scalars: [Unicode.Scalar], from start: Int) -> Int? {
+        var index = start
+        while index < scalars.count, scalars[index].properties.isWhitespace { index += 1 }
+        return index < scalars.count ? index : nil
     }
 
     /// Calls to `.random(`, `.randomElement(`, `.shuffled(`, `.shuffle(` whose balanced argument list does not
@@ -405,6 +538,8 @@ enum SourceScanner {
         var text: String
         var groups: [String]
         var line: Int
+        /// Offset (in Unicode scalars) of the first scalar of the match.
+        var startOffset: Int
         /// Offset (in Unicode scalars) just past the match.
         var endOffset: Int
     }
@@ -416,6 +551,17 @@ enum SourceScanner {
         }
         let nsText = text as NSString
         let lineStarts = lineStartOffsets(in: nsText)
+        // scalarOffset[u] = number of Unicode scalars before UTF-16 offset u.
+        var scalarOffset = [Int](repeating: 0, count: nsText.length + 1)
+        var utf16Position = 0
+        var scalarCount = 0
+        for scalar in text.unicodeScalars {
+            let width = UTF16.width(scalar)
+            for step in 0..<width { scalarOffset[utf16Position + step] = scalarCount }
+            utf16Position += width
+            scalarCount += 1
+        }
+        scalarOffset[nsText.length] = scalarCount
         return regex.matches(in: text, range: NSRange(location: 0, length: nsText.length)).map { result in
             var groups: [String] = []
             if result.numberOfRanges > 1 {
@@ -424,13 +570,12 @@ enum SourceScanner {
                     groups.append(range.location == NSNotFound ? "" : nsText.substring(with: range))
                 }
             }
-            let matchEnd = result.range.location + result.range.length
-            let prefix = nsText.substring(to: matchEnd)
             return RegexMatch(
                 text: nsText.substring(with: result.range),
                 groups: groups,
                 line: line(forUTF16Offset: result.range.location, lineStarts: lineStarts),
-                endOffset: prefix.unicodeScalars.count
+                startOffset: scalarOffset[result.range.location],
+                endOffset: scalarOffset[result.range.location + result.range.length]
             )
         }
     }

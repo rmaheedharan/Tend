@@ -6,8 +6,8 @@ import Foundation
 import Testing
 import TendCore
 
-/// One invariant case: a builder that violates it, the expected typed error, and the JSON fields that, transplanted
-/// into an otherwise valid encoded task, produce the same violation on decode.
+/// One invariant case: a builder that violates it and the expected typed error. The decode path builds its violating
+/// JSON separately, in `InvariantTests.violatingJSON(_:)`.
 struct InvariantCase: Sendable, CustomTestStringConvertible {
     let violation: TaskInvariantViolation
     let build: @Sendable () throws(TaskInvariantViolation) -> HouseholdTask

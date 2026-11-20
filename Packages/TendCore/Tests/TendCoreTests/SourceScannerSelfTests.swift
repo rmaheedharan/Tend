@@ -181,6 +181,49 @@ struct SourceScannerSelfTests {
         ("http(s) literal", "let u = #\"https://example.org\"#"),
         ("Date()", "let s = \"stamp \\(Date())\""),            // interpolation is code
         ("UUID()", "let s = \"\"\"\n  id \\(UUID())\n  \"\"\""),  // interpolation in a multi-line string
+        // Review F-2: explicit `.init` spellings and implicit-member `.now` (no receiver).
+        ("Date()", "let d = Date.init()"),
+        ("Date()", "let d = Date . init ( )"),
+        ("UUID()", "let u = UUID.init()"),
+        ("Date(timeIntervalSinceNow", "let d = Date.init(timeIntervalSinceNow: 5)"),
+        ("Date.now", "func complete(at now: Date = .now) {}"),
+        ("Date.now", "select(from: h, at: .now)"),
+        ("Date.now", "let t: Date = .now"),
+        ("Date.now", "func f() -> Date { return .now }"),
+        ("Date.now", "let t = given ?? .now"),
+        ("Date.now", "let ts: [Date] = [.now]"),
+        ("Date.now", "let t = flag ? .now : other"),
+        ("Date.now", "f(a,.now)"),
+        ("Date.now", "if a > .now {}"),
+        // Review F-1: networking names at camelCase word boundaries inside identifiers.
+        ("URLSession", "let t: URLSessionWebSocketTask? = nil"),
+        ("Socket", "let t: URLSessionWebSocketTask? = nil"),
+        ("URLSession", "let c = URLSessionConfiguration.default"),
+        ("URLSession", "let t: URLSessionDataTask? = nil"),
+        ("Socket", "let p = SocketPort(tcpPort: 80)"),
+        ("Socket", "let s = CFSocketCreate(nil, 0, 0, 0, 0, nil, nil)"),
+        ("Socket", "CFStreamCreatePairWithSocketToHost(nil, h, 80, &r, &w)"),
+        ("Host(", "let k = GhostHost(name: n)"),
+        ("Socket", "let i = WebSocketLike.self"),
+        ("NSStream", "let d: NSStreamDelegate? = nil"),
+        ("URLRequest", "var r: NSMutableURLRequest? = nil"),
+        // Brief AC-M1-23 additions (Q18).
+        ("InputStream(", "let j = InputStream(url: u)"),
+        ("Stream(", "let j = InputStream(url: u)"),
+        ("OutputStream(", "let o = OutputStream(toMemory: ())"),
+        ("getStreamsToHost", "Stream.getStreamsToHost(withName: n, port: 80, inputStream: &i, outputStream: &o)"),
+        ("URL(string:", "let u = URL(string: text)"),
+        ("URL(string:", "let u = URL.init(string: text)"),
+        ("arc4random*", "let n = arc4random()"),
+        ("arc4random*", "let n = arc4random_uniform(6)"),
+        ("drand48", "let x = drand48()"),
+        ("erand48", "let x = erand48(&seed)"),
+        ("lrand48", "let x = lrand48()"),
+        ("srand48", "srand48(42)"),
+        ("rand(", "let x = rand()"),
+        ("random()", "let x = random()"),
+        ("contentsOf:", "let d = try Data(contentsOf: url)"),
+        ("contentsOf:", "let s = try String(contentsOf: url, encoding: .utf8)"),
     ]
 
     @Test("AC-M1-23 negative: every banned pattern planted in code is detected",
@@ -195,13 +238,15 @@ struct SourceScannerSelfTests {
     @Test("AC-M1-23 coverage: the planted fixtures exercise every pattern in the closed list")
     func plantedFixturesCoverClosedList() {
         let planted = Set(Self.plantedPatterns.map(\.pattern))
-        var expected = Set(SourceScanner.bannedAPIPatterns.map(\.name))
+        var expected = Set(SourceScanner.identifierPatterns.map(\.name))
+        expected.formUnion(SourceScanner.networkingNames)
+        expected.formUnion(SourceScanner.networkingCallNames.map { "\($0)(" })
         expected.formUnion(SourceScanner.randomCallNames.map { ".\($0)( without using:" })
-        expected.insert("http(s) literal")
+        expected.formUnion(["Host.current", "http(s) literal", "contentsOf:"])
         #expect(planted == expected)
     }
 
-    @Test("N-1: near-misses at identifier boundaries are not reported")
+    @Test("N-1: near-misses at identifier and camelCase word boundaries are not reported")
     func patternNearMisses() {
         let fixture = """
             import Foundation
@@ -214,9 +259,16 @@ struct SourceScannerSelfTests {
             let g = startDate(timeIntervalSince: other)
             let g2 = d.timeIntervalSinceNowish
             let h = MyProcessInfo()
-            let i = WebSocketLike.self
-            let j = InputStream(data: x)
-            let k = GhostHost(name: n)
+            let i = Sockets.self
+            let j = XURLSessionLike.self
+            let k = upstream(data: x)
+            let k2 = Hostname(value: n)
+            let k3 = Host.currently
+            let k4 = operand(x) + brand(y)
+            let k5 = randomize(xs) + arc(4) + drand(48)
+            let k6 = URL(fileURLWithPath: path)
+            let k7 = myURL(string: s)
+            let k8 = contentsOfFile
             let l = Int.random(in: 0..<3, using: &generator)
             let m = xs.randomElement(using: &generator)
             let n = xs.shuffled(using: &generator)
@@ -239,5 +291,53 @@ struct SourceScannerSelfTests {
             """
         let hits = SourceScanner.apiHits(in: fixture, file: "fixture.swift")
         #expect(hits.isEmpty, "unexpected hits: \(hits)")
+    }
+
+    @Test("Review F-2: `.now` with a receiver is not reported (moment.now, self.now, chains, optional chaining)")
+    func nowWithReceiverNotReported() {
+        let fixture = """
+            let a = moment.now
+            let b = self.now
+            let c = context.now
+            let d = makeMoment().now
+            let e = moments[0].now
+            let f = maybe?.now
+            let g = forced!.now
+            let h = Box<Int>.now
+            let i = moment
+                .now
+            let j = Date.nowish
+            let k = x.nowhere
+            """
+        let hits = SourceScanner.apiHits(in: fixture, file: "fixture.swift")
+        #expect(hits.isEmpty, "unexpected hits: \(hits)")
+    }
+
+    @Test("AC-M1-23 positive: AsyncStream( and AsyncThrowingStream( (Q17) and allowlisted contentsOf: (Q18) are not reported")
+    func exemptionsAndAllowlistNotReported() {
+        let exempt = """
+            let s = AsyncStream(Int.self) { continuation in continuation.finish() }
+            let t = AsyncThrowingStream(Int.self) { continuation in continuation.finish() }
+            let u = AsyncStream<Int> { continuation in continuation.finish() }
+            """
+        #expect(SourceScanner.apiHits(in: exempt, file: "fixture.swift").isEmpty)
+
+        // Exactly two names: anything else ending in `Stream(` is still reported.
+        let notExempt = "let s = MyAsyncStream(Int.self)"
+        #expect(SourceScanner.apiHits(in: notExempt, file: "fixture.swift").contains { $0.rule == "Stream(" })
+
+        let read = "let data = try Data(contentsOf: fileURL)"
+        for allowlisted in SourceScanner.contentsOfAllowlist {
+            let path = "Sources/TendCore/Persistence/\(allowlisted)"
+            #expect(SourceScanner.apiHits(in: read, file: path).isEmpty, "\(path) is allowlisted")
+        }
+        #expect(SourceScanner.contentsOfAllowlist == ["JSONFileHouseholdRepository.swift"])
+        // The allowlist covers only `contentsOf:`; other rules still apply in that file.
+        let otherRule = "let u = URL(string: text)"
+        #expect(!SourceScanner.apiHits(in: otherRule, file: "Sources/TendCore/JSONFileHouseholdRepository.swift")
+            .isEmpty)
+        // A file with a different name is not allowlisted.
+        #expect(SourceScanner.apiHits(in: read, file: "Sources/TendCore/Model/Household.swift")
+            .contains { $0.rule == "contentsOf:" })
     }
 }
