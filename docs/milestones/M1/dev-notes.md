@@ -1,4 +1,4 @@
-# M1 Developer Handoff — WI-M1-01, WI-M1-02, WI-M1-03 (later section: WI-M1-04)
+# M1 Developer Handoff — WI-M1-01, WI-M1-02, WI-M1-03, WI-M1-04
 
 One section per work item. Each section follows the dev-notes template.
 
@@ -648,3 +648,246 @@ No AC in this item needs a device.
 |---|---|---|---|---|
 | 2026-11-20 | Orchestrator | Developer | accepted | WI-M1-03 on `m1/rule-of-three-selector`. Mid-task: the branch was brought up to date with `main` at `7556df7` (PRs #3, #5, #6 merged; fast-forward). |
 | 2026-11-20 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first. 104 tests in 14 suites, 0 failures, 0 warnings on Linux Swift 6.2.4. AC-M1-08…16 PASS on Linux, with the AC-M1-14 gate over 1,000 households. Nine mutations, all red. One naming deviation (`calendar:timeZone:` on `nextEligibleWindow`). AC-M1-20 floating-point risk flagged for WI-M1-04. Not verified on Darwin. |
+
+---
+
+## WI-M1-04 — Completion, gentle rescheduler (R0–R4), determinism, gate property tests; scanner Q19/Q20; W2-F1
+
+- **Owner:** Developer  ·  **Branch:** `m1/rescheduler` (Orchestrator's name; the plan says `m1/compassionate-rescheduler`).
+  It is stacked on `m1/rule-of-three-selector` (WI-M1-03, PR #7, under review), merged up to `f7018cb` (the WI-M1-03
+  review). So the DoR box "WI-M1-03 merged" is not yet ticked: rebase onto `main` once PR #7 is merged.  ·  **PR:** not
+  opened (Orchestrator)  ·  **ADRs:** none new. ADR-0001 applies (Foundation only; `now`, calendar and time zone are
+  injected). ADR-0004 gains the file-URL rule (W2-F1) in code; the ADR text is the Documenter's.
+- **Requirements:** FR-B1, FR-B2, FR-B3 (data only), UX-2, UX-3, P-2; S-M1-01, S-M1-05, S-M1-06. **Owns** AC-M1-03,
+  AC-M1-17, AC-M1-18, AC-M1-19, AC-M1-20 (Gate), AC-M1-21 (Gate), AC-M1-22, AC-M1-24 (Gate, local part only). Also
+  in scope: AC-M1-23 as amended by PO decisions **Q19/Q20** (committed here with the brief), review tickets **F-7**,
+  **F-8**, **F-9** (WI-M1-01), **W2-F1** (WI-M1-02) and **W3-F2** (WI-M1-03). AC-M1-02 and AC-M1-23 stay green.
+- **Inputs:** [brief.md](brief.md) (R0–R4, `E(a, D)`, Q4, Q5, Q11–Q14, Q19, Q20), [design.md](design.md) (`Rescheduler`,
+  `RescheduleOutcome`, `PromptTone.gentle`, `complete(_:at:)`, D-1, D-2, D-3), [plan.md](plan.md) (WI-M1-04 scope,
+  R-4, R-5, R-11, R-12), [review.md](review.md) (F-7…F-9, W2-F1, W3-F2).
+
+### What changed
+- **`Sources/TendCore/Rescheduling/`** (3 new files, Foundation only):
+  - `Rescheduler.swift`: `public enum Rescheduler` with `reschedule(_ household:at:calendar:timeZone:) -> Household`
+    and a per-task `reschedule(_ task:at:calendar:timeZone:) -> (task:, outcome:)`. One internal function applies R0–R4
+    in the brief's order: completed or resting → unchanged; rest over → `active`; window ended → `E(now, D)` with
+    `maintenance` (deep clean), `resurfaced` (critical) or unchanged `active` (any other). The slot calendar is built
+    once per household pass. Also `HouseholdTask.promptTone` (computed, always `.gentle`; nothing stored).
+  - `RescheduleOutcome.swift`: the five design codes `unchanged`, `restEnded`, `lightened`, `broughtBackGently`,
+    `movedToNextWindow`. Returned, never stored (D-2).
+  - `Completion.swift`: `Household.complete(_:at:calendar:timeZone:) -> Bool` (`@discardableResult`) and the internal
+    `HouseholdTask.completed(at:slots:)`. One-off and restock → `completed`, `completedAt = now`. Recurring → `active` on
+    `E(now + interval days, D)`, `completedAt = now`. The task's room gets `lastTendedAt = now`.
+- **`Selection/SlotCalendar.swift`** (WI-M1-03 file, additive): internal `sameWallClockTime(as:daysLater:)` for the
+  recurring anchor ("now + interval calendar days, same wall-clock time", Q14) with the Q11 DST policy, and an internal
+  `nextEligibleWindow(from:duration:slots:)` overload. The public `nextEligibleWindow` is unchanged in behaviour.
+- **`Persistence/JSONFileHouseholdRepository.swift`** (review W2-F1): `init(fileURL:)` is now
+  `throws(HouseholdStoreError)` and throws `.unreadableFile` for any URL that is not a local file URL, before any read
+  or write. No new error case (the design list stays at four); the `unreadableFile` doc now says so.
+- **Test scanner** (`Tests/TendCoreTests/Support/SourceScanner.swift`), AC-M1-23 as amended by Q19/Q20:
+  - camelCase word-boundary names added: `NSURL`, `URLComponents`, `CFURL` (Q19); `CFHost`, `CFReadStream`,
+    `CFWriteStream`, `CFSocket`, `getaddrinfo`, `gethostbyname` (Q20); and a new `clockNames` list: `DispatchTime`,
+    `DispatchWallTime`, `ContinuousClock`, `SuspendingClock`, `mach_absolute_time`, `clock_gettime`, `gettimeofday`,
+    `CFAbsoluteTimeGetCurrent` (Q20). "Whole type names" is read as "the type name at camelCase word boundaries", the
+    AC's general rule; so `DispatchTimeInterval` is also a hit (stricter, never looser);
+  - lower-case `socket(` added to the call names (Q20);
+  - review **F-7**: the call names (`Stream(`, `InputStream(`, `OutputStream(`, `Host(`, `socket(`) also match the
+    explicit `Name.init(` spelling. The Q17 exemption covers `AsyncStream.init(` / `AsyncThrowingStream.init(` too;
+  - `contentsOf:` narrowed per Q19 to **URL-loading initialisers**: `Data`, `NSData`, `String`, `NSString`, `NSArray`,
+    `NSDictionary`, `NSAttributedString`, `XMLParser` with `(contentsOf:` or `.init(contentsOf:`, plus any
+    `.init(contentsOf:`. Rule name `URL-loading init (contentsOf:)`. Still allowed only in
+    `JSONFileHouseholdRepository.swift`. `append(contentsOf:)` / `insert(contentsOf:at:)` are allowed anywhere.
+- **Tests:** 4 new files and changes to 6.
+  - New: `CompletionTests.swift`, `ReschedulerTests.swift`, `ReschedulerPropertyTests.swift`,
+    `Support/RescheduleOracle.swift`.
+  - Changed: `SourceScannerSelfTests.swift` (planted, near-miss and positive cases), `FileRepositoryLoadErrorTests.swift`
+    (W2-F1), `Support/HouseholdGenerator.swift` and `Support/SelectionCorpus.swift` (an optional `endedShare`; `nil`
+    keeps the old random stream, so the AC-M1-05/14/15/16 seeds give the same households), and `try` at the file-store
+    call sites (`FileRepositoryAtomicSaveTests.swift`, `Support/RepositoryHarness.swift`).
+- **Docs:** this section, the title line, and [brief.md](brief.md) (the PO's uncommitted Q19/Q20 edits, committed
+  unchanged).
+- **Not touched:** `CLAUDE.md`, `docs/PRD.md`, `.claude/**`, `.github/**`, `docs/governance/**`,
+  `docs/milestones/STATUS.md`, the model files.
+
+### Public API added (for the naming, UX-2, D-2 and D-3 check; R-12)
+```
+public enum Rescheduler {
+  public static func reschedule(_ household: Household, at now: Date, calendar: Calendar, timeZone: TimeZone) -> Household
+  public static func reschedule(_ task: HouseholdTask, at now: Date, calendar: Calendar, timeZone: TimeZone)
+    -> (task: HouseholdTask, outcome: RescheduleOutcome) }
+public enum RescheduleOutcome: String, CaseIterable, Hashable, Sendable {
+  unchanged, restEnded, lightened, broughtBackGently, movedToNextWindow }
+extension HouseholdTask { public var promptTone: PromptTone { get } }   // always .gentle, computed
+extension Household {
+  @discardableResult public mutating func complete(_ taskID: HouseholdTask.ID, at now: Date, calendar: Calendar,
+                                                   timeZone: TimeZone) -> Bool }
+// changed: JSONFileHouseholdRepository.init(fileURL: URL) throws(HouseholdStoreError)   (W2-F1)
+```
+- **Naming-list deviations (two, same reason as WI-M1-03's accepted one):** `reschedule` matches the design signature
+  exactly. `complete(_:at:)` gains `calendar:timeZone:`, because recurring completion resolves `E(now + interval, D)` in
+  the injected calendar and zone. It lives on `Household`, because it also tends the room. The second
+  `reschedule(_ task:…)` overload is an addition that returns the design's optional per-task `RescheduleOutcome`.
+- **UX-2:** no new API returns a list of "what to do now" items. `Rescheduler` returns the whole stored household (the
+  same shape as `load()`), with no ranking or "next" meaning. The per-task overload returns one task.
+- **D-2:** no new stored field on any type. `RescheduleOutcome` and `promptTone` are returned or computed, never stored.
+  `completedAt` is the latest completion only. A test checks that the stored labels and encoded keys of a task after 20
+  passes are exactly the naming list. **D-3:** no priority, score or weight. **D-1:** "rest ended" / `isRestOver`;
+  never "lapsed". Test names and logs say "window ended", never "missed".
+- A grep of `Rescheduling/` for the design-forbidden list (urgent, severity, escalat\*, nag, alarm, alert, warning,
+  neglected, stale, abandoned, slipped, lapsed, isDue, downgrade, demote, count, attempts, original\*, history,
+  priority, score, weight) finds nothing.
+
+### Decisions the Reviewer should know (technical, reversible; no product meaning changed)
+1. **No RNG parameter (plan deviation).** The plan says "the engine takes an injected RNG … but must not use it". I did
+   not add one. An input that is never read would misstate the API. `NowSelector` (WI-M1-03, approved) takes none
+   either. M1 uses no randomness (Q7). AC-M1-22's "two different RNG seeds give identical outputs" holds because no
+   engine API has an RNG input, and the AC-M1-23 scan bans every ambient RNG. The test draws from two differently
+   seeded generators between runs, so any hidden shared random state would show up. When a later feature needs
+   randomness (M3 sprint builder), it gets an injected `RandomNumberGenerator` then. If the Planner or Reviewer wants
+   the unused parameter, it is a two-line change.
+2. **Recurring anchor and DST** (`sameWallClockTime`). The target day is reached by noon-anchored day arithmetic, then
+   the time is set with `date(bySettingHour:…, matchingPolicy: .nextTime, repeatedTimePolicy: .first)`, which is Q11's
+   policy. A Linux probe showed that `Calendar.date(byAdding: .day, …)` does **not** follow Q11 in a gap: it moved
+   02:30 to 03:30 ("preserving smaller components") where Q11 says 03:00. It also picked the second occurrence of a
+   repeated time when adding backwards. So `byAdding` on the instant is not used. The sub-second part is kept (zone
+   offsets are whole seconds). A wall time inside a DST gap resolves to the end of the gap with no sub-second part,
+   because that is "the next existing instant".
+3. **Completing an unknown ID or an already completed task** changes nothing and returns `false`. The brief defines
+   completion only for non-completed tasks. Completing a resting task completes it (AC-M1-03 lists `deferred`).
+4. **`completedAt` is set for recurring tasks too.** The field is documented as "when the task was last completed".
+   AC-M1-03(b) does not forbid it, and the design's `complete(_:at:)` row says it "sets `completedAt`".
+5. **A room ID that is not in the household** changes no room (nothing to tend; no room is created).
+6. **Unreachable fallbacks.** Only if the calendar cannot resolve a day: the recurring anchor falls back to
+   `now + days × 86,400 s`, and `recurrenceIntervalDays ?? 1` is used (the invariant guarantees ≥ 1). These are calm
+   values, not crashes. W3-F3's optional `assertionFailure` was not added, to keep this item's scope.
+7. **W2-F1** uses the existing `unreadableFile` case rather than a new one, because the design list is binding. The
+   throwing `init` is the boundary: no repository instance can exist for a non-file URL, so no read or write can reach
+   one.
+
+### W3-F2 / AC-M1-20 floating-point measurement (open question for the PO)
+- Measured, not assumed. `windowEnd = s + D` is a `Double` addition (the brief's `s + D`; `E` is unchanged).
+- **Inside one binade, the duration is bit-identical.** Below 2^30 s after 2001, every `Date` is a multiple of
+  2^-23 s, and `s + D` is exact. The AC-M1-20 gate test compares `windowEnd − windowStart` by **`bitPattern`** for
+  N = 1…60 against pass 1. It passes over its corpus (360 chains, 21,600 comparisons, dates 2024–2029).
+- **At 2035-01-10 13:37:04Z (2^30 s), it is not.** Above that instant the grid is 2^-22 s. A duration that is an odd
+  number of 2^-23 s steps cannot be held, so it changes **once by exactly one step (2^-23 s ≈ 119 ns)** and never
+  again. The change comes at the pass whose window first reaches the edge, or at the next pass. The same happens at
+  every power-of-two edge (2^29 s = 2018-01-05 18:48:32Z, 2^31 s = 2069). The test "W3-F2 measurement: …" pins this
+  exactly over 36 chains: exactly one change for odd-step durations, none for even ones, always ±1 step, at one of the
+  two edge passes, and everything else is identical for all N. Any further drift would fail it.
+- **Reading chosen (most faithful to the brief, nothing loosened):** the AC-M1-20 gate test keeps strict bit-pattern
+  identity. The only exception is the one-step rounding forced by `Date`'s representation at a binade edge, and that is
+  documented by its own test, not by a tolerance. It does not grow with N, which is the AC's stated purpose ("No
+  field, count or collection grows with N").
+- **Options that would remove it, all of which change product meaning or the model (so not taken):** snap `s` to a
+  2^-22 s grid (then `E` no longer starts "at `a`" exactly, which breaks AC-M1-17's "exactly `E(now, D)`"); store whole
+  milliseconds; or store the duration (a new field, D-2).
+- **Q21 (PO):** see Known limitations.
+
+### AC coverage
+| AC | Test(s) (Swift Testing display names; suite) | Result |
+|---|---|---|
+| AC-M1-03 | Suite *Completion (AC-M1-03)*. "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" (2 kinds × 5 start states: active, resting, rest over, maintenance, resurfaced). "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" (9 hand-computed cases × 5 start states. Berlin: weekly, weekend-only, morning-only, Monday-only. New York: spring 47 h, the nonexistent 02:30:15.250 → 03:00 EDT, autumn repeated 01:30:15.250 → first occurrence, the second 01:30 + 7 days, autumn 49 h). "AC-M1-03 (c): a task with no room, or a room that is not in the household, changes no room". "AC-M1-03: only the completed task changes; the other tasks and the schema version are kept". "AC-M1-03 scope: completing an unknown ID or an already completed task changes nothing and reports false". Property: "AC-M1-03: over 300 seeded households every non-completed task completes exactly as the independent oracle says". Log: `seeds 500001...500300, 4250 completions, 1384 recurring, 45 moments within 12 h of a DST change`. | PASS (Linux) |
+| AC-M1-17 | "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" (8 window cases × 3 start states: active, maintenance, rest over. The cases are `windowEnd == now`, now inside an allowed slot, now outside one, the night slot across midnight both ways, a DST spring day, a DST autumn day, and the repeated autumn 01:30). It checks the hand-computed start, `windowEnd = s + D`, the duration bit pattern, every other field, outcome `lightened`, and the oracle. "AC-M1-17: the lightened deep clean counts as low effort when its new window opens (low energy selects it)". | PASS (Linux) |
+| AC-M1-18 | "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" (8 × 3 start states: active, resurfaced, rest over). It checks outcome `broughtBackGently`, stored effort, and `promptTone == .gentle`. "AC-M1-18: a resurfaced task carries no escalation field; the only prompt metadata is the fixed gentle tone" (20 passes: the tone is always `gentle`, the stored labels are exactly the naming list, and the encoded keys are exactly the naming list). | PASS (Linux) |
+| AC-M1-19 | "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" (3 kinds × 8 cases; the recurring interval is not applied). "AC-M1-19 / R1: a deferral whose rest is over and whose window ended becomes active on E(now, D)" (3 kinds). Rules beside it: "R0: completed tasks and resting deferrals are not touched, even with an ended window"; "R1: a deferral whose rest is over and whose window is still open becomes active and nothing else changes"; "Window open or not yet open: the task is unchanged in every state" (3 states × 3 windows); "Rescheduler: the household version keeps task order, rooms and schema version, and matches the per-task rules"; "Design list: RescheduleOutcome has exactly the five reason codes". | PASS (Linux) |
+| AC-M1-20 (Gate) | "AC-M1-20 (Gate): after N = 1…60 consecutive ended windows the decoded structure equals the structure after 1 pass; only the window moves". Each pass encodes and decodes a household with the task and a room, then compares: every JSON key path, all non-window values (byte-equal canonical JSON), every collection count, and `windowEnd − windowStart` by **bit pattern** (W3-F2). Log: `seeds 600001...600040, 360 chains (R2, R3, R4 x one-off, recurring, restock), 21600 pass comparisons against pass 1 (N = 1...60), duration compared by bit pattern, longest chain moved 844 days`. **W3-F2 crossing case**: "W3-F2 measurement: across 2035-01-10 13:37:04Z (2^30 s) the window duration changes at most once, by exactly one 2^-23 s rounding step, then never again; structure otherwise identical" (36 chains; all 36 change once by ±1 step at N = 5 or 7). See the W3-F2 section and Q21. | PASS (Linux) over the corpus. At the 2035 binade edge the duration changes once by 2^-23 s, pinned by a test; **open PO question Q21** on the reading of "identical" |
+| AC-M1-21 (Gate) | "AC-M1-21 (Gate): over 500 seeded households of 50-500 tasks (at least half with ended windows) one pass equals the oracle, leaves no ended window, and is idempotent". This covers (a)–(f). (f) checks ≤ 3, no duplicates, oracle validity, `min(3, valid)` and the oracle's AC-M1-16 order. Every household is asserted to have ≥ half its windows ended. Log: `seeds 400001...400500, 500 households, 135474 tasks (min 50, max 500 per household), 108303 with ended windows (54138 ending exactly at now; 15018 rest over, 14941 resting, 30337 completed)`; `outcomes unchanged 68626, restEnded 3823, lightened 22485, broughtBackGently 22622, movedToNextWindow 17918; selection sizes 0/1/2/3 after the pass = 0/1/2/497`. | PASS (Linux) |
+| AC-M1-22 | "AC-M1-22: identical inputs give identical selection and rescheduling outputs over 100 runs, and two RNG seeds give the same outputs". Log: `10 households (seeds 400001...400010), 1000 repeated runs of rescheduling and selection, plus RNG seeds 1 and 0xDEADBEEF: all identical`. On RNG seeds, see decision 1. | PASS (Linux) |
+| AC-M1-24 (Gate) | Local equivalent only: `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` → **"Test run with 127 tests in 17 suites passed after 94.318 seconds"**, 0 failures, 0 skipped/disabled, 0 warnings (clean `.build`). The AC needs **Linux CI on the M1 merge commit**. That run cannot exist until PRs #7 and this one are merged. AC→test mapping: see this table and the WI-M1-01…03 tables. Every AC from 01 to 25 has a named test. | Local PASS. **CI on the M1 merge commit not yet run** (Tester / Gatekeeper) |
+| AC-M1-23 (amended by Q19/Q20; F-7) | "AC-M1-23 negative: every banned pattern planted in code is detected" (now 117 fixtures, up from 74. New: `NSURL(`, `NSURLRequest`, `NSURLComponents`, `URLComponents(string:)?.url`, `CFURLCreateWithString`, 13 URL-loading initialiser forms incl. `Foundation.Data(contentsOf:`, `Data . init ( contentsOf :`, `.init(contentsOf:` and `NSMutableData.init(contentsOf:`, all 8 clock names incl. `DispatchTimeInterval` and `ContinuousClock().now`, `CFHostCreateWithName`, `CFReadStreamCreateWithFTPURL`, `CFWriteStream`, `CFSocketCreate`, `socket(` and `Glibc.socket(`, `getaddrinfo`, `gethostbyname`/`gethostbyname2`, and F-7's `Host.init(`, `Host . init (`, `InputStream.init(`, `Stream.init(`, `MyAsyncStream.init(`, `OutputStream.init(`). "AC-M1-23 coverage: the planted fixtures exercise every pattern in the closed list" (now includes `clockNames` and the URL-loading rule). "N-1: near-misses …" (new: `String(contentsOfFile:)`, `append(contentsOf:)`, `insert(contentsOf:at:)`, `MyData(contentsOf:)`, `Database(contentsOf:)`, `NSURLish`, `nsurl`, `fileURLComponent`, `CFURLish`, `DispatchTimer()`, `ContinuousClockwise`, `getTimeOfDay()`, `machAbsoluteTime`, `CFHostname`, `freeaddrinfo(`, `let socket = 1`, `websocket(`, `sockets(`, `Hostess.init(`, `upstream.init(`, `Host.initial`). "AC-M1-23 positive: AsyncStream( and AsyncThrowingStream( (Q17), allowlisted URL-loading initialisers (Q18, Q19) and append/insert(contentsOf:) (Q19) are not reported" (also `AsyncStream.init(`). Real-source scan: `23 files scanned … 0 hits`. | PASS (Linux) |
+| AC-M1-02 | `AC-M1-02 scan: 23 files scanned … 0 hits` (the three new `Rescheduling/` files are included). | PASS (Linux) |
+| W2-F1 (ticket) | "W2-F1 / P-2: a repository refuses a URL that is not a local file URL before any read or write" (`https:`, `http:`, `ftp:`, `data:`, scheme-less relative; the public and the seam initialisers both throw `unreadableFile`; the writer is never called). "W2-F1: a file URL from a path is accepted". | PASS (Linux) |
+
+**Test-first.** The new tests were written first and run against stub sources (rescheduler returning its input,
+`complete` returning `false`): "Test run with 127 tests in 17 suites failed … with 196107 issues". Every new AC-M1-03
+and AC-M1-17…21 test was red. AC-M1-22 was green on the stub, as expected for a determinism property. Then the bodies
+were written.
+
+**Tests fail when the behaviour breaks.** Each mutation was applied by a script, the relevant suites were run
+(`--filter Rescheduler|Completion`, i.e. 21 tests in 3 suites, or the scanner or file-repository suite), and the file
+was restored by the script (checked by grep and the final clean run):
+
+| Mutation | Tests that went red |
+|---|---|
+| MR-1 R2 keeps the state (no maintenance) | AC-M1-17 (both), AC-M1-20, AC-M1-21 |
+| MR-2 R3 not applied | AC-M1-18, AC-M1-20, AC-M1-21 |
+| MR-3 `E` anchored at the old `windowEnd`, not `now` | AC-M1-17, 18, 19, 20, 21 |
+| MR-4 a rest-over deferral is not reactivated (R1) | AC-M1-19 / R1, R1 test, AC-M1-20, AC-M1-21 |
+| MR-5 resting tasks are moved (R0 ignores rest) | R0 test, AC-M1-21 |
+| MR-6 the window grows by 1 ms per pass | AC-M1-17, 18, 19 (both), 20, 21, W3-F2 measurement |
+| MR-7 `windowEnd == now` not treated as ended | AC-M1-17 (both), 18, 19 (both), 20, 21, W3-F2 measurement |
+| MC-1 recurring anchor = `now + days × 86,400 s` (no DST) | AC-M1-03 (b) DST cases, AC-M1-03 property |
+| MC-2 room not tended | AC-M1-03 (a), (b), other-tasks test, property |
+| MC-3 a recurring task keeps its state | AC-M1-03 (b), property |
+| MC-4 `completedAt` not set | AC-M1-03 (a), (b), property |
+| MS-1 repeated wall time takes the last occurrence | AC-M1-03 (b) (autumn cases) |
+| MS-2 sub-second part dropped | AC-M1-03 (b), property |
+| MS-3 a nonexistent wall time keeps its minutes (the `byAdding` behaviour) | AC-M1-03 (b) (spring gap case) |
+| MJ-1 non-file URL accepted | W2-F1 test |
+| MT-1 clock names not checked | AC-M1-23 planted |
+| MT-2 Q19 names removed | AC-M1-23 planted, coverage |
+| MT-3 `.init(` not treated as a call | AC-M1-23 planted |
+| MT-4 `contentsOf:` back to any label | Q17/Q19 positive test, N-1 near-miss test |
+| MT-5 `socket(` not a call name | AC-M1-23 planted, coverage |
+| MT-6 `AsyncStream.init(` exemption lost | Q17/Q19 positive test |
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors`: **127 tests in 17 suites passed**, 0 failures, 0 skipped, 0 warnings, 94.3 s wall (clean `.build`) | ✔ container, Swift 6.2 (`swift:6.2-noble` via the Docker wrapper) | — | — | — | Linux CI runs the same command on the PR; the Gatekeeper should see "Test run with 127 tests" (R-6) |
+| AC-M1-24 on the **M1 merge commit** | — | — | — | — | Not verifiable before merge. Linux CI on the merge commit is the evidence (Tester) |
+| Runtime (R-5) | ✔ AC-M1-21 94 s and AC-M1-22 86 s wall time while running in parallel (they share the lazily built 500-household corpus; the brute-force `E` oracle dominates AC-M1-21); AC-M1-20 25 s. The whole run was about 15 s before this item. | — | — | — | Well inside the 20-minute CI timeout, but CI runners may be 2–4× slower; watch the first CI run |
+| DST policy of the recurring anchor (Q11) and `byAdding` behaviour | ✔ container probe + tests | — | — | — | Darwin not checked (W3-F1). The macOS lane (M3) should rerun `CompletionTests` |
+| `Double` grid behaviour at 2^30 s (W3-F2) | ✔ container | — | — | — | IEEE 754, so the same on Darwin |
+
+No AC in this item needs a device.
+
+### Things the reviewer should look at closely
+- **Oracle independence (R-4)**, in `Support/RescheduleOracle.swift`. It calls no engine function. It rebuilds expected
+  tasks with the public validating initialiser.
+  - `E`: `ContextOracle.nextAllowedStart`, a 15-minute brute-force scan.
+  - Recurring anchor: UTC day arithmetic plus solving `local = utc + offset` over the offsets seen within ±2 days. A gap
+    resolves to `nextDaylightSavingTimeTransition`. Production uses `date(bySettingHour:…, .nextTime, .first)`.
+  - Oracle limit: a gap that is not a DST transition (for example Samoa 2011, a zone-offset change) would not be found
+    by the gap branch. No corpus zone has one in the dates used.
+- **The second `reschedule` overload** returns a tuple. It is the design's optional per-task outcome. The household
+  version calls the same internal function, and a test checks that they agree.
+- **`Household.complete` is `mutating`** on a public struct. `HouseholdTask` fields stay `internal(set)`, so only
+  `TendCore` can change task state, and the invariants hold: one-off/restock → `completed`; recurring → `active`.
+- **W2-F1 changes a public signature** (`init(fileURL:)` now throws). No app code exists yet; the test call sites were
+  updated.
+- **Scanner reading of Q20 "whole type names"** (camelCase word boundary, so `DispatchTimeInterval` is a hit) and the
+  URL-loading regex (`Support/SourceScanner.swift`, `urlLoadingInitPattern`).
+- **The `endedShare` generator option.** With `nil`, the random stream is unchanged, so the AC-M1-05/14/15/16 seeds and
+  logs are the same households as before. The WI-M1-02/03 tests pass unchanged.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| **Q21 (PO): reading of "identical" in AC-M1-20 at a `Date` binade edge.** Passes that cross 2035-01-10 13:37:04Z (2^30 s; likewise 2018-01-05 and 2069) change `windowEnd − windowStart` once by 2^-23 s (≈ 119 ns) for durations that are an odd number of 2^-23 s steps, because `Date` is a `Double`. It never grows with N. Proposed reading: "identical" = bit-identical, except this single representation rounding at a binade edge, which is pinned by its own test. Alternatives change product meaning (snap `s`, which breaks "exactly `E(now, D)`") or the model (a stored duration, D-2). The AC is not changed. | Minor (PO decision) | PO |
+| No RNG parameter on the engine (plan said "take one, don't use it"); decision 1 | Nit (Planner/Reviewer) | Work Planner / Reviewer |
+| AC-M1-24 needs Linux CI on the M1 merge commit | — (gate) | Acceptance Tester / Merge Gatekeeper |
+| Branch is stacked on PR #7 (WI-M1-03); rebase onto `main` after PR #7 merges. Branch name differs from the plan (`m1/rescheduler`). | — | Orchestrator |
+| W3-F3 (`assertionFailure` on unreachable fallbacks) not applied to the new fallbacks either (decision 6) | Nit | Reviewer (optional) |
+| URL-loading initialisers of types outside the Q19 list (e.g. `NSMutableData(contentsOf:)`) are not caught unless written `.init(contentsOf:`. Every URL-from-string API is banned, so such a call cannot get a remote URL inside `TendCore`. | Nit | PO, only if the list should become "any `Type(contentsOf:`" |
+| `docs/product/TRACEABILITY.md` rows for AC-M1-03, 17…22, 24; ADR-0004 text for W2-F1; copy Q19/Q20 (and Q21 once answered) to DECISIONS.md | — | Product Documenter / governance owner |
+| Darwin rerun of `CompletionTests` and the DST cases | Minor | M3 macOS lane (W3-F1) |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. Completion and rescheduling are engine calls. |
+| UX-2 Rule of Three | pass | No new "what to do now" API. The rescheduler returns the stored household. AC-M1-21(f) proves that selection after a pass is still ≤ 3, valid, `min(3, n)` and oracle-ordered over 500 households. |
+| UX-3 Zero-Guilt | pass | Ended windows are renegotiated into calm states (`maintenance`, `resurfaced`, a new window). There is no overdue state, counter, original window or history (D-2; stored labels and encoded keys tested after 20 passes). The structure does not grow over 60 passes (AC-M1-20). The tone is fixed `gentle` (AC-M1-18). No time-growing score (D-3). The code says "rest ended", never "lapsed" (D-1). Test names say "window ended". AC-M1-02 scan: 23 files, 0 hits. |
+| UX-4 Design craft | n.a. | No UI in M1. |
+| P-1 On-device inference | n.a. | No AI. |
+| P-2 No data leaves device (except user iCloud) | pass | Pure computation on injected values. The AC-M1-23 guard is stricter (Q19/Q20, F-7). The file repository now refuses non-file URLs (W2-F1). AC-M1-23 scan: 23 files, 0 hits. |
+| P-3 Cloud escalation only via PCC + ADR | n.a. | No cloud path. |
+| P-4 Media not persisted without consent | n.a. | No media. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-20 | Orchestrator | Developer | accepted | WI-M1-04 on `m1/rescheduler`, stacked on `m1/rule-of-three-selector` at `813be42` (PR #7 under review). Scope also covers the scanner (Q19/Q20; F-7…F-9) and W2-F1. Mid-task: W3-F2 note received, and `f7018cb` (WI-M1-03 review) was merged in (fast-forward). |
+| 2026-11-20 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (stub run red, then green). 127 tests in 17 suites, 0 failures, 0 warnings on Linux Swift 6.2. AC-M1-03, 17…22 PASS on Linux. AC-M1-24 local only (needs CI on the M1 merge commit). 21 mutations, all red. Open: Q21 (PO, AC-M1-20 at the 2035 binade edge), decision 1 (no RNG parameter). Not verified on Darwin. Pushed; no PR opened. |

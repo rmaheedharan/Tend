@@ -51,7 +51,7 @@ struct FileRepositoryAtomicSaveTests {
             try await JSONFileHouseholdRepository(fileURL: fileURL).save(householdA)
             let bytesA = try RepositoryHarness.bytes(at: fileURL)
 
-            let failing = JSONFileHouseholdRepository(fileURL: fileURL, writer: failure.writer)
+            let failing = try JSONFileHouseholdRepository(fileURL: fileURL, writer: failure.writer)
             await #expect(throws: HouseholdStoreError.writeUnsuccessful) { try await failing.save(householdB) }
 
             #expect(try RepositoryHarness.bytes(at: fileURL) == bytesA, "\(failure): the household file changed")
@@ -67,7 +67,7 @@ struct FileRepositoryAtomicSaveTests {
             let householdA = try HouseholdGenerator.household(seed: 7_003, taskCount: 40)
             try await JSONFileHouseholdRepository(fileURL: fileURL).save(householdA)
             let bytesA = try RepositoryHarness.bytes(at: fileURL)
-            let failing = JSONFileHouseholdRepository(fileURL: fileURL, writer: failure.writer)
+            let failing = try JSONFileHouseholdRepository(fileURL: fileURL, writer: failure.writer)
 
             await #expect(throws: HouseholdStoreError.writeUnsuccessful) {
                 try await failing.upsertTask(try Fixtures.task(id: Fixtures.id(0x7777)))
@@ -89,7 +89,7 @@ struct FileRepositoryAtomicSaveTests {
     func failedFirstSaveCreatesNoFile(failure: InjectedFailure) async throws {
         try await RepositoryHarness.withTemporaryDirectory { directory in
             let fileURL = directory.appendingPathComponent("household.json")
-            let failing = JSONFileHouseholdRepository(fileURL: fileURL, writer: failure.writer)
+            let failing = try JSONFileHouseholdRepository(fileURL: fileURL, writer: failure.writer)
             await #expect(throws: HouseholdStoreError.writeUnsuccessful) {
                 try await failing.save(try HouseholdGenerator.household(seed: 7_004, taskCount: 10))
             }
@@ -119,7 +119,7 @@ struct FileRepositoryAtomicSaveTests {
         try await RepositoryHarness.withTemporaryDirectory { directory in
             let fileURL = directory.appendingPathComponent("household.json")
             let householdA = try HouseholdGenerator.household(seed: 7_007, taskCount: 25)
-            let repository = JSONFileHouseholdRepository(fileURL: fileURL)
+            let repository = try JSONFileHouseholdRepository(fileURL: fileURL)
             try await repository.save(householdA)
             let bytesA = try RepositoryHarness.bytes(at: fileURL)
 
@@ -142,7 +142,7 @@ struct FileRepositoryAtomicSaveTests {
     func standardWriterReplacesByRename() async throws {
         try await RepositoryHarness.withTemporaryDirectory { directory in
             let fileURL = directory.appendingPathComponent("household.json")
-            let repository = JSONFileHouseholdRepository(fileURL: fileURL)
+            let repository = try JSONFileHouseholdRepository(fileURL: fileURL)
             func fileNumber() throws -> Int? {
                 try FileManager.default.attributesOfItem(atPath: fileURL.path(percentEncoded: false))[.systemFileNumber]
                     as? Int

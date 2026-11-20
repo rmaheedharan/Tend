@@ -111,6 +111,30 @@ struct SlotCalendar: Sendable {
         return slots(ofDayOf: previousNoon).first(where: { $0.contains(instant) })
     }
 
+    /// The same local wall-clock time as `instant`, `days` calendar days later (brief Q14: completing a recurring task
+    /// anchors at "now + interval days, same wall-clock time"). The target day is reached by noon-anchored day
+    /// arithmetic; the time is then set with the brief's DST policy (Q11): a wall time that does not exist on that day
+    /// resolves to the next existing instant (the end of the gap, with no sub-second part), and a repeated one to its
+    /// first occurrence. Sub-second parts are kept: zone offsets are whole seconds, so the local fraction of a second is
+    /// the fraction of `timeIntervalSinceReferenceDate`. `nil` only if the calendar cannot resolve the day.
+    func sameWallClockTime(as instant: Date, daysLater days: Int) -> Date? {
+        let parts = calendar.dateComponents([.hour, .minute, .second], from: instant)
+        guard
+            let hour = parts.hour, let minute = parts.minute, let second = parts.second,
+            let dayNoon = noon(ofDayContaining: instant),
+            let targetNoon = noon(days, daysAfter: dayNoon),
+            let whole = calendar.date(
+                bySettingHour: hour, minute: minute, second: second, of: targetNoon,
+                matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .forward)
+        else { return nil }
+        let landed = calendar.dateComponents([.hour, .minute, .second], from: whole)
+        guard landed.hour == hour, landed.minute == minute, landed.second == second else {
+            return whole  // the wall time does not exist that day: the next existing instant
+        }
+        let seconds = instant.timeIntervalSinceReferenceDate
+        return whole.addingTimeInterval(seconds - seconds.rounded(.down))
+    }
+
     /// `s` in the brief's `E(a, D)`: `anchor` itself if it lies in an allowed slot, otherwise the start of the earliest
     /// allowed slot that begins after `anchor`. `nil` only if the calendar cannot resolve a day within the horizon.
     func nextAllowedStart(from anchor: Date, dayparts: Set<Daypart>, weekdays: Set<Weekday>) -> Date? {
@@ -146,7 +170,13 @@ extension HouseholdTask {
         calendar: Calendar,
         timeZone: TimeZone
     ) -> (windowStart: Date, windowEnd: Date) {
-        let slots = SlotCalendar(calendar: calendar, timeZone: timeZone)
+        nextEligibleWindow(from: anchor, duration: duration, slots: SlotCalendar(calendar: calendar, timeZone: timeZone))
+    }
+
+    /// `E(a, D)` on an already-built slot calendar (the rescheduler builds one per pass).
+    func nextEligibleWindow(from anchor: Date, duration: TimeInterval, slots: SlotCalendar)
+        -> (windowStart: Date, windowEnd: Date)
+    {
         let start = slots.nextAllowedStart(from: anchor, dayparts: allowedDayparts, weekdays: allowedWeekdays) ?? anchor
         return (start, start.addingTimeInterval(duration))
     }

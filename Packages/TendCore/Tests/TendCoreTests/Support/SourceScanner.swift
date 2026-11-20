@@ -82,22 +82,45 @@ enum SourceScanner {
     /// AC-M1-23 networking names matched at **camelCase word boundaries** (review F-1): the name's words must appear
     /// as consecutive words of an identifier, using `subTokens(of:)` (the AC-M1-02 split). So `URLSessionDataTask`,
     /// `URLSessionWebSocketTask`, `CFSocketCreate` and `SocketPort` are hits; `Sockets` and `XURLSession` are not.
+    /// Brief Q19 adds `NSURL`, `URLComponents` and `CFURL` (no URL is ever built from a string in `TendCore`); brief Q20
+    /// adds the CoreFoundation and POSIX name-resolution and stream families.
     static let networkingNames: [String] = [
         "URLSession", "URLRequest", "URLConnection", "NSURLConnection", "Socket", "NSStream", "getStreamsToHost",
+        "NSURL", "URLComponents", "CFURL",                                          // Q19
+        "CFHost", "CFReadStream", "CFWriteStream", "CFSocket", "getaddrinfo", "gethostbyname",  // Q20
     ]
 
-    /// AC-M1-23 networking call names: the name's words must be the **last** words of an identifier that is followed
-    /// by `(`. Reported as `Stream(`, `InputStream(`, `OutputStream(`, `Host(`.
-    static let networkingCallNames: [String] = ["Stream", "InputStream", "OutputStream", "Host"]
+    /// AC-M1-23 (brief Q20): ambient clocks, matched like `networkingNames` (whole type and function names at camelCase
+    /// / underscore word boundaries). The engine gets time only from the injected `now`.
+    static let clockNames: [String] = [
+        "DispatchTime", "DispatchWallTime", "ContinuousClock", "SuspendingClock",
+        "mach_absolute_time", "clock_gettime", "gettimeofday", "CFAbsoluteTimeGetCurrent",
+    ]
 
-    /// AC-M1-23 (brief Q17, PO decision): exactly these two identifiers are exempt from the `Stream(` rule. Swift
-    /// concurrency types; no other exemption without a PO decision.
+    /// AC-M1-23 call names: the name's words must be the **last** words of an identifier that is called, either as
+    /// `Name(` or as `Name.init(` (review F-7). Reported as `Stream(`, `InputStream(`, `OutputStream(`, `Host(` and,
+    /// for the lower-case POSIX call (brief Q20), `socket(`.
+    static let networkingCallNames: [String] = ["Stream", "InputStream", "OutputStream", "Host", "socket"]
+
+    /// AC-M1-23 (brief Q17, PO decision): exactly these two identifiers are exempt from the `Stream(` rule, in both
+    /// spellings (`AsyncStream(` and `AsyncStream.init(`). Swift concurrency types; no other exemption without a PO
+    /// decision.
     static let streamCallExemptions: Set<String> = ["AsyncStream", "AsyncThrowingStream"]
 
-    /// AC-M1-23 (brief Q18): `contentsOf:` is banned except in these source files (matched by file name). They are the
-    /// JSON file repository's files, which arrive in WI-M1-02. Any change to this list needs a PO decision.
+    /// AC-M1-23 (brief Q18, narrowed by Q19): **URL-loading initialisers** are banned except in these source files
+    /// (matched by file name), the JSON file repository's. Any change to this list needs a PO decision.
     static let contentsOfAllowlist: Set<String> = ["JSONFileHouseholdRepository.swift"]
-    static let contentsOfPattern = leftBoundary + #"contentsOf\s*:"#
+
+    /// Brief Q19: the types whose `(contentsOf:` initialiser loads a URL. Collection methods such as
+    /// `append(contentsOf:)` and `insert(contentsOf:at:)` are not URL loading and are not matched.
+    static let urlLoadingTypes: [String] = [
+        "Data", "NSData", "String", "NSString", "NSArray", "NSDictionary", "NSAttributedString", "XMLParser",
+    ]
+    static let urlLoadingInitRule = "URL-loading init (contentsOf:)"
+    /// `Type(contentsOf:` / `Type.init(contentsOf:` for the listed types (identifier boundary on the left, so
+    /// `Foundation.Data(contentsOf:` is a hit and `MyData(contentsOf:` is not), or any `.init(contentsOf:`.
+    static let urlLoadingInitPattern = "(?:" + leftBoundary + "(?:" + urlLoadingTypes.joined(separator: "|")
+        + #")\s*(?:\.\s*init\s*)?|\.\s*init\s*)\(\s*contentsOf\s*:"#
 
     /// Words that may directly precede an implicit-member `.now` (`return .now`, `case .now`); after any other word the
     /// dot has a receiver (`moment.now`).
@@ -162,8 +185,8 @@ enum SourceScanner {
 
         let fileName = (file as NSString).lastPathComponent
         if !contentsOfAllowlist.contains(fileName) {
-            for match in matches(of: contentsOfPattern, in: code) {
-                hits.append(ScanHit(file: file, line: match.line, rule: "contentsOf:", excerpt: match.text))
+            for match in matches(of: urlLoadingInitPattern, in: code) {
+                hits.append(ScanHit(file: file, line: match.line, rule: urlLoadingInitRule, excerpt: match.text))
             }
         }
 
@@ -183,11 +206,12 @@ enum SourceScanner {
         let identifiers = matches(of: #"[\p{L}\p{N}_]+"#, in: code)
         for (position, identifier) in identifiers.enumerated() {
             let identifierWords = subTokens(of: identifier.text)
-            for name in networkingNames where containsWords(subTokens(of: name), in: identifierWords, atEnd: false) {
+            for name in networkingNames + clockNames
+            where containsWords(subTokens(of: name), in: identifierWords, atEnd: false) {
                 hits.append(ScanHit(file: file, line: identifier.line, rule: name, excerpt: identifier.text))
             }
             let next = nextNonWhitespace(in: scalars, from: identifier.endOffset)
-            if next.map({ scalars[$0] }) == "(" {
+            if next.map({ scalars[$0] }) == "(" || isFollowedByInitCall(identifiers, position, scalars: scalars) {
                 for name in networkingCallNames
                 where containsWords(subTokens(of: name), in: identifierWords, atEnd: true) {
                     if name == "Stream" && streamCallExemptions.contains(identifier.text) { continue }
@@ -207,6 +231,19 @@ enum SourceScanner {
             }
         }
         return hits
+    }
+
+    /// The identifier at `position` is followed by `.init(` (whitespace allowed), the explicit spelling of a call
+    /// (review F-7: `Host.init(name:)` is `Host(name:)`).
+    static func isFollowedByInitCall(_ identifiers: [RegexMatch], _ position: Int, scalars: [Unicode.Scalar]) -> Bool {
+        guard
+            let dot = nextNonWhitespace(in: scalars, from: identifiers[position].endOffset), scalars[dot] == ".",
+            position + 1 < identifiers.count,
+            let member = nextNonWhitespace(in: scalars, from: dot + 1),
+            identifiers[position + 1].startOffset == member, identifiers[position + 1].text == "init",
+            let paren = nextNonWhitespace(in: scalars, from: identifiers[position + 1].endOffset)
+        else { return false }
+        return scalars[paren] == "("
     }
 
     /// `needle` occurs as consecutive words of `haystack` (case-sensitive); with `atEnd`, as its last words.

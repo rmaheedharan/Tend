@@ -48,7 +48,8 @@ enum HouseholdGenerator {
         seed: UInt64,
         taskCount: Int? = nil,
         taskCountRange: ClosedRange<Int> = 0...500,
-        now: Date = defaultNow
+        now: Date = defaultNow,
+        endedShare: Double? = nil
     ) throws -> Household {
         var rng = SplitMix64(seed: seed)
         let count = taskCount ?? Int.random(in: taskCountRange, using: &rng)
@@ -60,12 +61,19 @@ enum HouseholdGenerator {
                 lastTendedAt: rng.chance(0.6) ? date(near: now, withinDays: 60, using: &rng) : nil
             )
         }
-        let tasks = try (0..<count).map { _ in try task(using: &rng, rooms: rooms, now: now) }
+        let tasks = try (0..<count).map { _ in
+            try task(using: &rng, rooms: rooms, now: now, endedShare: endedShare)
+        }
         return Household(tasks: tasks, rooms: rooms)
     }
 
     /// One valid task. Throws only if the generator itself is wrong (it must never produce an invalid task).
-    static func task(using rng: inout SplitMix64, rooms: [Room], now: Date = defaultNow) throws -> HouseholdTask {
+    /// `endedShare`, when given, is the probability that the window has ended at `now` (`windowEnd <= now`); the
+    /// rescheduler gate (AC-M1-21) needs at least half. `nil` keeps the uniform draw (and the exact random stream) that
+    /// the AC-M1-05 and AC-M1-14 seeds were recorded with.
+    static func task(
+        using rng: inout SplitMix64, rooms: [Room], now: Date = defaultNow, endedShare: Double? = nil
+    ) throws -> HouseholdTask {
         let kind = TaskKind.allCases[Int.random(in: 0..<TaskKind.allCases.count, using: &rng)]
         let flags = FlagSet.allCases[Int.random(in: 0..<FlagSet.allCases.count, using: &rng)]
         let isCritical = flags == .critical
@@ -80,7 +88,7 @@ enum HouseholdGenerator {
         if isCritical { states.append(.resurfaced) }
         let state = states[Int.random(in: 0..<states.count, using: &rng)]
 
-        let (windowStart, windowEnd) = window(around: now, using: &rng)
+        let (windowStart, windowEnd) = window(around: now, using: &rng, endedShare: endedShare)
         let completedAt: Date? =
             (state == .completed || rng.chance(0.3)) ? date(near: now, withinDays: 30, using: &rng) : nil
 
@@ -104,8 +112,18 @@ enum HouseholdGenerator {
     }
 
     /// A window in a random `WindowPosition` relative to `now`, with a positive duration that has a sub-second part.
-    static func window(around now: Date, using rng: inout SplitMix64) -> (start: Date, end: Date) {
-        let position = WindowPosition.allCases[Int.random(in: 0..<WindowPosition.allCases.count, using: &rng)]
+    static func window(
+        around now: Date, using rng: inout SplitMix64, endedShare: Double? = nil
+    ) -> (start: Date, end: Date) {
+        let position: WindowPosition
+        if let endedShare {
+            let ended: [WindowPosition] = [.endedBeforeNow, .endsExactlyAtNow]
+            let notEnded: [WindowPosition] = [.openAroundNow, .startsExactlyAtNow, .upcoming]
+            let pool = rng.chance(endedShare) ? ended : notEnded
+            position = pool[Int.random(in: 0..<pool.count, using: &rng)]
+        } else {
+            position = WindowPosition.allCases[Int.random(in: 0..<WindowPosition.allCases.count, using: &rng)]
+        }
         let duration = positiveDuration(using: &rng)
         switch position {
         case .endedBeforeNow:
