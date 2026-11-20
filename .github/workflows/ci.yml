@@ -1,0 +1,54 @@
+# Build and test the platform-independent engine on Linux (CLAUDE.md §3, §7).
+# This is the check that the Merge Gatekeeper rule G3 needs before it merges Swift code.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tendcore-linux:
+    name: TendCore swift test (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.2-noble
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain version
+        run: swift --version
+
+      - name: Build (warnings are errors)
+        run: |
+          if [ ! -f Packages/TendCore/Package.swift ]; then
+            echo "Packages/TendCore does not exist yet. Nothing to build."
+            exit 0
+          fi
+          swift build --package-path Packages/TendCore -Xswiftc -warnings-as-errors
+
+      - name: Test
+        run: |
+          if [ ! -f Packages/TendCore/Package.swift ]; then
+            echo "Packages/TendCore does not exist yet. Nothing to test."
+            exit 0
+          fi
+          swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors 2>&1 | tee swift-test.log
+          exit "${PIPESTATUS[0]}"
+        shell: bash
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tendcore-linux-test-log
+          path: swift-test.log
+          if-no-files-found: ignore
