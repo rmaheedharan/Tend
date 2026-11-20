@@ -840,3 +840,132 @@ evidence gap is R4-F1).
 |---|---|---|---|---|
 | 2026-11-20 | Developer + Orchestrator | Reviewer | received (round 2) | `0c30b21` (R4-F1, R4-F7) and `6ac5caa` (Q21 corrected wording, Q22) on `m1/rescheduler`. |
 | 2026-11-20 | Reviewer | Orchestrator → Acceptance Tester | accepted — APPROVE | R4-F1 (Major), R4-F2, R4-F3 and R4-F7 closed and verified. Open Nits only: R4-F4, R4-F5, R4-F6. No open Blocker or Major. "Test run with 127 tests in 17 suites passed after 95.998 seconds" (Linux, Swift 6.2, `-warnings-as-errors`, 0 warnings). The edge test matches Q21 (a)–(c): 36 odd-step chains changed once by 2^-23 s, 36 even-step chains unchanged, no tolerance. |
+
+### WI-M1-04 round 3 — [PR #8](https://github.com/rmaheedharan/Tend/pull/8) (`m1/rescheduler`, head `7b5ba78`)
+
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 3
+- **Trigger:** the Merge Gatekeeper blocked round 2 on GK-1. The AC-M1-23 body had been narrowed in the Developer's
+  commit, with no record that the PO adopted it.
+- **Diff reviewed:** `git diff d43589f..7b5ba78`, which is two commits.
+  - `36e78d7` (PO decision Q23 in brief.md): the AC-M1-23 body is rewritten. Q19's `contentsOf:` clause is marked as
+    superseded. The PO adopts the rest of the AC-M1-23 body and the Q19/Q20 rows.
+  - `7b5ba78` (Developer): changes only `Tests/TendCoreTests/Support/SourceScanner.swift`,
+    `SourceScannerSelfTests.swift` and dev-notes.
+  - **No product source changed.** No protected path is touched.
+- **ACs:** AC-M1-23 as amended by Q23. AC-M1-02 and AC-M1-24 (local part) stay green. **Requirements:** P-2,
+  determinism (ADR-0001).
+- **Verified by the Reviewer** (Linux container, Swift 6.2 via the Docker wrapper, fresh worktree at `7b5ba78`):
+  - `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` exited 0 with
+    **"✔ Test run with 127 tests in 17 suites passed after 100.552 seconds."**
+  - There were 0 failures and 0 warnings. Wall time was 2 m 40 s, including a cold build.
+  - Real-source scan: `AC-M1-23 scan: 23 files scanned`, then `AC-M1-23 scan: 0 hits`, then `contentsOf: allowlist
+    ["JSONFileHouseholdRepository.swift"], 1 allowlisted files present`. `AC-M1-02 scan: 0 hits`.
+  - A grep of `Sources/` finds exactly one `contentsOf`: `Data(contentsOf: fileURL)` at
+    `JSONFileHouseholdRepository.swift:46`, in the allowlisted file.
+  - The Docker daemon was down at the start of this round. The Reviewer restarted it before the run.
+- **Reviewer probe RP-2** (a scratch copy of the package outside the repo, one throw-away test; nothing in the PR
+  changed). It called `SourceScanner.apiHits` on six forms in a non-allowlisted file:
+
+  | Form | Hits |
+  |---|---|
+  | `xs.append(contentsOf: "\(try Data(contentsOf: u))")` | 1 (`Data(contentsOf:`) |
+  | `xs.append(contentsOf: ys) ; Data(contentsOf: u)` | 1 (`Data(contentsOf:`) |
+  | `xs?.append(contentsOf: ys)` | 0 (exempt, correct) |
+  | ``xs.`append`(contentsOf: ys)`` | 1 (stricter than the AC, acceptable) |
+  | `xs.append("\(x, contentsOf: y)")` | **0** |
+  | `xs.append(x.load { } contentsOf: { u })` | **0** |
+
+  The last two forms escape the scan. See R4-F8.
+
+#### Summary
+- **The scanner matches Q23 / AC-M1-23.**
+  - **The ban** is `contentsOfPattern = leftBoundary + "contentsOf\s*:"` (`SourceScanner.swift:118-120`). It covers
+    every `contentsOf:` argument label on any type, initialiser or function.
+  - **Near-misses still pass:**
+    - `contentsOfFile:` does not match the pattern.
+    - Comments are stripped and string text is blanked, so neither is matched.
+  - **Exception (i), the allowlisted file:** the allowlist is unchanged (`JSONFileHouseholdRepository.swift`) and is
+    matched by file name. The positive test shows that `Data(`, `NSMutableData(` and `x.load(contentsOf:` pass there
+    but are reported in a file with another name.
+  - **Exception (ii), an enclosing call named exactly `append` or `insert`:** `enclosingCallName(in:before:)`
+    (`:254-278`) walks back to the nearest unbalanced bracket, skipping balanced `()`, `[]` and `{}`.
+    - The bracket must be `(`, and the identifier just before it (whitespace allowed) must equal `append` or
+      `insert` exactly (`:118, 187-188`).
+    - So `appendAll(`, `Append(`, `insertion(`, a subscript `[contentsOf:`, a closure parameter list, an inner
+      `Data(contentsOf:)` inside `append(`, and `xs.append(load(contentsOf:))` are all reported. Each has a planted
+      fixture.
+    - Interpolation parentheses are emitted on neither side by the lexer (`:546-556`, `:483-486`), so they cannot
+      unbalance the walk. String text is blanked, so `h("(")` does not unbalance it either. The positive test pins that
+      case.
+  - No other exception was added.
+- **Fixtures meet the AC's minimum list.** The planted set has the five the AC requires, each outside the allowlisted
+  file: `Data(contentsOf:` (`SourceScannerSelfTests.swift:235`), `NSMutableData(contentsOf:`, `.init(contentsOf:`,
+  the made-up type `Gizmo(contentsOf:` and `x.load(contentsOf:`.
+  - There are 15 more planted fixtures: `Foundation.Data(`, `String(`, `XMLParser(`, the spaced `.init`,
+    `NSMutableData.init(`, `MyData(` / `Database(`, `f(a, contentsOf:`, a label on the next line, the inner call, the
+    nested `load`, `appendAll`, `Append`, `insertion`, a subscript and a closure parameter.
+  - The positive test covers `append` and `insert`, with and without a receiver, across a line break, and with nested
+    `()`, `[]`, `{}` and a string containing `(`.
+  - The coverage test now expects the `contentsOf:` rule name.
+- **No test was weakened.**
+  - The planted fixtures went from 117 to 124. Six round-1 init fixtures were dropped: `NSData`, `NSString`, `NSArray`,
+    `NSDictionary`, `NSAttributedString` and `Data.init`. Each is a strict subset of the label-only rule, which the
+    remaining fixtures already exercise on any receiver, so no rule lost coverage. Keeping them would cost nothing
+    (R4-F9, Nit).
+  - `MyData(contentsOf:)` / `Database(contentsOf:)` moved from near-miss to planted, which is correct under Q23.
+  - `contentsOfFile` / `String(contentsOfFile:)` stay as near-misses.
+  - Every other planted, near-miss, coverage and import test is unchanged. The Developer's mutations MT-7…MT-11 (no
+    exemption, prefix exemption, allowlist ignored, back to the eight types, "any `append` within 40 characters") each
+    turned the suite red. That matches what I read in the code.
+- **GK-1 provenance.** brief.md now records Q23, in which the PO adopts the AC-M1-23 body and the Q19/Q20 rows (the
+  handoff-log row dated 2026-11-20). My round-2 R4-F3 check still holds: rows 298–299 are byte-identical to `5ce6640`.
+  Q19 is now annotated as superseded, and that annotation is the PO's. Closing GK-1 itself is for the Merge Gatekeeper.
+- **Earlier rounds still hold.** No product source changed since round 2, so the conclusions on R0–R4, AC-M1-03 and
+  AC-M1-17…22, UX-3/D-2/D-3, oracle independence, W2-F1 and Q21 still stand.
+
+#### Findings
+| ID | Severity | file:line | Problem | Required change | Status |
+|---|---|---|---|---|---|
+| R4-F8 | Minor | `Tests/TendCoreTests/Support/SourceScanner.swift:254-278` (`enclosingCallName`) | **Two rare forms are wrongly exempted (RP-2).** The AC exempts a `contentsOf:` only when its immediately enclosing call is named `append` or `insert`. The scan wrongly exempts two forms. (1) An interpolation argument inside `append(`: in `xs.append("\(x, contentsOf: y)")` the enclosing call is the interpolation, not `append`. The lexer emits neither interpolation paren, so the walk reaches `append(`. (2) A labelled trailing closure inside `append(`: in `xs.append(x.load { } contentsOf: { u })` the walk skips the balanced `{ }` and reaches `append(`. **Not Major:** neither form can load a URL by itself. It needs a `contentsOf:` function declared in `TendCore`, and that function's body must call a loader (`Data(contentsOf:`, `NSMutableData(contentsOf:` and so on). Outside the allowlisted file that call is reported. Inside the allowlisted file anything is allowed anyway. Every URL-from-string API is banned (Q19), and W2-F1 refuses non-file URLs. No such form exists in `Sources/`. | Next scanner touch (M1 or M2; not blocking this PR): (1) make the lexer emit a non-identifier marker such as `\u{1}(` … `)` around interpolations, so that the walk stops there with `nil`; (2) treat a label whose previous non-space character is `}` (a trailing-closure label) as not exempt. Add both RP-2 forms as planted fixtures. | Open (ticket) |
+| R4-F9 | Nit | `SourceScannerSelfTests.swift:233-254` | Six init-specific planted fixtures from round 2 (`NSData`, `NSString`, `NSArray`, `NSDictionary`, `NSAttributedString`, `Data.init`) were dropped. They are redundant under the label-only rule, so this is not weakening. | Optional: keep them as regression fixtures. | Open (optional) |
+| R4-F4 | Nit | plan.md WI-M1-04 | Carried from round 2: the plan still says the engine takes an RNG. | Work Planner / Tester. | Open (non-blocking) |
+| R4-F5 | Nit | design.md naming list | Carried from round 2: `Household.complete(_:at:calendar:timeZone:)` is not yet in the list. | iOS Designer. | Open (non-blocking) |
+| R4-F6 | Nit (watch, R-5) | test runtime | Now about 101 s, up from 96 s; the scanner work is cheap and the difference is noise. | Record the first CI duration. | Open (watch) |
+
+No open Blocker or Major. R4-F1, R4-F2, R4-F3 and R4-F7 stay closed (round 2).
+
+#### Checklist
+- [x] Correctness vs ACs. AC-M1-23 as amended by Q23 is met: the ban covers every label, the two exceptions match the
+  AC, the AC's five required planted cases are present, and the positive cases are present. R4-F8 is a rare false
+  negative, outside the AC's required fixtures.
+- [x] Tests meaningful. MT-7…MT-11 each turned the suite red. RP-2 checked edge forms. No test was weakened (R4-F9).
+- [x] Swift 6 concurrency safe. Test-only change; nothing new.
+- [x] No force unwraps / `try!` in product code. No product change.
+- [x] Privacy (P-1…P-4). The P-2 guard is stricter than in round 2: any type, initialiser or function.
+- [x] UX-2/UX-3 enforced in engine. Unchanged.
+- [x] Accessibility (UI): n.a.
+- [x] Performance. Test runtime watched (R4-F6).
+- [x] No new dependency without ADR.
+
+#### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | pass | No product change since round 2; AC-M1-21 (f) still green. |
+| UX-3 Zero-Guilt | pass | No product change since round 2. AC-M1-02 scan: 0 hits. |
+| UX-4 Design craft | n.a. | No UI in M1. |
+| P-1 On-device inference | n.a. | No AI. |
+| P-2 No data leaves device (except user iCloud) | pass | The AC-M1-23 `contentsOf:` guard now covers every type, initialiser and function (Q23), closing the `NSMutableData(contentsOf:)` gap (GK-1). R4-F8 is a rare false negative that cannot load a URL by itself. Real-source scan: 23 files, 0 hits. The only `contentsOf:` is in the allowlisted file. |
+| P-3 Cloud escalation only via PCC + ADR | n.a. | No cloud path. |
+| P-4 Media not persisted without consent | n.a. | No media. |
+
+#### Open questions
+- **Merge Gatekeeper:** GK-1 is yours to close. From the review side, Q23 is implemented exactly, and the PO's adoption
+  of the AC-M1-23 body and of Q19/Q20 is recorded in brief.md.
+- **Developer (next scanner touch):** R4-F8.
+
+#### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-20 | Orchestrator (after Gatekeeper GK-1) | Reviewer | received (round 3) | `36e78d7` (PO Q23 in brief.md) and `7b5ba78` (scanner and self-tests, dev-notes) on `m1/rescheduler`. |
+| 2026-11-20 | Reviewer | Orchestrator → Merge Gatekeeper / Acceptance Tester | accepted — APPROVE | AC-M1-23 as amended by Q23 is met. The ban covers any label; the exceptions are only the allowlisted file and an enclosing call named exactly `append` or `insert`; the five required planted cases and the positive cases are present; the real-source scan has 0 hits; no test was weakened. New Minor R4-F8 (interpolation / trailing-closure forms inside `append(` wrongly exempted; cannot load a URL by itself; RP-2) and Nit R4-F9. "Test run with 127 tests in 17 suites passed after 100.552 seconds" (Linux, Swift 6.2, `-warnings-as-errors`, 0 warnings). |
