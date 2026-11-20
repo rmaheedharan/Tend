@@ -733,3 +733,110 @@ evidence gap is R4-F1).
 |---|---|---|---|---|
 | 2026-11-20 | Developer (via Orchestrator) | Reviewer | received (round 1) | PR #8, head `dcf3d2c` (code `5ce6640` + merge of `main` `d29f874`) on `m1/rescheduler`. Inputs: dev-notes WI-M1-04, brief (R0–R4, Q19, Q20), design.md, plan.md. Mid-review: the PO's Q21 answer, relayed by the Orchestrator. |
 | 2026-11-20 | Reviewer | Orchestrator → Developer | returned — CHANGES REQUIRED | One Major: R4-F1 (the AC-M1-20 edge test never runs even-step durations, so Q21's "none for even ones" is unproven; RP-1 shows the code is right). Minor to PO: R4-F2 (Q21 step size is 2^-23 s, not a coarse ulp) and R4-F3 (brief provenance). Nits: R4-F4…F7. Closed: F-7, F-8, F-9, W2-F1, W3-F2. Local run: "Test run with 127 tests in 17 suites passed after 93.738 seconds" (Linux, Swift 6.2, `-warnings-as-errors`, 0 warnings). Oracle judged independent (R-4). RNG-parameter and naming deviations accepted. |
+
+### WI-M1-04 round 2 — [PR #8](https://github.com/rmaheedharan/Tend/pull/8) (`m1/rescheduler`, head `6ac5caa`)
+
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 2
+- **Diff reviewed:** `git diff a8ad7a7..6ac5caa`, which is two commits.
+  - `0c30b21` (Developer): `Completion.swift`, `ReschedulerPropertyTests.swift`, and a round-2 dev-notes section.
+  - `6ac5caa` (Orchestrator): brief.md records PO decisions Q21 and Q22, and marks Q8 as resolved by Q22.
+  - No protected path is touched.
+- **ACs:** AC-M1-20 (Gate) under PO decision Q21, and AC-M1-03 (R4-F7 fallbacks). **Requirements:** FR-B2, UX-3.
+- **Verified by the Reviewer** (Linux container, Swift 6.2 via the Docker wrapper, fresh worktree at `6ac5caa`):
+  - `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` exited 0 with
+    **"✔ Test run with 127 tests in 17 suites passed after 95.998 seconds."**
+  - There were 0 failures and 0 warnings. Wall time was 1 m 56 s, including the build.
+  - Edge-test log: `W3-F2 / Q21 measurement: 72 chains cross 2035-01-10 13:37:04 +0000 (2^30 s); one step =
+    1.1920928955078125e-07 s; odd-step 36 chains, 36 changed exactly once; even-step 36 chains, 36 unchanged`.
+  - The AC-M1-20 gate and AC-M1-21 logs are identical to round 1 (360 chains / 21,600 comparisons; 500 households).
+
+#### Summary
+- **R4-F1 (Major), closed. The new edge test matches Q21 as recorded in brief.md, clause by clause.**
+  - **Q21 (a), bit-identical within a binade, no tolerance:**
+    - Durations are compared as `Double(bitPattern:)` values with `!=`, and the step check is `abs(Δ) == fineStep`.
+    - No epsilon or tolerance appears anywhere in the test.
+    - The AC-M1-20 gate test (`ReschedulerPropertyTests.swift:131-177`) is unchanged: strict `bitPattern` over the
+      2024–2029 corpus.
+  - **Q21 (b), exactly one ulp of the finer grid, odd-step only, at the edge pass or the next:**
+    - The test pins `fineStep == 0x1p-23` and the coarse ulp `0x1p-22`, so the step is the finer grid's ulp.
+    - For each seed, each rule type (R2, R3, R4) runs one odd-step chain (`2k + 1`) and one even-step chain (`2k`, k ≥ 1).
+    - The edge predicate is explicit: `edgePass = firstIndex { windowEnd >= binadeEdge }` and
+      `change == edgePass || change == edgePass + 1`.
+    - Odd-step chains must change exactly once, by exactly one fine step. Even-step chains must not change at all.
+    - Guards check that both parities ran (`oddChains > 0 && evenChains > 0`) and that every chain met its rule.
+    - A new `isOddSteps == parity.odd` check proves that the pass-1 duration carries the generated parity. This closes
+      the dead-branch gap that RP-1 found.
+  - **Q21 (c), nothing else changes:**
+    - Key paths, non-window values (canonical JSON) and collection counts are compared with pass 1 for all N = 1…60
+      in every chain.
+    - Each chain is asserted to cross the edge.
+  - The Developer's drift mutation (one ulp added per pass above the edge) turned the test red. That matches my reading
+    that the assertions are exact.
+- **R4-F2 (Minor, PO), closed.**
+  - brief.md Q21 now says "exactly one ulp of the finer grid below that edge (half an ulp of the coarser grid above
+    it); at the 2^30 s edge that is 2^-23 s".
+  - That matches the test (`abs(Δ) == fineStep`, `fineStep == 0x1p-23`) and the measured log (`one step =
+    1.1920928955078125e-07 s`).
+- **R4-F3 (Minor, process), closed.**
+  - I confirm that brief.md lines 298–299 at `6ac5caa` are the Q19 and Q20 rows.
+  - They are byte-identical to the rows the Developer committed in `5ce6640`: the same md5 over both lines,
+    `f6df054e…`. `6ac5caa` changes neither row.
+  - The PO's adoption of the rows as written is therefore valid.
+  - The Q19/Q20 rows were checked against the scanner in round 1 and still match exactly.
+- **R4-F7 (Nit), closed.**
+  - Both unreachable fallbacks in `Completion.swift:41-57` now call `assertionFailure` before the calm release
+    fallback: the missing recurrence interval (AC-M1-25 invariant) and a calendar day that cannot be resolved.
+  - The messages contain no household content.
+  - The suite passes in debug builds, so neither path is reached by any test. That is expected.
+  - W3-F3's older fallbacks (WI-M1-03) are left as they were, which is fine.
+- **Q22 (brief.md, Orchestrator commit).** The engine is not affected.
+  - `TendCore` keeps weather as an injected input, and AC-M1-11 and AC-M1-23 are unchanged.
+  - Any real weather source needs an ADR first (P-2). Noted for M3/M4, with no finding here.
+- **No new product logic.** The only source change is R4-F7. The round-1 conclusions on R0–R4, UX-3/D-2/D-3, oracle
+  independence, the scanner, W2-F1, the RNG deviation and the naming deviation still hold.
+
+#### Findings
+| ID | Severity | file:line | Problem | Required change | Status |
+|---|---|---|---|---|---|
+| R4-F1 | Major | `ReschedulerPropertyTests.swift:191-255` | Edge test ran odd-step durations only. | Both parities, exact assertions, count guards. | **Closed** (verified: 36 odd changed once, 36 even unchanged; matches Q21 (a)–(c)) |
+| R4-F2 | Minor (PO) | brief.md Q21 | Step size wording. | Q21 says one ulp of the finer grid, 2^-23 s. | **Closed** (verified in brief.md at `6ac5caa`) |
+| R4-F3 | Minor (process) | brief.md:298-299 | Brief rows committed by the Developer. | PO adopts the rows if they match. | **Closed** (rows byte-identical to `5ce6640`) |
+| R4-F4 | Nit | plan.md WI-M1-04 | The plan still says the engine takes an injected RNG. | Work Planner amends plan.md; Tester reads AC-M1-22's seed clause as met by construction. | Open (Planner / Tester; non-blocking) |
+| R4-F5 | Nit | design.md naming list | `Household.complete(_:at:calendar:timeZone:)` is not yet in the list. | iOS Designer ratifies it, together with W3-F5. | Open (Designer; non-blocking) |
+| R4-F6 | Nit (watch, R-5) | test runtime | About 96 s locally. | Record the first CI duration. | Open (watch) |
+| R4-F7 | Nit | `Completion.swift:41-57` | Silent fallbacks. | `assertionFailure` before each. | **Closed** |
+
+#### Checklist
+- [x] Correctness vs ACs. AC-M1-03 and AC-M1-17…23 are met. AC-M1-20 evidence now meets Q21 in full.
+- [x] Tests meaningful. Both parities run, the guards make dead branches impossible, and the drift mutation turns the
+  test red. No tolerance anywhere.
+- [x] Swift 6 concurrency safe. Unchanged since round 1.
+- [x] No force unwraps / `try!` in product code. The fallbacks now assert in debug builds.
+- [x] Privacy (P-1…P-4). Q22 keeps weather injected; the ADR comes before any wiring.
+- [x] UX-2/UX-3 enforced in engine.
+- [x] Accessibility (UI): n.a.
+- [x] Performance. The test-runtime watch (R4-F6) is the only open item.
+- [x] No new dependency without ADR.
+
+#### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | pass | Unchanged from round 1. AC-M1-21 (f) holds over 500 households after the pass. |
+| UX-3 Zero-Guilt | pass | The structure does not grow with N. That is proven bit for bit within a binade, and at the 2^30 s edge only by the single rounding step Q21 allows (FR-B2, AC-M1-20). There is no counter, original window or score (D-2, D-3). |
+| UX-4 Design craft | n.a. | No UI in M1. |
+| P-1 On-device inference | n.a. | No AI. |
+| P-2 No data leaves device (except user iCloud) | pass | No source change touches I/O. Q22 keeps weather injected in `TendCore`, and any real source needs an ADR first. AC-M1-23 scan: 0 hits. |
+| P-3 Cloud escalation only via PCC + ADR | n.a. | No cloud path. |
+| P-4 Media not persisted without consent | n.a. | No media. |
+
+#### Open questions
+- None blocking. The remaining Nits go to their owners: R4-F4 (Work Planner / Acceptance Tester), R4-F5 (iOS Designer)
+  and R4-F6 (watch the first CI run).
+- AC-M1-24 still needs Linux CI on the M1 merge commit (Acceptance Tester / Merge Gatekeeper).
+
+#### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-20 | Developer + Orchestrator | Reviewer | received (round 2) | `0c30b21` (R4-F1, R4-F7) and `6ac5caa` (Q21 corrected wording, Q22) on `m1/rescheduler`. |
+| 2026-11-20 | Reviewer | Orchestrator → Acceptance Tester | accepted — APPROVE | R4-F1 (Major), R4-F2, R4-F3 and R4-F7 closed and verified. Open Nits only: R4-F4, R4-F5, R4-F6. No open Blocker or Major. "Test run with 127 tests in 17 suites passed after 95.998 seconds" (Linux, Swift 6.2, `-warnings-as-errors`, 0 warnings). The edge test matches Q21 (a)–(c): 36 odd-step chains changed once by 2^-23 s, 36 even-step chains unchanged, no tolerance. |
