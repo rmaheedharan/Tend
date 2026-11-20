@@ -71,7 +71,7 @@ These are defaults. Changing one needs an ADR in `docs/architecture/adr/`.
 
 ## 4. The team (multi-agent delivery)
 
-Seven expert roles work as one team. Each has a **skill** (how to do the job) and an **agent**
+Seven expert roles, plus an automated Merge Gatekeeper, work as one team. Each has a **skill** (how to do the job) and an **agent**
 (a sub-agent that runs the job with its own context). The main session is the **Orchestrator**: it
 does not write product code itself; it runs the loop below by delegating to the agents.
 
@@ -84,10 +84,17 @@ does not write product code itself; it runs the loop below by delegating to the 
 | Reviewer | `code-reviewer` | `.claude/skills/code-reviewer` | Review report | Merge (Blocker/Major findings) |
 | Acceptance Tester | `acceptance-tester` | `.claude/skills/acceptance-tester` | Acceptance report, test evidence, device scripts | Milestone gate (any FAIL) |
 | Product Documenter | `product-documenter` | `.claude/skills/product-documenter` | Docs, changelog, release notes, traceability | Gate if docs/traceability incomplete |
+| Merge Gatekeeper | `merge-gatekeeper` | `.claude/skills/merge-gatekeeper` | Independent review comment + merge decision on each PR | Merge (rules G1–G8) |
 
 The full operating model — RACI, handoff contracts, severity scale, escalation — is in
 [`docs/governance/OPERATING_MODEL.md`](docs/governance/OPERATING_MODEL.md). The loop is run with the
 **`delivery-loop`** skill.
+
+**Auto review and merge.** Every non-draft PR runs `.github/workflows/claude-review-merge.yml`: the Merge Gatekeeper
+reviews it independently and merges it only if the review is `APPROVE`, all checks are green, the milestone lock allows
+it, and no protected file (`CLAUDE.md`, `docs/PRD.md`, `.claude/**`, `.github/**`, `docs/governance/**`,
+`docs/milestones/STATUS.md`) is touched. Changes to the team's own rules always need a human merge. The repo variable
+`AUTO_MERGE_ENABLED` is the kill switch. A merge never means a milestone is accepted.
 
 ### The delivery loop (per milestone)
 
@@ -127,8 +134,9 @@ Build in five vertical slices, **M1 → M5**, as defined in PRD §4. Gate status
 
 ## 6. How to work autonomously here
 
-- **Branches:** one branch per milestone work item group, e.g. `m1/rule-of-three-selector`. PRs are small,
-  cite requirement IDs, and include the Reviewer's verdict before merge.
+- **Branches:** one branch per milestone work item group, named `m<n>/<slug>`, e.g. `m1/rule-of-three-selector`
+  (the Merge Gatekeeper reads the milestone from it). PRs are small, cite requirement IDs, and are merged by the
+  Merge Gatekeeper, not by the Developer.
 - **Commits:** imperative, scoped, cite IDs: `TendCore: cap Now selection at 3 (UX-2, FR-B1)`.
 - **Never** skip, disable, or weaken a test to get green. Never delete an acceptance criterion to pass a gate.
 - **Never** add a dependency (SPM package, SDK) without an ADR; prefer Apple frameworks.
@@ -163,6 +171,7 @@ docs/architecture/adr/        ← architecture decision records
 docs/product/                 ← user-facing docs, traceability, changelog, release notes
 .claude/skills/               ← role skills + delivery-loop
 .claude/agents/               ← role sub-agents
+.github/workflows/            ← CI and the auto review-and-merge workflow
 ```
 
 ## 9. Open questions (owned by the PO; resolve before the milestone that needs them)

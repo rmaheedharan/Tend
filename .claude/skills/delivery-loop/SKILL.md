@@ -26,6 +26,7 @@ its inputs, and the exact artifact to produce. Each agent starts fresh — inclu
 | 4 | `ios-designer` | `design.md` (UI items; data-model/copy review in M1–M2) | Law check passed |
 | 5 | `ios-developer` | branch + PR + `dev-notes.md` per work item | Tests green; handoff complete |
 | 6 | `code-reviewer` | `review.md` | `APPROVE`; else back to step 5 (same item) |
+| 6b | `merge-gatekeeper` (runs in GitHub Actions on each PR; run the agent locally if Actions is off) | review comment + merge | Merged; if labelled `changes-requested` → step 5; `needs-human` → tell the human owner |
 | 7 | `ios-designer` | design review of previews (UI items) | No law concern; else back to step 5 |
 | 8 | `acceptance-tester` | `acceptance.md` | All AC PASS / AWAITING-DEVICE; FAIL → owning role |
 | 9 | `product-documenter` | docs, CHANGELOG, TRACEABILITY, release notes | Docs complete |

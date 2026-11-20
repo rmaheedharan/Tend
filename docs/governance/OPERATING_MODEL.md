@@ -25,6 +25,7 @@ Applies to every milestone (M1–M5). Summary lives in [`CLAUDE.md`](../../CLAUD
 | **Reviewer** | Code quality, security, privacy, concurrency, performance | Severity of findings | Merge (Blocker/Major open) | Rewrite the feature; accept the milestone |
 | **Acceptance Tester** | Proof that each criterion is met as the user would experience it | PASS / FAIL / AWAITING-DEVICE per criterion | Milestone gate (any FAIL or missing evidence) | Fix product code; soften a criterion |
 | **Product Documenter** | Docs, changelog, release notes, traceability, ADR index | Doc structure and standards | Gate if docs or traceability are incomplete | Change behaviour to match docs |
+| **Merge Gatekeeper** (automated) | Independent review on every PR and the merge decision | Merge or block per rules G1–G8 | Merge | Merge protected paths (rules, PRD, gate ledger, workflows); accept a milestone |
 | **Human owner** | Final authority | Anything | Anything | — |
 
 ## 3. RACI per milestone step
@@ -55,6 +56,7 @@ or **returns** it with reasons.
 | H2 | Planner → Designer, Developer | `plan.md` | Every work item meets Definition of Ready; dependency order is acyclic; risks have owners |
 | H3 | Designer → Developer | `design.md` | States (empty, loading, streaming, error, unavailable model), copy, motion, haptics, a11y specified; law check passed |
 | H4 | Developer → Reviewer | PR + `dev-notes.md` | Builds, all tests green, new tests for each AC, verification-environment table filled |
+| H4b | Developer → Merge Gatekeeper | PR (non-draft) | Reviewer `APPROVE`, all checks green, milestone lock OK, no protected path; Gatekeeper merges or labels `needs-human` / `changes-requested` |
 | H5 | Reviewer → Tester | `review.md` | Verdict APPROVE; no open Blocker/Major |
 | H6 | Tester → Documenter, PO | `acceptance.md` | Every AC has status and evidence; device scripts written for device ACs |
 | H7 | Documenter → PO | docs PR + `TRACEABILITY.md` | Every AC traced to tests and docs; changelog and release notes drafted |
@@ -65,7 +67,7 @@ or **returns** it with reasons.
 **Definition of Ready (work item)** — cites requirement IDs; has testable acceptance criteria;
 has a design spec if it touches UI or copy; dependencies are done or stubbed; size ≤ 1 day; owner named.
 
-**Definition of Done (work item)** — code merged after Reviewer APPROVE; tests for each AC pass in CI;
+**Definition of Done (work item)** — code merged by the Merge Gatekeeper after Reviewer APPROVE; tests for each AC pass in CI;
 no new warnings; accessibility checked for UI; docs updated; traceability row updated.
 
 **Definition of Done (milestone)** — all PRD §4 gate checks for that milestone met with evidence;
