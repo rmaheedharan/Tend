@@ -693,7 +693,7 @@ No AC in this item needs a device.
   - lower-case `socket(` added to the call names (Q20);
   - review **F-7**: the call names (`Stream(`, `InputStream(`, `OutputStream(`, `Host(`, `socket(`) also match the
     explicit `Name.init(` spelling. The Q17 exemption covers `AsyncStream.init(` / `AsyncThrowingStream.init(` too;
-  - `contentsOf:` narrowed per Q19 to **URL-loading initialisers**: `Data`, `NSData`, `String`, `NSString`, `NSArray`,
+  - *(Superseded in round 3 by Q23; see "WI-M1-04 round 3".)* `contentsOf:` narrowed per Q19 to **URL-loading initialisers**: `Data`, `NSData`, `String`, `NSString`, `NSArray`,
     `NSDictionary`, `NSAttributedString`, `XMLParser` with `(contentsOf:` or `.init(contentsOf:`, plus any
     `.init(contentsOf:`. Rule name `URL-loading init (contentsOf:)`. Still allowed only in
     `JSONFileHouseholdRepository.swift`. `append(contentsOf:)` / `insert(contentsOf:at:)` are allowed anywhere.
@@ -870,7 +870,7 @@ No AC in this item needs a device.
 | AC-M1-24 needs Linux CI on the M1 merge commit | — (gate) | Acceptance Tester / Merge Gatekeeper |
 | Branch is stacked on PR #7 (WI-M1-03); rebase onto `main` after PR #7 merges. Branch name differs from the plan (`m1/rescheduler`). | — | Orchestrator |
 | W3-F3 (`assertionFailure` on unreachable fallbacks) not applied to the new fallbacks either (decision 6) | Nit | Reviewer (optional) |
-| URL-loading initialisers of types outside the Q19 list (e.g. `NSMutableData(contentsOf:)`) are not caught unless written `.init(contentsOf:`. Every URL-from-string API is banned, so such a call cannot get a remote URL inside `TendCore`. | Nit | PO, only if the list should become "any `Type(contentsOf:`" |
+| ~~URL-loading initialisers of types outside the Q19 list (e.g. `NSMutableData(contentsOf:)`) are not caught~~ **Closed in round 3** (GK-1, PO decision Q23): every `contentsOf:` label outside the allowlisted file is now banned, except directly inside `append(` / `insert(`. | — (closed) | — |
 | `docs/product/TRACEABILITY.md` rows for AC-M1-03, 17…22, 24; ADR-0004 text for W2-F1; copy Q19/Q20 (and Q21 once answered) to DECISIONS.md | — | Product Documenter / governance owner |
 | Darwin rerun of `CompletionTests` and the DST cases | Minor | M3 macOS lane (W3-F1) |
 
@@ -926,3 +926,56 @@ No AC in this item needs a device.
 |---|---|---|---|---|
 | 2026-11-20 | Reviewer | Developer (via Orchestrator) | returned (round 1: CHANGES REQUIRED) | R4-F1 Major: the edge test ran odd-step durations only. R4-F7 Nit optional. |
 | 2026-11-20 | Developer | Reviewer (via Orchestrator) | sent (round 2) | R4-F1 fixed: both parities, exact asserts, count guards, drift mutation red. R4-F7 applied (`assertionFailure`). 127 tests, 0 failures, 0 warnings. |
+
+### WI-M1-04 round 3 (Merge Gatekeeper GK-1 on PR #8; PO decision Q23; AC-M1-23, P-2)
+- **GK-1 / Q23, fixed in the scanner** (`Tests/TendCoreTests/Support/SourceScanner.swift`). The Q19 eight-type
+  `contentsOf:` rule is replaced by the Q23 rule.
+  - **Banned:** every `contentsOf:` argument label (`contentsOf\s*:` at an identifier boundary), on any type,
+    initialiser or function. The rule is named `contentsOf:`.
+  - **Exception (i):** any occurrence in a file named in `contentsOfAllowlist` (`JSONFileHouseholdRepository.swift`,
+    unchanged).
+  - **Exception (ii):** any file, when the **immediately enclosing call** is named exactly `append` or `insert`
+    (`contentsOfCallExemptions`), with or without a receiver.
+  - **How (ii) is detected.** `enclosingCallName(in:before:)` walks back over the lexed code (string text blanked) to
+    the nearest unbalanced bracket, skipping balanced `()`, `[]`, `{}`. If that bracket is `(`, it reads the identifier
+    just before it. A subscript `[contentsOf:`, a closure parameter list, `appendAll(`, `Append(`, `insertion(` and a
+    nested call such as `xs.append(load(contentsOf:))` are therefore **not** exempt.
+  - No other exception was added.
+- **Negative tests** (AC-M1-23 planted fixtures, now 124). All are outside the allowlist:
+  - the AC's required five: `Data(contentsOf:`, `NSMutableData(contentsOf:`, `.init(contentsOf:`, a made-up type
+    `Gizmo(contentsOf:` and `x.load(contentsOf:`;
+  - also `Foundation.Data(…`, `String(…`, `XMLParser(…`, `Data . init ( contentsOf :`, `NSMutableData.init(…`,
+    `MyData(…` / `Database(…`, `f(a, contentsOf:`, a label on the next line, `xs.append(contentsOf: try Data(contentsOf:
+    url))` (the inner call), `xs.append(load(contentsOf:))`, `appendAll(`, `Append(`, `insertion(`, a subscript, and a
+    closure parameter.
+- **Positive tests:**
+  - "AC-M1-23 positive: AsyncStream( and AsyncThrowingStream( (Q17), any contentsOf: in the allowlisted file (Q18,
+    Q23) and append/insert(contentsOf:) (Q23) are not reported";
+  - the allowlisted file accepts `Data(contentsOf:`, `NSMutableData(contentsOf:` and `x.load(contentsOf:`, while a
+    file with another name reports them;
+  - `append`/`insert(contentsOf:)` are not reported with and without a receiver, across a line break, and with nested
+    parentheses, brackets and closures in the argument.
+  - The N-1 near-miss test keeps `contentsOfFile` / `String(contentsOfFile:)` and adds the exempt multi-line and
+    nested forms. `MyData(contentsOf:)` moved from near-miss to planted, because it is now banned.
+- **Real-source scan:** 23 files, **0 hits**. The one `contentsOf:` in `Sources/` is `Data(contentsOf: fileURL)` in the
+  allowlisted repository file.
+- **Mutation checks** (the script restored the file after each one, confirmed by `git status`):
+
+  | Mutation | Tests that went red |
+  |---|---|
+  | MT-7 no `append`/`insert` exemption | positive test, N-1 near-miss test |
+  | MT-8 exemption by prefix (`appendAll`, `insertion` pass) | planted (2 issues) |
+  | MT-9 allowlist ignored | positive test, real-source scan |
+  | MT-10 back to the Q19 eight-type list | planted (13 issues: `NSMutableData(`, `Gizmo(`, `x.load(`, …) |
+  | MT-11 any `append` within 40 characters before the label exempts it (an outer call wins) | planted (3 issues) |
+
+- **Superseded text:** the round 1 "What changed" bullet on the narrowed rule is marked as superseded. The Known
+  limitations row on `NSMutableData(contentsOf:)` is closed.
+- **Run:** `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` → **"Test run with 127 tests in
+  17 suites passed after 103.594 seconds"**, 0 failures, 0 skipped, 0 warnings (Linux container, Swift 6.2). No
+  product source changed in this round; only the test-side scanner, its self-tests and these notes.
+
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-20 | Merge Gatekeeper (GK-1) → PO (Q23) | Developer (via Orchestrator) | returned (PR #8 blocked) | The narrowed `contentsOf:` rule let `NSMutableData(contentsOf:)` and similar through. Q23: ban every `contentsOf:` except in the allowlisted file or directly in `append`/`insert`. |
+| 2026-11-20 | Developer | Merge Gatekeeper / Reviewer (via Orchestrator) | sent (round 3) | Q23 rule implemented in the scanner. 124 planted fixtures, including the five the AC requires. Positive tests cover the allowlisted file and `append`/`insert` with and without a receiver. Real-source scan: 0 hits. MT-7…MT-11 all red. 127 tests, 0 failures, 0 warnings. |

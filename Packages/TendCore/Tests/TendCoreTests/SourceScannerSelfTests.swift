@@ -230,19 +230,28 @@ struct SourceScannerSelfTests {
         ("URLComponents", "var c = URLComponents()"),
         ("CFURL", "let u = CFURLCreateWithString(nil, text as CFString, nil)"),
         ("CFURL", "let u: CFURL? = nil"),
-        (urlLoading, "let d = try Data(contentsOf: url)"),
-        (urlLoading, "let d = try Foundation.Data(contentsOf: url)"),
-        (urlLoading, "let d = try NSData(contentsOf: url)"),
-        (urlLoading, "let s = try String(contentsOf: url, encoding: .utf8)"),
-        (urlLoading, "let s = try NSString(contentsOf: url, encoding: 4)"),
-        (urlLoading, "let a = NSArray(contentsOf: url)"),
-        (urlLoading, "let d = NSDictionary(contentsOf: url)"),
-        (urlLoading, "let t = try NSAttributedString(contentsOf: url, options: [:], documentAttributes: nil)"),
-        (urlLoading, "let p = XMLParser(contentsOf: url)"),
-        (urlLoading, "let d = try Data.init(contentsOf: url)"),
-        (urlLoading, "let d = try Data . init ( contentsOf : url)"),
-        (urlLoading, "let d: Data = try .init(contentsOf: url)"),
-        (urlLoading, "let m = try NSMutableData.init(contentsOf: url)"),
+        // Brief Q23 (review GK-1): every `contentsOf:` label outside the allowlisted file, except directly inside
+        // `append(` / `insert(`.
+        (contentsOf, "let d = try Data(contentsOf: url)"),
+        (contentsOf, "let m = try NSMutableData(contentsOf: url)"),
+        (contentsOf, "let d: Data = try .init(contentsOf: url)"),
+        (contentsOf, "let g = try Gizmo(contentsOf: url)"),
+        (contentsOf, "let v = try x.load(contentsOf: url)"),
+        (contentsOf, "let d = try Foundation.Data(contentsOf: url)"),
+        (contentsOf, "let s = try String(contentsOf: url, encoding: .utf8)"),
+        (contentsOf, "let p = XMLParser(contentsOf: url)"),
+        (contentsOf, "let d = try Data . init ( contentsOf : url)"),
+        (contentsOf, "let m = try NSMutableData.init(contentsOf: url)"),
+        (contentsOf, "let t = MyData(contentsOf: url) + Database(contentsOf: x)"),
+        (contentsOf, "f(a, contentsOf: url)"),
+        (contentsOf, "let r = reader.read(\n    contentsOf: url)"),
+        (contentsOf, "xs.append(contentsOf: try Data(contentsOf: url))"),    // the inner call is `Data`
+        (contentsOf, "xs.append(load(contentsOf: url))"),                    // the inner call is `load`
+        (contentsOf, "xs.appendAll(contentsOf: ys)"),                        // not exactly `append`
+        (contentsOf, "xs.Append(contentsOf: ys)"),
+        (contentsOf, "xs.insertion(contentsOf: ys, at: 0)"),
+        (contentsOf, "let q = items[contentsOf: key]"),                      // a subscript, not a call
+        (contentsOf, "let c = { (contentsOf: URL) in 0 }"),                  // not inside a named call
         // Brief Q20 (review F-9): ambient clocks.
         ("DispatchTime", "let t = DispatchTime.now()"),
         ("DispatchTime", "let i: DispatchTimeInterval = .seconds(1)"),
@@ -273,7 +282,7 @@ struct SourceScannerSelfTests {
         ("OutputStream(", "let o = OutputStream.init(toMemory: ())"),
     ]
 
-    static let urlLoading = SourceScanner.urlLoadingInitRule
+    static let contentsOf = SourceScanner.contentsOfRule
 
     @Test("AC-M1-23 negative: every banned pattern planted in code is detected",
           arguments: plantedPatterns.indices)
@@ -292,7 +301,7 @@ struct SourceScannerSelfTests {
         expected.formUnion(SourceScanner.clockNames)
         expected.formUnion(SourceScanner.networkingCallNames.map { "\($0)(" })
         expected.formUnion(SourceScanner.randomCallNames.map { ".\($0)( without using:" })
-        expected.formUnion(["Host.current", "http(s) literal", SourceScanner.urlLoadingInitRule])
+        expected.formUnion(["Host.current", "http(s) literal", SourceScanner.contentsOfRule])
         #expect(planted == expected)
     }
 
@@ -323,7 +332,10 @@ struct SourceScannerSelfTests {
             var r1 = xs; r1.append(contentsOf: ys)
             r1.insert(contentsOf: zs, at: 0)
             r1.replaceSubrange(0..<1, with: zs)
-            let r2 = MyData(contentsOf: url) + Database(contentsOf: x)
+            r1.append (contentsOf: (0..<3).map { f($0) })
+            self.insert(
+                contentsOf: [g(1), g(2)], at: r1.count)
+            append(contentsOf: [h("(") ])
             let r3 = NSURLish + nsurl + myNSURLx + fileURLComponent + CFURLish
             let r4 = DispatchTimer() + ContinuousClockwise + timeOfDay + getTimeOfDay() + machAbsoluteTime
             let r5 = CFHostname + freeaddrinfo(p) + hostbyname
@@ -374,7 +386,7 @@ struct SourceScannerSelfTests {
         #expect(hits.isEmpty, "unexpected hits: \(hits)")
     }
 
-    @Test("AC-M1-23 positive: AsyncStream( and AsyncThrowingStream( (Q17), allowlisted URL-loading initialisers (Q18, Q19) and append/insert(contentsOf:) (Q19) are not reported")
+    @Test("AC-M1-23 positive: AsyncStream( and AsyncThrowingStream( (Q17), any contentsOf: in the allowlisted file (Q18, Q23) and append/insert(contentsOf:) (Q23) are not reported")
     func exemptionsAndAllowlistNotReported() {
         let exempt = """
             let s = AsyncStream(Int.self) { continuation in continuation.finish() }
@@ -389,7 +401,7 @@ struct SourceScannerSelfTests {
         let notExempt = "let s = MyAsyncStream(Int.self)"
         #expect(SourceScanner.apiHits(in: notExempt, file: "fixture.swift").contains { $0.rule == "Stream(" })
 
-        let read = "let data = try Data(contentsOf: fileURL)"
+        let read = "let data = try Data(contentsOf: fileURL); let m = NSMutableData(contentsOf: fileURL); x.load(contentsOf: u)"
         for allowlisted in SourceScanner.contentsOfAllowlist {
             let path = "Sources/TendCore/Persistence/\(allowlisted)"
             #expect(SourceScanner.apiHits(in: read, file: path).isEmpty, "\(path) is allowlisted")
@@ -401,9 +413,10 @@ struct SourceScannerSelfTests {
             .isEmpty)
         // A file with a different name is not allowlisted.
         #expect(SourceScanner.apiHits(in: read, file: "Sources/TendCore/Model/Household.swift")
-            .contains { $0.rule == SourceScanner.urlLoadingInitRule })
+            .contains { $0.rule == SourceScanner.contentsOfRule })
 
-        // Q19: collection methods with a `contentsOf:` label are not URL loading, in any file.
+        // Q23: `contentsOf:` directly inside a call named `append` or `insert` (with or without a receiver) is allowed in
+        // any file.
         let collections = """
             var xs = [1]
             xs.append(contentsOf: [2, 3])
@@ -411,6 +424,10 @@ struct SourceScannerSelfTests {
             var text = "a"
             text.append(contentsOf: "bc")
             text.insert(contentsOf: "z", at: text.startIndex)
+            append(contentsOf: [4])
+            insert(contentsOf: [5], at: 0)
+            xs.append(
+                contentsOf: [6, 7].map { $0 * (1 + 1) })
             """
         #expect(SourceScanner.apiHits(in: collections, file: "Sources/TendCore/Model/Household.swift").isEmpty)
     }

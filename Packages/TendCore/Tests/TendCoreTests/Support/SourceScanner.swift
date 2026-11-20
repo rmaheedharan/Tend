@@ -107,20 +107,17 @@ enum SourceScanner {
     /// decision.
     static let streamCallExemptions: Set<String> = ["AsyncStream", "AsyncThrowingStream"]
 
-    /// AC-M1-23 (brief Q18, narrowed by Q19): **URL-loading initialisers** are banned except in these source files
-    /// (matched by file name), the JSON file repository's. Any change to this list needs a PO decision.
+    /// AC-M1-23 (brief Q18, Q23): any `contentsOf:` is allowed in these source files (matched by file name), the JSON
+    /// file repository's. Any change to this list needs a PO decision.
     static let contentsOfAllowlist: Set<String> = ["JSONFileHouseholdRepository.swift"]
 
-    /// Brief Q19: the types whose `(contentsOf:` initialiser loads a URL. Collection methods such as
-    /// `append(contentsOf:)` and `insert(contentsOf:at:)` are not URL loading and are not matched.
-    static let urlLoadingTypes: [String] = [
-        "Data", "NSData", "String", "NSString", "NSArray", "NSDictionary", "NSAttributedString", "XMLParser",
-    ]
-    static let urlLoadingInitRule = "URL-loading init (contentsOf:)"
-    /// `Type(contentsOf:` / `Type.init(contentsOf:` for the listed types (identifier boundary on the left, so
-    /// `Foundation.Data(contentsOf:` is a hit and `MyData(contentsOf:` is not), or any `.init(contentsOf:`.
-    static let urlLoadingInitPattern = "(?:" + leftBoundary + "(?:" + urlLoadingTypes.joined(separator: "|")
-        + #")\s*(?:\.\s*init\s*)?|\.\s*init\s*)\(\s*contentsOf\s*:"#
+    /// AC-M1-23 (brief Q23, review GK-1): every `contentsOf:` argument label is banned, on any type, initialiser or
+    /// function, except in an allowlisted file or when the immediately enclosing call is named exactly one of these
+    /// (the collection methods `append(contentsOf:)` / `insert(contentsOf:at:)`, with or without a receiver). No other
+    /// exception without a PO decision.
+    static let contentsOfCallExemptions: Set<String> = ["append", "insert"]
+    static let contentsOfRule = "contentsOf:"
+    static let contentsOfPattern = leftBoundary + #"contentsOf\s*:"#
 
     /// Words that may directly precede an implicit-member `.now` (`return .now`, `case .now`); after any other word the
     /// dot has a receiver (`moment.now`).
@@ -185,8 +182,12 @@ enum SourceScanner {
 
         let fileName = (file as NSString).lastPathComponent
         if !contentsOfAllowlist.contains(fileName) {
-            for match in matches(of: urlLoadingInitPattern, in: code) {
-                hits.append(ScanHit(file: file, line: match.line, rule: urlLoadingInitRule, excerpt: match.text))
+            let scalars = Array(code.unicodeScalars)
+            for match in matches(of: contentsOfPattern, in: code) {
+                let call = enclosingCallName(in: scalars, before: match.startOffset)
+                if let call, contentsOfCallExemptions.contains(call) { continue }
+                hits.append(ScanHit(file: file, line: match.line, rule: contentsOfRule,
+                                    excerpt: "\(call ?? "?")(\(match.text)"))
             }
         }
 
@@ -244,6 +245,36 @@ enum SourceScanner {
             let paren = nextNonWhitespace(in: scalars, from: identifiers[position + 1].endOffset)
         else { return false }
         return scalars[paren] == "("
+    }
+
+    /// The name of the call whose argument list immediately encloses `offset`: walk back to the nearest unbalanced
+    /// `(` (skipping balanced `()`, `[]`, `{}`), then read the identifier right before it (whitespace allowed). `nil`
+    /// when the enclosing bracket is not `(` or no identifier precedes it (so the label is not exempt). Code text only:
+    /// string-literal text is blanked by the lexer, so brackets inside strings cannot confuse it.
+    static func enclosingCallName(in scalars: [Unicode.Scalar], before offset: Int) -> String? {
+        var depth = 0
+        var index = offset - 1
+        while index >= 0 {
+            let scalar = scalars[index]
+            if scalar == ")" || scalar == "]" || scalar == "}" {
+                depth += 1
+            } else if scalar == "(" || scalar == "[" || scalar == "{" {
+                if depth == 0 {
+                    guard scalar == "(" else { return nil }
+                    var end = index - 1
+                    while end >= 0, scalars[end].properties.isWhitespace { end -= 1 }
+                    var start = end
+                    while start >= 0, isIdentifierScalar(scalars[start]) { start -= 1 }
+                    guard end > start else { return nil }
+                    var name = String.UnicodeScalarView()
+                    name.append(contentsOf: scalars[(start + 1)...end])
+                    return String(name)
+                }
+                depth -= 1
+            }
+            index -= 1
+        }
+        return nil
     }
 
     /// `needle` occurs as consecutive words of `haystack` (case-sensitive); with `atEnd`, as its last words.
