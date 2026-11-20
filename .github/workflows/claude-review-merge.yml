@@ -65,11 +65,6 @@ jobs:
           gh label create changes-requested --color FBCA04 --description "Developer must fix before merge" 2>/dev/null || true
           gh label create do-not-merge --color 000000 --description "Never auto-merge" 2>/dev/null || true
 
-      - name: TEMPORARY - show OIDC subject claim (no token printed)
-        run: |
-          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.anthropic.com" | jq -r .value)
-          echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | jq '{sub, aud, iss, repository, repository_owner, ref, event_name}' || true
-
       - name: Run Merge Gatekeeper
         uses: anthropics/claude-code-action@v1
         with:
