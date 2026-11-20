@@ -23,12 +23,16 @@ public actor JSONFileHouseholdRepository: HouseholdRepository {
     private let writer: HouseholdFileWriter
 
     /// A repository on the local file at `fileURL`. The directory must exist; the file is created on first save.
-    public init(fileURL: URL) {
-        self.init(fileURL: fileURL, writer: .standard)
+    ///
+    /// Only a local file URL is accepted (P-2; review W2-F1, brief Q19): anything else (`https:`, `ftp:`, `data:`, a
+    /// scheme-less relative URL) throws `unreadableFile` here, before any read or write could reach it.
+    public init(fileURL: URL) throws(HouseholdStoreError) {
+        try self.init(fileURL: fileURL, writer: .standard)
     }
 
-    /// The fault-injection seam (AC-M1-07): tests pass a writer that fails part-way.
-    init(fileURL: URL, writer: HouseholdFileWriter) {
+    /// The fault-injection seam (AC-M1-07): tests pass a writer that fails part-way. Same file-URL check.
+    init(fileURL: URL, writer: HouseholdFileWriter) throws(HouseholdStoreError) {
+        guard fileURL.isFileURL else { throw .unreadableFile }
         self.fileURL = fileURL
         self.writer = writer
     }

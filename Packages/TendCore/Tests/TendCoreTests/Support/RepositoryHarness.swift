@@ -24,7 +24,7 @@ enum RepositoryKind: String, CaseIterable, Sendable, CustomTestStringConvertible
 struct RepositoryUnderTest: Sendable {
     let kind: RepositoryKind
     let repository: any HouseholdRepository
-    let reopen: @Sendable () -> any HouseholdRepository
+    let reopen: @Sendable () throws -> any HouseholdRepository
 }
 
 enum RepositoryHarness {
@@ -44,7 +44,7 @@ enum RepositoryHarness {
                 return try await body(RepositoryUnderTest(
                     kind: kind,
                     repository: JSONFileHouseholdRepository(fileURL: fileURL),
-                    reopen: { JSONFileHouseholdRepository(fileURL: fileURL) }
+                    reopen: { try JSONFileHouseholdRepository(fileURL: fileURL) }
                 ))
             }
         }

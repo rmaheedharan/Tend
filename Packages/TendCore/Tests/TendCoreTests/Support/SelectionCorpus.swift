@@ -44,7 +44,18 @@ enum SelectionCorpus {
         try smallSeeds.map { try makeCase(seed: $0, taskCounts: smallTaskCounts) }
     }
 
-    static func makeCase(seed: UInt64, taskCounts: ClosedRange<Int>) throws -> SelectionCase {
+    /// AC-M1-21 gate (WI-M1-04): ≥ 500 households of 50–500 tasks in which at least half the windows have ended
+    /// (`windowEnd <= now`), including rest-over and resting deferrals with ended windows.
+    static let rescheduleSeeds: ClosedRange<UInt64> = 400_001...400_500
+    static let rescheduleEndedShare = 0.8
+
+    static let reschedule: Result<[SelectionCase], any Error> = Result {
+        try rescheduleSeeds.map {
+            try makeCase(seed: $0, taskCounts: gateTaskCounts, endedShare: rescheduleEndedShare)
+        }
+    }
+
+    static func makeCase(seed: UInt64, taskCounts: ClosedRange<Int>, endedShare: Double? = nil) throws -> SelectionCase {
         // A separate stream for the context, so the household for a seed is the generator's own household.
         var rng = SplitMix64(seed: seed ^ 0x5EED_C0DE_0000_0000)
         let zoneID = zoneIdentifiers[Int.random(in: 0..<zoneIdentifiers.count, using: &rng)]
@@ -59,7 +70,8 @@ enum SelectionCorpus {
         let energy = EnergyLevel.allCases[Int.random(in: 0..<EnergyLevel.allCases.count, using: &rng)]
         let moment = Moment(now: now, calendar: SelectionFixtures.gregorian(in: zone), timeZone: zone,
                             weather: weather, energy: energy)
-        let household = try HouseholdGenerator.household(seed: seed, taskCountRange: taskCounts, now: now)
+        let household = try HouseholdGenerator.household(seed: seed, taskCountRange: taskCounts, now: now,
+                                                          endedShare: endedShare)
         return SelectionCase(seed: seed, moment: moment, household: household)
     }
 }

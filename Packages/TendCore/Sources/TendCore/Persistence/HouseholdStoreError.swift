@@ -5,7 +5,8 @@ import Foundation
 /// Codes only, for developers and for the M3 UI to map to calm copy (`store.error.*`, design.md). A failed load never
 /// produces an empty household, and nothing here describes the person.
 public enum HouseholdStoreError: Error, Hashable, Sendable {
-    /// The file exists but is not a readable household: truncated, not JSON, the wrong shape, or not a file.
+    /// The file exists but is not a readable household: truncated, not JSON, the wrong shape, or not a file; or the
+    /// repository was given a URL that is not a local file URL (P-2).
     case unreadableFile
     /// The file (or a household being saved) declares a schema version this build does not read.
     case unsupportedSchemaVersion(Int)

@@ -4,6 +4,7 @@
 // Requirements: FR-B1, FR-B2, UX-3 (a calm, typed failure, never silent data loss); S-M1-02.
 
 import Foundation
+import Synchronization
 import Testing
 @testable import TendCore
 
@@ -107,7 +108,7 @@ struct FileRepositoryLoadErrorTests {
             let bytes = try bad.bytes()
             try bytes.write(to: fileURL)
 
-            let repository = JSONFileHouseholdRepository(fileURL: fileURL)
+            let repository = try JSONFileHouseholdRepository(fileURL: fileURL)
             var returned: Household?
             await #expect(throws: bad.expected, "\(bad.name): load") {
                 returned = try await repository.load()
@@ -185,4 +186,41 @@ struct FileRepositoryLoadErrorTests {
         }
         #expect(Set(all).count == 4)
     }
+
+    // MARK: Review W2-F1: only local file URLs (P-2, brief Q19)
+
+    static let nonFileURLs: [String] = [
+        "https://example.org/household.json",
+        "http://192.0.2.1/household.json",
+        "ftp://example.org/household.json",
+        "data:application/json;base64,e30=",
+        "household.json",                      // relative, no scheme: not a file URL
+    ]
+
+    @Test("W2-F1 / P-2: a repository refuses a URL that is not a local file URL before any read or write",
+          arguments: nonFileURLs)
+    func nonFileURLIsRefused(text: String) throws {
+        let url = try #require(URL(string: text))
+        #expect(!url.isFileURL)
+        #expect(throws: HouseholdStoreError.unreadableFile) { try JSONFileHouseholdRepository(fileURL: url) }
+        let calls = WriteCallCounter()
+        let recording = HouseholdFileWriter { _, _ in calls.record() }
+        #expect(throws: HouseholdStoreError.unreadableFile) {
+            try JSONFileHouseholdRepository(fileURL: url, writer: recording)
+        }
+        #expect(calls.count == 0, "no write was attempted")
+    }
+
+    @Test("W2-F1: a file URL from a path is accepted")
+    func fileURLIsAccepted() throws {
+        let url = URL(fileURLWithPath: "/tmp/tend-w2f1-check/household.json")
+        #expect(try JSONFileHouseholdRepository(fileURL: url).fileURL == url)
+    }
+}
+
+/// Counts writer calls from a `@Sendable` closure (test only).
+final class WriteCallCounter: Sendable {
+    private let storage = Mutex(0)
+    func record() { storage.withLock { $0 += 1 } }
+    var count: Int { storage.withLock { $0 } }
 }
