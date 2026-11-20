@@ -246,3 +246,134 @@ block. **No open Blocker or Major.**
 |---|---|---|---|---|
 | 2026-11-20 | Developer (via Orchestrator) | Reviewer | received (round 2) | Commit `899ea43`; dev-notes WI-M1-01 round 2; brief Q17/Q18. |
 | 2026-11-20 | Reviewer | Orchestrator → Acceptance Tester | accepted — APPROVE | F-1, F-2 (Major) closed and verified; F-3, F-4, F-6 closed; F-5 watched. New Minor tickets: F-7 (networking `.init` spellings), F-8 → Q-R3 (PO), F-9 → Q-R4 (PO). No open Blocker or Major. 42 tests / 0 failures / 0 warnings locally; Linux CI green; Reviewer mutations M1–M5 red as expected. Not committed (per instructions). |
+
+---
+
+## WI-M1-02 round 1 — [PR #6](https://github.com/rmaheedharan/Tend/pull/6) (`m1/persistence`, commit `b593d41`)
+
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 1
+- **Diff reviewed:** `git diff 899ea43 b593d41`, read against branch head `aaa08f0`. `git diff 899ea43 aaa08f0` touches
+  only the WI-M1-02 files: 4 new `Sources/` files, 8 new test files, ADR-0004, dev-notes and this file. The scanner,
+  `.gitignore` and model lines in the raw `b593d41` diff are only the reverse of WI-M1-01 round 2, which the merges
+  bring back.
+  **Owned ACs:** AC-M1-04, AC-M1-05, AC-M1-06, AC-M1-07, and AC-M1-25 (repository part). **Keeps green:** AC-M1-02,
+  AC-M1-23 (as amended by Q17/Q18).
+  **Inputs:** [brief.md](brief.md) v2 (incl. Q17, Q18), [design.md](design.md) (repository and `HouseholdStoreError`
+  names, `store.error.*` codes-only rule, D-2, D-3), [plan.md](plan.md) (WI-M1-02 scope, R-7, R-8, R-12),
+  [dev-notes.md](dev-notes.md) (WI-M1-02 section), and
+  [ADR-0004](../../architecture/adr/0004-household-json-file-format.md).
+- **Verified by the Reviewer (Linux container, Swift 6.2 via the Docker wrapper, on `aaa08f0`):**
+  `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` gave "Test run with 75 tests in 11 suites
+  passed", 0 failures, 0 warnings. The dev-notes count of 73 predates the merge of WI-M1-01 round 2.
+  - Logs: `AC-M1-05: seeds 1...200, 200 households, 51718 tasks (min 0, max 500 per household), 144045 dates compared
+    bit-exact, 144045 with a sub-second part`.
+  - `AC-M1-02 scan: 15 files … 0 hits`.
+  - `AC-M1-23 scan: 15 files … 0 hits; contentsOf: allowlist ["JSONFileHouseholdRepository.swift"], 1 allowlisted
+    files present`.
+- **Reviewer mutations.** These ran in a throwaway copy of the package in the session scratchpad. Nothing in the repo
+  was changed.
+  - **RM-1:** `InMemoryHouseholdRepository.upsertTask` always appends. Result: red. "AC-M1-04 contract: upsert replaces
+    the task with the same ID in place…" failed for the in-memory case (13 tasks instead of 12).
+  - **RM-2:** the file store's edits swallow load errors (`(try? load()) ?? .empty`). Result: red. Every AC-M1-06
+    corrupt-file case failed: `upsertTask`, `removeTask` and `updateRoom` no longer threw, and the file bytes changed.
+  - These results add to the Developer's eight recorded mutations. Each of those also turned the suite red.
+- **R-12 / F-8 hand read of the allowlisted file:** `JSONFileHouseholdRepository.swift` has exactly one `contentsOf:`
+  use, `Data(contentsOf: fileURL)` at line 42. It builds no URLs, uses no networking API and imports only Foundation.
+  The URL comes from the caller (see W2-F1).
+
+### Summary
+This is a small, careful persistence layer, and it matches the design list exactly.
+- **Types.**
+  - `HouseholdRepository` is a `Sendable` protocol with typed `async throws(HouseholdStoreError)` requirements.
+  - Both stores are actors. Their methods are synchronous inside the actor, so a read-modify-write never crosses an
+    `await`. That means there is no reentrancy hazard.
+  - There is no `@unchecked Sendable`, no `nonisolated(unsafe)`, no `Task {}`, no `try!` and no force unwrap.
+  - The write seam `HouseholdFileWriter` is an internal `Sendable` struct holding a `@Sendable` closure.
+- **Errors.** `HouseholdStoreError` has exactly the four design cases. Errors are codes only and carry no strings.
+- **R-7, exact dates.** ADR-0004 option 2 writes each date as `timeIntervalSinceReferenceDate`, with the strategy set
+  explicitly. It is proven bit-exact over 144,045 generated dates and 11 adversarial ones, comparing `bitPattern`, not
+  only `==`.
+- **R-8, atomic save.** The R-8 analysis is good evidence:
+  - `replaceItemAt` was observed to lose the original on Linux, so it is avoided.
+  - `.atomic` is used behind a seam whose contract is "atomically or not at all".
+  - An inode-change test pins the standard writer to replace-by-rename. It catches the `options: []` mutation.
+- **AC-M1-06.** The tests check the AC's three clauses for every operation that reads the file: the typed error, no
+  household returned (`returned == nil`), and the bytes unchanged. They also check that edits on an unreadable file
+  write nothing. I agree with decision 4, that an older build or a damaged file is never overwritten by an edit. That
+  is the behaviour S-M1-02 needs.
+- **Tests.** The contract suite really is shared across both implementations. `implementationsAgree` cross-checks
+  60 seeded operations.
+
+I found no Blocker or Major. The findings below are hardening tickets. W2-F1 and W2-F2 are worth doing before the
+app layer creates a repository (M3).
+
+### Findings
+| ID | Severity | file:line | Problem | Required change | Status |
+|---|---|---|---|---|---|
+| W2-F1 | Minor | `Sources/TendCore/Persistence/JSONFileHouseholdRepository.swift:26-34, 37, 42` | **The public `init(fileURL:)` accepts any `URL`, and `load()` hands it to `Data(contentsOf:)`.** On Darwin, `Data(contentsOf:)` with an `http(s)` URL does a synchronous network fetch. The Q18 rationale ("allowed only because `URL(string:` is banned and file URLs come from file-path initialisers") holds inside `TendCore`, but this URL is built by the **caller**, outside the scan. In M1 nothing in `TendCore` can produce a remote URL, so P-2 is not violated today. It is defence in depth. Related: WI-M1-01 F-8 / Q-R3. | Reject non-file URLs at the boundary. Use `precondition(fileURL.isFileURL)` in `init`, or make `init` failable or throwing. Add a test that a non-file URL is refused before any read. If the PO answers Q-R3 with "file-path-only URLs in the allowlisted file", this check is how that rule is met. | Open (ticket) |
+| W2-F2 | Minor | `JSONFileHouseholdRepository.swift:37` | **"No file" is decided by `FileManager.fileExists`, which is `false` for any `stat` failure, not only "no such file".** Examples: a dangling symlink, a path component that is a regular file (`ENOTDIR`), a symlink loop, or no search permission on a parent. In those cases `load()` returns an **empty** household for a path that is not provably empty. That bends the AC-M1-06 rule "never returns an empty household" for unreadable storage. Not Major: none of these is an AC-M1-06 input, and I found no data-loss path. A later `save` to an inaccessible parent fails with `writeUnsuccessful`, and a dangling symlink has nothing to lose. This is reasoned from Foundation behaviour, not probed. | Read first, and return `.empty` only for the "no such file" error (`CocoaError.fileReadNoSuchFile`, or `ENOENT` in the underlying `POSIXError`). Map every other read error to `unreadableFile`. Add a test with a dangling symlink and with a regular file as a parent component. | Open (ticket) |
+| W2-F3 | Minor | `InMemoryHouseholdRepository.swift:16-19` vs `JSONFileHouseholdRepository.swift:96-102` | **The two stores disagree on non-finite dates.** The in-memory store accepts a household with a `±.infinity` date. The file store rejects it with `writeUnsuccessful`. The Developer documented this (Known limitations, ADR-0004 Consequences). AC-M1-04 still passes because the contract suite does not include such a household. | PO/Developer ticket, as dev-notes proposes: a finiteness invariant (this needs a design-list `TaskInvariantViolation` case, so the Designer and PO must agree), or the same encode-time check in both stores. Not in this PR. | Open (ticket, PO) |
+| W2-F4 | Minor | `JSONFileHouseholdRepository.swift:140-142` | **Durability and protection class on device.** `.atomic` gives rename atomicity, but there is no explicit data-protection option and no `fsync`, so a power cut right after the save could leave a stale or, on some filesystems, an empty file. This does not matter for M1: the file store is Linux-tested, and the on-device store is ADR-0002's choice. | If `JSONFileHouseholdRepository` ever ships on device, add a protection class (for example `.completeFileProtectionUntilFirstUserAuthentication` under `#if os(iOS)`) and note durability in ADR-0004. Otherwise, add one line to ADR-0004 Consequences saying it is not the on-device store. | Open (ticket) |
+| W2-F5 | Nit | `Tests/TendCoreTests/FileRepositoryLoadErrorTests.swift:175-187` | `errorCases` is close to a tautology. The exhaustive `switch` is a compile-time check, and `Set(all).count == 4` is true by construction. The name says "carries no user-facing text", but nothing asserts it, for example that the type is not `LocalizedError` and not `CustomStringConvertible` with prose. | Optional: assert `!(HouseholdStoreError.unreadableFile is any LocalizedError)`, or drop the "no user-facing text" claim from the name. | Open (optional) |
+| W2-F6 | Nit | `Tests/TendCoreTests/Support/SplitMix64.swift:2`; `Support/HouseholdGenerator.swift:54` and elsewhere | The comment says seeds give the "same sequence, on every platform". That is true for `SplitMix64.next()`. But `Int.random(in:using:)` maps raw bits to a range with a standard-library algorithm that is not promised to stay the same across Swift releases. A seed could give a different household after a toolchain upgrade. The tests would still pass, because the coverage checks are not tied to a seed, but a printed failure seed might not replay. | Optional: reword the comment to "on every platform with the same toolchain", or add `rng.uniform(in:)` built on `next()`. | Open (optional) |
+
+**ADR-0004:** the Reviewer agrees with options 2 and 6 and the load and save rules. The Reviewer part of its
+confirmation is given. The status change to Accepted belongs to the ADR's owner and the Documenter. Two notes for the
+ADR text are W2-F1 (file-URL precondition) and W2-F4 (not the on-device store).
+
+**AC trace (owned ACs):**
+| AC | Code | Test(s) | Reviewer result |
+|---|---|---|---|
+| AC-M1-04 | `HouseholdRepository.swift`, `InMemoryHouseholdRepository.swift`, `JSONFileHouseholdRepository.swift` | `RepositoryContractTests`: 12 tests × 2 implementations, plus `implementationsAgree` | **Met.** Covers save, load, upsert task, remove task and update room, plus reopen, schema rejection and 64 concurrent upserts. RM-1 turns it red. |
+| AC-M1-05 | `JSONFileHouseholdRepository.encode/decode` (`.deferredToDate`, explicit) | `seededHouseholdsRoundTrip` (seeds 1…200, 0–500 tasks, new instance per load, `==` and `bitPattern`), `awkwardDatesAreExact` (11), `GeneratorTests` coverage | **Met** (Linux). The generator goes through the throwing initialiser and covers every kind, flag set, state, daypart and weekday set and window position. Darwin rerun is in the M3 macOS lane (R-7 residual, as dev-notes says). |
+| AC-M1-06 | `load()` and `decode` (probe, then full decode) | `corruptFile` (10), `unknownSchemaVersion` (5), `directoryInsteadOfFile` | **Met.** Each case checks the typed error, `returned == nil`, unchanged bytes after load **and** after the three edits, a new instance and no stray files. RM-2 turns it red. |
+| AC-M1-07 | `save` (encode fully, then one writer call), `HouseholdFileWriter.standard` (`.atomic`) | `failedSaveKeepsPreviousHousehold` (3 failure points), `failedMutationKeepsPreviousHousehold` (3), `failedFirstSaveCreatesNoFile` (3), `recoveryAfterFailure`, `encodingFailureKeepsPreviousHousehold` (real failure), `standardWriterReplacesByRename`, `writerReceivesCompleteBytes` | **Met** (Linux). The injected writers test our code around the primitive. The inode test pins the primitive to rename. The kernel-level atomicity of the rename is Foundation's (accepted, ADR-0004 option 6). Darwin rerun is in M3. |
+| AC-M1-25 (repository part) | `decode`: `catch let violation as TaskInvariantViolation` → `.invalidTask` | `invalidTask` (9, one per invariant, bad task at index 7 of 20), `invariantCoverage` | **Met.** `TaskInvariantViolation` reaches the repository unwrapped by `JSONDecoder` (passes on Linux). |
+| AC-M1-02, AC-M1-23 | all of `Sources/` (15 files) | WI-M1-01 scans | **Still met.** 0 hits. `contentsOf:` appears only in the allowlisted file. |
+
+### Checklist
+- [x] Correctness vs ACs (AC-M1-04, 05, 06, 07, 25 repository part). AC-M1-02 and 23 are still green.
+- [x] Tests meaningful. Every AC has named tests that fail when the behaviour breaks: 8 Developer mutations and Reviewer
+  RM-1 and RM-2. No test was weakened or skipped. At the branch head, `InvariantTests.swift` and the scanner are byte-identical
+  to `899ea43`, so the raw `b593d41` diff on them is only the merge base.
+- [x] Swift 6 concurrency safe. Both stores are actors with no suspension inside a read-modify-write. Everything that
+  crosses isolation is `Sendable`. 0 warnings with `-warnings-as-errors`. One note: blocking file I/O on an actor runs
+  on the cooperative pool. That is acceptable at this size; revisit if M3 loads large households on a hot path.
+- [x] Typed errors. `throws(HouseholdStoreError)` is used throughout. Untyped Foundation errors are mapped at one place
+  each (read, encode, write, decode).
+- [x] No force unwraps or `try!` in product code
+- [x] Privacy (P-1…P-4). Local file only; no networking API; `contentsOf:` only in the allowlisted file. The
+  caller-URL hardening is W2-F1 (Minor).
+- [x] UX-2/UX-3 enforced in engine. No ranking, "next" or list-for-display API. No new model field (D-2). No
+  priority, score or weight (D-3). Error names are calm codes; `writeUnsuccessful` avoids the banned word *failed*.
+- [x] Accessibility (UI): n.a. (no UI in M1)
+- [x] Performance: AC-M1-05 takes about 4.6 s for 51,718 tasks, and the whole run about 10.8 s. Encoding is O(n) per
+  save. Edits do a full load and save, which is fine for M1 sizes.
+- [x] No new dependency without ADR. None was added. ADR-0004 records the file format.
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface; the repository is programmatic. |
+| UX-2 Rule of Three | pass | `load()` returns the household for the engine. There is no "what to do now" surface and no ranking. The ≤ 3 cap stays WI-M1-03's `NowSelection`. |
+| UX-3 Zero-Guilt | pass | No new stored field (D-2) and no time-growing score (D-3). The four error codes have no banned word (AC-M1-02 scan: 15 files, 0 hits). A failed load or save never silently loses or blanks data (AC-M1-06/07), which supports S-M1-02 "never lose a reminder for a bill". |
+| UX-4 Design craft | n.a. | No UI in M1. `store.error.*` copy is reserved for M3. |
+| P-1 On-device inference | n.a. | No AI. |
+| P-2 No data leaves device (except user iCloud) | pass | Writes and reads only a caller-supplied file. No networking API (AC-M1-23: 0 hits). The hand read of the allowlisted file found no URL construction. Defence in depth for non-file URLs is W2-F1 (Minor). |
+| P-3 Cloud escalation only via PCC + ADR | n.a. | No cloud path. |
+| P-4 Media not persisted without consent | n.a. | No media. |
+
+### Open questions
+- **PO (W2-F3):** should a finite-date invariant join the model invariants (AC-M1-25 / design naming list), or should
+  both stores reject non-finite dates at save? Not blocking.
+- **PO (Q-R3, carried from WI-M1-01 F-8):** W2-F1 is a concrete way to meet "file URLs only" for the allowlisted file.
+  Adopting it would answer Q-R3's second option.
+- **Orchestrator:** dev-notes still says "PR: opened by the Orchestrator (link to be added)". The link is PR #6.
+  ADR-0004 needs to be added to the `docs/architecture/README.md` index (Documenter). Traceability rows are needed for
+  AC-M1-04…07 and AC-M1-25 (repository part) (Documenter).
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-20 | Developer (via Orchestrator) | Reviewer | received (round 1) | Commit `b593d41` on `m1/persistence` (PR #6), branch head `aaa08f0`. Inputs: dev-notes WI-M1-02 and ADR-0004 (Proposed). |
+| 2026-11-20 | Reviewer | Orchestrator → Acceptance Tester | accepted — APPROVE | No Blocker or Major. Four Minor tickets: W2-F1 (file-URL precondition, P-2 defence in depth), W2-F2 (`fileExists` treats any `stat` failure as "no file"), W2-F3 (non-finite dates differ between the stores, PO), W2-F4 (protection class and durability if the store ships on device). Two Nits: W2-F5, W2-F6. 75 tests, 0 failures, 0 warnings locally (Linux, Swift 6.2). Reviewer mutations RM-1 and RM-2 turned the suite red. ADR-0004 confirmed by the Reviewer. Not committed (per instructions). |
