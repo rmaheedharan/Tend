@@ -39,6 +39,10 @@ struct TextPrimitivesTests {
         ("", ""),
         ("   ", ""),
         ("Utility room 2", "utility room 2"),
+        // R1-F7: a lone combining mark between spaces. The fold removes it, then the collapse runs, so one space is
+        // left. (In the brief's listed order, collapse before fold, two spaces would remain; PO/Tester informed.)
+        ("x \u{301} y", "x y"),
+        ("a \u{301} b", "b"),                           // then "a" is a leading article and is stripped
     ])
     func nameFolding(input: String, expected: String) {
         #expect(TextFolding.foldName(input) == expected, "fold(\(input.debugDescription))")

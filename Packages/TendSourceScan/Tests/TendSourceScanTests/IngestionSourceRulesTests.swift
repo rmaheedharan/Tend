@@ -526,15 +526,69 @@ struct IngestionSourceRulesTests {
         }
     }
 
-    @Test("AC-M2-09 Rule 6 positive: reading bundled fixtures with Data(contentsOf:) and plain code pass in TendEval")
+    @Test("AC-M2-09 Rule 6 positive: plain harness code, Bundle URLs and the results writer's writes pass in TendEval")
     func rule6Positive() {
         let code = """
             import Foundation
             import TendIngestion
             let url = Bundle.main.url(forResource: "inputs", withExtension: "json")
-            let data = try Data(contentsOf: url!)
+            let name = url?.lastPathComponent ?? "none"
+            var items: [Int] = []
+            items.append(contentsOf: [1, 2])
+            let stream = AsyncStream<Int> { $0.finish() }
             """
         #expect(scan(.tendEval, PlanPaths.evalFile, code).isEmpty)
+        #expect(scan(.tendEval, PlanPaths.resultsWriter, "try bytes.write(to: url, options: .atomic)").isEmpty)
+    }
+
+    // MARK: R1-F1: `contentsOf:` URL loading is a networking pattern in Rules 2, 3 and 6
+
+    static let contentsOfPlants: [String] = [
+        "let d = try Data(contentsOf: u)",
+        "let s = try String(contentsOf: u, encoding: .utf8)",
+        "let d: Data = try .init(contentsOf: u)",
+        "let d = try Data(contentsOf: components.url!)",
+        "let m = NSMutableData(contentsOf: u)",
+        "let v = try x.load(contentsOf: u)",
+    ]
+
+    static let contentsOfLocations: [(ScannedModule, String, IngestionScanRule)] = [
+        (.tendAI, PlanPaths.transport, .rule3),          // allowlisted: outside the T-23 subset (review P01)
+        (.tendAI, PlanPaths.failureMapping, .rule3),
+        (.tendAI, PlanPaths.keychain, .rule3),
+        (.tendAI, PlanPaths.aiFile, .rule2),             // a provider adapter (review P02)
+        (.tendAI, PlanPaths.speechAdapter, .rule2),
+        (.tendEval, PlanPaths.evalFile, .rule6),         // review P03
+        (.tendEval, PlanPaths.resultsWriter, .rule6),    // the write exception is not a read exception
+        (.tendIngestion, PlanPaths.ingestionFile, .rule1),
+    ]
+
+    @Test("AC-M2-09 (R1-F1) negative: Data(contentsOf:, String(contentsOf:, .init(contentsOf: … are caught in every module and file kind",
+          arguments: contentsOfPlants)
+    func contentsOfCaught(code: String) {
+        for (module, path, rule) in Self.contentsOfLocations {
+            let found = scan(module, path, code)
+            #expect(found.contains { $0.rule == rule && $0.check.contains("contentsOf:") },
+                    "\(rule) did not catch `\(code)` in \(path): \(found)")
+        }
+    }
+
+    @Test("AC-M2-09 (R1-F1) positive: append(contentsOf:) and insert(contentsOf:at:) pass in Rules 1, 2, 3 and 6")
+    func contentsOfCollectionExemption() {
+        let code = """
+            var xs = [1]
+            xs.append(contentsOf: [2, 3])
+            xs.insert(contentsOf: [0], at: 0)
+            append(contentsOf: [4])
+            """
+        for (module, path, rule) in Self.contentsOfLocations {
+            let found = scan(module, path, code)
+            #expect(found.isEmpty, "\(rule) in \(path): \(found)")
+        }
+        // Only exactly `append` / `insert`: the inner call of a nested load is still caught.
+        #expect(scan(.tendEval, PlanPaths.evalFile, "xs.append(contentsOf: try Data(contentsOf: u))")
+            .contains { $0.rule == .rule6 })
+        #expect(scan(.tendAI, PlanPaths.transport, "xs.appendAll(contentsOf: ys)").contains { $0.rule == .rule3 })
     }
 
     @Test("AC-M2-09: each module is checked by its own rule (dispatch)")

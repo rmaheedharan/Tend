@@ -6,12 +6,14 @@
 //
 // How each list is matched (the brief fixes the lists, the matching follows the M1 precedent):
 // - Networking patterns: the AC-M1-23 networking patterns as M1 matches them (names at camelCase word boundaries, the
-//   call names `Stream(` `InputStream(` `OutputStream(` `Host(` `socket(` and `Host.current`, `URL(string:`), plus the
-//   M2 names (camelCase word boundaries), plus `import Network`, `import CFNetwork` and `import FoundationNetworking`.
-//   Two AC-M1-23 entries are not networking patterns here: `http(s)` string literals (Rule 4 governs every literal) and
-//   `contentsOf:` (AC-M1-23 file loading; it stays banned in `TendIngestion` through Rule 1's full AC-M1-23 list).
+//   call names `Stream(` `InputStream(` `OutputStream(` `Host(` `socket(` and `Host.current`, `URL(string:`, and
+//   `contentsOf:` URL loading with exactly the AC-M1-23 / Q23 `append` / `insert` exemption and **no** file allowlist),
+//   plus the M2 names (camelCase word boundaries), plus `import Network`, `import CFNetwork` and
+//   `import FoundationNetworking`. One AC-M1-23 entry is not a networking pattern here: `http(s)` string literals,
+//   because Rule 4 governs every literal and allows `https://<host>` in the allowlisted files (review R1-F1).
 // - Media types and the write and log names: the name occurs **anywhere inside** an identifier (case-sensitive
-//   substring). This is stricter than the camelCase split, so `AVURLAsset`, `AppLogger` and `OSLogType` are hits.
+//   substring). This is stricter than the camelCase split, so `AVAssetReader`, `AppLogger` and `OSLogType` are hits.
+//   (`AVURLAsset` does not contain `AVAsset` and is not a hit; it needs `AVFoundation`, which Rules 1–3 do not allow.)
 // - The write and log calls (`write(to:`, `createFile(`, `print(`, `debugPrint(`, `dump(`, `NSLog(`, `os_log(`,
 //   `os_signpost(`): at an identifier boundary on the left, so `Swift.print(` and `x.write(to:` are hits and
 //   `reprint(` is not.
@@ -256,12 +258,11 @@ public enum IngestionSourceRules {
     /// and every identifier with a networking prefix is in the allowed subset; no media type, write or log API.
     static func rule3(_ facts: FileFacts) -> [RuleViolation] {
         var result = facts.importViolations(.rule3, allowed: rule3Imports)
-        // Networking-pattern hits: an identifier hit is allowed only when the whole identifier is in the subset.
-        // Call-form hits (`URL(string:`, `Host(`, `Stream(` …) and networking imports are never in the subset.
+        // Networking-pattern hits: a name hit is allowed only when the whole identifier is in the subset. Every other
+        // hit (`URL(string:`, `contentsOf:`, `Host(`, `Stream(`, `Host.current`, networking imports) is never in it.
+        let names = Set(networkingNames)
         for hit in facts.networkingHits {
-            let isSubsetIdentifier = !hit.rule.hasSuffix("(") && hit.rule != "URL(string:"
-                && hit.rule != "Host.current" && hit.rule != "import"
-                && allowedNetworkingSubset.contains(hit.excerpt)
+            let isSubsetIdentifier = names.contains(hit.rule) && allowedNetworkingSubset.contains(hit.excerpt)
             if !isSubsetIdentifier {
                 result.append(facts.violation(.rule3, check: "networking outside subset: " + hit.rule, hit: hit))
             }
@@ -332,8 +333,8 @@ struct FileFacts {
     let lexed: LexedSource
     let configuration: IngestionScanConfiguration
     let identifiers: [SourceScanner.RegexMatch]
-    /// Networking-pattern hits (names, call names, `Host.current`, `URL(string:`, networking imports), before any
-    /// exception. The Rule 5 exception is removed from these in `networkingViolations`.
+    /// Networking-pattern hits (names, call names, `Host.current`, `URL(string:`, `contentsOf:`, networking imports),
+    /// before any exception. The Rule 5 exception is removed from these in `networkingViolations`.
     let networkingHits: [ScanHit]
     let speechExceptionOffsets: Set<Int>
 
@@ -351,6 +352,14 @@ struct FileFacts {
                 hits.append(ScanHit(file: file.path, line: match.line, rule: pattern.name, excerpt: match.text,
                                     offset: match.startOffset))
             }
+        }
+        // `contentsOf:` URL loading (AC-M1-23, Q23): every label, except directly inside `append(` / `insert(`.
+        let scalars = Array(code.unicodeScalars)
+        for match in SourceScanner.matches(of: SourceScanner.contentsOfPattern, in: code) {
+            let call = SourceScanner.enclosingCallName(in: scalars, before: match.startOffset)
+            if let call, SourceScanner.contentsOfCallExemptions.contains(call) { continue }
+            hits.append(ScanHit(file: file.path, line: match.line, rule: SourceScanner.contentsOfRule,
+                                excerpt: "\(call ?? "?")(\(match.text)", offset: match.startOffset))
         }
         for statement in SourceScanner.imports(inCode: code)
         where IngestionSourceRules.networkingImports.contains(Self.moduleName(of: statement.target)) {

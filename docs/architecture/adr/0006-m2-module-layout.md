@@ -111,6 +111,6 @@ Three technical questions came up before any M2 logic could be written:
 | UX-3 | pass | The banned-token matcher lives in `TendIngestion` for the calm-words guard (AC-M2-12). |
 | UX-4 | n.a. | No UI. |
 | P-1 | pass | The on-device adapters stay in `TendAI`. The neutral layer has no inference and no networking (Rule 1). |
-| P-2 | pass | No new dependency. Networking can appear only in the three allowlisted `TendAI` files (Rule 3), and the scan enforces it. |
+| P-2 | pass | No new dependency. Networking, including `contentsOf:` URL loading (only `append` / `insert` are exempt, per AC-M1-23 / Q23), is banned in `TendIngestion` (Rule 1), in `TendAI` outside the allowlist (Rule 2) and in `TendEval` (Rule 6). In the three allowlisted `TendAI` files, only the T-23 subset is allowed (Rule 3), and `contentsOf:` is outside it. The scan enforces all of this. |
 | P-3 | pass | The builder's provider table holds bare hosts only. `https://` hosts appear only in the allowlisted files (Rule 4). Request bodies are canonical bytes, which AC-M2-20 can check byte for byte. |
 | P-4 | pass | There are no write or log APIs in `TendIngestion` or `TendAI` (Rules 1–3). `TendEval` writes only in its results writer (Rule 6). |
