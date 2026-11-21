@@ -836,7 +836,8 @@ Device ACs: none in this item.
 ## WI-M2-05 — neutral model contract, `IngestionDraft`, Q5 repairs in order, mapping to `HouseholdTask`
 
 - **Owner:** Developer  ·  **Branch:** `m2/draft-mapping`, from `origin/main` at `17c8ab0` (WI-M2-02, 03 and 04
-  merged)  ·  **PR:** not opened (as instructed; the Orchestrator opens it)  ·  **ADRs:** none new. Follows
+  merged)  ·  **PR:** #20  ·  **Review:** [review-WI-M2-05.md](review-WI-M2-05.md) (round 1 CHANGES REQUIRED; reworked in round 2,
+  see "Round 2" below)  ·  **ADRs:** none new. Follows
   [ADR-0006](../../architecture/adr/0006-m2-module-layout.md) (new files under `TendIngestion/Sources`, Foundation +
   TendCore only).
 - **Requirements:** FR-A1, D-016, UX-1 (every field inferred), UX-3. **Owns AC-M2-01 and AC-M2-02**
@@ -883,7 +884,7 @@ Device ACs: none in this item.
 | 5 | `resolver.resolve(hint, now:)`, the only source of a `TimeResolution` (R2-N1). A `basis` other than `hint` is logged as `windowDefaulted(basis)` (plan: `basis` is diagnostic, used for these counts). | `TimeResolver.resolve` |
 | 6 | `RecurrenceSettlement.settle(kind:resolution:)`: recurring outside 1…730 or with no interval → one-off; an interval on a non-recurring item → dropped; R5's {W} drops with the interval (E26). | `RecurrenceSettlement` |
 | 3 | Empty dayparts → `Daypart.defaultAllowed`; empty weekdays → all seven (`Settled.effective…`). | — |
-| 7 | `CalmWordsGuard.apply` on the title and a proposed room (PO ruling 1: the fallback is the checked, calmed `sourcePhrase`). | `CalmWordsGuard` |
+| 7 | `CalmWordsGuard.apply` on the title and a proposed room (PO WI-M2-04 ruling 1: the fallback is the checked, calmed `sourcePhrase`). **Round 2 (PO WI-M2-05 ruling 1):** if the guard changed a proposed name and left it non-empty, the calmed name is matched again with the AC-M2-04 rule, and a match gives `existing(id)` (`roomLinkedAfterCalming`, logged after `roomNameCalmed`). | `CalmWordsGuard`, `RoomLinker.link` |
 | 8 | `SourcePhrase.checked`; a phrase that fails → nil. | `SourcePhrase` |
 | 9 | `draft.task(id: probeID, roomID: nil)`; a rejection → `skipped(.taskRejected(violation))`. | M1 initialiser |
 
@@ -895,16 +896,20 @@ weekdays. The mutant "step 3 before step 6" is killed (see below). All other ste
 the plan's wording, made exact. It is not a new product reading.
 
 ### Decisions the Reviewer should know
-- **D1, R19-F3 (guard cuts a proposed name to an existing room's name): no re-link after the guard.** "late kitchen"
-  in a kitchen household with no "late" in the input stays `proposed("kitchen")` at parse time. At commit,
-  `RoomLinker.commitPlan` puts it in the existing Kitchen and creates no room (PO WI-M2-04 ruling 2b). Reasons:
-  - AC-M2-04 is literal: linking compares the model's text, and "if none matches, it carries `proposed(name)`, where
-    the name is the model's text after the calm-words guard".
-  - The household after commit is identical either way, so the user-visible result does not change.
-  - Re-linking would change what WI-M2-07's local word-match sees ("a proposed room never equals an existing room").
+- **D1, R19-F3 (guard cuts a proposed name to an existing room's name): re-link after the guard (round 2, PO
+  ruling 1 in `po-m2-wi05.md`, which reverses the round 1 default).** Take "late kitchen" in a household with Kitchen,
+  where the user did not say "late". Step 7 calms the name to "kitchen". Because the guard changed the name, the calmed
+  name is matched again with the AC-M2-04 rule (name folding, exact match, tie → lowest `id.uuidString`, via
+  `RoomLinker.link`), so the draft is `existing(kitchenID)`. The repair is logged as `roomLinkedAfterCalming`, after
+  `roomNameCalmed`.
+  - A calmed name that matches no room stays `proposed(calmedName)` ("late pantry" → `proposed("pantry")`).
+  - An emptied name is `none`.
+  - An unchanged proposed name is not matched again, because it already failed the step 2 match.
+  - Commit keeps its own re-check (PO WI-M2-04 ruling 2b).
 
-  Pinned by "R19-F3: …" (parse result and commit plan). The re-link mutant is killed by that test and by the property
-  oracle. **Open question 1** below.
+  As a result, a draft never proposes a room that equals an existing one, which is the invariant WI-M2-07's local
+  word-match relies on. Tests: "R19-F3 (PO ruling 1): …" (flipped), the tie case (3 array orders) and the no-match
+  case. The reverse mutant ("no re-link") is killed.
 - **D2, a missing kind or effort is repaired like an unknown one.** "On completion, the Q5 repairs fill any missing
   field" (Definitions). Both cases log `kindDefaulted` / `effortDefaulted`. Missing flags become false and are not
   logged (they are not enums).
@@ -922,9 +927,18 @@ the plan's wording, made exact. It is not a new product reading.
   folded room name the draft with the lowest `draftID`.
 - **D7, step 9 is reachable only with a non-finite `now`.** Over 6,000 outputs the oracle shows no rejection with a
   finite `now` (0 `taskRejected`). The step 9 test drives it with NaN and ±∞ `now` and gets
-  `taskRejected(.windowDateNotFinite)`. "End ≤ start" and "non-finite date" in Q5 step 5 cannot come from a hint, because
-  the model never sends dates. The resolver's own range check (AC-M2-03) is the guard, and the property test checks the
-  range again on every draft.
+  `taskRejected(.windowDateNotFinite)`.
+  **Where the AC-M2-02 classes "end ≤ start" and "non-finite" are covered (review F3).** Neither has a row in the
+  counts table, because no model output can produce them:
+  - **End ≤ start** is impossible by construction: the snapshot contract carries no dates, and every window comes from
+    the resolver. The resolver's own empty-window branch is covered by `rangeProblem`'s unit test in
+    `TimeResolverTests.swift` (the Q5 step 5 range rule at ±1 ms, which includes end = start). The property re-checks
+    `start < end` and the 366-day range on every draft.
+  - **Non-finite numbers in a time hint:** `ModelNumber.wholeNumber` turns them into nil. The generator's `odd` values
+    include NaN, ±∞, 2.5, 1e30 and 9.3e18, and the test "Model numbers: …" covers them. They then count as a missing
+    or out-of-range field (`requiredFieldAbsent` / `fieldOutOfRange` rows).
+  - **Non-finite dates** are reachable only through a non-finite `now`: "Q5 (9): …" (NaN, ±∞) and the WI-M2-02
+    invariant tests.
 - **D8, the oracle's independence** (written at the top of `DraftMappingPropertyTests.swift`). The oracle reads the
   **raw** output (strings and `Double`s) and re-implements steps 1–8 itself: Character-based tidy, enum defaults, step 3,
   step 4, the basis check, step 6 and the R5 drop derived from the hint (not `weekdaysFollowRepeat`), a calm guard over
@@ -933,6 +947,16 @@ the plan's wording, made exact. It is not a new product reading.
   primitive). It never calls `DraftMapper`, `RecurrenceSettlement`, `CalmWordsGuard`, `SourcePhrase`, `RoomLinker` or
   `BannedTokens`. The generator alphabet is restricted so that the `Character` classes match the production scalar
   classes.
+  **Round 2 (review F2):**
+  - The oracle now computes the step 5 fallback itself: when `basis != .hint`, it expects `[now, now + 604,800 s)` and
+    weekdays ∅.
+  - It also re-links after the guard with its own fold-and-compare, using `String <` for ties.
+  - **The independence is conditional.** A defect in the two shared functions is invisible to this property.
+    - Reviewer mutant `p` (name folding strips no article) gives 0 mismatches here. It is killed by AC-M2-01, AC-M2-04
+      and `TextPrimitivesTests`.
+    - Q6 rows are pinned by the AC-M2-03 suite (hand-written UTC tables, E1–E26).
+    - The fallback-duration mutant (`o`, 6 days) is now also killed by the property itself (mutation table).
+  - The AC-M2-02 evidence should cite those suites next to the property.
 
 ### AC coverage
 | AC | Test(s) | Result |
@@ -957,6 +981,7 @@ the plan's wording, made exact. It is not a new product reading.
 | 6 | `becameOneOff` / `intervalDropped` / `repeatWeekdaysDropped` | 1,177 / 654 / 186 |
 | 3 | `daypartsDefaulted` / `weekdaysDefaulted` | 3,550 / 5,119 |
 | 7 | `titleCalmed` / `titleFromSourcePhrase` / `roomNameCalmed` / `roomNameCleared` | 2,470 / 137 / 542 / 396 |
+| 7 | `roomLinkedAfterCalming` (round 2; the round 2 counts are in "Round 2" below) | — |
 | 7 | skip `calmWords(noTitleWordsLeft)` | 225 |
 | 8 | `sourcePhraseDropped` | 1,673 |
 | 9 | skip `taskRejected` | **0** |
@@ -1047,16 +1072,66 @@ Device ACs: none in this item.
 | P-4 Media not persisted | pass | No write or log API. Nothing is stored. Mapping creates no room or task. |
 
 ### Open questions
-1. **PO / Designer (R19-F3, AC-M2-04):** when the guard cuts a proposed room name down to an existing room's name
-   ("late kitchen" → "kitchen"), should the draft be re-linked to the existing room at parse time? Built: no. The draft
-   shows `proposed("kitchen")`, and commit uses the existing Kitchen and creates nothing (ruling 2b), so the household is
-   the same either way. If the PO prefers re-linking, it is a one-line change. The R19-F3 test would flip, and WI-M2-07's
-   local word-match would then treat the room as an existing room. Not blocking.
-2. **PO (D3, small):** a time hint with no anchor is read as anchor `none` (its daypart and repeat still count), not as
-   no hint. This matches "an invalid anchor is no anchor; the rest of the hint still counts" (PO Q-T2). Please confirm.
+1. ~~**PO / Designer (R19-F3, AC-M2-04):** should the draft be re-linked after the guard?~~ **Closed: PO ruling 1
+   (`po-m2-wi05.md`): re-link.** Built in round 2 (D1).
+2. ~~**PO (D3, small):** is a time hint with no anchor anchor `none`?~~ **Closed: PO ruling 2 confirms it as built.**
+   PO ruling 3 also accepts the step order `[1, 2, 4, 5, 6, 3, 7, 8, 9]`.
+
+### Round 2 (review round 1: CHANGES REQUIRED; PO rulings `po-m2-wi05.md`)
+| Finding | Change |
+|---|---|
+| **F1 Major** (PO ruling 1, items 1–5) | `DraftMapper` step 7: after the guard changes a proposed name to a non-empty name, the mapper calls `RoomLinker.link(calmedName, in: rooms)`. A match gives `existing(id)`, logged as the new case `ItemRepair.roomLinkedAfterCalming` (step 7, after `roomNameCalmed`). The R19-F3 test is flipped to `existing(kitchenID)`, and the commit plan still creates no room. New tests: the tie case (`"the  KITCHEN"` …0001 and `"Kitchen"` …00FF in 3 array orders → …0001), the no-match case ("late pantry" with no Pantry → `proposed("pantry")`), and "only when changed" (an unchanged name, and an emptied one). The oracle re-links with its own fold and `String <` tie. The generator adds calmed-to-existing room texts ("late kitchen", "Overdue Garage", "late Sam’s room", "behind the bathroom", "late pantry"). The coverage check now requires `roomLinkedAfterCalming` on every seed. D1 and open question 1 are updated. |
+| **F2 Minor** | D8 states the conditional independence and cites the suites that cover the shared functions. The oracle now computes the step 5 fallback window and its ∅ weekdays itself, so the fallback-duration mutant is killed by the property (below). |
+| **F3 Minor** | D7 maps "end ≤ start" and "non-finite" to the tests that cover them. No code change. |
+| **F4 Nit** | The AC-M2-01 cases assert the draft title against a hand-written string. |
+| **F5 Nit** | Not changed. Labelling the title repair calls `CalmWordsGuard.calmed` a second time. Removing that call would change `CalmWordsDecision`, a WI-M2-04 type, and its tests. The Reviewer confirmed the result is correct. |
+| Found while mutating | Under the step 9 mutant, the test "Q5 (9)" crashed instead of failing: describing a NaN `Date` traps in Foundation on Linux. The test now compares to a Bool first, so the mutant gives a clean failure. |
+
+**Round 2 test runs** (`swift:6.2-noble`, `-warnings-as-errors`, 0 warnings, `swift build` first for each package):
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 117 tests in 11 suites passed after 6.517 seconds.` (114 + 3 new: tie, no-match, only-when-changed). AC-M2-09 `13 files in total, 0 violations`; AC-M2-12 vocabulary `13 files, 9 exempted (the list), 0 violations` |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 2.171 seconds.` |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 118.442 seconds.` |
+
+**Round 2 AC-M2-02 property:** same seeds (`0x0A11C0DE5EED0501`, `…0502`, `…0503`). 6,000 outputs gave 5,167 drafts and
+833 skipped, with **0 oracle mismatches** and 0 `taskRejected`. Counts per rule (sum of the three seeds):
+
+| Step | Rule | Count |
+|---|---|---|
+| 1 | `titleTidied` / skip `noTitle` | 4,307 / 600 |
+| 2 | `kindDefaulted` / `effortDefaulted` / `roomDefaulted` | 1,454 / 1,455 / 266 |
+| 2 | `anchorDefaulted` / `anchorUnrecognized` | 273 / 408 |
+| 2 | `daypartDropped` / `weekdayDropped` / `seasonDropped` / `repeatUnitDropped` | 281 / 275 / 178 / 325 |
+| 4 | `deepCleanCleared` | 396 |
+| 5 | `windowDefaulted`: `noHint` / `unrecognizedAnchor` / `requiredFieldAbsent` / `fieldOutOfRange` / `windowOutOfRange` | 1,093 / 408 / 872 / 107 / 126 |
+| 6 | `becameOneOff` / `intervalDropped` / `repeatWeekdaysDropped` | 1,197 / 639 / 198 |
+| 3 | `daypartsDefaulted` / `weekdaysDefaulted` | 3,561 / 5,148 |
+| 7 | `titleCalmed` / `titleFromSourcePhrase` / `roomNameCalmed` / `roomNameCleared` / **`roomLinkedAfterCalming`** | 2,498 / 128 / 722 / 388 / **402** (per seed 125 / 138 / 139) |
+| 7 | skip `calmWords(noTitleWordsLeft)` | 233 |
+| 8 | `sourcePhraseDropped` | 1,684 |
+| 9 | skip `taskRejected` | **0** |
+
+"End ≤ start" and "non-finite": see D7. Neither can come from a model output.
+
+**Round 2 mutation check: 29 of 29 killed.** All earlier mutants were re-run on the new code. The round 1 mutant
+"re-link after the guard" is now the built behaviour, so it was replaced by its reverse. New mutants:
+| Mutant | Killed by |
+|---|---|
+| **No re-link after the guard** (the reverse of PO ruling 1) | property, R19-F3, tie (3) |
+| Re-link not logged | property, R19-F3, tie (3) |
+| Re-link takes the first matching room, not the lowest `uuidString` | property, tie (2) |
+| `roomLinkedAfterCalming` logged before `roomNameCalmed` | property, R19-F3 (2) |
+| Resolver T1 fallback 6 days instead of 7 (run with the property suite only) | property (1): the F2 fallback check |
+
+The other 24 (steps 1–9, `ModelNumber`, `ModelChoice`) are all still killed. "Room not guarded" is now also killed by
+the no-match test. Under the step 9 mutant the run first crashed (see the last F row); after the test fix it fails
+cleanly in "Q5 (9)".
 
 ### Handoff log
 | Date | From | To | Result (accepted / returned) | Notes |
 |---|---|---|---|---|
 | 2026-11-21 | Orchestrator | Developer | accepted (H2) | WI-M2-05 Ready: WI-M2-02, 03, 04 merged (`17c8ab0`). Tickets R2-N1, R19-F3, PO ruling 2 (commit order). |
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 114 tests green, 0 warnings, Linux; AC-M2-02 property 6,000 outputs, 0 oracle mismatches. 25/25 mutants killed (2 equivalent ones removed by simplifying). Two open questions (R19-F3 re-link, missing anchor). Pushed; no PR opened. |
+| 2026-11-21 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: F1 Major (re-link per PO ruling 1), F2 and F3 Minor, F4 and F5 Nit. PO rulings `po-m2-wi05.md`: 1 re-link; 2 and 3 accepted as built. |
+| 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1 fixed (re-link plus tests and oracle, reverse mutant killed); F2, F3 documented and the oracle's own fallback check added; F4 fixed; F5 not changed (reason given). TendIngestion 117, TendSourceScan 63, TendCore 141 green, 0 warnings. 29/29 mutants killed. Review file committed with the fix. |
