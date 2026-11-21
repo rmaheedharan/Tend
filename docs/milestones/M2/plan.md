@@ -197,8 +197,10 @@ it to `required`. A required root with 0 files fails the test (lesson from M1 R-
 - Extending the M1 test that lists the cases is an extension, not a weakening. The Reviewer confirms that no M1
   assertion is removed. AC-M1-25 is not edited (T-21).
 
-**WI-M2-03 — `m2/time-resolver`**: implement the Q6 table below exactly. Test every row, every worked example (E1–E21),
-the DST and year-boundary cases, and every invalid-hint rule. The Tester adds cases of their own.
+**WI-M2-03 — `m2/time-resolver`**: implement the Q6 table below exactly. Test every row, every worked example (E1–E26),
+the DST and year-boundary cases, and every invalid-anchor rule. The Tester adds cases of their own. The Tester confirms
+the rows changed by PO Q-T1 and Q-T2 (R5, the note under the repeat table, the invalid-anchor bullet, E22–E26) before
+PR #18 is reviewed.
 
 **WI-M2-05 — `m2/draft-mapping`**: Q5 runs in the brief's order (1)–(9). Steps 5 and 6 call the WI-M2-03 resolver.
 Step 7 calls the WI-M2-04 guard. Step 8 is the `sourcePhrase` check. The ≥ 1,000-output generator covers every
@@ -340,21 +342,27 @@ the window.
 | R2 | "every N weeks", "weekly" (1), "every other week" (2) | N, `week` | 7N | anchor | Q6 |
 | R3 | "every N months", "monthly" (1), "quarterly" (3) | N, `month` | 30N (1 month = 30 days) | anchor | Q6 |
 | R4 | "every year", "yearly", "every two years" | N, `year` | 365N | anchor | **P6** |
-| R5 | "every Thursday", "every other Thursday" | `weekday` W + N `week` | 7N | **{W}**; window T7 | **P7** |
+| R5 | "every Thursday", "every other Thursday", "monthly on Thursday", "every year on a Thursday" | `weekday` W + N `week`, `month` or `year` | 7N, 30N or 365N (as R2, R3, R4) | **{W}**; window T7 | **P7**, PO Q-T1 2026-11-21 |
 | R6 | "every weekend" | `thisWeekend` + 1 `week` | 7 | {saturday, sunday}; window T9 | **P7** |
 | R7 | "every morning", "every evening" | `none` + `p` + 1 `day` | 1 | ∅; window T15, dayparts {p} | **P7** |
 
-A weekday anchor sets weekdays to {W} only together with a repeat (R5). A one-off "on Thursday" (T7) keeps all seven
-weekdays, so if the user does not do it that day the M1 rescheduler can move it to any day.
+A weekday anchor sets weekdays to {W} only together with a `week`, `month` or `year` repeat (R5). With a `day` repeat
+("daily from Thursday") weekdays stay ∅: the weekday sets only the first window (T7), and the item stays daily. A
+one-off "on Thursday" (T7) keeps all seven weekdays, so if the user does not do it that day the M1 rescheduler can
+move it to any day. If Q5 step 6 drops the interval (the final kind is not `recurring`, or the interval is outside
+1…730), the {W} from R5 is dropped with it, and weekdays are all seven, as for T7 (PO Q-T1, 2026-11-21).
 
 **How the hint meets Q5** (the resolver never decides the kind):
 - The interval is used only if the item's final kind is `recurring` (Q5 step 6). A repeat on a one-off or restock item
   is dropped. A `recurring` item with no repeat, or with an interval outside 1…730, becomes a one-off (step 6). So
   "every 25 months" (750 days) becomes a one-off.
-- **Invalid hints are "no hint" (T1 window, Q5 step 5):** an unknown anchor; an anchor whose required field is missing
-  or out of range (`weekday` with no weekday, `month` not 1…12, unknown season, `count` out of range); a computed
-  window with end ≤ start; or a window that is out of range (start < now, start > now + 366 × 86,400 s, or end > start
-  + 366 × 86,400 s).
+- **An invalid anchor is "no anchor" (T1 window, Q5 step 5); the rest of the hint still counts (PO Q-T2,
+  2026-11-21).** The anchor is invalid if any of these is true: it is unknown; its required field is missing or out of
+  range (`weekday` with no weekday, `month` not 1…12, unknown season, `count` out of range); its computed window has
+  end ≤ start; or the window is out of range (start < now, start > now + 366 × 86,400 s, or end > start + 366 ×
+  86,400 s). Then the window is the T1 window and weekdays are ∅. A valid `daypart` still sets dayparts to {p} (as
+  T15). A valid repeat still gives its interval (R1–R4); R5's {W} does not apply without a valid weekday. `basis`
+  still records the fallback reason. With no valid daypart and no valid repeat, the result equals no hint (T1).
 - An unknown `daypart` or `repeatUnit` is dropped (step 2). A `repeatEvery` < 1 means no repeat.
 - Numbers: the neutral hint carries counts as `Int?`. The provider parsers (WI-M2-12) and the on-device mapping turn
   any non-integer, non-finite or out-of-range JSON number into `nil` before the resolver sees it.
@@ -389,6 +397,11 @@ tzdata in the test), so that `mid(d)` moves to 01:00.
 | E19 | T4 tonight, said after midnight | Mon 2026-11-23 01:00 EST | `[2026-11-23T06:00Z, 2026-11-24T10:00Z)` (Mon 01:00 to Tue 05:00 local) | dayparts {evening, night}; Tester finding |
 | E20 | T14 "in 3 days at night" | Thu 2026-11-19 10:00 EST | `[2026-11-23T03:00Z, 2026-11-23T10:00Z)` (Sun 22:00 to Mon 05:00 local) | dayparts {night}; PO 2026-11-21 |
 | E21 | T9 "this weekend in the morning", Sunday 15:00 (morning has passed) | Sun 2026-11-01 15:00 EST | `[2026-11-07T10:00Z, 2026-11-08T17:00Z)` (Sat 05:00 to Sun 12:00 local) | dayparts {morning}, weekdays {sat, sun}; PO 2026-11-21 |
+| E22 | Invalid anchor: `weekday` with no weekday, + 1 `week` (PO Q-T2) | Mon 2026-11-23 10:00 EST | `[2026-11-23T15:00Z, 2026-11-30T15:00Z)` (T1 window, 604,800 s) | dayparts ∅, weekdays ∅, interval 7; a recurring item stays recurring |
+| E23 | R5: `weekday` Thursday + 1 `month` (PO Q-T1) | Mon 2026-11-23 10:00 EST | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)` (T7, Thu 26 Nov local) | dayparts ∅, weekdays {thursday}, interval 30 |
+| E24 | `weekday` Thursday + 1 `day` ("daily from Thursday"; PO Q-T1) | Mon 2026-11-23 10:00 EST | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)` (T7) | dayparts ∅, weekdays ∅, interval 1 |
+| E25 | Invalid anchor: `inDays` 400 (out of 1…366) + `evening` (PO Q-T2) | Mon 2026-11-23 10:00 EST | `[2026-11-23T15:00Z, 2026-11-30T15:00Z)` (T1 window, 604,800 s) | dayparts {evening}, weekdays ∅, no interval |
+| E26 | Settlement: E23's resolution with final kind one-off (Q5 step 6; PO Q-T1) | Mon 2026-11-23 10:00 EST | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)` (T7) | no interval; weekdays all seven ({thursday} dropped with the interval) |
 
 ## Route matrix (AC-M2-19, the full expected matrix)
 
@@ -797,3 +810,5 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q6 table APPROVED with 3 non-blocking findings. Applied: E17, E18 (T11 across DST, 169 h / 167 h), E19 (T4 "tonight" after midnight), and the PO decision on finding 2 (T9 and T14 with a daypart; E20, E21). No AC meaning changed (AC-M2-03). WI-M2-03 DoR: Q6 review box ticked. All new UTC values checked with Python `zoneinfo` (America/New_York). The PO logs the daypart decision in `DECISIONS.md` as a separate entry with its own number, in the same human-merged governance PR as D-032. |
 | 2026-11-21 | Product Owner | Work Planner | accepted | PO 2026-11-21, stricter only, from the PR #15 review: M2 Q23 and Q24 (AC-M2-09; AC-M1-23 cross-reference). Added the fixtures loader to "Named files", the Developer constraint (no `data(for:`/`data(from:` method names; unlisted Rule 6 imports go to the PO) and the timing: Q24 in WI-M2-01 round 2 or a follow-up before WI-M2-M4/M7 review; Q23 in a follow-up before WI-M2-M7 review; WI-M2-01 round 2 stays strict. Fixed two Gatekeeper minors from PR #14: R-24 now records the Tester's Q6 review as done; the daypart decision is its own `DECISIONS.md` entry in the D-032 governance PR. No AC changed. |
 | 2026-11-21 | Product Owner | Work Planner | accepted | Tester returned PR #16 (findings 1-9); PO accepted all, stricter only. Applied the v2 texts: the fixtures loader row now says "bundle resources named by string literals only"; the v1 `data(for:`/`data(from:` constraint is replaced in WI-M2-01 and WI-M2-M5 by the session-method name rule, the literal-only fixtures rule and the import rule; the DECISIONS.md wording for Q23/Q24 is recorded. Timing unchanged. No AC changed. |
+| 2026-11-21 | Developer | Product Owner | answered | Q-T1, Q-T2 answered (FR-A1, Q5, Q6, UX-3). |
+| 2026-11-21 | Product Owner | Work Planner, Acceptance Tester, Developer | accepted | Plan text applied: R5 row, the note under the repeat table, and the invalid-anchor bullet (PO Q-T1 / Q-T2, 2026-11-21); E22–E26 added (UTC checked with Python `zoneinfo`, America/New_York); WI-M2-03 test scope is E1–E26. Tester confirms the changed rows before PR #18 review; Developer reworks PR #18. No AC wording changed (AC-M2-03). The `DECISIONS.md` entry "PO Q-T1 / Q-T2, 2026-11-21, M2 Q6 table" goes in the human-merged governance PR. |
