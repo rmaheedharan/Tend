@@ -851,8 +851,66 @@ Tester's script and the result is recorded (CLAUDE.md §5). M2 cannot be `ACCEPT
 | Q22 | What are the cloud timeout and retry numbers (T-17)? | A 10.0 s per-capture deadline. Each attempt's resource timeout is the time left. The request (idle) timeout is min(time left, 4.0 s). One retry, only for 429/5xx, after a pause p = max(0.5 s, `Retry-After` in delta-seconds; a missing or unreadable value counts as 0), and only if ≥ 3.0 s are left before the deadline after the pause (the same rule as AC-M2-22; T-28). (PO default; the owner may tighten it.) | M2 planning |
 
 ## Tester testability review
-- [ ] Every AC is observable and measurable  - [x] Device ACs identified (AC-M2-11, 15, 16, 17, 25, 26, 27)  -
-  Reviewer note: **v3 returned to PO (Acceptance Tester, 2026-11-21, at `20862e2`).**
+- [x] Every AC is observable and measurable  - [x] Device ACs identified (AC-M2-11, 15, 16, 17, 25, 26, 27)  -
+  Reviewer note: **v4 accepted (Acceptance Tester, 2026-11-21, at `580d23e`).**
+  - **T-23…T-30 are closed.** I checked each row of the v4 change record against the brief text.
+    - **T-23:** the Rule 3 allowed subset covers exactly what AC-M2-22, 23 and 24 need: the task delegate for
+      redirect refusal, `URLError`, `AsyncBytes` and `URLComponents`. `URL(string:` stays banned. The negative test
+      is defined.
+    - **T-24:** the AC-M2-20 check is now (a) unique byte sentinels for fields that can hold a unique value, plus (b)
+      a structural key-path and value check against the golden request. Together these are as strong as the v3 intent
+      or stronger, and both can be tested.
+    - T-25…T-30 are fixed as asked.
+  - **All 28 ACs** are observable and measurable, name a verification type and an environment, and define their
+    evidence. I can write an independent oracle for each logic AC. For the eval, I can write an independent re-scorer
+    from the scoring rules.
+  - All three PRD §4 M2 gate lines, and the UX-2 and harness lines, are mapped (Gate mapping).
+  - All seven device ACs stay **AWAITING-DEVICE**. Each has a pass rule, the device-run rules and an outline (DS-1 and
+    DS-2 below, in the v2 note).
+
+  **Where each AC can be proven (final)**
+  | Environment | ACs |
+  |---|---|
+  | Linux only | AC-M2-01, 02, 03, 04, 06, 08, 09 (scan, plus Reviewer), 12, 14 (plus Tester review), 19 and 13(a). |
+  | Linux + owner-run Mac | AC-M2-05, 07, 10, 18, 20 (golden bytes repeated on the Mac), 23, 24 and 28 (Release build check on the Mac). |
+  | Owner-run Mac only | AC-M2-13(b), 21 (Simulator host app), and 22 (with its deadline and retry arithmetic also on Linux). |
+  | Device, run by the human owner, scored on Linux (AWAITING-DEVICE) | iPhone 15 Pro: AC-M2-11, 15, 16, 17. iPhone 13: AC-M2-25, 26, 27. |
+
+  - **Owner dependencies, none of which blocks the tick:**
+    - The Mac answer is in (Q8 closed). Every Mac AC, and installing `TendEval` for every device AC, needs that Mac.
+    - Q12, Q16 and Q17 are PO default, and the owner may change them. If one changes, the effect is already written
+      down (Q12: AC-M2-20, 26; Q16 and Q17: AC-M2-20, 22, 26, 27). The golden requests and the provider runs then
+      change under a PO decision, and I re-check them before the AC-M2-14 freeze.
+    - Q20 (signing team) is needed before the first device run.
+  - **The tick holds on these conditions** (from the v3 and v4 deferred lists):
+    - **Before the Definition of Ready, in `plan.md`:**
+      - the full Q6 table, which I review (AC-M2-03);
+      - the allowlist, speech, speech-permission and results-writer file paths;
+      - the `xcodebuild` commands, and the scoring tool and command;
+      - the harness ID generator.
+    - **Before the AC-M2-14 freeze:** the fixtures and golden set (written by me), the per-provider allowed key-path
+      lists and the golden requests.
+    - **Before the first device run:** the full DS-1 and DS-2 in `acceptance.md` (written by me).
+    - **D-031:** the M rows still need D-031 in `DECISIONS.md`, through the owner's protected-path PR.
+  - **Nits for the plan and the Developer** (they do not change AC meaning):
+    - **N-1, Rule 3 prefix rule.** "Identifier token" means the whole Swift identifier, with no camelCase split. So the
+      delegate label `willPerformHTTPRedirection` is not a hit. The negative test should include this near-miss.
+    - **N-2, the `TendEval` transport wrapper.** Rule 6 bans every networking pattern, including `URLRequest`, in
+      `TendEval`. The transport protocol that the harness wraps (AC-M2-28) must therefore be expressed in neutral
+      types: the builder's plain request value in, and a byte or chunk stream out. Then the wrapper needs no `URL*`
+      type.
+    - **N-3, AC-M2-20(b) paths.** The per-provider allowed key-path list should give each path a role: fixed,
+      capture, room name or shortlist title. Value comparison uses concrete array indices, because the `[]` form joins
+      system and user content in chat APIs. If the user content is a templated string, the template is part of the
+      golden, and the slots are compared after the template is removed.
+      - Fixed numeric body parameters, such as a max-tokens value, count as part of the "schema" for the interval
+        sentinel range 600…729.
+      - Transport-set headers (for example `Content-Length`) are left out of the Linux header comparison, or listed
+        as derived from the body.
+      - I check all of this when I review the key-path lists before the freeze.
+
+  Earlier review, v3 (kept as written):
+  **v3 returned to PO (Acceptance Tester, 2026-11-21, at `20862e2`).**
   - **T-01…T-22 are closed.** I checked each row of the v3 change record against the text it points to. All six v2
     Majors are fixed in the brief:
     - environments per AC;
@@ -1240,3 +1298,4 @@ merge). No AC was removed, and the AC count stays 28.
 | 2026-11-21 | Product Owner | Acceptance Tester | to re-review (v3) | Brief v3 answers T-01…T-22; see "v3 change record". All six Majors are fixed in the brief: environments per AC (T-01), the AC-M2-09 modules, imports and scope (T-02), the draft fields, events and end/error rules (T-03), the eval scoring rules (T-04), the never-shipped `TendEval` harness with results file v1 as new S-M2-10 / AC-M2-28 (T-05), and the exact duplicate shortlist (T-06). All Minors T-07…T-22 are fixed or deferred with an owner and due date. Meaning changes (M rows) are recorded in the change record; the PO proposes D-031 to mirror them in `DECISIONS.md` (protected path, owner merge). No AC was removed; the AC count is now 28. Q8 is closed (owner-run Mac). Q12, Q16 and Q17 stay **PO default, owner may change**. New: Q19 and Q22 (PO defaults), Q20 (signing team, owner), Q21 (consent store, deferred to M3). Next: the Tester re-reviews v3. If it is ticked, the brief goes to the Work Planner. |
 | 2026-11-21 | Acceptance Tester | Product Owner | returned | Re-review of v3 at `20862e2`. T-01…T-22 are closed. Two new Majors block the tick: T-23 (the AC-M2-09 Rule 3 networking allowlist forbids the delegate, `URLError`, streaming bytes and the URL building that AC-M2-22, 23 and 24 need) and T-24 (the AC-M2-20 sentinels cannot be planted in enum or Boolean fields; split into byte-level and structural checks). T-25…T-30 are Minor or nit. Split: Linux 01–04, 06, 08, 09, 12, 14, 19, 13(a); Linux + Mac 05, 07, 10, 18, 20, 23, 24, 28; Mac 13(b), 21, 22; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, scored on Linux). Q12, Q16, Q17 PO default; Q20 before the first device run. |
 | 2026-11-21 | Product Owner | Acceptance Tester | to re-review (v4) | Brief v4 answers T-23…T-30; see "v4 change record". T-23: closed allowed networking subset in AC-M2-09 Rule 3, with an identifier-prefix scan rule and a negative test. T-24: AC-M2-20 sentinels split into (a) byte-level unique sentinels and (b) a structural key-path and value check against the golden request. T-25…T-30 are all fixed in the brief. Meaning changes: T-23, T-24, T-27 and T-28 (M rows), to be added to the proposed D-031 (owner merge). No AC was removed; there are still 28 ACs. New planning items: the scoring tool and command, the speech-permission check (Developer, on the Mac) and the ID-generator definition. Owner items unchanged: Q12, Q16, Q17 (PO default, owner may change) and Q20 (before the first device run). Next: the Tester re-reviews v4; if it is ticked, the Work Planner. |
+| 2026-11-21 | Acceptance Tester | Product Owner → Work Planner | accepted (testability ticked) | Re-review of v4 at `580d23e`. T-23…T-30 are closed, so T-01…T-30 are all closed. All 28 ACs are observable and measurable, with an environment and evidence each. Final split: Linux 01–04, 06, 08, 09, 12, 14, 19, 13(a); Linux + Mac 05, 07, 10, 18, 20, 23, 24, 28; Mac 13(b), 21, 22; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, scored on Linux). Nits N-1…N-3 go to the plan and the Developer. Conditions: the plan items before the DoR (Q6 table reviewed by the Tester, file paths, commands, scoring tool, ID generator); the fixtures, key-path lists and golden requests before the AC-M2-14 freeze; DS-1 and DS-2 before the first device run; D-031 by owner merge. Q12, Q16, Q17 PO default; Q20 before the first device run. |
