@@ -70,7 +70,7 @@ Sizes: S ≤ half a day, M ≤ 1 day. No item is L. WI-M2-11, 13 and M6 are at t
 |---|---|---|---|---|---|---|---|---|---|
 | WI-M2-01 | `TendIngestion` and `TendSourceScan` packages, ADR-0006, text primitives (name folding, keywords, stop words, banned-token matcher), canonical JSON writer, the AC-M2-09 scanner (Rules 1–6) with negative tests | ● AC-M2-09 | M | — (merge needs HM-1) | no | Developer | `m2/ingestion-foundation` | Linux | ☑ **Ready** |
 | WI-M2-02 | `TendCore`: one new `TaskInvariantViolation` case for a non-finite `windowStart`/`windowEnd`; both M1 repositories reject such a file with a typed error (W2-F3, Q9) | ○ AC-M2-02 | S | Designer names the case | **yes** (naming only) | Developer | `m2/nonfinite-date-invariant` | Linux | ☐ Designer name |
-| WI-M2-03 | `TimeHint` and the Q6 time resolver (the full table below) | ● AC-M2-03 | M | WI-M2-01 | no | Developer | `m2/time-resolver` | Linux | ☐ Tester review of the Q6 table (PO acknowledged P1–P7 on 2026-11-21, with the P3 change) |
+| WI-M2-03 | `TimeHint` and the Q6 time resolver (the full table below) | ● AC-M2-03 | M | WI-M2-01 | no | Developer | `m2/time-resolver` | Linux | ☑ Tester review of the Q6 table done (APPROVED 2026-11-21, 3 non-blocking findings applied: E17–E21 and the T9/T14 daypart rule); PO acknowledged P1–P7 on 2026-11-21, with the P3 change |
 | WI-M2-04 | Calm-words guard (AC-M2-12), room linking with name folding (AC-M2-04), `sourcePhrase` substring check | ● AC-M2-04, ● AC-M2-12 | M | WI-M2-01 | no | Developer | `m2/calm-words-and-rooms` | Linux | ☐ WI-M2-01 merged |
 | WI-M2-05 | Neutral model contract (`IngestionModel`, item snapshots, `IngestionDraft`), the Q5 repairs in order, mapping to `HouseholdTask`, ≥ 1,000-output property test against an independent Q5 oracle with counts per repair rule | ● AC-M2-01, ● AC-M2-02 | M | WI-M2-02, 03, 04 | no | Developer | `m2/draft-mapping` | Linux | ☐ deps merged |
 | WI-M2-06 | Draft stream assembly over neutral snapshots: item completion, `emitted` / `updated` / `itemSkipped` / `finished`, the four outcomes with route, cancellation, `noModel` for each neutral reason, the plain-note draft | ○ AC-M2-05, ○ AC-M2-10, ○ AC-M2-23 | M | WI-M2-05 | no | Developer | `m2/draft-stream` | Linux | ☐ deps merged |
@@ -180,7 +180,7 @@ it to `required`. A required root with 0 files fails the test (lesson from M1 R-
 - Extending the M1 test that lists the cases is an extension, not a weakening. The Reviewer confirms that no M1
   assertion is removed. AC-M1-25 is not edited (T-21).
 
-**WI-M2-03 — `m2/time-resolver`**: implement the Q6 table below exactly. Test every row, every worked example (E1–E16),
+**WI-M2-03 — `m2/time-resolver`**: implement the Q6 table below exactly. Test every row, every worked example (E1–E21),
 the DST and year-boundary cases, and every invalid-hint rule. The Tester adds cases of their own.
 
 **WI-M2-05 — `m2/draft-mapping`**: Q5 runs in the brief's order (1)–(9). Steps 5 and 6 call the WI-M2-03 resolver.
@@ -300,12 +300,12 @@ weekdays and interval using the injected `now`, calendar and time zone.
 | T6 | "tomorrow morning" … "tomorrow night" | `tomorrow` + `p` | `slot(p, D+1)` | {p} | ∅ | Q6 |
 | T7 | "Thursday", "on Thursday", "no wait, Thursday" | `weekday` W | `[mid(d), mid(d+1))`, where `d` is the first day **after** `D` with weekday W (1…7 days ahead; said on a Thursday it means next Thursday) | ∅ | ∅ | **P2** |
 | T8 | "Thursday evening" | `weekday` W + `p` | `slot(p, d)`, with `d` as in T7 | {p} | ∅ | **P2** |
-| T9 | "this weekend" | `thisWeekend` | Mon–Fri: `[mid(Sat), mid(Sat+2))`, where Sat is the first Saturday after `D`. Saturday: `[now, mid(D+2))`. Sunday, local time before 18:00: `[now, mid(D+1))`. Sunday at or after 18:00: `[mid(D+6), mid(D+8))` (the coming Saturday and Sunday). | ∅, or {p} if a daypart is given | {saturday, sunday} | Q6, Q6(b) |
+| T9 | "this weekend" | `thisWeekend` | Mon–Fri: `[mid(Sat), mid(Sat+2))`, where Sat is the first Saturday after `D`. Saturday: `[now, mid(D+2))`. Sunday, local time before 18:00: `[now, mid(D+1))`. Sunday at or after 18:00: `[mid(D+6), mid(D+8))` (the coming Saturday and Sunday). **With a daypart `p`:** let `first` and `last` be the first and last weekend days of that window. The window is `[max(now, slot(p, first).start), slot(p, last).end)`. If that end ≤ now (Sunday before 18:00, for example "this weekend in the morning" said Sunday 15:00), use the coming weekend: `[slot(p, D+6).start, slot(p, D+7).end)`. | ∅, or {p} if a daypart is given | {saturday, sunday} | Q6, Q6(b), PO 2026-11-21 (daypart) |
 | T10 | "this week", "sometime this week" | `thisWeek` | `[now, mid(nextMon))`. Sunday at or after 18:00 local time: next week, the same window as T11, `[mid(nextMon), mid(nextMon+7))` (PO change, 2026-11-21). | ∅ | ∅ | **P3** (PO-acknowledged, changed) |
 | T11 | "next week" | `nextWeek` | `[mid(nextMon), mid(nextMon+7))`. The brief's "+7 days" means **7 calendar days** (PO decision T11, 2026-11-21), so the window ends at local midnight across a DST change. | ∅ | ∅ | Q6, PO T11 |
 | T12 | "before March", "by June" | `beforeMonth` M | `[now, b)`, where `b` is the **earliest** `mid(1 M y)` that is **later than** `now`. In the current month that is next year's (Q6(f)). | ∅ | ∅ | Q6, Q6(f) |
 | T13 | "before summer", "before winter" | `beforeSeason` S | `[now, b)`, where `b` is the earliest `mid(1 Ms y)` later than `now`; Ms is 1 Mar (spring), 1 Jun (summer), 1 Sep (autumn), 1 Dec (winter): meteorological, northern hemisphere (Q6(c)). In the current season that is next year's start (Q6(f)). | ∅ | ∅ | Q6, Q6(c), Q6(f) |
-| T14 | "in 3 days", "in two weeks" | `inDays` N (1…366) or `inWeeks` N (1…52) | `[mid(d), mid(d+1))`, `d = D + N` (or `D + 7N`) | ∅, or {p} if a daypart is given | ∅ | **P4** |
+| T14 | "in 3 days", "in two weeks" | `inDays` N (1…366) or `inWeeks` N (1…52) | No daypart: `[mid(d), mid(d+1))`. With a daypart `p`: `slot(p, d)`, the same as T6 and T8. In both cases `d = D + N` (or `D + 7N`). | ∅, or {p} if a daypart is given | ∅ | **P4**, PO 2026-11-21 (daypart) |
 | T15 | "in the morning", "some evening" (no day) | `none` + `p` | `[now, now + 7d)` | {p} | ∅ | **P5** |
 
 A `daypart` given with `thisWeek`, `nextWeek`, `beforeMonth` or `beforeSeason` sets dayparts to {p} and does not change
@@ -363,6 +363,11 @@ tzdata in the test), so that `mid(d)` moves to 01:00.
 | E14 | R3 / Q5 step 6 | any | "every 3 months" → interval 90; "every 25 months" → one-off, no interval | — |
 | E15 | T10 this week, Sunday at 18:00 (means next week) | Sun 2026-11-01 18:00 EST | `[2026-11-02T05:00Z, 2026-11-09T05:00Z)` | PO P3 change |
 | E16 | T10 this week, Sunday before 18:00 | Sun 2026-11-01 17:59 EST | `[2026-11-01T22:59Z, 2026-11-02T05:00Z)` | PO P3 change |
+| E17 | T11 next week, across fall-back (25 h Sunday) | Thu 2026-10-22 10:00 EDT | `[2026-10-26T04:00Z, 2026-11-02T05:00Z)` (169 h) | Tester finding |
+| E18 | T11 next week, across spring-forward (23 h Sunday) | Thu 2026-02-26 10:00 EST | `[2026-03-02T05:00Z, 2026-03-09T04:00Z)` (167 h) | Tester finding |
+| E19 | T4 tonight, said after midnight | Mon 2026-11-23 01:00 EST | `[2026-11-23T06:00Z, 2026-11-24T10:00Z)` (Mon 01:00 to Tue 05:00 local) | dayparts {evening, night}; Tester finding |
+| E20 | T14 "in 3 days at night" | Thu 2026-11-19 10:00 EST | `[2026-11-23T03:00Z, 2026-11-23T10:00Z)` (Sun 22:00 to Mon 05:00 local) | dayparts {night}; PO 2026-11-21 |
+| E21 | T9 "this weekend in the morning", Sunday 15:00 (morning has passed) | Sun 2026-11-01 15:00 EST | `[2026-11-07T10:00Z, 2026-11-08T17:00Z)` (Sat 05:00 to Sun 12:00 local) | dayparts {morning}, weekdays {sat, sun}; PO 2026-11-21 |
 
 ## Route matrix (AC-M2-19, the full expected matrix)
 
@@ -713,7 +718,7 @@ Phase A, not at the end.
 | Check | 01 | 02 | 03 | 04 | 05–15 | 16 | M1 | M2–M6 | M7, M8 | D1, D2 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Cites requirement IDs and AC IDs | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
-| ACs testable, verification type known | ☑ | ☑ | ☐ Q6 review | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ (DS scripts pending) |
+| ACs testable, verification type known | ☑ | ☑ | ☑ Q6 review APPROVED 2026-11-21 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ (DS scripts pending) |
 | Design spec `Ready` (if UI, copy or naming) | n.a. | ☐ name | n.a. | n.a. | n.a. | n.a. | n.a. | n.a. | n.a. (debug tool) | n.a. |
 | Dependencies merged or stubbed | ☑ | ☑ | ☐ WI-01 | ☐ WI-01 | ☐ per table | ☐ WI-15, 11, fixtures | ☐ WI-01 | ☐ per table | ☐ all | ☐ M8, scripts, Q20 |
 | Size ≤ 1 day; owner; branch | ☑ | ☑ | ☑ | ☑ | ☑ (R-23) | ☑ | ☑ | ☑ (R-23) | ☑ | ☑ |
@@ -735,7 +740,7 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | O-4 | Book MS-1, MS-2 (about 20 min in person for keys, optional iPhone 15 Pro for SP-1) and MS-3 (both iPhones) | Human owner | each session |
 | O-5 | Provider keys for the recordings (MS-2) and the DS-2 runs; the API cost of 3 × 20 inputs | Human owner | MS-2, DS-2 |
 | O-6 | Run DS-1 and DS-2 | Human owner | gate |
-| R-a | Review the Q6 table (including P1–P7 with the P3 change, E15 and E16, and the T11 decision) | Acceptance Tester | WI-M2-03 |
+| R-a | Review the Q6 table — **done, APPROVED 2026-11-21** (3 non-blocking findings applied: E17–E21, T9/T14 daypart rule) | Acceptance Tester | WI-M2-03 |
 | R-b | Approve the eval composition (P1–P7 and the Q18 list are done, 2026-11-21) | Product Owner | WI-M2-16 |
 | R-c | Name the new invariant case | iOS Designer | WI-M2-02 |
 | R-d | Write the fixtures and golden set; review the key-path lists and golden requests; write DS-1 and DS-2 | Acceptance Tester | WI-M2-16; first device run |
@@ -758,7 +763,7 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | Date | From | To | Result (accepted / returned) | Notes |
 |---|---|---|---|---|
 | 2026-11-21 | Acceptance Tester → Product Owner | Work Planner | accepted (H1) | Brief Draft v4 with the testability tick (`580d23e`, recorded at `29e2d74`). 10 stories, 28 ACs, all citing FR/UX/P IDs, all with an environment and evidence. The Tester's "before DoR" conditions are answered in this plan: the Q6 table (for the Tester's review), the allowlist, speech, speech-permission and results-writer paths, the exact `xcodebuild` commands, the scoring tool and command, the harness ID generator, and the T-27 check as an early Mac item (WI-M2-M1). Nits N-1…N-3 are in WI-M2-01 and WI-M2-10 scope. Milestone lock satisfied (M1 `ACCEPTED`). |
-| 2026-11-21 | Work Planner | Acceptance Tester | sent for review | The Q6 table (T1–T15, R1–R7, E1–E14), including Planner proposals P1–P7 and the T11 "+7 days" reading. This is the DoR condition for WI-M2-03 (AC-M2-03). |
+| 2026-11-21 | Work Planner | Acceptance Tester | sent for review | The Q6 table (T1–T15, R1–R7, and the worked examples, now E1–E21), including Planner proposals P1–P7 and the T11 "+7 days" reading (now a PO decision). This is the DoR condition for WI-M2-03 (AC-M2-03). |
 | 2026-11-21 | Work Planner | Product Owner | sent | Please acknowledge P1–P7, approve the Q18 model list before WI-M2-10, set M2 to `IN-BUILD` and prepare D-031 (O-1), and update ADR-0005's status line. |
 | 2026-11-21 | Work Planner | iOS Designer | sent | Name the non-finite-date `TaskInvariantViolation` case and its position (WI-M2-02, Q9). |
 | 2026-11-21 | Work Planner | Developer (via Orchestrator) | sent (H2) | 16 Linux items, 8 owner-run Mac items in 3 sessions, 2 device items; every AC owned once. **WI-M2-01 is Ready now** (`m2/ingestion-foundation`); its merge needs HM-1. |
@@ -766,3 +771,4 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | 2026-11-21 | Product Owner | Work Planner | accepted | PO decisions applied: P1–P7 acknowledged; P3 changed ("this week" on a Sunday at or after 18:00 means next week; T10, E15, E16); T11 is 7 calendar days; Q18 models approved with five conditions (current, pinned snapshot ID, structured streaming, temperature 0, no reasoning tokens with Gemini thinking budget 0; WI-M2-10, WI-M2-M6); HM-2 recommended rule recorded as proposed D-032 (needs a human-merged governance PR). No AC changed (AC-M2-03, 20, 24, 27). |
 | 2026-11-21 | Work Planner | Acceptance Tester | sent for review | Please include the changed T10 row and E15, E16 in the Q6 review (WI-M2-03 DoR, AC-M2-03). |
 | 2026-11-21 | Work Planner | Orchestrator → Product Owner, human owner | sent | HM-2: prepare and merge the D-032 governance PR before the first Mac PR merges (MS-1). |
+| 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q6 table APPROVED with 3 non-blocking findings. Applied: E17, E18 (T11 across DST, 169 h / 167 h), E19 (T4 "tonight" after midnight), and the PO decision on finding 2 (T9 and T14 with a daypart; E20, E21). No AC meaning changed (AC-M2-03). WI-M2-03 DoR: Q6 review box ticked. All new UTC values checked with Python `zoneinfo` (America/New_York). The PO logs the daypart decision in `DECISIONS.md` with D-032. |
