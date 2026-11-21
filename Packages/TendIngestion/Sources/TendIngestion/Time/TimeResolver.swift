@@ -37,7 +37,11 @@ public struct TimeResolution: Hashable, Sendable {
     public let allowedDayparts: Set<Daypart>
     public let allowedWeekdays: Set<Weekday>
     public let recurrenceIntervalDays: Int?
+    /// Diagnostic only: which rule gave the window, or the fallback reason (WI-M2-05 counts repairs per rule for
+    /// AC-M2-02). It is not part of the AC-M2-03 table check (plan).
     public let basis: Basis
+    /// `true` when `allowedWeekdays` is R5's {W}, which Q5 step 6 drops together with the interval (PO Q-T1).
+    public let weekdaysFollowRepeat: Bool
 
     public init(
         windowStart: Date,
@@ -45,8 +49,10 @@ public struct TimeResolution: Hashable, Sendable {
         allowedDayparts: Set<Daypart>,
         allowedWeekdays: Set<Weekday>,
         recurrenceIntervalDays: Int?,
-        basis: Basis
+        basis: Basis,
+        weekdaysFollowRepeat: Bool = false
     ) {
+        self.weekdaysFollowRepeat = weekdaysFollowRepeat
         self.windowStart = windowStart
         self.windowEnd = windowEnd
         self.allowedDayparts = allowedDayparts
@@ -72,6 +78,8 @@ public struct TimeResolver: Sendable {
     public static let rangeLimit: TimeInterval = 366 * 86_400
     /// T9 and T10: on a Sunday at or after this local hour, "this weekend" and "this week" mean the coming ones.
     static let sundayEveningHour = 18
+    /// R5 (PO Q-T1): the repeat units with which a weekday anchor sets weekdays to {W}.
+    static let weekdayRepeatUnits: Set<TimeHint.RepeatUnit> = [.week, .month, .year]
 
     let calendar: Calendar
 
@@ -81,31 +89,48 @@ public struct TimeResolver: Sendable {
         self.calendar = calendar
     }
 
-    /// Resolves `hint` at `now`. `nil` means the model reported no hint (T1). An unusable hint resolves exactly as no
-    /// hint, with the reason in `basis`.
+    /// Resolves `hint` at `now`. `nil` means the model reported no hint (T1).
+    ///
+    /// An invalid anchor counts as no anchor (PO Q-T2, 2026-11-21): the window is the T1 window and weekdays are ∅, but
+    /// a valid daypart still sets {p} (as T15) and a valid repeat still gives its interval (R1–R4). R5's {W} cannot
+    /// apply without a valid weekday. `basis` records the fallback reason. A non-finite `now` is checked first, for a
+    /// `nil` hint too, and gives the plain T1 fallback with `calendarUnresolved`.
     public func resolve(_ hint: TimeHint?, now: Date) -> TimeResolution {
-        guard let hint else { return Self.fallback(now: now, basis: .noHint) }
         guard now.timeIntervalSinceReferenceDate.isFinite else {
             return Self.fallback(now: now, basis: .fallback(.calendarUnresolved))
         }
+        guard let hint else { return Self.fallback(now: now, basis: .noHint) }
+        let interval = Self.interval(of: hint)
+        let dayparts = Self.dayparts(of: hint)
+        let problem: TimeResolution.FallbackReason?
         let window: (start: Date, end: Date)
         switch self.window(for: hint, now: now) {
         case .unusable(let reason):
-            return Self.fallback(now: now, basis: .fallback(reason))
+            problem = reason
+            window = (now, now)
         case .window(let start, let end):
-            if let problem = Self.rangeProblem(start: start, end: end, now: now) {
-                return Self.fallback(now: now, basis: .fallback(problem))
-            }
+            problem = Self.rangeProblem(start: start, end: end, now: now)
             window = (start, end)
         }
-        let interval = Self.interval(of: hint)
+        if let problem {  // the anchor is "no anchor"; the rest of the hint still counts
+            return TimeResolution(
+                windowStart: now,
+                windowEnd: now.addingTimeInterval(Self.fallbackDuration),
+                allowedDayparts: dayparts,
+                allowedWeekdays: [],
+                recurrenceIntervalDays: interval,
+                basis: .fallback(problem)
+            )
+        }
+        let weekdays = Self.weekdays(of: hint, hasRepeat: interval != nil)
         return TimeResolution(
             windowStart: window.start,
             windowEnd: window.end,
-            allowedDayparts: Self.dayparts(of: hint),
-            allowedWeekdays: Self.weekdays(of: hint, hasRepeat: interval != nil),
+            allowedDayparts: dayparts,
+            allowedWeekdays: weekdays,
             recurrenceIntervalDays: interval,
-            basis: .hint
+            basis: .hint,
+            weekdaysFollowRepeat: hint.anchor == .weekday && !weekdays.isEmpty
         )
     }
 
@@ -122,8 +147,11 @@ public struct TimeResolver: Sendable {
         case .thisWeekend:
             return [.saturday, .sunday]  // T9, R6
         case .weekday:
-            // R5: a weekday anchor sets {W} only with a weekly repeat. A one-off "on Thursday" (T7) keeps ∅.
-            guard hasRepeat, hint.repeatUnit == .week, let weekday = hint.weekday else { return [] }
+            // R5 (PO Q-T1): a weekday anchor sets {W} only with a week, month or year repeat. A one-off "on Thursday"
+            // (T7) and a day repeat ("daily from Thursday") keep ∅.
+            guard hasRepeat, let unit = hint.repeatUnit, Self.weekdayRepeatUnits.contains(unit),
+                  let weekday = hint.weekday
+            else { return [] }
             return [weekday]
         default:
             return []
@@ -332,7 +360,7 @@ public struct TimeResolver: Sendable {
         /// `slot(p, D + offset)`: morning [05, 12), afternoon [12, 17), evening [17, 22), night [22, 05 next day).
         func slot(_ daypart: Daypart, _ offset: Int) -> (start: Date, end: Date)? {
             let start = at(daypart.startHour, offset)
-            let end = daypart == .night ? at(Daypart.morning.startHour, offset + 1) : at(daypart.endHour, offset)
+            let end = at(daypart.endHour, daypart == .night ? offset + 1 : offset)  // night ends on the next day
             guard let start, let end else { return nil }
             return (start, end)
         }
@@ -384,14 +412,12 @@ extension Daypart {
         }
     }
 
-    /// The local hour at which the daypart ends on its own day; night ends at 05:00 on the next day.
+    /// The local hour at which the daypart ends: the next daypart's start (as in M1, where a slot ends where the next
+    /// one starts). For night that is the morning start, on the next day.
     var endHour: Int {
-        switch self {
-        case .morning: 12
-        case .afternoon: 17
-        case .evening: 22
-        case .night: 5
-        }
+        let all = Daypart.allCases
+        let index = all.firstIndex(of: self) ?? all.startIndex
+        return all[(index + 1) % all.count].startHour
     }
 }
 
@@ -400,11 +426,38 @@ public enum RecurrenceSettlement {
     /// Whole days a recurring item may repeat at (Q5 step 6).
     public static let intervalRange = 1...730
 
+    /// The time fields of an item after Q5 step 6. Empty sets keep the resolver's "∅" meaning; `effective…` applies the
+    /// Q5 step 3 defaults (`Daypart.defaultAllowed`, all seven weekdays).
+    public struct Settled: Hashable, Sendable {
+        public let kind: TaskKind
+        public let intervalDays: Int?
+        public let allowedDayparts: Set<Daypart>
+        public let allowedWeekdays: Set<Weekday>
+
+        public var effectiveDayparts: Set<Daypart> { allowedDayparts.isEmpty ? Daypart.defaultAllowed : allowedDayparts }
+        public var effectiveWeekdays: Set<Weekday> {
+            allowedWeekdays.isEmpty ? Set(Weekday.allCases) : allowedWeekdays
+        }
+    }
+
     /// A recurring item keeps an interval in 1…730; with no interval or one outside the range it becomes a one-off with
     /// no interval. A one-off or restock item never keeps an interval.
     public static func settle(kind: TaskKind, intervalDays: Int?) -> (kind: TaskKind, intervalDays: Int?) {
         guard kind == .recurring else { return (kind, nil) }
         guard let intervalDays, intervalRange.contains(intervalDays) else { return (.oneOff, nil) }
         return (.recurring, intervalDays)
+    }
+
+    /// Step 6 on a whole resolution: when the interval is dropped, R5's {W} is dropped with it, so weekdays become ∅
+    /// (all seven after Q5 step 3), as for a one-off T7 (PO Q-T1, E26).
+    public static func settle(kind: TaskKind, resolution: TimeResolution) -> Settled {
+        let settled = settle(kind: kind, intervalDays: resolution.recurrenceIntervalDays)
+        let dropsWeekdays = settled.intervalDays == nil && resolution.weekdaysFollowRepeat
+        return Settled(
+            kind: settled.kind,
+            intervalDays: settled.intervalDays,
+            allowedDayparts: resolution.allowedDayparts,
+            allowedWeekdays: dropsWeekdays ? [] : resolution.allowedWeekdays
+        )
     }
 }

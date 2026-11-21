@@ -339,8 +339,8 @@ Device ACs: none in this item.
 ## WI-M2-03 — `TimeHint` and the Q6 time resolver
 
 - **Owner:** Developer  ·  **Branch:** `m2/time-resolver`, stacked on `m2/ingestion-foundation` at `ce3ad5a` (PR #15,
-  WI-M2-01, approved and waiting for the owner's CI PR)  ·  **PR:** not opened (the Orchestrator opens it after PR #15
-  merges)  ·  **ADRs:** none new. The item follows [ADR-0006](../../architecture/adr/0006-m2-module-layout.md) (it adds
+  WI-M2-01). Round 2: `origin/m2/ingestion-foundation` (with PR #13, the CI job) merged in  ·  **PR:** #18  ·
+  **Review:** [review-WI-M2-03.md](review-WI-M2-03.md) (round 1 CHANGES REQUIRED, copied unchanged from `656d740`)  ·  **ADRs:** none new. The item follows [ADR-0006](../../architecture/adr/0006-m2-module-layout.md) (it adds
   files under `Packages/TendIngestion/Sources/TendIngestion/` only).
 - **Requirements:** FR-A1 (time fields of a draft). **Owns AC-M2-03.** It also provides Q5 step 5 (the time-hint
   window and the out-of-range rule) and step 6 (interval settlement) for WI-M2-05, which owns AC-M2-02. UX-3 (no
@@ -349,7 +349,8 @@ Device ACs: none in this item.
   - [brief.md](brief.md): AC-M2-03, Q5 (steps 5 and 6), Q6 with the settled points (a)–(f), T-08.
   - [plan.md](plan.md): the WI-M2-03 row (DoR ticked: Tester review of the Q6 table APPROVED 2026-11-21; PO
     acknowledged P1–P7 with the P3 change) and the "Q6 time-phrase table": the hint, the notation, T1–T15, R1–R7,
-    "How the hint meets Q5" and E1–E21.
+    "How the hint meets Q5" and E1–E21. Round 2: the plan at `65e3665`, with the PO answers to Q-T1 and Q-T2
+    (2026-11-21): the R5 row, the note under the repeat table, the "invalid anchor is no anchor" bullet, E22–E26.
 - **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED`, so M2 build work is unlocked (CLAUDE.md §5). As for WI-M2-01,
   the O-1 change of M2 to `IN-BUILD` waits for the owner's merge.
 
@@ -367,20 +368,25 @@ Device ACs: none in this item.
   - `RecurrenceSettlement.settle(kind:intervalDays:)`: Q5 step 6 (recurring keeps 1…730, otherwise it becomes a
     one-off with no interval; one-off and restock never keep an interval). It is here so that E14 can be tested in
     this item. WI-M2-05 calls it.
+  - Round 2: `RecurrenceSettlement.settle(kind:resolution:)` returns `Settled` (kind, interval, dayparts, weekdays,
+    plus `effectiveDayparts` / `effectiveWeekdays` with the Q5 step 3 defaults), so E26 is tested here.
+    `TimeResolution.weekdaysFollowRepeat` is new. `TimeHint.Anchor.modelChoices` lists the 12 values a model may send
+    (without `unrecognized`) for the schema work in WI-M2-10/12 (review R1-N1).
 - `Packages/TendIngestion/Tests/TendIngestionTests/TimeResolverTests.swift` (new, written before the code; the first
   build failed with "cannot find type 'TimeResolver' in scope").
 - Not changed: `Packages/TendCore`, `Packages/TendSourceScan`, every protected path and every dependency.
 
 ### Decisions the Reviewer and Tester should know (technical readings; flagged where they touch product meaning)
-1. **DT1: an invalid hint is ignored as a whole.** It resolves exactly like no hint: the T1 window, ∅ dayparts, ∅
-   weekdays and **no interval**, so a daypart or repeat sent with a broken anchor is dropped too. This is my reading
-   of "Invalid hints are 'no hint' (T1 window, Q5 step 5)". The consequence: a recurring item whose anchor is broken
-   (for example `weekday` with no weekday, plus "every week") becomes a one-off in step 6. **Q-T2** asks the PO
-   whether the repeat and the daypart should survive an invalid anchor. Either way it is a few lines.
-2. **DT2: R5 sets weekdays {W} only with a weekly repeat.** The note under the table says "only together with a
-   repeat (R5)", and the R5 hint is `weekday W + N week`. So `weekday` + a monthly, daily or yearly repeat keeps ∅
-   weekdays (test "weekday + monthly repeat: weekdays stay empty"). **Q-T1** asks the PO to confirm. "Any repeat" is
-   a one-line change.
+1. **DT1 (round 2, PO Q-T2): an invalid anchor counts as no anchor; the rest of the hint still counts.** The window
+   is the T1 window and weekdays are ∅, but a valid daypart still gives {p} (as T15) and a valid repeat still gives
+   its interval (R1–R4). R5's {W} cannot apply without a valid weekday. `basis` still records the reason. So a
+   recurring "every week" item whose weekday was lost stays recurring (E22). Round 1 dropped the whole hint; the PO
+   chose the other reading (review R1-F1).
+2. **DT2 (round 2, PO Q-T1): R5 sets weekdays {W} with a week, month or year repeat.** A day repeat ("daily from
+   Thursday") keeps ∅ (E24), and so does a one-off T7. `TimeResolution.weekdaysFollowRepeat` marks R5's {W}, and
+   `RecurrenceSettlement.settle(kind:resolution:)` drops it together with the interval when Q5 step 6 drops the
+   interval, so weekdays become ∅, which is all seven after Q5 step 3 (E26). T9's {saturday, sunday} is not tied to
+   the repeat and stays. Round 1 set {W} only for a week repeat (review R1-F2, R1-F3).
 3. **DT3: interval overflow.** `repeatEvery × unit days` is computed with an overflow check. A product that does not
    fit in `Int` gives no interval, so step 6 makes a recurring item a one-off, the same result as any value above 730.
    The resolver never traps.
@@ -391,8 +397,11 @@ Device ACs: none in this item.
 5. **DT5: the M1 slot rules are re-stated in `TendIngestion`.** `SlotCalendar` and `Daypart.startHour` are internal
    to `TendCore`, and this item does not change `TendCore`. The resolver uses the same method: local-noon day
    arithmetic, `date(bySettingHour:…, matchingPolicy: .nextTime, repeatedTimePolicy: .first)`, and the same hours. The
-   test "AC-M2-03 oracle: T6 slot(p, D+1) equals M1's next eligible window start for {p}" checks 1,400 cases over 7
+   test "AC-M2-03 oracle: T6 slot(p, D+1) starts and ends where M1's slot for {p} does" checks 1,400 cases over 7
    zones against M1's public `HouseholdTask.nextEligibleWindow`. So a drift between the two copies turns the suite red.
+   Round 2 (review R1-F4): `endHour` is derived from the next daypart's `startHour` (night: the morning start on the
+   next day), as M1 does, and the oracle now checks slot ends too: from `end − 1 ms` M1 returns the anchor itself, and
+   from `end` it returns a later start.
 6. **DT6: T3 is applied literally.** "Today" + a daypart uses the slots of `D`, the calendar day of `now`. So "today"
    + night said at 01:00 gives tonight's slot `[22:00, 05:00 next day)`, not the night already in progress. This is
    the table as written. I note it for the Tester; it is not a question.
@@ -403,25 +412,30 @@ Device ACs: none in this item.
    Exactly 366 days is kept (tests at the boundary ±1 ms, and T12/T13 "before March" said at 00:00 on 1 Mar 2027,
    whose window is exactly 366 days because of the leap February). A start later than `now + 366 d` falls back
    (`inDays` 366 at night). An empty window is `emptyWindow`. Both fall back to T1.
-9. **DT9: a non-finite `now`** never traps. The result is the T1 fallback with reason `calendarUnresolved`, so its
-   dates are non-finite too. WI-M2-05 must not pass a non-finite `now`; the pipeline's clock is injected and finite.
+9. **DT9: a non-finite `now`** never traps. It is checked first, before the `nil`-hint check (round 2, review R1-F5),
+   so with or without a hint the result is the plain T1 fallback (∅, ∅, no interval) with reason
+   `calendarUnresolved`, and its dates are non-finite too. The Q9 invariant (AC-M2-02) rejects such a window with a
+   typed skip. WI-M2-05 must not pass a non-finite `now`; the pipeline's clock is injected and finite.
 10. **DT10: names.** No type, case or member name contains a banned token (test "UX-3: no basis or reason name …"),
     and there is no overdue-style or "past-due" helper (plan law check watch item).
 
 ### AC coverage
 | AC | Test(s) | Result |
 |---|---|---|
-| AC-M2-03 worked examples | "AC-M2-03: worked examples E1–E13 and E15–E21 equal the plan's table exactly (America/New_York)" (20 cases: window start and end, dayparts, weekdays and interval each compared exactly) | PASS (Linux) |
+| AC-M2-03 worked examples | "AC-M2-03: worked examples E1–E13 and E15–E25 equal the plan's table exactly (America/New_York)" (24 cases: window start and end, dayparts, weekdays and interval each compared exactly; E22–E25 are the PO Q-T1/Q-T2 rows) | PASS (Linux) |
+| AC-M2-03 E26 | "AC-M2-03 E26 (PO Q-T1): E23 settled as a one-off drops {thursday} with the interval; weekdays all seven" and "Q5 step 6 on a resolution: …" (6 cases) | PASS |
 | AC-M2-03 E14 | "AC-M2-03: E14 (R3 / Q5 step 6): every 3 months → interval 90; every 25 months → one-off, no interval" | PASS |
 | AC-M2-03 rows T1–T15 | "AC-M2-03: rows T1–T15 at fixed now values equal the table exactly" (58 cases: every row and every daypart branch, T3 at the slot end, T7 on the same weekday, T9 on Wed/Fri/Sat/Sun 17:59:59, 17:59:59.5 and 18:00:00 with and without dayparts, T10 on Mon/Wed/Sun before and at 18:00, T12/T13 in the current month or season, at 1 Dec 00:00:00 and at exactly 366 days, T14 at 1, 3, 366 days and 2, 52 weeks) | PASS |
-| AC-M2-03 repeat rows R1–R7 | "AC-M2-03: repeat rows R1–R7 give the table's interval and weekdays" (25 cases, including repeats on other anchors, `repeatEvery` 0 and −3, one field absent, and `Int.max` years) | PASS |
-| AC-M2-03 invalid hints | "AC-M2-03: an invalid hint resolves exactly as no hint …" (15 cases, each with its typed reason) and "no hint at all …" | PASS |
-| AC-M2-03 Q6(a) Monday week start | "AC-M2-03 Q6(a): … do not depend on the calendar's firstWeekday" (all 103 cases above rerun with `firstWeekday` 1…7) | PASS |
+| AC-M2-03 repeat rows R1–R7 | "AC-M2-03: repeat rows R1–R7 give the table's interval and weekdays" (28 cases, including R5 with month and year repeats, a day repeat on a weekday anchor, repeats on other anchors, `repeatEvery` 0 and −3, one field absent, and `Int.max` years) | PASS |
+| AC-M2-03 invalid anchors (PO Q-T2) | "AC-M2-03 (PO Q-T2): an invalid anchor is no anchor (T1 window, weekdays ∅); a valid daypart and repeat still count" (17 cases, each with its typed reason, dayparts and interval) and "no hint at all …" | PASS |
+| Non-finite `now` (R1-F5) | "AC-M2-03 (R1-F5): a non-finite now never traps … with or without a hint" (NaN, ±∞ × nil and two hints) | PASS |
+| AC-M2-03 Q6(a) Monday week start | "AC-M2-03 Q6(a): … do not depend on the calendar's firstWeekday" (all 110 row, repeat and example cases rerun with `firstWeekday` 1…7) | PASS |
 | AC-M2-03 Q6(e) DST and year boundary | E1, E2, E5, E12, E13, E17, E18 (New York), E6, E7, E11 (year boundary), plus "a DST change at local midnight (America/Santiago)" (8 cases, `mid(d)` at 01:00 −03 on 2026-09-06; a 25 h Saturday on 2027-04-03) and "a repeated and a missing local midnight (America/Havana)" (3 cases: on 2026-11-01 midnight occurs twice and the first occurrence is used, Q11). Each zone has a tzdata sanity test. | PASS |
 | Q5 step 5 range rule | "AC-M2-03 / Q5 step 5: a window is in range iff …" (boundaries ±1 ms) | PASS |
 | Q5 step 6 (for WI-M2-05) | "Q5 step 6: settlement of the interval against the final kind" (8 cases) | PASS |
-| Invariants | "AC-M2-03 property: every resolution is a valid Q5 window, and deterministic (seeded)": seed `0x71E50A11CE000003`, 6,000 random hints over 7 zones (New York, Santiago, London, Lord Howe, Kolkata, Chatham, UTC), random `firstWeekday`, `now` over 2026–2028 with fractional seconds; 4,116 resolved from the hint, 1,884 fell back. "AC-M2-03 oracle: T6 slot(p, D+1) equals M1's …": seed `0x51070AC1E`, 1,400 cases. | PASS |
+| Invariants | "AC-M2-03 property: every resolution is a valid Q5 window, and deterministic (seeded)": seed `0x71E50A11CE000003`, 6,000 random hints over 7 zones (New York, Santiago, London, Lord Howe, Kolkata, Chatham, UTC), random `firstWeekday`, `now` over 2026–2028 with fractional seconds; 4,116 resolved from the hint, 1,884 fell back; on every case the interval and dayparts equal an independent oracle (R1–R4, T4, PO Q-T2), and on a fallback weekdays are ∅. "AC-M2-03 oracle: T6 slot(p, D+1) starts and ends where M1's slot for {p} does": seed `0x51070AC1E`, 1,400 cases. | PASS |
 | UX-3 names | "UX-3: no basis or reason name of the resolver contains a banned token (AC-M1-02 list)" | PASS |
+| R1-N1 | "R1-N1: the model is never offered the unrecognized anchor" | PASS |
 | AC-M2-09 (regression) | "AC-M2-09: Rules 1–6 hold …": `TendIngestion (required) Packages/TendIngestion/Sources: 6 files scanned`, `6 files in total, 0 violations` | PASS |
 
 The Tester's planned independent cases are covered by the design: Santiago with DST at midnight (the resolver's
@@ -433,7 +447,8 @@ The Tester's planned independent cases are covered by the design: Santiago with 
 |---|---|---|---|
 | `swift build --package-path Packages/TendCore -Xswiftc -warnings-as-errors` | `Build complete!` | — | — |
 | `swift build --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `Build complete!` | — | — |
-| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `✔ Test run with 34 tests in 4 suites passed after 3.734 seconds.` (final run after the last test edit: same count) | 34 tests (WI-M2-01: 17); the 17 new tests have 144 parameterised cases plus the two seeded properties | ~4 s |
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` (round 1) | `✔ Test run with 34 tests in 4 suites passed after 3.734 seconds.` | 34 tests (WI-M2-01: 17) | ~4 s |
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` (round 2, after merging `origin/m2/ingestion-foundation`) | ROUND2_LINE | 37 tests (WI-M2-01: 17); the 20 resolver tests have 159 parameterised cases plus the two seeded properties | ~6 s |
 
 0 warnings, 0 failures, 0 skips. Swift 6.2.4 in the `swift:6.2-noble` image (the container's docker wrapper).
 `TendSourceScan` and `TendCore` are unchanged, so their suites were not rerun (WI-M2-01 numbers stand: 63 and 127).
@@ -465,10 +480,15 @@ The Tester's planned independent cases are covered by the design: Santiago with 
 | `TimeHint`: month = 31 days; year = 366 days; winter starts in November | killed (each) |
 | Gap policy `.nextTime` made `.previousTimePreservingSmallerComponents` | **survived: equivalent here.** A probe on Linux Foundation shows that every non-strict policy gives the same instant for a missing local midnight (Santiago 2026-09-06 and Havana 2026-03-08 both give the day's first instant), and no tested zone has a gap at a slot hour (05, 12, 17, 22). `.strict` is killed. |
 
+**Round 2 mutants** (the new behaviour; same method, clean baseline green afterwards). All 9 killed: R5 units back
+to week only; R5 with a day repeat too; an invalid anchor drops its daypart; an invalid anchor drops its repeat;
+settlement keeps {W} after dropping the interval; settlement drops the weekend's {sat, sun} too; the `nil` hint checked
+before the finite `now`; `endHour` off by one daypart; afternoon ending at 18:00.
+
 ### Verification environment
 | Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
 |---|---|---|---|---|---|
-| AC-M2-03: 34 tests, 0 warnings, including the AC-M2-09 scan (6 files, 0 violations) | ✔ container | — | — | — | Linux CI runs it once PR #15 and the owner's CI PR are merged. |
+| AC-M2-03: 37 tests (round 2), 0 warnings, including the AC-M2-09 scan (6 files, 0 violations) | ✔ container | — | — | — | Linux CI runs it once PR #15 and the owner's CI PR are merged. |
 | The same results on Darwin Foundation (R-10: DST policies and `date(bySettingHour:)` at a missing or repeated midnight) | — | — | — | — | Not verified: no Mac here. Plan B2 (MS-2) reruns `TendIngestion` on the Mac. A Darwin difference in the Santiago or Havana cases is a defect, not a skip. |
 
 Device ACs: none in this item.
@@ -476,16 +496,16 @@ Device ACs: none in this item.
 ### Things the reviewer should look at closely
 - `TimeResolver.thisWeekend` (T9 with a daypart and the "end ≤ now" coming-weekend rule).
 - The two copies of the slot rules (DT5) and the oracle test that ties them together.
-- DT1 and DT2, which touch product meaning (open questions below).
+- DT1 and DT2, rebuilt in round 2 to the PO's answers, and `RecurrenceSettlement.settle(kind:resolution:)`.
 - `Days.firstOffset(after:weekday:)` scans 1…7 calendar days by noon arithmetic, so a zone that skips a whole day
   (Samoa 2011) still finds the weekday within 7 steps.
 
 ### Known limitations / follow-ups
 | Item | Severity | Ticket |
 |---|---|---|
-| Q-T1: does a weekday anchor with a non-weekly repeat set {W}? Built: only with a weekly repeat (DT2). | Minor (product meaning) | PO |
-| Q-T2: should a repeat or daypart survive an invalid anchor? Built: no, the whole hint is ignored (DT1). | Minor (product meaning) | PO |
-| The slot rules exist in TendCore (internal) and here; the oracle test guards drift. Making `SlotCalendar` public would need a TendCore change. | Nit | Later chore (with R-16) |
+| Q-T1 and Q-T2: **closed**, answered by the PO on 2026-11-21 (plan `815fd33`, `65e3665`) and built in round 2 (DT1, DT2). The `DECISIONS.md` entry is in the human-merged governance PR. | — | Done |
+| The slot rules exist in TendCore (internal) and here; the start and end oracle guards drift. Making `SlotCalendar` public would need a TendCore change. | Nit | Later chore (with R-16) |
+| R1-N2: "in 366 days" said at local midnight falls back to T1 when D+366 is across a DST change (the table read literally). No change. | Nit (PO/Tester awareness) | — |
 | One equivalent mutant (gap policy, see above). | Nit | — |
 | Not verified on Darwin (R-10). | — | Plan B2, MS-2 |
 | WI-M2-05 wiring: steps 5 and 6 call `resolve` and `RecurrenceSettlement.settle`; `basis` feeds the per-rule counts. | Planned | WI-M2-05 |
@@ -507,3 +527,6 @@ Device ACs: none in this item.
 |---|---|---|---|---|
 | 2026-11-21 | Work Planner | Developer (via Orchestrator) | accepted (H2) | WI-M2-03 Ready: Tester's Q6 table review APPROVED, PO acknowledged P1–P7 with the P3 change. Branch `m2/time-resolver`, stacked on PR #15. |
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first. TendIngestion 34 tests, green, 0 warnings, Linux Swift 6.2.4. Every row, R1–R7 and E1–E21 tested exactly; Santiago and Havana DST at midnight; 24 mutants killed, 1 equivalent. Open questions Q-T1, Q-T2 (PO). Not verified on Darwin (B2). Pushed; no PR opened. |
+| 2026-11-21 | Product Owner | Developer (via plan) | answered | Q-T1 and Q-T2 (plan `815fd33`, `65e3665`; E22–E26). |
+| 2026-11-21 | Reviewer | Developer (via Orchestrator) | returned (round 1: CHANGES REQUIRED) | [review-WI-M2-03.md](review-WI-M2-03.md), copied unchanged. R1-F1…F3 Major (PO Q-T2, Q-T1, E22–E26); R1-F4…F6 Minor; R1-N1, N2 Nits. |
+| 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (round 2) | R1-F1 (Q-T2) and R1-F2 (Q-T1) built; R1-F3: E22–E25 exact, E26 through `settle(kind:resolution:)`; R1-F4: `endHour` derived and an end oracle; R1-F5: finite check first, tested with a `nil` hint; R1-F6: this section; R1-N1: `modelChoices`. The round 1 tests that pinned the replaced readings now pin the PO's answers (a product decision, not a weakening). 9 new mutants killed. `origin/m2/ingestion-foundation` merged in. TendIngestion: ROUND2_LINE |

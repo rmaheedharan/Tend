@@ -32,8 +32,12 @@ public struct TimeHint: Hashable, Sendable {
         case inDays
         /// Needs `count` 1…52.
         case inWeeks
-        /// The model sent a value outside this list. The hint is unusable and resolves as no hint (T1).
+        /// The model sent a value outside this list. The anchor counts as no anchor (T1 window, PO Q-T2).
+        /// Never offer it to the model: the schema mirrors use `modelChoices`.
         case unrecognized
+
+        /// The values a model may send (the on-device `@Generable` type and the cloud schemas, WI-M2-10/12).
+        public static let modelChoices: [Anchor] = allCases.filter { $0 != .unrecognized }
     }
 
     /// Meteorological, northern-hemisphere seasons (Q6(c)): spring 1 Mar, summer 1 Jun, autumn 1 Sep, winter 1 Dec.

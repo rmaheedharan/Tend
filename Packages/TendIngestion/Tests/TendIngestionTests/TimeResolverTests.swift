@@ -1,5 +1,9 @@
 // AC-M2-03: the Q6 time resolver (FR-A1; brief Q5 step 5 and 6, Q6, T-08; plan "Q6 time-phrase table" T1–T15,
-// R1–R7 and the worked examples E1–E21). Plan WI-M2-03.
+// R1–R7 and the worked examples E1–E26, with PO Q-T1 and Q-T2 of 2026-11-21). Plan WI-M2-03.
+//
+// Round 2 (review R1-F1, R1-F2): the tests that pinned the round 1 readings (an invalid hint drops its daypart and
+// repeat; R5 needs a weekly repeat) now pin the PO's answers instead. That follows a product decision; it is not a
+// weakening.
 //
 // Every expected value below is written from the plan's table by hand (UTC instants checked against tzdata with
 // Python `zoneinfo`), never computed by the code under test. The calendar is Gregorian (en-US, Q2) with an injected time
@@ -131,6 +135,22 @@ enum WorkedExamples {
                  hint: TimeHint(anchor: .thisWeekend, daypart: .morning),
                  now: ny.local(2026, 11, 1, 15), start: utc("2026-11-07T10:00Z"), end: utc("2026-11-08T17:00Z"),
                  dayparts: [.morning], weekdays: weekend),
+        TimeCase(id: "E22 invalid anchor (weekday with no weekday) + 1 week: interval kept (PO Q-T2)",
+                 hint: TimeHint(anchor: .weekday, repeatEvery: 1, repeatUnit: .week),
+                 now: ny.local(2026, 11, 23, 10), start: utc("2026-11-23T15:00Z"), end: utc("2026-11-30T15:00Z"),
+                 interval: 7),
+        TimeCase(id: "E23 R5 Thursday + 1 month: weekdays {thursday} (PO Q-T1)",
+                 hint: TimeHint(anchor: .weekday, weekday: .thursday, repeatEvery: 1, repeatUnit: .month),
+                 now: ny.local(2026, 11, 23, 10), start: utc("2026-11-26T05:00Z"), end: utc("2026-11-27T05:00Z"),
+                 weekdays: [.thursday], interval: 30),
+        TimeCase(id: "E24 Thursday + 1 day (daily from Thursday): weekdays ∅ (PO Q-T1)",
+                 hint: TimeHint(anchor: .weekday, weekday: .thursday, repeatEvery: 1, repeatUnit: .day),
+                 now: ny.local(2026, 11, 23, 10), start: utc("2026-11-26T05:00Z"), end: utc("2026-11-27T05:00Z"),
+                 interval: 1),
+        TimeCase(id: "E25 invalid anchor (inDays 400) + evening: dayparts kept (PO Q-T2)",
+                 hint: TimeHint(anchor: .inDays, daypart: .evening, count: 400),
+                 now: ny.local(2026, 11, 23, 10), start: utc("2026-11-23T15:00Z"), end: utc("2026-11-30T15:00Z"),
+                 dayparts: [.evening]),
     ]
 }
 
@@ -342,11 +362,21 @@ enum RepeatCases {
                  now: wed, start: wed, end: t1End, dayparts: [.morning], interval: 1),
         TimeCase(id: "R7 every evening", hint: TimeHint(anchor: .none, daypart: .evening, repeatEvery: 1, repeatUnit: .day),
                  now: wed, start: wed, end: t1End, dayparts: [.evening], interval: 1),
-        // R5 sets {W} only with a weekly repeat (plan: "A weekday anchor sets weekdays to {W} only together with a
-        // repeat (R5)", whose hint is `N week`); a monthly repeat on a weekday anchor keeps ∅ (dev-notes WI-M2-03 Q-T1).
-        TimeCase(id: "weekday + monthly repeat: weekdays stay empty",
+        // R5 (PO Q-T1): a week, month or year repeat on a weekday anchor sets {W}; a day repeat keeps ∅.
+        TimeCase(id: "R5 monthly on Thursday: {thursday}",
                  hint: TimeHint(anchor: .weekday, weekday: .thursday, repeatEvery: 1, repeatUnit: .month),
-                 now: wed, start: utc("2026-11-19T05:00Z"), end: utc("2026-11-20T05:00Z"), interval: 30),
+                 now: wed, start: utc("2026-11-19T05:00Z"), end: utc("2026-11-20T05:00Z"),
+                 weekdays: [.thursday], interval: 30),
+        TimeCase(id: "R5 every year on a Thursday: {thursday}",
+                 hint: TimeHint(anchor: .weekday, weekday: .thursday, repeatEvery: 1, repeatUnit: .year),
+                 now: wed, start: utc("2026-11-19T05:00Z"), end: utc("2026-11-20T05:00Z"),
+                 weekdays: [.thursday], interval: 365),
+        TimeCase(id: "weekday + every 2 days: weekdays stay empty",
+                 hint: TimeHint(anchor: .weekday, weekday: .saturday, repeatEvery: 2, repeatUnit: .day),
+                 now: wed, start: utc("2026-11-21T05:00Z"), end: utc("2026-11-22T05:00Z"), interval: 2),
+        TimeCase(id: "weekday + repeatEvery 0 week: no repeat, so weekdays stay empty",
+                 hint: TimeHint(anchor: .weekday, weekday: .thursday, repeatEvery: 0, repeatUnit: .week),
+                 now: wed, start: utc("2026-11-19T05:00Z"), end: utc("2026-11-20T05:00Z")),
         // A repeat combines with any anchor row; the anchor row keeps its window.
         TimeCase(id: "repeat + tomorrow", hint: TimeHint(anchor: .tomorrow, repeatEvery: 1, repeatUnit: .week),
                  now: wed, start: utc("2026-11-19T05:00Z"), end: utc("2026-11-20T05:00Z"), interval: 7),
@@ -373,31 +403,42 @@ enum RepeatCases {
 // MARK: - Invalid hints (plan "How the hint meets Q5"): they resolve exactly as no hint
 
 enum InvalidHints {
-    static let all: [(String, TimeHint, TimeResolution.FallbackReason)] = [
-        ("unrecognized anchor", TimeHint(anchor: .unrecognized, daypart: .morning, repeatEvery: 1, repeatUnit: .day),
-         .unrecognizedAnchor),
-        ("weekday with no weekday", TimeHint(anchor: .weekday, repeatEvery: 1, repeatUnit: .week), .requiredFieldAbsent),
-        ("beforeMonth with no month", TimeHint(anchor: .beforeMonth), .requiredFieldAbsent),
-        ("beforeMonth 0", TimeHint(anchor: .beforeMonth, month: 0), .fieldOutOfRange),
-        ("beforeMonth 13", TimeHint(anchor: .beforeMonth, month: 13), .fieldOutOfRange),
-        ("beforeMonth -1", TimeHint(anchor: .beforeMonth, month: -1), .fieldOutOfRange),
-        ("beforeSeason with no (or an unknown) season", TimeHint(anchor: .beforeSeason), .requiredFieldAbsent),
-        ("inDays with no count", TimeHint(anchor: .inDays), .requiredFieldAbsent),
-        ("inDays 0", TimeHint(anchor: .inDays, count: 0), .fieldOutOfRange),
-        ("inDays 367", TimeHint(anchor: .inDays, count: 367), .fieldOutOfRange),
-        ("inDays Int.min", TimeHint(anchor: .inDays, count: Int.min), .fieldOutOfRange),
-        ("inWeeks with no count", TimeHint(anchor: .inWeeks), .requiredFieldAbsent),
-        ("inWeeks 0", TimeHint(anchor: .inWeeks, count: 0), .fieldOutOfRange),
-        ("inWeeks 53", TimeHint(anchor: .inWeeks, count: 53), .fieldOutOfRange),
-        ("inDays 366 at night: start is past now + 366 days",
-         TimeHint(anchor: .inDays, daypart: .night, count: 366), .windowOutOfRange),
+    /// (label, hint, reason, expected dayparts, expected interval). PO Q-T2: an invalid anchor is no anchor (T1 window,
+    /// weekdays ∅); a valid daypart and a valid repeat still count.
+    static let all: [(String, TimeHint, TimeResolution.FallbackReason, Set<Daypart>, Int?)] = [
+        ("unrecognized anchor + morning + daily",
+         TimeHint(anchor: .unrecognized, daypart: .morning, repeatEvery: 1, repeatUnit: .day),
+         .unrecognizedAnchor, [.morning], 1),
+        ("unrecognized anchor alone", TimeHint(anchor: .unrecognized), .unrecognizedAnchor, [], nil),
+        ("weekday with no weekday + weekly", TimeHint(anchor: .weekday, repeatEvery: 1, repeatUnit: .week),
+         .requiredFieldAbsent, [], 7),
+        ("weekday with no weekday + monthly + evening: no {W}",
+         TimeHint(anchor: .weekday, daypart: .evening, repeatEvery: 1, repeatUnit: .month),
+         .requiredFieldAbsent, [.evening], 30),
+        ("beforeMonth with no month", TimeHint(anchor: .beforeMonth), .requiredFieldAbsent, [], nil),
+        ("beforeMonth 0", TimeHint(anchor: .beforeMonth, month: 0), .fieldOutOfRange, [], nil),
+        ("beforeMonth 13 + afternoon", TimeHint(anchor: .beforeMonth, daypart: .afternoon, month: 13),
+         .fieldOutOfRange, [.afternoon], nil),
+        ("beforeMonth -1", TimeHint(anchor: .beforeMonth, month: -1), .fieldOutOfRange, [], nil),
+        ("beforeSeason with no (or an unknown) season + yearly",
+         TimeHint(anchor: .beforeSeason, repeatEvery: 1, repeatUnit: .year), .requiredFieldAbsent, [], 365),
+        ("inDays with no count", TimeHint(anchor: .inDays), .requiredFieldAbsent, [], nil),
+        ("inDays 0", TimeHint(anchor: .inDays, count: 0), .fieldOutOfRange, [], nil),
+        ("inDays 367", TimeHint(anchor: .inDays, count: 367), .fieldOutOfRange, [], nil),
+        ("inDays Int.min", TimeHint(anchor: .inDays, count: Int.min), .fieldOutOfRange, [], nil),
+        ("inWeeks with no count", TimeHint(anchor: .inWeeks), .requiredFieldAbsent, [], nil),
+        ("inWeeks 0", TimeHint(anchor: .inWeeks, count: 0), .fieldOutOfRange, [], nil),
+        ("inWeeks 53 + every 3 weeks", TimeHint(anchor: .inWeeks, count: 53, repeatEvery: 3, repeatUnit: .week),
+         .fieldOutOfRange, [], 21),
+        ("inDays 366 at night: start is past now + 366 days (daypart kept)",
+         TimeHint(anchor: .inDays, daypart: .night, count: 366), .windowOutOfRange, [.night], nil),
     ]
 }
 
 @Suite("AC-M2-03: the Q6 time resolver (FR-A1, Q6, T-08)")
 struct TimeResolverTests {
 
-    @Test("AC-M2-03: worked examples E1–E13 and E15–E21 equal the plan's table exactly (America/New_York)",
+    @Test("AC-M2-03: worked examples E1–E13 and E15–E25 equal the plan's table exactly (America/New_York)",
           arguments: WorkedExamples.all)
     func workedExamples(_ c: TimeCase) {
         check(c)
@@ -426,16 +467,53 @@ struct TimeResolverTests {
         check(c)
     }
 
-    @Test("AC-M2-03: an invalid hint resolves exactly as no hint (T1 window, ∅, ∅, no interval) with a typed reason",
+    @Test("AC-M2-03 (PO Q-T2): an invalid anchor is no anchor (T1 window, weekdays ∅); a valid daypart and repeat still count",
           arguments: InvalidHints.all)
-    func invalidHints(_ label: String, _ hint: TimeHint, _ reason: TimeResolution.FallbackReason) {
+    func invalidHints(_ label: String, _ hint: TimeHint, _ reason: TimeResolution.FallbackReason,
+                      _ dayparts: Set<Daypart>, _ interval: Int?) {
         let r = ny.resolver.resolve(hint, now: RowCases.wed)
         #expect(r.windowStart == RowCases.wed, "\(label)")
         #expect(r.windowEnd == RowCases.wed.addingTimeInterval(sevenDays), "\(label)")
-        #expect(r.allowedDayparts.isEmpty, "\(label)")
+        #expect(r.allowedDayparts == dayparts, "\(label)")
         #expect(r.allowedWeekdays.isEmpty, "\(label)")
-        #expect(r.recurrenceIntervalDays == nil, "\(label)")
+        #expect(r.recurrenceIntervalDays == interval, "\(label)")
         #expect(r.basis == .fallback(reason), "\(label)")
+        #expect(!r.weekdaysFollowRepeat, "\(label)")
+    }
+
+    @Test("AC-M2-03 E26 (PO Q-T1): E23 settled as a one-off drops {thursday} with the interval; weekdays all seven")
+    func e26() {
+        let e23 = ny.resolver.resolve(TimeHint(anchor: .weekday, weekday: .thursday, repeatEvery: 1, repeatUnit: .month),
+                                      now: ny.local(2026, 11, 23, 10))
+        #expect(e23.weekdaysFollowRepeat)
+        let settled = RecurrenceSettlement.settle(kind: .oneOff, resolution: e23)
+        #expect(e23.windowStart == utc("2026-11-26T05:00Z") && e23.windowEnd == utc("2026-11-27T05:00Z"))
+        #expect(settled.kind == .oneOff)
+        #expect(settled.intervalDays == nil)
+        #expect(settled.allowedWeekdays.isEmpty)
+        #expect(settled.effectiveWeekdays == Set(Weekday.allCases))
+        #expect(settled.allowedDayparts.isEmpty)
+        #expect(settled.effectiveDayparts == Daypart.defaultAllowed)
+    }
+
+    static let settleCases: [(TimeHint, TaskKind, Set<Weekday>, Int?)] = [
+        (TimeHint(anchor: .weekday, weekday: .thursday, repeatEvery: 1, repeatUnit: .month), TaskKind.recurring,
+         Set<Weekday>([.thursday]), Int?.some(30)),
+        (TimeHint(anchor: .weekday, weekday: .thursday, repeatEvery: 25, repeatUnit: .month), .recurring, [], nil),
+        (TimeHint(anchor: .weekday, weekday: .thursday, repeatEvery: 2, repeatUnit: .week), .restock, [], nil),
+        (TimeHint(anchor: .thisWeekend, repeatEvery: 1, repeatUnit: .week), .oneOff, [.saturday, .sunday], nil),
+        (TimeHint(anchor: .thisWeekend, repeatEvery: 1, repeatUnit: .week), .recurring, [.saturday, .sunday], 7),
+        (TimeHint(anchor: .weekday, weekday: .friday), .recurring, [], nil),
+    ]
+
+    @Test("Q5 step 6 on a resolution: {W} stays with a kept interval, drops with a dropped one; weekend {sat, sun} stays",
+          arguments: Self.settleCases)
+    func settleResolution(_ hint: TimeHint, _ kind: TaskKind, _ weekdays: Set<Weekday>, _ interval: Int?) {
+        let r = ny.resolver.resolve(hint, now: RowCases.wed)
+        let s = RecurrenceSettlement.settle(kind: kind, resolution: r)
+        #expect(s.allowedWeekdays == weekdays)
+        #expect(s.intervalDays == interval)
+        #expect(s.allowedDayparts == r.allowedDayparts)
     }
 
     @Test("AC-M2-03: no hint at all → [now, now + 604,800 s), ∅, ∅, no interval, basis noHint")
@@ -449,12 +527,16 @@ struct TimeResolverTests {
         #expect(ny.resolver.resolve(TimeHint(anchor: .today), now: RowCases.wed).basis == .hint)
     }
 
-    @Test("AC-M2-03: a non-finite now never traps and is reported as unresolvable")
+    @Test("AC-M2-03 (R1-F5): a non-finite now never traps and is reported as unresolvable, with or without a hint")
     func nonFiniteNow() {
+        let hints: [TimeHint?] = [nil, TimeHint(anchor: .tomorrow),
+                                  TimeHint(anchor: .none, daypart: .morning, repeatEvery: 1, repeatUnit: .day)]
         for value in [TimeInterval.nan, .infinity, -.infinity] {
-            let r = ny.resolver.resolve(TimeHint(anchor: .tomorrow), now: Date(timeIntervalSinceReferenceDate: value))
-            #expect(r.basis == .fallback(.calendarUnresolved))
-            #expect(r.recurrenceIntervalDays == nil)
+            for hint in hints {
+                let r = ny.resolver.resolve(hint, now: Date(timeIntervalSinceReferenceDate: value))
+                #expect(r.basis == .fallback(.calendarUnresolved), "\(String(describing: hint)) at \(value)")
+                #expect(r.recurrenceIntervalDays == nil && r.allowedDayparts.isEmpty && r.allowedWeekdays.isEmpty)
+            }
         }
     }
 
@@ -565,6 +647,12 @@ struct TimeResolverTests {
         #expect(check(now.addingTimeInterval(5), now.addingTimeInterval(4), now) == .emptyWindow)
     }
 
+    @Test("R1-N1: the model is never offered the unrecognized anchor")
+    func modelChoices() {
+        #expect(TimeHint.Anchor.modelChoices.count == 12)
+        #expect(!TimeHint.Anchor.modelChoices.contains(.unrecognized))
+    }
+
     @Test("UX-3: no basis or reason name of the resolver contains a banned token (AC-M1-02 list)")
     func calmNames() {
         let reasons: [TimeResolution.FallbackReason] = [.unrecognizedAnchor, .requiredFieldAbsent, .fieldOutOfRange,
@@ -637,11 +725,21 @@ struct TimeResolverTests {
             #expect(r.windowEnd > r.windowStart, "\(label)")
             #expect(r.windowStart <= now.addingTimeInterval(366 * 86_400), "\(label)")
             #expect(r.windowEnd <= r.windowStart.addingTimeInterval(366 * 86_400), "\(label)")
+            // Independent oracle for the fields that do not depend on the anchor (R1–R4, T4, PO Q-T2).
+            var expectedInterval: Int? = nil
+            if let every = hint.repeatEvery, every >= 1, let unit = hint.repeatUnit {
+                let perUnit = [TimeHint.RepeatUnit.day: 1, .week: 7, .month: 30, .year: 365][unit] ?? 0
+                let (product, overflow) = every.multipliedReportingOverflow(by: perUnit)
+                expectedInterval = overflow ? nil : product
+            }
+            let expectedDayparts: Set<Daypart> = hint.anchor == .tonight
+                ? [.evening, .night] : (hint.daypart.map { [$0] } ?? [])
+            #expect(r.recurrenceIntervalDays == expectedInterval, "\(label)")
+            #expect(r.allowedDayparts == expectedDayparts, "\(label)")
             if case .fallback = r.basis {
                 fallbacks += 1
                 #expect(r.windowStart == now && r.windowEnd == now.addingTimeInterval(sevenDays), "\(label)")
-                #expect(r.allowedDayparts.isEmpty && r.allowedWeekdays.isEmpty && r.recurrenceIntervalDays == nil,
-                        "\(label)")
+                #expect(r.allowedWeekdays.isEmpty && !r.weekdaysFollowRepeat, "\(label)")
             }
             if let interval = r.recurrenceIntervalDays { #expect(interval >= 1, "\(label)") }
             if !r.allowedWeekdays.isEmpty {
@@ -652,7 +750,7 @@ struct TimeResolverTests {
         #expect(fallbacks > 0 && fallbacks < cases)
     }
 
-    @Test("AC-M2-03 oracle: T6 slot(p, D+1) equals M1's next eligible window start for {p} (Q6(d) M1 boundaries)")
+    @Test("AC-M2-03 oracle: T6 slot(p, D+1) starts and ends where M1's slot for {p} does (Q6(d) M1 boundaries)")
     func slotOracle() throws {
         var g = SplitMix64(seed: 0x51_07_0A_C1E)
         print("Slot oracle: seed 0x51070AC1E, 1,400 cases over \(Self.zones.count) zones")
@@ -672,6 +770,13 @@ struct TimeResolverTests {
                                              timeZone: clock.timeZone)
             #expect(r.windowStart == m1.windowStart,
                     "case \(index) \(clock.timeZone.identifier) \(p) now \(now): \(r.windowStart) vs M1 \(m1.windowStart)")
+            // End oracle (R1-F4): the last instant before the end is still in M1's slot; at the end it is not.
+            let inside = task.nextEligibleWindow(from: r.windowEnd.addingTimeInterval(-0.001), duration: 1,
+                                                 calendar: clock.calendar, timeZone: clock.timeZone)
+            let after = task.nextEligibleWindow(from: r.windowEnd, duration: 1, calendar: clock.calendar,
+                                                timeZone: clock.timeZone)
+            #expect(inside.windowStart == r.windowEnd.addingTimeInterval(-0.001), "case \(index) \(p): end inside")
+            #expect(after.windowStart > r.windowEnd, "case \(index) \(p): end is outside M1's slot")
             #expect(clock.calendar.startOfDay(for: tomorrowStart) == tomorrowStart,
                     "case \(index): mid(D+1) is the start of a local day")
         }
