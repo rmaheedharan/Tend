@@ -114,6 +114,11 @@ struct DraftMappingItemTypeTests {
         var end: Date
         var interval: Int?
         var sourcePhrase: String?
+        /// Written out, not read from the item (review F4).
+        var title: String {
+            ["one-off errand": "Post the parcel", "recurring maintenance": "Clean the bathroom",
+             "consumable restock": "Buy dishwasher pods", "weather-dependent task": "Wash the car"][name] ?? "?"
+        }
         var testDescription: String { "\(name) (\(zone))" }
     }
 
@@ -180,6 +185,7 @@ struct DraftMappingItemTypeTests {
         let mapping = mapper.map(c.item, draftID: 4)
         let draft = try #require(F.draft(mapping), "\(mapping)")
         #expect(draft.draftID == 4)
+        #expect(draft.title == c.title)
         #expect(draft.kind == c.kind)
         #expect(draft.room == c.room)
         #expect(draft.effort == c.effort)
@@ -512,13 +518,13 @@ struct DraftMappingRepairTests {
         #expect(cleared.repairs.contains(.roomNameCleared))
     }
 
-    @Test("R19-F3: a proposed name the guard cuts to an existing room's name stays proposed at parse time (AC-M2-04 literal), and commit puts it in the existing room without creating one (PO ruling 2b)")
+    @Test("R19-F3 (PO ruling 1): a proposed name the guard cuts to an existing room's name is re-linked to that room (AC-M2-04), and commit uses it without creating one")
     func guardCutToExistingRoom() throws {
         let mapping = F.mapper(input: "wipe the counters").map(
             F.item(title: "Wipe the counters", room: "late kitchen"), draftID: 1)
         let draft = try #require(F.draft(mapping))
-        #expect(draft.room == .proposed("kitchen"))
-        #expect(mapping.repairs.contains(.roomNameCalmed))
+        #expect(draft.room == .existing(F.kitchen.id))
+        #expect(mapping.repairs.suffix(2) == [.roomNameCalmed, .roomLinkedAfterCalming])
         var made = 0
         let plan = RoomLinker.commitPlan(for: [draft.room], existing: F.rooms, makeID: {
             made += 1
@@ -527,6 +533,40 @@ struct DraftMappingRepairTests {
         #expect(plan.newRooms.isEmpty)
         #expect(plan.roomIDs == [F.kitchen.id])
         #expect(made == 0)
+    }
+
+    static let lowKitchen = Room(id: MappingFixtures.id("000000000001"), name: "the  KITCHEN")
+    static let highKitchen = Room(id: MappingFixtures.id("0000000000FF"), name: "Kitchen")
+    static let pantryless = [MappingFixtures.bathroom]
+
+    @Test("R19-F3 (PO ruling 1): on a re-link tie, the room with the lowest id.uuidString wins, in any array order",
+          arguments: [[lowKitchen, highKitchen, MappingFixtures.bathroom],
+                      [highKitchen, lowKitchen, MappingFixtures.bathroom],
+                      [MappingFixtures.bathroom, highKitchen, lowKitchen]])
+    func relinkTie(_ rooms: [Room]) throws {
+        let mapping = F.mapper(input: "x", rooms: rooms).map(F.item(room: "Overdue kitchen"), draftID: 1)
+        let draft = try #require(F.draft(mapping))
+        #expect(draft.room == .existing(Self.lowKitchen.id))
+        #expect(mapping.repairs.contains(.roomLinkedAfterCalming))
+    }
+
+    @Test("R19-F3 (PO ruling 1): a calmed name that matches no room stays proposed ('late pantry' → proposed(\"pantry\"))")
+    func relinkNoMatch() throws {
+        let mapping = F.mapper(input: "x", rooms: Self.pantryless).map(F.item(room: "late pantry"), draftID: 1)
+        let draft = try #require(F.draft(mapping))
+        #expect(draft.room == .proposed("pantry"))
+        #expect(mapping.repairs.contains(.roomNameCalmed))
+        #expect(!mapping.repairs.contains(.roomLinkedAfterCalming))
+    }
+
+    @Test("R19-F3: an unchanged proposed name is not matched again, and an emptied one is none, not re-linked")
+    func relinkOnlyWhenChanged() throws {
+        let kept = F.mapper(input: "x").map(F.item(room: "Driveway"), draftID: 1)
+        #expect(F.draft(kept)?.room == .proposed("Driveway"))
+        #expect(!kept.repairs.contains(.roomLinkedAfterCalming))
+        let cleared = F.mapper(input: "x").map(F.item(room: "behind"), draftID: 1)
+        #expect(F.draft(cleared)?.room == DraftRoom.none)
+        #expect(!cleared.repairs.contains(.roomLinkedAfterCalming))
     }
 
     @Test("Q5 (7): an existing room whose user label holds a banned token links and is not guarded (Q19)")
@@ -556,7 +596,10 @@ struct DraftMappingRepairTests {
     func initialiserRejects(_ seconds: Double) {
         let mapper = F.mapper(input: "x", now: Date(timeIntervalSinceReferenceDate: seconds))
         let mapping = mapper.map(F.item(), draftID: 1)
-        #expect(mapping.outcome == .skipped(.taskRejected(.windowDateNotFinite)))
+        // Compared as a Bool: describing a draft with a NaN date traps in Foundation on Linux, which would turn a
+        // regression into a crash instead of a clean failure.
+        let rejected = mapping.outcome == .skipped(.taskRejected(.windowDateNotFinite))
+        #expect(rejected, "a draft with a non-finite window was emitted")
     }
 
     // MARK: Numbers from the model

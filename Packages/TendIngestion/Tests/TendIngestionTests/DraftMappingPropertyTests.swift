@@ -9,10 +9,13 @@
 // - It re-implements every Q5 repair itself: title tidy (Character split/join), enum defaults, step 3 defaults,
 //   critical + deep clean, the step 5 basis check, step 6 settlement and the R5 weekday drop (from the hint, not from
 //   `weekdaysFollowRepeat`), the calm-words guard (Character.isLetter runs, Character.isPunctuation trim), the
-//   `sourcePhrase` substring check (`String.contains`) and room linking (`String <` on `uuidString`).
+//   `sourcePhrase` substring check (`String.contains`), room linking and the re-link after the guard (PO ruling 1,
+//   R19-F3; `String <` on `uuidString`), and the step 5 fallback window `[now, now + 604,800 s)` with weekdays ∅.
 // - It calls only two production functions, neither of them a Q5 repair: `TimeResolver.resolve` (the Q6 table, which
 //   Q5 step 5 cites and which AC-M2-03 verifies against the plan's worked examples) and `TextFolding.foldName` (the
-//   brief's name-folding primitive, pinned in `TextPrimitivesTests`). It never calls `DraftMapper`,
+//   brief's name-folding primitive, pinned in `TextPrimitivesTests`). So this property is blind to a defect in those
+//   two (review F2: mutant "no article strip" gives 0 mismatches here); AC-M2-03, `TextPrimitivesTests`, AC-M2-01 and
+//   AC-M2-04 catch them with hand-written values. It never calls `DraftMapper`,
 //   `RecurrenceSettlement`, `CalmWordsGuard`, `SourcePhrase`, `RoomLinker` or `BannedTokens`.
 // - The generator's alphabet is ASCII letters, digits, punctuation, `é`, typographic quotes, tab, newline, CR LF and
 //   NBSP. On it, Character.isLetter / isPunctuation / isWhitespace agree with the production scalar classes.
@@ -251,11 +254,20 @@ struct Q5Oracle {
 
         // (5): the Q6 function; the oracle checks the basis and the range itself.
         let resolution = resolver.resolve(hint, now: now)
-        if resolution.basis != .hint { repairs.append(.windowDefaulted(resolution.basis)) }
+        // Review F2: the step 5 fallback is computed here, not taken from the resolver: [now, now + 604,800 s) and
+        // weekdays ∅. The resolver still gives the window of a usable hint (Q6, verified by AC-M2-03).
+        var start = resolution.windowStart
+        var end = resolution.windowEnd
+        var weekdays = resolution.allowedWeekdays
+        if resolution.basis != .hint {
+            repairs.append(.windowDefaulted(resolution.basis))
+            start = now
+            end = now.addingTimeInterval(604_800)
+            weekdays = []
+        }
 
         // (6)
         var interval = resolution.recurrenceIntervalDays
-        var weekdays = resolution.allowedWeekdays
         if kind == .recurring {
             if let days = interval, days >= 1, days <= 730 {
                 // kept
@@ -303,6 +315,13 @@ struct Q5Oracle {
             } else if calmed != name {
                 room = .proposed(calmed)
                 repairs.append(.roomNameCalmed)
+                // PO ruling 1 (R19-F3): the calmed name is matched again, by the oracle's own fold and `String <` tie.
+                let folded = TextFolding.foldName(calmed)
+                if let match = rooms.filter({ TextFolding.foldName($0.name) == folded })
+                    .min(by: { $0.id.uuidString < $1.id.uuidString }) {
+                    room = .existing(match.id)
+                    repairs.append(.roomLinkedAfterCalming)
+                }
             }
         }
 
@@ -314,7 +333,7 @@ struct Q5Oracle {
         return (.draft(ExpectedDraft(
             title: finalTitle, kind: kind, room: room, effort: effort, isCritical: isCritical,
             isDeepClean: isDeepClean, isWeatherDependent: raw.isWeatherDependent ?? false, dayparts: dayparts,
-            weekdays: weekdays, start: resolution.windowStart, end: resolution.windowEnd, interval: interval,
+            weekdays: weekdays, start: start, end: end, interval: interval,
             sourcePhrase: phrase)), repairs)
     }
 }
@@ -407,6 +426,8 @@ struct OutputGenerator {
             if roll < 60 { return pick(["the kitchen", "KITCHEN", "Sam's room", "Sam’s Room", "my bathroom",
                                         "late-night den", "Garage"]) }
             if roll < 70 { return pick(["late", "Overdue!", "behind"]) }
+            if roll < 80 { return pick(["late kitchen", "Overdue Garage", "late Sam’s room", "behind the bathroom",
+                                        "late pantry"]) }  // calmed to an existing name, or not (R19-F3)
             return padded(pick(["Driveway", "late kitchen", "Behind the shed", "garden", "Penalty box",
                                 "the  attic", "café"]))
         }()
@@ -549,7 +570,7 @@ struct DraftMappingPropertyTests {
                         "(5) windowDefaulted(fallback(TendIngestion.TimeResolution.FallbackReason.fieldOutOfRange))",
                         "(5) windowDefaulted(fallback(TendIngestion.TimeResolution.FallbackReason.windowOutOfRange))",
                         "(6) becameOneOff", "(6) intervalDropped", "(6) repeatWeekdaysDropped", "(7) titleCalmed",
-                        "(7) titleFromSourcePhrase", "(7) roomNameCalmed", "(7) roomNameCleared",
+                        "(7) titleFromSourcePhrase", "(7) roomNameCalmed", "(7) roomNameCleared", "(7) roomLinkedAfterCalming",
                         "(8) sourcePhraseDropped"]
         for name in required {
             #expect(repairCounts[name, default: 0] > 0, "seed \(seed): no case for \(name); keys \(repairCounts.keys)")

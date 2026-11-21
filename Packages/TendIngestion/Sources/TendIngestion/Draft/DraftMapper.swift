@@ -64,6 +64,9 @@ public enum ItemRepair: Hashable, Sendable {
     case roomNameCalmed
     /// The guard left no words of a proposed room name: no room.
     case roomNameCleared
+    /// The calmed proposed name equals an existing room's name after name folding, so the draft is linked to that room
+    /// (AC-M2-04 rule, lowest `id.uuidString` on a tie; PO ruling 1 on WI-M2-05, R19-F3).
+    case roomLinkedAfterCalming
     // (8)
     /// The `sourcePhrase` is not in the input after name folding: nil.
     case sourcePhraseDropped
@@ -78,7 +81,7 @@ public enum ItemRepair: Hashable, Sendable {
         case .deepCleanCleared: 4
         case .windowDefaulted: 5
         case .becameOneOff, .intervalDropped, .repeatWeekdaysDropped: 6
-        case .titleCalmed, .titleFromSourcePhrase, .roomNameCalmed, .roomNameCleared: 7
+        case .titleCalmed, .titleFromSourcePhrase, .roomNameCalmed, .roomNameCleared, .roomLinkedAfterCalming: 7
         case .sourcePhraseDropped: 8
         }
     }
@@ -189,9 +192,15 @@ public struct DraftMapper: Sendable {
             if keptRoom != guardedRoom {
                 repairs.append(keptRoom == .none ? .roomNameCleared : .roomNameCalmed)
             }
-            // R19-F3: a name the guard cut to an existing room's name stays `proposed` (AC-M2-04: linking compares
-            // the model's text; commit then uses the existing room, PO ruling 2b). Open question in dev-notes.
             room = keptRoom
+            // R19-F3 (PO ruling 1 on WI-M2-05): a proposed name the guard changed is matched again with the AC-M2-04
+            // rule, so a draft never proposes a room that equals an existing one. An unchanged proposed name already
+            // failed the step 2 match. Commit keeps its own re-check (PO WI-M2-04 ruling 2b).
+            if keptRoom != guardedRoom, case let .proposed(calmedName) = keptRoom,
+               case let .existing(id) = RoomLinker.link(calmedName, in: rooms) {
+                room = .existing(id)
+                repairs.append(.roomLinkedAfterCalming)
+            }
             // (8) The sourcePhrase check.
             let phrase = SourcePhrase.checked(item.sourcePhrase, input: input)
             if item.sourcePhrase != nil && phrase == nil { repairs.append(.sourcePhraseDropped) }
