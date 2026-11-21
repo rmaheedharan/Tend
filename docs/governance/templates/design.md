@@ -45,7 +45,7 @@ VoiceOver labels and order, Dynamic Type up to AX5 behaviour, contrast, Reduce T
 | UX-4 Design craft | | |
 | P-1 On-device inference | | |
 | P-2 No data leaves device (except user iCloud) | | |
-| P-3 Cloud escalation only via PCC + ADR | | |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | | |
 | P-4 Media not persisted without consent | | |
 
 ## Handoff log
