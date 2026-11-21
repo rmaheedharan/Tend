@@ -304,7 +304,8 @@ weekdays and interval using the injected `now`, calendar and time zone.
   and as the Q5 fallback `[now, now + 7 days)`. Calendar rows (T5, T7, T9, T11, T14) use `mid(…)` and so follow the
   local calendar across a DST change.
 - "∅" means the resolver leaves the set empty and Q5 step 3 fills the default: dayparts → `Daypart.defaultAllowed`
-  (morning, afternoon, evening), weekdays → all seven.
+  (morning, afternoon, evening), weekdays → all seven. The resolver itself always returns the ∅ sets. It never fills
+  the defaults. WI-M2-05 applies the Q5 step-3 defaults to the resolver's empty sets after step 5.
 - **Source:** "Q6" means a brief default or settled point. **P1…P7 are Planner proposals** that the brief does not
   cover. The eval composition needs them (for example "no wait, Thursday", Q3). The Tester reviews them with the
   table, and the **PO acknowledges P1–P7** as product meaning before WI-M2-03 is Ready. If the PO rejects a row, that
@@ -363,6 +364,9 @@ move it to any day. If Q5 step 6 drops the interval (the final kind is not `recu
   86,400 s). Then the window is the T1 window and weekdays are ∅. A valid `daypart` still sets dayparts to {p} (as
   T15). A valid repeat still gives its interval (R1–R4); R5's {W} does not apply without a valid weekday. `basis`
   still records the fallback reason. With no valid daypart and no valid repeat, the result equals no hint (T1).
+- `basis` is a diagnostic field that records which rule gave the window (or the fallback reason). WI-M2-05 uses it
+  for the per-rule repair counts in AC-M2-02. Its exact values are not part of AC-M2-03's "equal the table" check.
+  (Technical choice, no PO meaning.)
 - An unknown `daypart` or `repeatUnit` is dropped (step 2). A `repeatEvery` < 1 means no repeat.
 - Numbers: the neutral hint carries counts as `Int?`. The provider parsers (WI-M2-12) and the on-device mapping turn
   any non-integer, non-finite or out-of-range JSON number into `nil` before the resolver sees it.
@@ -397,11 +401,11 @@ tzdata in the test), so that `mid(d)` moves to 01:00.
 | E19 | T4 tonight, said after midnight | Mon 2026-11-23 01:00 EST | `[2026-11-23T06:00Z, 2026-11-24T10:00Z)` (Mon 01:00 to Tue 05:00 local) | dayparts {evening, night}; Tester finding |
 | E20 | T14 "in 3 days at night" | Thu 2026-11-19 10:00 EST | `[2026-11-23T03:00Z, 2026-11-23T10:00Z)` (Sun 22:00 to Mon 05:00 local) | dayparts {night}; PO 2026-11-21 |
 | E21 | T9 "this weekend in the morning", Sunday 15:00 (morning has passed) | Sun 2026-11-01 15:00 EST | `[2026-11-07T10:00Z, 2026-11-08T17:00Z)` (Sat 05:00 to Sun 12:00 local) | dayparts {morning}, weekdays {sat, sun}; PO 2026-11-21 |
-| E22 | Invalid anchor: `weekday` with no weekday, + 1 `week` (PO Q-T2) | Mon 2026-11-23 10:00 EST | `[2026-11-23T15:00Z, 2026-11-30T15:00Z)` (T1 window, 604,800 s) | dayparts ∅, weekdays ∅, interval 7; a recurring item stays recurring |
-| E23 | R5: `weekday` Thursday + 1 `month` (PO Q-T1) | Mon 2026-11-23 10:00 EST | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)` (T7, Thu 26 Nov local) | dayparts ∅, weekdays {thursday}, interval 30 |
-| E24 | `weekday` Thursday + 1 `day` ("daily from Thursday"; PO Q-T1) | Mon 2026-11-23 10:00 EST | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)` (T7) | dayparts ∅, weekdays ∅, interval 1 |
-| E25 | Invalid anchor: `inDays` 400 (out of 1…366) + `evening` (PO Q-T2) | Mon 2026-11-23 10:00 EST | `[2026-11-23T15:00Z, 2026-11-30T15:00Z)` (T1 window, 604,800 s) | dayparts {evening}, weekdays ∅, no interval |
-| E26 | Settlement: E23's resolution with final kind one-off (Q5 step 6; PO Q-T1) | Mon 2026-11-23 10:00 EST | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)` (T7) | no interval; weekdays all seven ({thursday} dropped with the interval) |
+| E22 | Invalid anchor: `weekday` with no weekday, + 1 `week` (PO Q-T2) | Mon 2026-11-23 10:00 EST | `[2026-11-23T15:00Z, 2026-11-30T15:00Z)` (T1 window, 604,800 s) | resolver output; dayparts ∅, weekdays ∅, interval 7; a recurring item stays recurring |
+| E23 | R5: `weekday` Thursday + 1 `month` (PO Q-T1) | Mon 2026-11-23 10:00 EST | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)` (T7, Thu 26 Nov local) | resolver output; dayparts ∅, weekdays {thursday}, interval 30 |
+| E24 | `weekday` Thursday + 1 `day` ("daily from Thursday"; PO Q-T1) | Mon 2026-11-23 10:00 EST | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)` (T7) | resolver output; dayparts ∅, weekdays ∅, interval 1 |
+| E25 | Invalid anchor: `inDays` 400 (out of 1…366) + `evening` (PO Q-T2) | Mon 2026-11-23 10:00 EST | `[2026-11-23T15:00Z, 2026-11-30T15:00Z)` (T1 window, 604,800 s) | resolver output; dayparts {evening}, weekdays ∅, no interval |
+| E26 | Settlement: E23's resolution with final kind one-off (Q5 step 6; PO Q-T1) | Mon 2026-11-23 10:00 EST | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)` (T7) | after Q5 settlement; no interval; weekdays all seven ({thursday} dropped with the interval); dayparts ∅, which becomes the default `Daypart.defaultAllowed` (morning, afternoon, evening) after Q5 |
 
 ## Route matrix (AC-M2-19, the full expected matrix)
 
@@ -812,3 +816,4 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | 2026-11-21 | Product Owner | Work Planner | accepted | Tester returned PR #16 (findings 1-9); PO accepted all, stricter only. Applied the v2 texts: the fixtures loader row now says "bundle resources named by string literals only"; the v1 `data(for:`/`data(from:` constraint is replaced in WI-M2-01 and WI-M2-M5 by the session-method name rule, the literal-only fixtures rule and the import rule; the DECISIONS.md wording for Q23/Q24 is recorded. Timing unchanged. No AC changed. |
 | 2026-11-21 | Developer | Product Owner | answered | Q-T1, Q-T2 answered (FR-A1, Q5, Q6, UX-3). |
 | 2026-11-21 | Product Owner | Work Planner, Acceptance Tester, Developer | accepted | Plan text applied: R5 row, the note under the repeat table, and the invalid-anchor bullet (PO Q-T1 / Q-T2, 2026-11-21); E22–E26 added (UTC checked with Python `zoneinfo`, America/New_York); WI-M2-03 test scope is E1–E26. Tester confirms the changed rows before PR #18 review; Developer reworks PR #18. No AC wording changed (AC-M2-03). The `DECISIONS.md` entry "PO Q-T1 / Q-T2, 2026-11-21, M2 Q6 table" goes in the human-merged governance PR. |
+| 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q-T1/Q-T2 rows APPROVED with 3 findings, applied: `basis` defined as a diagnostic field (used by WI-M2-05 for the AC-M2-02 repair counts, not part of the AC-M2-03 table check; technical choice); the resolver returns ∅ sets and WI-M2-05 fills the Q5 step-3 defaults after step 5; E22–E25 labelled "resolver output", E26 "after Q5 settlement" with dayparts → `Daypart.defaultAllowed` (morning, afternoon, evening), checked against brief Q5 step 3 and `Daypart.swift`. No AC changed (AC-M2-02, AC-M2-03). |
