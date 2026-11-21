@@ -3,6 +3,8 @@
 // Plan WI-M2-07.
 //
 // Stream assembly (WI-M2-06) calls `mark` once per draft, in model-output order, at the moment the draft completes.
+// After the model's claims, the **word-match floor** (brief Definitions, PO 2026-11-21 WI-M2-07 ruling 1) checks every
+// draft the model did not validly mark against the whole local household, on every path. It sends nothing.
 // The model's claim reaches it as a neutral `DuplicateClaim`; which output field carries it is the adapters' and
 // the payload schema's business (WI-M2-M2, WI-M2-10, WI-M2-12). Nothing here changes the household (Q7).
 
@@ -26,14 +28,26 @@ public struct DuplicateClaim: Hashable, Sendable {
     }
 }
 
-/// How a draft is checked against the existing tasks, per route and the Q12 answer.
+/// How a draft is checked against the existing tasks, per route and the Q12 answer. Every case carries the household
+/// for the word-match floor.
 public enum ExistingTaskCheck: Hashable, Sendable {
-    /// On device: the Tool's lookups so far in this parse. `sameAsTitle` must name a title one of them returned.
+    /// On device: the Tool's lookups so far in this parse. `sameAsTitle` must name a title one of them returned. The
+    /// floor uses the log's household.
     case toolLookups(DuplicateLookupLog)
-    /// Cloud, Q12 = yes: the shortlist sent in the request. `sameAsShortlistIndex` must be 1…count.
-    case sentShortlist([ShortlistEntry])
-    /// Cloud, Q12 = no: no titles were sent; the local word-match against the household decides.
+    /// Cloud, Q12 = yes: the shortlist sent in the request (`sameAsShortlistIndex` must be 1…count) and the household
+    /// for the floor.
+    case sentShortlist([ShortlistEntry], Household)
+    /// Cloud, Q12 = no: no titles were sent; the model makes no existing-task claim, and the floor is the only check.
     case localWordMatch(Household)
+
+    /// The household the word-match floor reads.
+    public var household: Household {
+        switch self {
+        case let .toolLookups(log): log.household
+        case let .sentShortlist(_, household): household
+        case let .localWordMatch(household): household
+        }
+    }
 }
 
 /// The Q12 answer for cloud captures (PO default: yes, owner may change it). Both paths are built; the caller passes
@@ -48,7 +62,7 @@ public enum CloudTitleSharing: Hashable, Sendable {
     /// (`DuplicateShortlist.entries(for: capture, …)`).
     public func existingTaskCheck(capture: String, household: Household) -> ExistingTaskCheck {
         switch self {
-        case .shortlistTitles: .sentShortlist(DuplicateShortlist.entries(for: capture, in: household))
+        case .shortlistTitles: .sentShortlist(DuplicateShortlist.entries(for: capture, in: household), household)
         case .noTitles: .localWordMatch(household)
         }
     }
@@ -64,9 +78,11 @@ public struct DuplicateMarker: Sendable {
     /// Sets `draft.duplicate` and remembers it for later in-input claims. In order:
     /// 1. **In-input:** a valid `sameAsItem` k gives `ofDraft` of the **first** draft of that chore: k's draft ID, or
     ///    the draft k itself repeats when k is `ofDraft` (a repeat collapses into its first draft).
-    /// 2. **Existing task**, by `check`: on device, a `sameAsTitle` the Tool returned; cloud Q12 = yes, a valid
-    ///    `sameAsShortlistIndex`; cloud Q12 = no, the local word-match. Claims for the other paths are ignored.
-    /// 3. Otherwise `none`.
+    /// 2. **The model's existing-task claim**, by `check`: on device, a `sameAsTitle` the Tool returned; cloud
+    ///    Q12 = yes, a valid `sameAsShortlistIndex`. Under Q12 = no there is no such claim. Claims meant for another
+    ///    path are ignored.
+    /// 3. **The word-match floor** (every path): `LocalWordMatch.target` over the whole household.
+    /// 4. Otherwise `none`.
     /// `position` is the item's 1-based position in the model's output, skipped items included.
     public mutating func mark(
         _ draft: IngestionDraft, position: Int, claim: DuplicateClaim, check: ExistingTaskCheck
@@ -87,13 +103,14 @@ public struct DuplicateMarker: Sendable {
         switch check {
         case let .toolLookups(log):
             if let title = claim.sameAsTitle, let id = log.taskID(forTitle: title) { return .ofExisting(id) }
-        case let .sentShortlist(entries):
+        case let .sentShortlist(entries, _):
             if let n = claim.sameAsShortlistIndex, n >= 1, n <= entries.count {
                 return .ofExisting(entries[n - 1].taskID)
             }
-        case let .localWordMatch(household):
-            if let id = LocalWordMatch.target(for: draft, in: household) { return .ofExisting(id) }
+        case .localWordMatch:
+            break
         }
+        if let id = LocalWordMatch.target(for: draft, in: check.household) { return .ofExisting(id) }
         return .none
     }
 }

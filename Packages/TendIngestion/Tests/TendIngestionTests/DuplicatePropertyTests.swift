@@ -12,10 +12,12 @@
 // when the mock can see the target on that path, and the mock then claims it. Checked for every draft:
 // - the marker equals the independent oracle (`DupOracle.marks`);
 // - a planted duplicate the path can see is never left as `none` (so commit would create nothing for it);
+// - **every planted exact-title duplicate whose room is compatible (word-match rule) is marked on every path**, whether
+//   or not the model could see it: the word-match floor (PO 2026-11-21, WI-M2-07 ruling 1; review R21-F1);
 // - `ofExisting` always names a task that exists and is not completed; `ofDraft` always names an earlier draft that is
 //   not itself `ofDraft` (the collapse goes to the first draft).
-// Planted duplicates the path cannot see (a target outside the shortlist; a synonym under Q12 = no, which the brief
-// says the word-match misses) are counted and printed, not hidden.
+// Synonym plants the path cannot see (a target outside the shortlist; every synonym under Q12 = no, which the brief
+// says the word-match misses) are counted and printed, not hidden. Marks made by the floor alone are counted too.
 //
 // The seed is printed by every test and is in every failure message.
 
@@ -61,6 +63,7 @@ struct DupHouseholdGenerator {
             if !tasks.isEmpty && rnd.chance(15) {
                 let earlier = rnd.pick(tasks).title
                 title = rnd.chance(50) ? earlier : (rnd.chance(50) ? earlier.uppercased() : "  " + earlier + " ")
+                if rnd.chance(20) { title = "\n\t" + title + " \n" }    // review R21-F2: tabs and newlines at the ends
             } else if rnd.chance(4) {
                 title = phrase(rnd.int(1...3), from: Self.stopOnly)
             } else {
@@ -251,7 +254,7 @@ struct DuplicateMarkingPropertyTests {
         let live = household.tasks.filter { $0.state != .completed && !DupOracle.keywords($0.title).isEmpty }
         let done = household.tasks.filter { $0.state == .completed && !DupOracle.keywords($0.title).isEmpty }
         var items: [Scripted] = []
-        for position in 1...rnd.int(4...14) {
+        for _ in 1...rnd.int(4...14) {
             var plant = rnd.pick(Plant.allCases)
             if (plant == .exact || plant == .synonym) && live.isEmpty { plant = .fresh }
             if plant == .completedRepeat && done.isEmpty { plant = .fresh }
@@ -283,7 +286,6 @@ struct DuplicateMarkingPropertyTests {
                 items.append(Scripted(plant: .inInput, title: items[k].title, room: items[k].room, target: nil,
                                       earlier: k + 1))
             }
-            _ = position
         }
         return items
     }
@@ -313,6 +315,7 @@ struct DuplicateMarkingPropertyTests {
                 var marked: [IngestionDraft] = []
                 var visible: [Bool] = []
                 var plants: [Plant] = []
+                var targets: [HouseholdTask?] = []
                 var nextDraftID = 1
                 for (offset, s) in script.enumerated() {
                     let position = offset + 1
@@ -367,6 +370,7 @@ struct DuplicateMarkingPropertyTests {
                     oracleItems.append(DupOracle.Item(position: position, draft: draft, claim: claim, queriesSoFar: log.queries))
                     visible.append(canSee)
                     plants.append(s.plant)
+                    targets.append(s.target)
                 }
                 let expected = DupOracle.marks(oracleItems, mode: mode, capture: capture, household: household)
                 if marked.map(\.duplicate) != expected {
@@ -380,6 +384,13 @@ struct DuplicateMarkingPropertyTests {
                     if draft.duplicate != .none { counts[key + ".marked", default: 0] += 1 }
                     if visible[i] && (plants[i] == .exact || plants[i] == .synonym || plants[i] == .inInput) {
                         #expect(draft.duplicate != .none, "\(label) draft \(draft.draftID): a visible planted duplicate was left unmarked")
+                    }
+                    if !visible[i] && draft.duplicate != .none { counts[key + ".markedByFloor", default: 0] += 1 }
+                    if plants[i] == .exact, let target = targets[i],
+                       DupOracle.roomsCompatible(draft.room, target, household) {
+                        counts[key + ".compatible", default: 0] += 1
+                        #expect(draft.duplicate != .none,
+                                "\(label) draft \(draft.draftID): an exact-title repeat in a compatible room was left unmarked")
                     }
                     switch draft.duplicate {
                     case let .ofExisting(id):
@@ -403,8 +414,11 @@ struct DuplicateMarkingPropertyTests {
                 #expect(counts["\(mode.rawValue).\(plant.rawValue)", default: 0] > 0, "seed 0x\(String(seed, radix: 16)): no \(mode) \(plant)")
             }
             #expect(counts["\(mode.rawValue).exact.marked", default: 0] > 0)
+            #expect(counts["\(mode.rawValue).exact.compatible", default: 0] > 0)
             #expect(counts["\(mode.rawValue).inInput.marked", default: 0] > 0)
         }
         #expect(counts["onDevice.synonym.marked", default: 0] > 0 && counts["cloudTitles.synonym.marked", default: 0] > 0)
+        // The floor must have had work to do on the two claim paths (exact repeats the model could not see).
+        #expect(counts["cloudTitles.exact.markedByFloor", default: 0] > 0, "seed 0x\(String(seed, radix: 16)): floor never exercised under Q12 = yes")
     }
 }

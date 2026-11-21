@@ -1,5 +1,6 @@
 // AC-M2-07 (Linux half): the duplicate shortlist, the neutral duplicate-lookup function the `Tool` wraps, the in-input
-// collapse, the cloud re-check (Q12 = yes) and the local word-match (Q12 = no). FR-A1, Q7, Q12. Plan WI-M2-07.
+// collapse, the cloud re-check (Q12 = yes), the local word-match (Q12 = no) and the word-match floor on every path
+// (PO 2026-11-21, WI-M2-07 ruling 1; review R21-F1). FR-A1, Q7, Q12. Plan WI-M2-07.
 //
 // Every expected value below is written by hand from the brief's Definitions ("Keywords of a text", "Duplicate
 // shortlist" steps 1–6, "Local duplicate re-check for cloud drafts", "Duplicate"), not computed by production code.
@@ -49,6 +50,24 @@ struct DuplicateShortlistTests {
         let list = DuplicateShortlist.entries(for: "we\u{2019}re almost out of dishwasher pods", in: H.household)
         #expect(list == [ShortlistEntry(index: 1, taskID: H.pods.id, title: "Buy dish pods", kind: .restock,
                                         roomName: "Kitchen")])
+    }
+
+    @Test("AC-M2-07: the entry title is trimmed of spaces, tabs and newlines at both ends; inner text is kept (review R21-F2)")
+    func titleTrimmedOfNewlines() {
+        let household = Household(tasks: [F.task(F.id("0000000000E1"), "\n\tBuy  dish pods \n")], rooms: [])
+        #expect(DuplicateShortlist.entries(for: "pods", in: household).map(\.title) == ["Buy  dish pods"])
+        #expect(DuplicateLookup.entries(for: "pods", in: household).map(\.title) == ["Buy  dish pods"])
+    }
+
+    @Test("AC-M2-07: keywords split at every character that is not a letter or a decimal digit: ½ and ² split, 3 is a keyword (review R21-F3)")
+    func decimalDigitsOnly() {
+        let cup = F.task(F.id("0000000000E2"), "Measure cup")
+        let lemons = F.task(F.id("0000000000E3"), "Buy 3 lemons")
+        let household = Household(tasks: [cup, lemons], rooms: [])
+        #expect(ids(DuplicateShortlist.entries(for: "\u{00BD}cup", in: household)) == [cup.id])      // ½ (No) splits
+        #expect(ids(DuplicateShortlist.entries(for: "cup\u{00B2}", in: household)) == [cup.id])      // ² (No) splits
+        #expect(ids(DuplicateShortlist.entries(for: "3", in: household)) == [lemons.id])             // 3 (Nd) is kept
+        #expect(DuplicateShortlist.entries(for: "\u{00BD} \u{00B2} \u{2167}", in: household).isEmpty)  // ½ ² Ⅷ
     }
 
     @Test("AC-M2-07: room-only matches (K = 0, R = 1) are shortlisted after keyword matches, then by folded title")
@@ -244,6 +263,8 @@ struct LocalWordMatchTests {
         ("mop floor", .none, mopLow.id),
         // no stemming
         ("wipe kitchen counters", .existing(kitchen.id), nil),
+        // a draft room that is not in the household counts as no room (review R21-F4)
+        ("wipe kitchen counter", .existing(F.id("0000000000EE")), counter.id),
     ] as [(String, DraftRoom, UUID?)])
     func cases(_ title: String, _ room: DraftRoom, _ expected: UUID?) {
         #expect(LocalWordMatch.target(title: title, room: room, in: Self.household) == expected)
@@ -268,18 +289,72 @@ struct DuplicateMarkingTests {
         #expect(marked.duplicate == .ofExisting(H.pods.id))
     }
 
-    @Test("AC-M2-07: on device, a title the Tool never returned is ignored (only the local household, only what was looked up)")
+    @Test("AC-M2-07: on device, a title the Tool never returned is ignored as a claim; the word-match floor decides")
     func onDeviceUnseenTitle() {
         var log = DuplicateLookupLog(household: H.household)
         _ = log.lookUp("pods")
         var marker = DuplicateMarker()
+        // The claim names a task the Tool never showed; the floor finds the same task by its words (PO ruling 1).
         let unseen = marker.mark(F.draft(1, "Wipe kitchen counter"), position: 1,
                                  claim: DuplicateClaim(sameAsTitle: "Wipe kitchen counter"), check: .toolLookups(log))
-        #expect(unseen.duplicate == .none)
-        // The other claim kinds do not apply on device.
-        let indexOnly = marker.mark(F.draft(2, "Buy dish pods"), position: 2,
+        #expect(unseen.duplicate == .ofExisting(H.counter.id))
+        // An unseen claim with no word match stays none: the claim alone never marks.
+        let noFloor = marker.mark(F.draft(2, "Dust the lamp"), position: 2,
+                                  claim: DuplicateClaim(sameAsTitle: "Wipe kitchen counter"), check: .toolLookups(log))
+        #expect(noFloor.duplicate == .none)
+        // An index claim does not apply on device; "Post a letter" word-matches nothing (the parcel is completed).
+        let indexOnly = marker.mark(F.draft(3, "Post a letter"), position: 3,
                                     claim: DuplicateClaim(sameAsShortlistIndex: 1), check: .toolLookups(log))
         #expect(indexOnly.duplicate == .none)
+    }
+
+    @Test("AC-M2-07: on device, with no claim at all, the word-match floor marks an exact repeat")
+    func onDeviceFloor() {
+        let log = DuplicateLookupLog(household: H.household)                 // the model never called the Tool
+        var marker = DuplicateMarker()
+        let marked = marker.mark(F.draft(1, "buy dish pods", room: .existing(H.kitchen.id)), position: 1,
+                                 claim: DuplicateClaim(), check: .toolLookups(log))
+        #expect(marked.duplicate == .ofExisting(H.pods.id))
+    }
+
+    @Test("AC-M2-07: the model's claim wins over the floor when they disagree (device title, cloud index)")
+    func claimBeatsFloor() {
+        var log = DuplicateLookupLog(household: H.household)
+        _ = log.lookUp("kitchen")
+        var marker = DuplicateMarker()
+        // The floor alone would give the counter task; the model named another task.
+        #expect(LocalWordMatch.target(title: "Wipe kitchen counter", room: .none, in: H.household) == H.counter.id)
+        let device = marker.mark(F.draft(1, "Wipe kitchen counter"), position: 1,
+                                 claim: DuplicateClaim(sameAsTitle: "Buy dish pods"), check: .toolLookups(log))
+        #expect(device.duplicate == .ofExisting(H.pods.id))
+        let cloud = marker.mark(F.draft(2, "Wipe kitchen counter"), position: 2,
+                                claim: DuplicateClaim(sameAsShortlistIndex: 3),
+                                check: .sentShortlist(Self.shortlist, H.household))
+        #expect(cloud.duplicate == .ofExisting(H.oven.id))
+    }
+
+    @Test("AC-M2-07: cloud, Q12 = yes: an exact repeat ranked 11th (outside the 10 titles sent) is marked by the floor")
+    func eleventhCaughtByFloor() {
+        let kitchen = Room(id: F.id("0000000000A1"), name: "Kitchen")
+        // Ten tasks with K = 3 for the capture ({wipe, counter, kitchen, shelf}) outrank the target, which has K = 2.
+        let shelves = (1...10).map { F.task(F.id(String(format: "%012d", 200 + $0)), "Wipe kitchen shelf \($0)") }
+        let target = F.task(F.id("000000000999"), "Wipe the counter", room: kitchen.id)
+        let household = Household(tasks: shelves + [target], rooms: [kitchen])
+        let capture = "wipe the counter, and the kitchen shelf"
+        let check = CloudTitleSharing.shortlistTitles.existingTaskCheck(capture: capture, household: household)
+        guard case let .sentShortlist(sent, _) = check else {
+            Issue.record("Q12 = yes must give the sent shortlist")
+            return
+        }
+        #expect(sent.count == 10 && !sent.contains { $0.taskID == target.id })
+        #expect(DupOracle.ranking(capture, household).map(\.task.id).firstIndex(of: target.id) == 10)   // 11th
+        var marker = DuplicateMarker()
+        let marked = marker.mark(F.draft(1, "wipe the counter"), position: 1, claim: DuplicateClaim(), check: check)
+        #expect(marked.duplicate == .ofExisting(target.id))
+        // An out-of-range index (the model guessing 11) is ignored, and the floor still decides.
+        let guessed = marker.mark(F.draft(2, "Wipe the counter"), position: 2,
+                                  claim: DuplicateClaim(sameAsShortlistIndex: 11), check: check)
+        #expect(guessed.duplicate == .ofExisting(target.id))
     }
 
     @Test("AC-M2-07: cloud, Q12 = yes: index n becomes ofExisting(shortlist[n].id) only for 1 ≤ n ≤ count", arguments: [
@@ -289,17 +364,21 @@ struct DuplicateMarkingTests {
     func cloudIndex(_ index: Int, _ expected: UUID?) {
         var marker = DuplicateMarker()
         let marked = marker.mark(F.draft(1, "x"), position: 1, claim: DuplicateClaim(sameAsShortlistIndex: index),
-                                 check: .sentShortlist(Self.shortlist))
+                                 check: .sentShortlist(Self.shortlist, H.household))
         #expect(marked.duplicate == (expected.map { DraftDuplicate.ofExisting($0) } ?? .none))
     }
 
-    @Test("AC-M2-07: cloud, Q12 = yes: a title claim or a word match does not mark (only the index counts)")
+    @Test("AC-M2-07: cloud, Q12 = yes: a title claim is not a claim on this path (only the index); the floor still runs")
     func cloudYesIgnoresOthers() {
         var marker = DuplicateMarker()
-        let marked = marker.mark(F.draft(1, "Wipe kitchen counter"), position: 1,
-                                 claim: DuplicateClaim(sameAsTitle: "Wipe kitchen counter"),
-                                 check: .sentShortlist(Self.shortlist))
-        #expect(marked.duplicate == .none)
+        let titleOnly = marker.mark(F.draft(1, "Dust the lamp"), position: 1,
+                                    claim: DuplicateClaim(sameAsTitle: "Wipe kitchen counter"),
+                                    check: .sentShortlist(Self.shortlist, H.household))
+        #expect(titleOnly.duplicate == .none)
+        let floor = marker.mark(F.draft(2, "wipe the kitchen counter"), position: 2,
+                                claim: DuplicateClaim(sameAsTitle: "Buy dish pods"),
+                                check: .sentShortlist(Self.shortlist, H.household))
+        #expect(floor.duplicate == .ofExisting(H.counter.id))
     }
 
     @Test("AC-M2-07: cloud, Q12 = no: the local word-match marks without any claim, and an index claim is ignored")
@@ -317,7 +396,7 @@ struct DuplicateMarkingTests {
     func q12Parameter() {
         let capture = "wipe the kitchen, and we're out of dishwasher pods"
         #expect(CloudTitleSharing.shortlistTitles.existingTaskCheck(capture: capture, household: H.household)
-                == .sentShortlist(DuplicateShortlist.entries(for: capture, in: H.household)))
+                == .sentShortlist(DuplicateShortlist.entries(for: capture, in: H.household), H.household))
         #expect(CloudTitleSharing.noTitles.existingTaskCheck(capture: capture, household: H.household)
                 == .localWordMatch(H.household))
     }
@@ -334,7 +413,7 @@ struct DuplicateMarkingTests {
                                  check: .toolLookups(log))
         let sent = DuplicateShortlist.entries(for: title, in: H.household)
         let cloudYes = marker.mark(F.draft(2, title), position: 2,
-                                   claim: DuplicateClaim(sameAsShortlistIndex: 1), check: .sentShortlist(sent))
+                                   claim: DuplicateClaim(sameAsShortlistIndex: 1), check: .sentShortlist(sent, H.household))
         let cloudNo = marker.mark(F.draft(3, title), position: 3, claim: DuplicateClaim(),
                                   check: .localWordMatch(H.household))
         for marked in [device, cloudYes, cloudNo] {
@@ -367,7 +446,7 @@ struct DuplicateMarkingTests {
     @Test("AC-M2-07: a repeat of a draft that is itself ofExisting is ofDraft of that draft; an in-input claim wins over an existing one")
     func inInputOverExisting() {
         var marker = DuplicateMarker()
-        let check = ExistingTaskCheck.sentShortlist(Self.shortlist)
+        let check = ExistingTaskCheck.sentShortlist(Self.shortlist, H.household)
         let first = marker.mark(F.draft(1, "wipe counter"), position: 1,
                                 claim: DuplicateClaim(sameAsShortlistIndex: 1), check: check)
         let again = marker.mark(F.draft(2, "wipe the counter"), position: 2,
@@ -381,7 +460,7 @@ struct DuplicateMarkingTests {
         var marker = DuplicateMarker()
         let marked = marker.mark(F.draft(1, "wipe counter"), position: 1,
                                  claim: DuplicateClaim(sameAsItem: 1, sameAsShortlistIndex: 2),
-                                 check: .sentShortlist(Self.shortlist))
+                                 check: .sentShortlist(Self.shortlist, H.household))
         #expect(marked.duplicate == .ofExisting(H.pods.id))
     }
 
@@ -402,7 +481,7 @@ struct DuplicateMarkingTests {
         var log = DuplicateLookupLog(household: H.household)
         _ = log.lookUp("kitchen pods counter")
         var marker = DuplicateMarker()
-        for check in [ExistingTaskCheck.toolLookups(log), .sentShortlist(Self.shortlist), .localWordMatch(H.household)] {
+        for check in [ExistingTaskCheck.toolLookups(log), .sentShortlist(Self.shortlist, H.household), .localWordMatch(H.household)] {
             _ = marker.mark(F.draft(1, "Buy dish pods"), position: 1,
                             claim: DuplicateClaim(sameAsShortlistIndex: 2, sameAsTitle: "Buy dish pods"), check: check)
         }

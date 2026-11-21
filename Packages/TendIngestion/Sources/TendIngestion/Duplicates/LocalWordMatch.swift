@@ -21,7 +21,9 @@ public enum LocalWordMatch {
     /// - the keyword sets are equal, or the smaller is a subset of the larger and has ≥ 2 keywords;
     /// - the rooms are compatible: either side has no room, or both are the same existing room.
     /// The qualifying task with the most shared keywords wins, then the lowest `id.uuidString` (UTF-8 byte order).
-    /// A task's room is the first household room with its `roomID`; a `roomID` with no such room means no room.
+    /// A task's room is the first household room with its `roomID`; a `roomID` with no such room means no room. The
+    /// same holds for the draft: `existing(id)` with no such room counts as no room (review R21-F4; unreachable at parse
+    /// time, because the mapper links only to the household's rooms).
     public static func target(title: String, room: DraftRoom, in household: Household) -> HouseholdTask.ID? {
         let draftKeywords = Set(Keywords.of(title))
         guard !draftKeywords.isEmpty else { return nil }
@@ -33,7 +35,7 @@ public enum LocalWordMatch {
             let taskKeywords = Set(Keywords.of(task.title))
             guard !taskKeywords.isEmpty, keywordSetsMatch(draftKeywords, taskKeywords) else { continue }
             let taskRoom = task.roomID.flatMap { roomIDs.contains($0) ? $0 : nil }
-            guard roomsCompatible(room, taskRoom) else { continue }
+            guard roomsCompatible(room, taskRoom, roomIDs: roomIDs) else { continue }
             let shared = draftKeywords.intersection(taskKeywords).count
             if let current = best {
                 if shared > current.shared
@@ -55,12 +57,12 @@ public enum LocalWordMatch {
         return smaller.count >= 2 && smaller.isSubset(of: larger)
     }
 
-    static func roomsCompatible(_ draftRoom: DraftRoom, _ taskRoom: Room.ID?) -> Bool {
+    static func roomsCompatible(_ draftRoom: DraftRoom, _ taskRoom: Room.ID?, roomIDs: Set<Room.ID>) -> Bool {
         guard let taskRoom else { return true }
         switch draftRoom {
         case .none: return true
         case .proposed: return false
-        case let .existing(id): return id == taskRoom
+        case let .existing(id): return id == taskRoom || !roomIDs.contains(id)
         }
     }
 }

@@ -3,12 +3,14 @@
 //
 // Independence: the oracle calls **no** production code of `TendIngestion`, not even the WI-M2-04 text primitives.
 // - Keywords: its own fold (typographic quotes to ASCII by a literal table, then Foundation's `folding` with the three
-//   options in `en_US_POSIX`, the brief's primitive), its own split on `Character.isLetter || Character.isNumber`, and
+//   options in `en_US_POSIX`, the brief's primitive), its own split at every character that is not a Unicode letter or
+//   decimal digit (the brief's words, checked on the first scalar's general category: L* or Nd; review R21-F3), and
 //   its own copy of the stop-word list, pasted from the brief's text and split at ", ".
 // - The keyword-folded title (shortlist step 5c): its own fold, then whitespace collapse with `Character.isWhitespace`.
 // - Ranking: repeated selection of the best remaining candidate with an explicit step-by-step comparison, not a sort.
 // - Word-match: a brute-force scan of every task.
-// - Marking: its own position table and its own root search for the in-input collapse.
+// - Marking: its own position table and its own root search for the in-input collapse, then the model's existing-task
+//   claim, then the word-match floor on every path (PO 2026-11-21, WI-M2-07 ruling 1).
 // The generators' alphabet is ASCII letters, digits, punctuation, `é`, typographic quotes, space, tab, newline and NBSP.
 // On it, `Character.isLetter` / `isNumber` / `isWhitespace` agree with the production scalar classes (letters L*,
 // digits Nd, Unicode White_Space).
@@ -42,7 +44,7 @@ enum DupOracle {
         var result: Set<String> = []
         var token = ""
         for character in fold(text) + " " {
-            if character.isLetter || character.isNumber {
+            if isLetterOrDecimalDigit(character) {
                 token.append(character)
             } else {
                 if !token.isEmpty && !stopWords.contains(token) { result.insert(token) }
@@ -50,6 +52,16 @@ enum DupOracle {
             }
         }
         return result
+    }
+
+    /// "Unicode letter or decimal digit": the first scalar is in Lu, Ll, Lt, Lm, Lo or Nd.
+    static func isLetterOrDecimalDigit(_ character: Character) -> Bool {
+        switch character.unicodeScalars.first?.properties.generalCategory {
+        case .uppercaseLetter?, .lowercaseLetter?, .titlecaseLetter?, .modifierLetter?, .otherLetter?, .decimalNumber?:
+            return true
+        default:
+            return false
+        }
     }
 
     /// The keyword-folded title: fold, then trim and collapse whitespace.
@@ -145,7 +157,7 @@ enum DupOracle {
         switch draftRoom {
         case .none: return true
         case .proposed: return false
-        case let .existing(id): return id == taskRoom.id
+        case let .existing(id): return id == taskRoom.id || !household.rooms.contains { $0.id == id }
         }
     }
 
@@ -230,8 +242,9 @@ enum DupOracle {
                         mark = .ofExisting(sent[n - 1].taskID)
                     }
                 case .cloudNoTitles:
-                    if let id = wordMatch(draft.title, draft.room, household) { mark = .ofExisting(id) }
+                    break
                 }
+                if mark == .none, let id = wordMatch(draft.title, draft.room, household) { mark = .ofExisting(id) }
             }
             table[item.position] = (draft.draftID, mark)
             result.append(mark)
