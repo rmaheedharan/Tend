@@ -43,7 +43,9 @@ public struct TimeResolution: Hashable, Sendable {
     /// `true` when `allowedWeekdays` is R5's {W}, which Q5 step 6 drops together with the interval (PO Q-T1).
     public let weekdaysFollowRepeat: Bool
 
-    public init(
+    /// Internal on purpose (review R2-N1): outside this module a resolution comes only from `TimeResolver.resolve`,
+    /// so `weekdaysFollowRepeat` always matches how the weekdays were made.
+    init(
         windowStart: Date,
         windowEnd: Date,
         allowedDayparts: Set<Daypart>,
