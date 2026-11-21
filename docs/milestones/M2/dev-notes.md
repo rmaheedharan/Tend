@@ -830,3 +830,233 @@ Device ACs: none in this item.
 |---|---|---|---|---|
 | 2026-11-21 | Orchestrator | Developer | accepted (H2) | WI-M2-04 Ready: WI-M2-01 merged (`8076d64`). Includes the WI-M2-01 review follow-up (vocabulary scan exemption). |
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed before the code). 22 mutants killed (2 after adding a test). TendIngestion 59 tests green, 0 warnings, Linux. Mutation-checked. Three open questions for the PO. Pushed; no PR opened. |
+
+---
+
+## WI-M2-05 — neutral model contract, `IngestionDraft`, Q5 repairs in order, mapping to `HouseholdTask`
+
+- **Owner:** Developer  ·  **Branch:** `m2/draft-mapping`, from `origin/main` at `17c8ab0` (WI-M2-02, 03 and 04
+  merged)  ·  **PR:** not opened (as instructed; the Orchestrator opens it)  ·  **ADRs:** none new. Follows
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md) (new files under `TendIngestion/Sources`, Foundation +
+  TendCore only).
+- **Requirements:** FR-A1, D-016, UX-1 (every field inferred), UX-3. **Owns AC-M2-01 and AC-M2-02**
+  ([plan.md](plan.md) WI-M2-05). Brief inputs: Definitions ("Draft", "Item completion", "Draft stream events"), Q5
+  steps 1–9, T-07, Q6 via the plan table, Q9. Plan inputs: the WI-M2-05 note, "Notation" (∅ sets and step 3), "How the
+  hint meets Q5", the `basis` bullet, E26. Tickets: R2-N1, R19-F3, PO WI-M2-04 ruling 2 (commit order).
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED`, M2 `IN-BUILD`. DoR "deps merged" is met (WI-M2-02, 03, 04 on
+  `main`).
+
+### What changed
+- `Sources/TendIngestion/Model/IngestionModel.swift` (new): the neutral contract.
+  - `ModelChoice<Value>` (`known(Value)` / `unrecognized(String)`, `init(raw:)` exact raw-value match). An unknown
+    enum value is kept as a value (brief T-03 (a)) until Q5 step 2 repairs it.
+  - `ModelNumber.wholeNumber(_:)`: `Int(exactly:)`, so fractional, NaN, ±∞ and out-of-`Int` numbers are nil (plan
+    "Numbers"; WI-M2-12 and the on-device mapping use it).
+  - `TimeHintSnapshot` (mirrors `TimeHint`, fields as sent), `ItemSnapshot` (title, kind, roomName, effort, three
+    flags, time, sourcePhrase; all optional), `IngestionSnapshot` (all items so far, in output order; each replaces the
+    last), `IngestionRequest` (input text and room names, ADR-0005 Decision 3).
+  - `protocol IngestionModel: Sendable { func snapshots(for:) -> AsyncThrowingStream<IngestionSnapshot, any Error> }`.
+    It is deliberately minimal. WI-M2-06 adds the availability and failure reasons for `noModel` (AC-M2-10).
+- `Sources/TendIngestion/Draft/IngestionDraft.swift` (new): `IngestionDraft` with the brief's field set (`draftID`,
+  title, kind, room `DraftRoom`, effort, flags, dayparts, weekdays, window, interval, `sourcePhrase`, `duplicate`) and
+  `DraftDuplicate` (`none` / `ofExisting(id)` / `ofDraft(draftID)`). The initialiser is **internal**, so only the mapper
+  (and WI-M2-06's plain note, in the module) makes drafts. `task(id:roomID:) throws(TaskInvariantViolation)` builds the
+  `HouseholdTask` for commit: `active`, never completed.
+- `Sources/TendIngestion/Draft/DraftMapper.swift` (new): `DraftMapper(input:rooms:now:calendar:timeZone:)` and
+  `map(_:draftID:) -> DraftMapping` (`outcome` = `.draft` / `.skipped(ItemSkipReason)`, plus `repairs: [ItemRepair]` in
+  the order they ran). `ItemRepair` has 22 cases, each with its Q5 `step`. `ItemSkipReason` = `noTitle` (1),
+  `calmWords(CalmWordsSkipReason)` (7), `taskRejected(TaskInvariantViolation)` (9).
+- `Sources/TendIngestion/Time/TimeResolver.swift`: **`TimeResolution.init` is now internal (R2-N1).** Outside the module
+  a resolution can only come from `TimeResolver.resolve`, so `weekdaysFollowRepeat` always matches how the weekdays were
+  made. Nothing outside the module constructed one. The WI-M2-03 tests use `@testable` and are unchanged.
+- Tests (new, written first; the first build failed with "cannot find type 'DraftMapper' in scope"):
+  `DraftMappingTests.swift` (AC-M2-01 suite and the Q5 step suite), `DraftMappingPropertyTests.swift` (AC-M2-02
+  property, generator and oracle).
+- Not changed: `TendCore`, `TendSourceScan`, every protected path, every dependency.
+
+### The Q5 steps as built (brief Q5; plan WI-M2-05)
+| Step | What the mapper does | Calls |
+|---|---|---|
+| 1 | `title` nil, or empty after trim and collapse (`TextFolding.collapseWhitespace`) → `skipped(.noTitle)`. Otherwise the tidy title. | — |
+| 2 | Kind unknown or missing → `oneOff`; effort → `normal`; flags missing → false. Room: `RoomLinker.link` on the model's raw text (WI-M2-04 order); text that folds to empty → `none`. Time hint: missing anchor → `.none`; unknown anchor (or the reserved `unrecognized` value) → `.unrecognized`; unknown daypart, weekday, season or repeat-unit element → dropped. | `RoomLinker.link` |
+| 4 | Critical + deep clean → critical, deep clean cleared. | — |
+| 5 | `resolver.resolve(hint, now:)`, the only source of a `TimeResolution` (R2-N1). A `basis` other than `hint` is logged as `windowDefaulted(basis)` (plan: `basis` is diagnostic, used for these counts). | `TimeResolver.resolve` |
+| 6 | `RecurrenceSettlement.settle(kind:resolution:)`: recurring outside 1…730 or with no interval → one-off; an interval on a non-recurring item → dropped; R5's {W} drops with the interval (E26). | `RecurrenceSettlement` |
+| 3 | Empty dayparts → `Daypart.defaultAllowed`; empty weekdays → all seven (`Settled.effective…`). | — |
+| 7 | `CalmWordsGuard.apply` on the title and a proposed room (PO ruling 1: the fallback is the checked, calmed `sourcePhrase`). | `CalmWordsGuard` |
+| 8 | `SourcePhrase.checked`; a phrase that fails → nil. | `SourcePhrase` |
+| 9 | `draft.task(id: probeID, roomID: nil)`; a rejection → `skipped(.taskRejected(violation))`. | M1 initialiser |
+
+**Why step 3 runs after 5 and 6 (`DraftMapper.stepOrder == [1, 2, 4, 5, 6, 3, 7, 8, 9]`).** The dayparts and weekdays
+only exist once the resolver (step 5) has made them. The plan says the resolver returns ∅ and "WI-M2-05 applies the Q5
+step-3 defaults to the resolver's empty sets after step 5". Step 6 can empty the weekdays again (E26: R5's {thursday}
+drops with the interval), so step 3 must also come after 6. Otherwise an E26 item would reach the initialiser with no
+weekdays. The mutant "step 3 before step 6" is killed (see below). All other steps run in the brief's order. This is
+the plan's wording, made exact. It is not a new product reading.
+
+### Decisions the Reviewer should know
+- **D1, R19-F3 (guard cuts a proposed name to an existing room's name): no re-link after the guard.** "late kitchen"
+  in a kitchen household with no "late" in the input stays `proposed("kitchen")` at parse time. At commit,
+  `RoomLinker.commitPlan` puts it in the existing Kitchen and creates no room (PO WI-M2-04 ruling 2b). Reasons:
+  - AC-M2-04 is literal: linking compares the model's text, and "if none matches, it carries `proposed(name)`, where
+    the name is the model's text after the calm-words guard".
+  - The household after commit is identical either way, so the user-visible result does not change.
+  - Re-linking would change what WI-M2-07's local word-match sees ("a proposed room never equals an existing room").
+
+  Pinned by "R19-F3: …" (parse result and commit plan). The re-link mutant is killed by that test and by the property
+  oracle. **Open question 1** below.
+- **D2, a missing kind or effort is repaired like an unknown one.** "On completion, the Q5 repairs fill any missing
+  field" (Definitions). Both cases log `kindDefaulted` / `effortDefaulted`. Missing flags become false and are not
+  logged (they are not enums).
+- **D3, a time hint with no anchor means anchor `none`.** Its daypart and repeat still count (T15, R7). It is logged
+  `anchorDefaulted`. A hint whose anchor is the reserved value `unrecognized` is treated as unknown (`anchorUnrecognized`),
+  because the model is never offered it (`Anchor.modelChoices`).
+- **D4, `ModelChoice.init(raw:)` matches exactly** (no case or space folding): "Restock" is unknown and becomes a
+  one-off. The schemas (WI-M2-10, WI-M2-M2) offer exactly the raw values. Tested, and the case-insensitive mutant is
+  killed.
+- **D5, `draftID` comes from the caller.** A skipped item uses none, so stream assembly (WI-M2-06) advances its counter
+  only on `.draft`. That keeps IDs as 1, 2, 3 … in emission order.
+- **D6, commit order (PO WI-M2-04 ruling 2).** This item does not commit. The only order its API implies is `draftID`
+  ascending = emission order = model-output order (Definitions). **WI-M2-06/08 should pass confirmed drafts to
+  `RoomLinker.commitPlan` and the upsert in ascending `draftID`, and state it.** That makes the first proposer of a
+  folded room name the draft with the lowest `draftID`.
+- **D7, step 9 is reachable only with a non-finite `now`.** Over 6,000 outputs the oracle shows no rejection with a
+  finite `now` (0 `taskRejected`). The step 9 test drives it with NaN and ±∞ `now` and gets
+  `taskRejected(.windowDateNotFinite)`. "End ≤ start" and "non-finite date" in Q5 step 5 cannot come from a hint, because
+  the model never sends dates. The resolver's own range check (AC-M2-03) is the guard, and the property test checks the
+  range again on every draft.
+- **D8, the oracle's independence** (written at the top of `DraftMappingPropertyTests.swift`). The oracle reads the
+  **raw** output (strings and `Double`s) and re-implements steps 1–8 itself: Character-based tidy, enum defaults, step 3,
+  step 4, the basis check, step 6 and the R5 drop derived from the hint (not `weekdaysFollowRepeat`), a calm guard over
+  `Character.isLetter` runs, `String.contains` for the phrase, and `String <` for room ties. It calls only
+  `TimeResolver.resolve` (Q6, verified against the plan table by AC-M2-03) and `TextFolding.foldName` (the brief's
+  primitive). It never calls `DraftMapper`, `RecurrenceSettlement`, `CalmWordsGuard`, `SourcePhrase`, `RoomLinker` or
+  `BannedTokens`. The generator alphabet is restricted so that the `Character` classes match the production scalar
+  classes.
+
+### AC coverage
+| AC | Test(s) | Result |
+|---|---|---|
+| AC-M2-01 | "AC-M2-01: each PRD item type maps to a draft that passes the M1 initialiser with the expected fields". 8 cases: one-off errand (T5), recurring maintenance (R5 "every Saturday", deep clean, existing room via "the bathroom"), consumable restock (T10, "KITCHEN" links), weather-dependent (T9 + morning, proposed "Driveway"), each in America/New_York and Europe/London. Every draft field and every `HouseholdTask` field is compared with hand-written UTC windows. Also "a critical bill …" (T12) and "date fields depend only on the injected now, calendar and time zone" (same inputs give the same draft; `now` + 1 day moves T5 by one local day; `firstWeekday` = Sunday gives the same windows) | PASS (Linux) |
+| AC-M2-02 property | "AC-M2-02: 6,000 seeded outputs map without a crash or an invalid task; each equals the Q5 oracle, repairs and order included; counts per repair rule are logged". Seeds `0x0A11C0DE5EED0501`, `…0502`, `…0503`, 2,000 outputs each, 6 zones, random `firstWeekday`, `now` over 2026–2028 with milliseconds. Per output: deterministic; `repairs` equal the oracle's list exactly, in the `stepOrder`; outcome and every field equal the oracle; `task(id:roomID:)` never throws; the window is inside the Q5 range; no unsaid banned token in a title; every repair rule and both skip reasons occur on every seed; no `taskRejected` | PASS (Linux): 6,000 outputs, 5,171 drafts, 829 skipped, **0 oracle mismatches** |
+| AC-M2-02 per-step cases | `DraftMappingRepairTests` (the Q5 step suite): (1) tidy (3 inputs), untouched, nil/blank → `noTitle` with nothing else run (5); (2) unknown/missing kind and effort (4), blank room (3), flags, unknown daypart, unknown weekday → T1, unknown/reserved/missing anchor (3), unknown season and unit; (4); (5) no hint and 4 fallback reasons; (6) becomes one-off (4), keeps at 1/730/2 years/24 months (4), interval dropped (2), **T-07 order** (unknown kind, then interval dropped), **E26 order** (6 before 3), out-of-range R5, kept R5; (7) title calmed, user's words kept, fallback/skip, room calmed/cleared, **R19-F3**, user label links; (8) kept/dropped (3); (9) non-finite `now` (3); `ModelNumber` (10); `ModelChoice`; draft contract; step numbers and `stepOrder` | PASS (Linux) |
+| AC-M2-02 W2-F3 clause | Delivered by WI-M2-02 (merged). Here it is the step 9 net: `taskRejected(.windowDateNotFinite)` | PASS (Linux) |
+| AC-M2-09, AC-M2-12 (regression) | "AC-M2-09: Rules 1–6 hold …": `13 files in total, 0 violations`. "AC-M2-12 vocabulary scan": `13 files, 9 exempted (the list), 0 violations`. The new case names (`ItemRepair`, `ItemSkipReason`) are covered by that scan | PASS (Linux) |
+
+**Counts per repair rule** (sum over the three seeds, 6,000 outputs; per-seed lines are in the log):
+
+| Step | Rule | Count |
+|---|---|---|
+| 1 | `titleTidied` | 4,269 |
+| 1 | skip `noTitle` | 604 |
+| 2 | `kindDefaulted` / `effortDefaulted` / `roomDefaulted` | 1,445 / 1,473 / 281 |
+| 2 | `anchorDefaulted` / `anchorUnrecognized` | 299 / 406 |
+| 2 | `daypartDropped` / `weekdayDropped` / `seasonDropped` / `repeatUnitDropped` | 317 / 264 / 194 / 293 |
+| 4 | `deepCleanCleared` | 443 |
+| 5 | `windowDefaulted`: `noHint` / `unrecognizedAnchor` / `requiredFieldAbsent` / `fieldOutOfRange` / `windowOutOfRange` | 1,104 / 406 / 876 / 103 / 119 |
+| 6 | `becameOneOff` / `intervalDropped` / `repeatWeekdaysDropped` | 1,177 / 654 / 186 |
+| 3 | `daypartsDefaulted` / `weekdaysDefaulted` | 3,550 / 5,119 |
+| 7 | `titleCalmed` / `titleFromSourcePhrase` / `roomNameCalmed` / `roomNameCleared` | 2,470 / 137 / 542 / 396 |
+| 7 | skip `calmWords(noTitleWordsLeft)` | 225 |
+| 8 | `sourcePhraseDropped` | 1,673 |
+| 9 | skip `taskRejected` | **0** |
+
+`emptyWindow` and `calendarUnresolved` never occur with a finite `now` and the Gregorian calendar. No hint reaches
+them, and they are not required by the coverage check. The generator puts 15 % of hints on a fixed list of edge hints
+(`inDays` 366 at night or in the evening, `inWeeks` 52 at night, R5 repeats out of range and in range, a daily repeat
+on a weekday). Without that list, `windowOutOfRange` did not occur on one seed, and the coverage check caught it.
+
+### Test runs
+| Command (in `swift:6.2-noble`, Swift 6.2.x) | Summary line |
+|---|---|
+| `swift build --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `Build complete!` (0 warnings) |
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `✔ Test run with 114 tests in 11 suites passed after 6.809 seconds.` (79 before this item + 35 new) |
+| `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` | `✔ Test run with 141 tests in 18 suites passed after 136.931 seconds.` (unchanged package) |
+| `swift test --package-path Packages/TendSourceScan -Xswiftc -warnings-as-errors` | `✔ Test run with 63 tests in 4 suites passed after 3.907 seconds.` (unchanged package) |
+
+### Mutation check
+Each mutant was applied alone by a script, run with `--filter DraftMapping` and `-warnings-as-errors`, and then
+restored, with the mtime touched. **25 of 25 are killed.** The final clean run is the 114-test line above.
+
+| Mutant | Killed by (number of failing tests) |
+|---|---|
+| (1) no trim/collapse | property, tidy, blank (3) |
+| (1) blank title not skipped | property, blank (2) |
+| (2) kind default `restock` | property, unknown enums, T-07 order (3) |
+| (2) effort default `low` | property, unknown enums (2) |
+| (2) `kindDefaulted` not logged | property, unknown enums, T-07 order (3) |
+| (2) `anchorUnrecognized` not logged | property, anchors (2) |
+| (2) dropped element not logged | property, daypart, weekday, season/unit (4) |
+| (2) missing anchor → `unrecognized` | property, anchors (2) |
+| (2) weather flag defaults to true | property, flags (2) |
+| (4) deep clean kept | property, step 4 (2) |
+| (5) only `noHint` logged | property + 4 step tests (5) |
+| (6) kind not settled | property + 3 (4) |
+| (6) interval not settled | property + 5 (6) |
+| (6) R5 drop not logged | property, out-of-range R5, E26 (3) |
+| (3) weekday default before step 6 | property, out-of-range R5, E26 (3) |
+| (3) no daypart default | 29 tests |
+| (3) logged before (6) (order only) | property + 5 (6) |
+| (7) title not guarded | property + 2 (3) |
+| (7) room not guarded | property, room calmed, R19-F3 (3) |
+| (7) re-link after the guard (the R19-F3 alternative) | property, R19-F3 (2) |
+| (7) `titleCalmed` / `titleFromSourcePhrase` swapped | property + 2 (3) |
+| (8) phrase not checked | property, step 8 (2) |
+| (9) initialiser not run | step 9 (1) |
+| `ModelNumber` rounds fractions | property, model numbers (2) |
+| `ModelChoice` folds case | property, `ModelChoice`, unknown enums (3) |
+
+Two mutants of the first `ModelNumber` version survived ("round before converting", "drop the whole-number guard").
+Both were **equivalent**, because `Int(exactly:)` already returns nil for every case the guard checked. The function was
+reduced to `Int(exactly: value)`. The rounding mutant of the new version is killed (above).
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendIngestion 114 tests: AC-M2-01, AC-M2-02, AC-M2-09 scan, AC-M2-12 vocabulary scan | ✔ container | — | — | — | Linux CI runs on the PR. |
+| TendCore 141 tests, TendSourceScan 63 tests (unchanged) | ✔ container | — | — | — | — |
+| Folding and `Calendar` behaviour on Darwin (R-10, W3-F1) | — | — | — | — | Not verified (no Mac). Plan B2 on the owner-run Mac. |
+
+Device ACs: none in this item.
+
+### Things the reviewer should look at closely
+- The oracle's independence (D8): whether calling `TimeResolver.resolve` and `TextFolding.foldName` is acceptable.
+  Both are inputs Q5 names (Q6 and name folding), not Q5 repairs.
+- Step 3's placement (the table above) and `DraftMapper.stepOrder`.
+- `TimeResolution.init` made internal (R2-N1). It is an API narrowing in a WI-M2-03 file.
+- The `IngestionModel` protocol is minimal on purpose. WI-M2-06 extends it for AC-M2-10.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| `IngestionModel` has no availability or failure-reason contract yet | — | WI-M2-06 (AC-M2-10) |
+| `ItemSnapshot` has no "every field present" helper for completion rule (a); WI-M2-06 defines which schema fields count | — | WI-M2-06 |
+| Commit must pass confirmed drafts in ascending `draftID` (D6) | — | WI-M2-06/08 |
+| Not verified on Darwin (R-10) | — | Plan B2, MS-2 |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Every draft field is inferred or repaired to a default. No field is ever asked of the user (AC-M2-01, AC-M2-02). |
+| UX-2 Rule of Three | n.a. | No selection surface. Drafts reach Now only after commit, through `NowSelector`. |
+| UX-3 Zero-Guilt | pass | Step 7 runs the calm-words guard on every title and proposed room. The property test checks that no draft title holds an unsaid banned token. A missed window is never a state: the window always comes from the resolver, in range. Repair and skip names pass the AC-M2-12 vocabulary scan. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No inference. The contract is the same for the on-device and cloud adapters. |
+| P-2 No data leaves device | pass | Pure functions, no networking (AC-M2-09 scan: 0 violations). `IngestionRequest` holds only the capture text and room names (ADR-0005 Decision 3). |
+| P-3 Cloud AI opt-in, BYOK, minimised | n.a. | — |
+| P-4 Media not persisted | pass | No write or log API. Nothing is stored. Mapping creates no room or task. |
+
+### Open questions
+1. **PO / Designer (R19-F3, AC-M2-04):** when the guard cuts a proposed room name down to an existing room's name
+   ("late kitchen" → "kitchen"), should the draft be re-linked to the existing room at parse time? Built: no. The draft
+   shows `proposed("kitchen")`, and commit uses the existing Kitchen and creates nothing (ruling 2b), so the household is
+   the same either way. If the PO prefers re-linking, it is a one-line change. The R19-F3 test would flip, and WI-M2-07's
+   local word-match would then treat the room as an existing room. Not blocking.
+2. **PO (D3, small):** a time hint with no anchor is read as anchor `none` (its daypart and repeat still count), not as
+   no hint. This matches "an invalid anchor is no anchor; the rest of the hint still counts" (PO Q-T2). Please confirm.
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-21 | Orchestrator | Developer | accepted (H2) | WI-M2-05 Ready: WI-M2-02, 03, 04 merged (`17c8ab0`). Tickets R2-N1, R19-F3, PO ruling 2 (commit order). |
+| 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 114 tests green, 0 warnings, Linux; AC-M2-02 property 6,000 outputs, 0 oracle mismatches. 25/25 mutants killed (2 equivalent ones removed by simplifying). Two open questions (R19-F3 re-link, missing anchor). Pushed; no PR opened. |
