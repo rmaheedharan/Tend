@@ -68,9 +68,23 @@ enum Fixtures {
         return object
     }
 
-    static func decode<T: Decodable>(_ type: T.Type, fromJSONObject object: [String: Any]) throws -> T {
+    static func decode<T: Decodable>(
+        _ type: T.Type, fromJSONObject object: [String: Any], using decoder: JSONDecoder = JSONDecoder()
+    ) throws -> T {
         let data = try JSONSerialization.data(withJSONObject: object)
-        return try JSONDecoder().decode(type, from: data)
+        return try decoder.decode(type, from: data)
+    }
+
+    /// The string `nonConformingDecoder()` reads as `Double.nan` (AC-M2-02, W2-F3). No repository uses such a decoder.
+    static let nonConformingNaN = "nan"
+
+    /// A decoder that reads "+inf", "-inf" and "nan" strings as non-finite doubles, so a test can reach the model's
+    /// own decode validation with a value strict JSON cannot carry (AC-M2-02, W2-F3).
+    static func nonConformingDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.nonConformingFloatDecodingStrategy = .convertFromString(
+            positiveInfinity: "+inf", negativeInfinity: "-inf", nan: nonConformingNaN)
+        return decoder
     }
 
     enum FixtureError: Error { case notAnObject }

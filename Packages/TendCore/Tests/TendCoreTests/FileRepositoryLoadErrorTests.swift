@@ -88,8 +88,12 @@ struct FileRepositoryLoadErrorTests {
         },
     ]
 
+    /// One case per invariant. For `windowDateNotFinite` (AC-M2-02, W2-F3) strict JSON cannot carry the value, so the
+    /// file is `unreadableFile` (pinned in NonFiniteDateInvariantTests); every M1 case still expects `invalidTask`.
     static let invariantCases: [BadFileCase] = TaskInvariantViolation.allCases.map { violation in
-        BadFileCase(name: "task violating \(violation)", expected: .invalidTask(violation)) {
+        let expected: HouseholdStoreError =
+            violation == .windowDateNotFinite ? .unreadableFile : .invalidTask(violation)
+        return BadFileCase(name: "task violating \(violation)", expected: expected) {
             var root = try validFileObject()
             guard var tasks = root["tasks"] as? [[String: Any]], tasks.count > 7 else {
                 throw Fixtures.FixtureError.notAnObject
@@ -153,13 +157,18 @@ struct FileRepositoryLoadErrorTests {
         try await assertRejected(bad)
     }
 
-    @Test("AC-M1-25: the repository cases cover all nine invariants")
+    @Test("AC-M1-25 / AC-M2-02: the repository cases cover all nine M1 invariants as invalidTask, and the non-finite case as unreadableFile")
     func invariantCoverage() {
         let covered = Set(Self.invariantCases.compactMap { bad -> TaskInvariantViolation? in
             if case .invalidTask(let violation) = bad.expected { return violation }
             return nil
         })
-        #expect(covered == Set(TaskInvariantViolation.allCases))
+        // Every M1 invariant is still covered as invalidTask (AC-M1-25, unchanged); the M2 case is the one addition.
+        #expect(covered == Set(TaskInvariantViolation.allCases).subtracting([.windowDateNotFinite]))
+        #expect(covered.count == 9)
+        #expect(Self.invariantCases.count == TaskInvariantViolation.allCases.count)
+        let nonFinite = Self.invariantCases.filter { $0.name == "task violating windowDateNotFinite" }
+        #expect(nonFinite.map(\.expected) == [.unreadableFile])
     }
 
     @Test("AC-M1-06: a path that is a directory, not a file, throws unreadableFile")

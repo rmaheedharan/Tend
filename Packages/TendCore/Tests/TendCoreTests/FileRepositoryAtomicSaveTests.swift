@@ -123,13 +123,14 @@ struct FileRepositoryAtomicSaveTests {
             try await repository.save(householdA)
             let bytesA = try RepositoryHarness.bytes(at: fileURL)
 
-            // Valid by the model invariants (end after start), but JSON cannot hold an infinite number, so the
-            // encoder stops part-way through household B.
+            // JSON cannot hold an infinite number, so the encoder stops part-way through household B. Since AC-M2-02
+            // (W2-F3) a public caller can no longer build such a task (windowDateNotFinite), so the date is set
+            // through the module-internal setter, standing in for an engine defect. The assertion is unchanged.
             var householdB = householdA
-            householdB.tasks.append(try Fixtures.task(
-                id: Fixtures.id(0x9999),
-                windowStart: Date(timeIntervalSinceReferenceDate: -.infinity),
-                windowEnd: Fixtures.referenceDate))
+            var nonFiniteTask = try Fixtures.task(id: Fixtures.id(0x9999))
+            nonFiniteTask.windowStart = Date(timeIntervalSinceReferenceDate: -.infinity)
+            nonFiniteTask.windowEnd = Fixtures.referenceDate
+            householdB.tasks.append(nonFiniteTask)
             await #expect(throws: HouseholdStoreError.writeUnsuccessful) { try await repository.save(householdB) }
 
             #expect(try RepositoryHarness.bytes(at: fileURL) == bytesA)
