@@ -1139,7 +1139,8 @@ cleanly in "Q5 (9)".
 ## WI-M2-07 — duplicate rules: shortlist, the neutral lookup the `Tool` wraps, in-input collapse, cloud re-check (Q12 yes) and local word-match (Q12 no)
 
 - **Owner:** Developer  ·  **Branch:** `m2/duplicate-rules`, from `origin/main` at `2f9f86f` (WI-M2-01 and 05
-  merged)  ·  **PR:** not opened (Orchestrator opens it)  ·  **ADRs:** none new. Follows
+  merged)  ·  **PR:** #21  ·  **Review:** [review-WI-M2-07.md](review-WI-M2-07.md) (round 1 CHANGES REQUIRED; reworked
+  in round 2, see "Round 2" below)  ·  **ADRs:** none new. Follows
   [ADR-0006](../../architecture/adr/0006-m2-module-layout.md): new files under `TendIngestion/Sources`, Foundation and
   TendCore only, no I/O, no logging.
 - **Requirements:** FR-A1, Q7, Q12, T-06, UX-3. **Linux half of AC-M2-07 (○) and the marking half of AC-M2-08 (○)**
@@ -1196,13 +1197,17 @@ New directory `Sources/TendIngestion/Duplicates/`. Everything in it is a pure fu
   skipped ones included, and are mapped to `draftID`s. A claim pointing at a skipped item is ignored. The brief writes
   `ofDraft(k)` with k as the position; the type's associated value is a `draftID` (WI-M2-05), so the marker converts.
   When nothing is skipped, the two are the same.
-- **D3, precedence.** A valid in-input claim wins over an existing-task claim. An invalid in-input claim falls through to
-  the existing-task check. Under Q12 = no, the word-match runs only when there is no valid in-input claim. Commit
-  creates nothing in either case. Choosing `ofDraft` keeps the draft out even if the `ofExisting` target is gone by commit
-  time, because the first draft is then created.
-- **D4, a claim for another path is ignored.** On device, only `sameAsTitle` counts. Under Q12 = yes, only
-  `sameAsShortlistIndex` counts. Under Q12 = no, the word-match decides, and the index and title claims are ignored.
-  The on-device path never falls back to the word-match (mutant M6 is killed).
+- **D3, precedence (round 2, PO WI-M2-07 rulings 1 and 3).** Per draft: (1) a valid in-input claim → `ofDraft`;
+  (2) the model's valid existing-task claim (on device: a title the Tool returned; Q12 = yes: a valid shortlist index)
+  → `ofExisting`; (3) the **word-match floor**, `LocalWordMatch.target` over the whole household, on **every** path →
+  `ofExisting`; (4) `none`. An invalid claim falls through to the next step. Under Q12 = no, step 2 does not exist.
+  Commit creates nothing for (1)–(3). Choosing `ofDraft` keeps the draft out even if the `ofExisting` target is gone by
+  commit time, because the first draft is then created.
+- **D4, a claim for another path is ignored (round 2: the floor half is reversed by PO WI-M2-07 ruling 1).** On device,
+  only `sameAsTitle` counts as a claim. Under Q12 = yes, only `sameAsShortlistIndex` counts. Under Q12 = no, the index
+  and title claims are ignored. **Round 1 said the on-device path never falls back to the word-match. That is
+  superseded:** every path now ends with the floor, so the round 1 mutant M6 is now the built behaviour. Its reverse
+  mutants are killed (Round 2 mutation table).
 - **D5, a task's room.** A task's room is the **first** household room with its `roomID`. A `roomID` that matches no
   room means "no room" in both the shortlist (no R, no room name) and the word-match (compatible with anything). The
   brief does not cover a dangling `roomID`, and M1 does not forbid it.
@@ -1237,6 +1242,8 @@ New directory `Sources/TendIngestion/Duplicates/`. Everything in it is a pure fu
   depends on that choice.
 - **WI-M2-10.** The Q12 = yes titles are `DuplicateShortlist.entries(for: capture, in: household).map(\.title)`, in
   index order. The marker's `.sentShortlist` must be built from the same call, as `CloudTitleSharing` does.
+- **Round 2 shape:** `ExistingTaskCheck.sentShortlist(entries, household)` now carries the household for the floor.
+  `.toolLookups(log)` uses `log.household`. `CloudTitleSharing.existingTaskCheck` builds the new shape.
 - **WI-M2-08.** Apply `DuplicateRecheck.atCommit` to each confirmed draft (in ascending `draftID`, D6 of WI-M2-05),
   then create a task only when `createsTask` is true.
 - **WI-M2-M2.** The `Tool` keeps one `DuplicateLookupLog` per session behind its own isolation (an actor or a
@@ -1271,6 +1278,9 @@ incompatible 1,442.
 | completed repeat | 742 / — / 170 (all `ofExisting` of a **live** task with the same folded title; never the completed one) | 742 / — / 0 | 742 / — / 245 (live task with matching keywords) |
 | bogus claim | 782 / — / 0 | 782 / — / 0 | 782 / — / 13 (word-match after an invalid in-input claim) |
 | fresh | 893 / — / 0 | 893 / — / 0 | 893 / — / 17 (word-match) |
+
+**Round 2:** these round 1 counts are from before the floor. With the floor, every exact plant is marked on every
+path (see "Round 2"). The remainder of this paragraph describes round 1.
 
 Not visible means the target was not in what the model saw: on device, more than 10 tasks outrank it even for its own
 title. For Q12 = yes, it was outside the 10-title shortlist of the whole capture: 56 exact and 381 synonym plants. The
@@ -1359,20 +1369,81 @@ Device ACs: none in this item.
 | P-4 Media not persisted | pass | Nothing is stored. The household is never changed (Q7 test). |
 
 ### Open questions
-1. **PO (AC-M2-26 risk, not blocking):** under Q12 = yes the shortlist query is the **whole capture** (brief
+1. ~~**PO (AC-M2-26 risk, not blocking):**~~ **Closed: PO WI-M2-07 ruling 1.** The query and the cap of 10 stay. A
+   word-match floor on every path catches exact and near-exact repeats outside the 10 on the phone. It is built in
+   round 2, and the brief is amended in this PR. Original question: under Q12 = yes the shortlist query is the **whole capture** (brief
    Definitions), capped at 10. In a long brain-dump in a big household, a repeated task can fall outside the 10 and be
    created again (56 of 816 exact-title plants and 381 of 753 synonym plants in the property). Built literally. Should
    the cap or the query change (for example, one shortlist per item) before the AC-M2-14 freeze? That would change
    AC-M2-20's golden bytes.
-2. **Planner / WI-M2-M2 (technical, not blocking):** on device the model names an existing task by the title the Tool
+2. **Planner / WI-M2-M2 (technical, not blocking; PO ruling 3: technical):** on device the model names an existing task by the title the Tool
    returned (D1). If the on-device adapter prefers an index into the last lookup, `DuplicateLookupLog` can add that
    without changing the rules.
-3. **WI-M2-08 (product meaning, small):** when a confirmed draft is `ofDraft(k)` and draft k was dismissed or left
+3. ~~**WI-M2-08 (product meaning, small):**~~ **Closed: PO WI-M2-07 ruling 2.** A confirmed `ofDraft(k)` is never
+   created, whatever happened to draft k (brief AC-M2-06 sentence added in this PR; WI-M2-08 tests it). Original
+   question: when a confirmed draft is `ofDraft(k)` and draft k was dismissed or left
    unconfirmed, should the repeat be created? This item leaves the marker as `ofDraft` (D8). The literal reading of
    AC-M2-06 ("exactly the confirmed drafts that are not duplicates") says no; commit decides.
+
+### Round 2 (review round 1: CHANGES REQUIRED; PO rulings `po-m2-wi07.md`)
+| Finding | Change |
+|---|---|
+| **R21-F1 Major** (PO ruling 1, items 1–4) | **The word-match floor on every path.** `DuplicateMarker` now runs, per draft: in-input claim → the model's existing-task claim → `LocalWordMatch.target` over the whole household → `none`. `ExistingTaskCheck.sentShortlist` now carries the household (`.sentShortlist(entries, household)`), and the on-device case uses `log.household`. A new `ExistingTaskCheck.household` property feeds the floor. Under Q12 = no nothing changes. The oracle (`DupOracle.marks`) has the same precedence. The AC-M2-08 property now **asserts** that every planted exact-title duplicate whose room is compatible (word-match rule) is marked on every path, and it counts floor-only marks. New hand-written tests: "an exact repeat ranked 11th (outside the 10 titles sent) is marked by the floor" (the oracle confirms rank 11); "the model's claim wins over the floor when they disagree" (device title and cloud index); "on device, with no claim at all, the floor marks an exact repeat". "A title the Tool never returned" now expects the floor's answer. The Q12 = yes title-claim test now checks that the floor still runs. D3, D4, the marking-table note and open questions 1 and 3 are updated. |
+| Brief amendment (PO ruling 1 "Brief text changes", ruling 2) | `brief.md`: the new Definitions bullet "Word-match floor"; the AC-M2-07 sentence; the AC-M2-08 sentence; the Q12 answer sentence; the AC-M2-06 sentence on `ofDraft(k)`. The text is exactly the PO's. No protected path is touched; the DECISIONS.md entries wait for the human-merged governance PR. |
+| R21-F2 Minor | New test "the entry title is trimmed of spaces, tabs and newlines at both ends; inner text is kept" (`"\n\tBuy  dish pods \n"` → `"Buy  dish pods"`, shortlist and lookup). The generator now wraps 20 % of the repeated titles in `\n\t … \n`. The reviewer's mutant G (`.whitespaces` only) is killed. |
+| R21-F3 Minor | Both options are done. The oracle now splits at characters that are not "a Unicode letter or decimal digit" by the first scalar's general category (L* or Nd), which is the brief's words. New hand-written test: `½cup` and `cup²` give the keyword `cup`, `3` is a keyword, and `½ ² Ⅷ` gives none. The production mutant "digits = `Character.isNumber`" is killed. |
+| R21-F4 Nit | A draft `existing(id)` whose room is not in the household now counts as no room in the word-match, as on the task side (D5). The oracle does the same. New word-match case; its mutant is killed. |
+| R21-F5 Nit | `for _ in 1...rnd.int(4...14)`. The `_ = position` line is gone. |
+
+**Round 2 test runs** (`swift:6.2-noble`, Swift 6.2.4, `-warnings-as-errors`, `swift build` first, 0 warnings):
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 155 tests in 18 suites passed after 13.650 seconds.` (150 + 5 new: floor on device, claim beats floor, 11th caught by floor, newline trim, decimal digits; plus one new word-match case). AC-M2-09 `17 files in total, 0 violations`; AC-M2-12 vocabulary `17 files, 9 exempted (the list), 0 violations` |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 1.177 seconds.` |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 84.418 seconds.` |
+
+**Round 2 AC-M2-07 property** (same seeds; the generator now adds tab and newline titles, so the counts moved): 8,400
+queries (24,249 entries), **0 shortlist mismatches**; 8,400 word-match drafts, **0 mismatches**. Neighbours are
+decided at K 2,362, R 619, title 14,645 and `uuidString` 2,326. More than 10 eligible: 755. Room-only entries: 6,026.
+Completed tasks left out: 6,797. Stop-word-only queries: 1,426. All eight word-match classes occur on every seed.
+
+**Round 2 AC-M2-08 marking property** (same seeds, 600 households × 3 paths): **0 oracle mismatches**. Sum of the
+three seeds:
+
+| Plant | On device: planted / visible / marked (by the floor alone) | Cloud Q12 = yes | Cloud Q12 = no |
+|---|---|---|---|
+| exact title (all 798 in a compatible room; **asserted marked on every path**) | 798 / 795 / **798** (3) | 798 / 732 / **798** (66) | 798 / 798 / **798** (the floor is the only check) |
+| synonym (scripted) | 802 / 800 / 800 | 802 / 396 / 396 | 802 / — / 0 (by design: the word-match misses synonyms) |
+| in-input repeat | 637 / 637 / 637 | 637 / 637 / 637 | 637 / 637 / 637 |
+| completed repeat | 715 / — / 239 (80 by the floor) | 715 / — / 239 (239) | 715 / — / 239 (239) |
+| bogus claim / fresh | 780 / 3 · 912 / 14 (all by the floor) | same | same |
+
+Every mark on a completed-repeat plant names a **live** task with matching words, never the completed one (asserted).
+The 3 + 66 exact plants are the repeats the model could not see: the gap PO ruling 1 closes. Synonym repeats outside
+the 10 stay a model and eval risk, as the PO ruling says.
+
+**Round 2 mutation check: 39 mutants, 38 killed, 1 equivalent (M2, unchanged).** Every round 1 mutant was re-run on the
+new code. M6 ("on device falls back to the word-match") is now the built behaviour, so it was replaced by its reverses.
+W7 and M7 were rewritten so that they compile against the new shapes, and both are killed by failing tests. New
+mutants:
+
+| Mutant | Killed by |
+|---|---|
+| F1a no floor on device | unseen Tool title, on-device floor, AC-M2-08 property (3) |
+| F1b no floor under Q12 = yes | Q12 = yes title claim, 11th caught by floor, AC-M2-08 property (3) |
+| F1c floor before the model claim | invalid in-input claim falls back, claim beats floor, AC-M2-08 property (3) |
+| F1d floor only under Q12 = no (the round 1 code) | 5 |
+| G entry title trimmed with `.whitespaces` only (reviewer) | newline trim, AC-M2-07 property (2) |
+| F3 production digits = `Character.isNumber` (`TextFolding.isDecimalDigit`) | decimal digits (1) |
+| F4 dangling draft room counted as a room | word-match cases (1) |
+
+All the other round 1 mutants (S1–S12, L1–L4, W1–W7, M1, M3–M5, M7, M8, R1, R2) are still killed. Several now also
+fail the new floor tests.
 
 ### Handoff log
 | Date | From | To | Result (accepted / returned) | Notes |
 |---|---|---|---|---|
 | 2026-11-21 | Orchestrator | Developer | accepted (H2) | WI-M2-07 Ready: WI-M2-01 and 05 merged (`2f9f86f`). Binding: PO WI-M2-05 ruling 1; confirmed drafts in ascending `draftID`; independent oracle with seeds printed. Q12 open, so both paths are built. |
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 150, TendSourceScan 63, TendCore 141 green, 0 warnings, Linux. AC-M2-07 property: 8,400 queries and 8,400 word-match drafts, 0 mismatches. AC-M2-08 marking: 0 mismatches. 32 of 33 mutants killed, 1 equivalent. Three open questions. Pushed; no PR opened. |
+| 2026-11-21 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: R21-F1 Major (PO WI-M2-07 ruling 1, word-match floor on every path); R21-F2, F3 Minor; F4, F5 Nit. PO rulings `po-m2-wi07.md`: 1 floor plus brief text; 2 `ofDraft(k)` never created (WI-M2-08); 3 D1–D8 accepted except D4. |
+| 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (round 2) | R21-F1 fixed (floor, oracle, asserted property, three hand cases, reverse mutants killed); brief amended with the PO's exact text (rulings 1 and 2); F2–F5 fixed. TendIngestion 155, TendSourceScan 63, TendCore 141 green, 0 warnings. 38 of 39 mutants killed, 1 equivalent. Review file committed with the fix. |
