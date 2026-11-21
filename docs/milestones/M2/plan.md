@@ -7,6 +7,8 @@
 - **PO decisions applied (2026-11-21):** P1–P7 acknowledged, with a change to P3 (T10, E15, E16); T11 "next week" is 7
   calendar days; the Q18 model list is approved with five conditions (see WI-M2-10); HM-2 has a recommended rule
   (proposed D-032, see HM-2). Source: the PO's saved decisions of 2026-11-21.
+- **PO decisions M2 Q23 and Q24 applied (2026-11-21, stricter only, from the PR #15 review):** the fixtures loader
+  row in "Named files", the Developer constraint and the timing notes in WI-M2-01 (AC-M2-09).
 - **Requirements:** FR-A1 (pipeline only), UX-2, UX-3, P-1, P-2, P-3, P-4 (as rewritten by D-030), ADR-0005, CLAUDE.md
   §3; carried M1 tickets D-016, W2-F3, W3-F6 (and the W3-F1 Darwin rerun). ACs: **AC-M2-01…28**.
 - **Milestone lock:** `STATUS.md` shows **M1 `ACCEPTED`** (2026-11-20), so M2 build work is unlocked (CLAUDE.md §5).
@@ -53,6 +55,7 @@ note, because AC-M2-09 scans these paths.
 | Speech adapter files (the only `TendAI` files where media types may appear) | `Packages/TendAI/Sources/TendAI/Speech/SpeechTranscriptionAdapter.swift` (`SpeechAnalyzer` with `SpeechTranscriber`, falling back to `DictationTranscriber`)<br>`Packages/TendAI/Sources/TendAI/Speech/MicrophoneAudioSource.swift` (`AVAudioEngine` tap to `AnalyzerInput`, in memory only) | Rule 2, Rule 5 |
 | Speech-permission file | `Packages/TendAI/Sources/TendAI/Speech/SpeechPermission.swift`. The Rule 5 exception (`SFSpeechRecognizer.requestAuthorization(`, `SFSpeechRecognizer.authorizationStatus(`, `SFSpeechRecognizerAuthorizationStatus`) applies here **only if** the T-27 check in WI-M2-M1 confirms that iOS 26 needs it. Until WI-M2-M1 records the result, the scanner runs with **no exception**. | Rule 5 |
 | Results writer (the only `TendEval` file with write APIs) | `Apps/TendEval/Sources/Results/EvalResultsWriter.swift`. It writes only `EvalResultsFileV1` (the results-file type, defined in `TendIngestion` next to the scorer) as canonical JSON to the harness's Documents directory. | Rule 6 |
+| Fixtures loader (the only TendEval file allowed `Data(contentsOf:`, bundle resources named by string literals only; M2 Q23) | `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift` | Rule 6 |
 | Harness transport wrapper (N-2) | `Apps/TendEval/Sources/Run/RecordingTransport.swift`. It wraps the neutral `CloudTransport` protocol (plain request value in, byte-chunk stream out) and records only the byte count and key paths. It uses no `URL*` type. | Rule 6 |
 | Scoring tool | `Tools/TendTools/Sources/tend-eval-score/` (see "Scoring tool and command") | Outside Rule 1 |
 
@@ -168,6 +171,20 @@ it to `required`. A required root with 0 files fails the test (lesson from M1 R-
     the scope table says the T-27 exception is on (off until WI-M2-M1).
   - Rule 6: one planted write API outside `EvalResultsWriter.swift`, and one log API anywhere in `TendEval`, are caught.
   - One planted hit for every other rule. The log prints the file count per module.
+- **M2 Q24 (stricter lists, Rule 3 session methods, Rule 6 imports, new negative tests; brief AC-M2-09):** build it in
+  WI-M2-01 round 2 if the brief amendment merges first. Otherwise it goes in a follow-up scanner PR, which must merge
+  before WI-M2-M4 or WI-M2-M7 is reviewed.
+- **M2 Q23 (the fixtures loader exception in Rule 6):** a scanner follow-up after the brief amendment, merged before
+  WI-M2-M7 opens for review. WI-M2-01 round 2 stays strict: it has no loader exception.
+- **Developer constraints (M2 Q24, M2 Q23; also WI-M2-M5, the key store, and every later item):**
+  - No source method in TendIngestion, TendAI or TendEval may share a name and first label with any session-method
+    call in the AC-M2-09 networking list (for example `data(for:`, `bytes(from:`, `upload(for:`, `download(from:`).
+  - Fixtures are bundled as a small, fixed set of files. Each is loaded by its own literal
+    `Bundle.main.url(forResource:` call.
+  - If the harness needs an import that Rule 6 does not list (for example `AVFAudio` or `UniformTypeIdentifiers`), the
+    Developer raises it with the PO before building. It is never added without a PO decision.
+- The `DECISIONS.md` entries for M2 Q23 and Q24 go in the human-merged governance PR. They say "revised after the
+  Tester's testability review of PR #16 (findings 1–9)".
 - **ADR-0006 (M2 module layout):** the table above, the canonical JSON choice, the scan library, and the reason the
   scoring tool sits outside `TendIngestion/Sources`.
 
@@ -247,6 +264,10 @@ schema's subset (types, required keys, enums, `additionalProperties: false`). A 
   PR.
 - Information only, never evidence: TTFI of one FoundationModels `streamResponse` call with a draft-sized schema on the
   Mac, to size R-1 early.
+
+**WI-M2-M5 — `m2/keychain-key-store`**: the Developer constraints in WI-M2-01 apply (M2 Q24): no source method may
+share a name and first label with any session-method call in the AC-M2-09 networking list (for example `data(for:`,
+`bytes(from:`, `upload(for:`, `download(from:`).
 
 **WI-M2-M7 — `m2/eval-harness`**: the harness's debug screens are plain test controls (input list, script text, start,
 retake reason, network fields, key field, export, "Remove key"). They are not product UI and are not judged against
@@ -418,6 +439,8 @@ WI-02 (Designer name) ───────────────────�
 ```
 
 1. **WI-M2-01 first.** Every other item builds on its package, primitives and scan. The scan protects every later PR.
+   The M2 Q24 scanner work is in WI-M2-01 round 2, or in a follow-up scanner PR that merges before WI-M2-M4 or WI-M2-M7
+   is reviewed. The M2 Q23 loader exception is a follow-up scanner PR that merges before WI-M2-M7 opens for review.
 2. **WI-M2-02, 03, 04 next**, in parallel. 02 waits only for the Designer's name. 03 waits for the Tester's Q6 review.
 3. **WI-M2-05 → 06** is the spine: the draft and event contract that every adapter targets.
 4. **WI-M2-07…14** fan out after WI-M2-06. Suggested order to unblock MS-2 soonest: 07, 09, 10, 12, 14, 13, 08, 11.
@@ -666,7 +689,7 @@ This rule is not in force until it is recorded as **D-032** in `DECISIONS.md` (a
 | R-21 | The incremental JSON reader for partial provider streams is harder than estimated | M | M | WI-M2-12 is isolated and fixture-driven; split it into SSE framing and the JSON reader if it runs past one round. | Developer; Work Planner |
 | R-22 | The hand-written results-file conformance check drifts from `results-v1.schema.json` | M | M | A test maps every schema constraint to a check; the Tester reviews the schema with the fixtures. | Developer; Acceptance Tester |
 | R-23 | WI-M2-11, 13 and M6 are at the 1-day limit | M | M | If one runs past one round, split it (sentinels vs structural; one dialect per PR; adapters vs recordings). The ACs stay the same. | Work Planner |
-| R-24 | Planner proposals P1–P7 in the Q6 table are product meaning | L | M | Closed 2026-11-21: the PO acknowledged P1–P7, with the P3 change (T10, E15, E16). The Tester's Q6 review is still a DoR condition. | PO |
+| R-24 | Planner proposals P1–P7 in the Q6 table are product meaning | L | M | Closed 2026-11-21: the PO acknowledged P1–P7, with the P3 change (T10, E15, E16). The Tester's Q6 review is done (APPROVED 2026-11-21). | PO |
 
 ## Verification environments
 
@@ -771,4 +794,6 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | 2026-11-21 | Product Owner | Work Planner | accepted | PO decisions applied: P1–P7 acknowledged; P3 changed ("this week" on a Sunday at or after 18:00 means next week; T10, E15, E16); T11 is 7 calendar days; Q18 models approved with five conditions (current, pinned snapshot ID, structured streaming, temperature 0, no reasoning tokens with Gemini thinking budget 0; WI-M2-10, WI-M2-M6); HM-2 recommended rule recorded as proposed D-032 (needs a human-merged governance PR). No AC changed (AC-M2-03, 20, 24, 27). |
 | 2026-11-21 | Work Planner | Acceptance Tester | sent for review | Please include the changed T10 row and E15, E16 in the Q6 review (WI-M2-03 DoR, AC-M2-03). |
 | 2026-11-21 | Work Planner | Orchestrator → Product Owner, human owner | sent | HM-2: prepare and merge the D-032 governance PR before the first Mac PR merges (MS-1). |
-| 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q6 table APPROVED with 3 non-blocking findings. Applied: E17, E18 (T11 across DST, 169 h / 167 h), E19 (T4 "tonight" after midnight), and the PO decision on finding 2 (T9 and T14 with a daypart; E20, E21). No AC meaning changed (AC-M2-03). WI-M2-03 DoR: Q6 review box ticked. All new UTC values checked with Python `zoneinfo` (America/New_York). The PO logs the daypart decision in `DECISIONS.md` with D-032. |
+| 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q6 table APPROVED with 3 non-blocking findings. Applied: E17, E18 (T11 across DST, 169 h / 167 h), E19 (T4 "tonight" after midnight), and the PO decision on finding 2 (T9 and T14 with a daypart; E20, E21). No AC meaning changed (AC-M2-03). WI-M2-03 DoR: Q6 review box ticked. All new UTC values checked with Python `zoneinfo` (America/New_York). The PO logs the daypart decision in `DECISIONS.md` as a separate entry with its own number, in the same human-merged governance PR as D-032. |
+| 2026-11-21 | Product Owner | Work Planner | accepted | PO 2026-11-21, stricter only, from the PR #15 review: M2 Q23 and Q24 (AC-M2-09; AC-M1-23 cross-reference). Added the fixtures loader to "Named files", the Developer constraint (no `data(for:`/`data(from:` method names; unlisted Rule 6 imports go to the PO) and the timing: Q24 in WI-M2-01 round 2 or a follow-up before WI-M2-M4/M7 review; Q23 in a follow-up before WI-M2-M7 review; WI-M2-01 round 2 stays strict. Fixed two Gatekeeper minors from PR #14: R-24 now records the Tester's Q6 review as done; the daypart decision is its own `DECISIONS.md` entry in the D-032 governance PR. No AC changed. |
+| 2026-11-21 | Product Owner | Work Planner | accepted | Tester returned PR #16 (findings 1-9); PO accepted all, stricter only. Applied the v2 texts: the fixtures loader row now says "bundle resources named by string literals only"; the v1 `data(for:`/`data(from:` constraint is replaced in WI-M2-01 and WI-M2-M5 by the session-method name rule, the literal-only fixtures rule and the import rule; the DECISIONS.md wording for Q23/Q24 is recorded. Timing unchanged. No AC changed. |
