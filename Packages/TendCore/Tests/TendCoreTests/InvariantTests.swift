@@ -26,6 +26,25 @@ struct InvariantTests {
         InvariantCase(violation: .noAllowedWeekdays) { () throws(TaskInvariantViolation) in
             try Fixtures.task(allowedWeekdays: [])
         },
+        // AC-M2-02 (W2-F3, Q9, T-21): the M2 case, in its case-order position. NaN, +infinity, -infinity; start and end.
+        InvariantCase(violation: .windowDateNotFinite) { () throws(TaskInvariantViolation) in
+            try Fixtures.task(windowStart: Date(timeIntervalSinceReferenceDate: .nan))
+        },
+        InvariantCase(violation: .windowDateNotFinite) { () throws(TaskInvariantViolation) in
+            try Fixtures.task(windowStart: Date(timeIntervalSinceReferenceDate: .infinity))
+        },
+        InvariantCase(violation: .windowDateNotFinite) { () throws(TaskInvariantViolation) in
+            try Fixtures.task(windowStart: Date(timeIntervalSinceReferenceDate: -.infinity))
+        },
+        InvariantCase(violation: .windowDateNotFinite) { () throws(TaskInvariantViolation) in
+            try Fixtures.task(windowEnd: Date(timeIntervalSinceReferenceDate: .nan))
+        },
+        InvariantCase(violation: .windowDateNotFinite) { () throws(TaskInvariantViolation) in
+            try Fixtures.task(windowEnd: Date(timeIntervalSinceReferenceDate: .infinity))
+        },
+        InvariantCase(violation: .windowDateNotFinite) { () throws(TaskInvariantViolation) in
+            try Fixtures.task(windowEnd: Date(timeIntervalSinceReferenceDate: -.infinity))
+        },
         InvariantCase(violation: .windowEndNotAfterStart) { () throws(TaskInvariantViolation) in
             try Fixtures.task(windowStart: InvariantTests.start, windowEnd: InvariantTests.start)  // equal: empty window
         },
@@ -66,10 +85,11 @@ struct InvariantTests {
         }
     }
 
-    @Test("AC-M1-25: the cases cover all nine invariants in the design naming list")
+    @Test("AC-M1-25 / AC-M2-02: the cases cover all ten invariants (the nine M1 design-list cases plus windowDateNotFinite)")
     func casesCoverEveryInvariant() {
         #expect(Set(Self.cases.map(\.violation)) == Set(TaskInvariantViolation.allCases))
-        #expect(TaskInvariantViolation.allCases.count == 9)
+        // M1 had nine; AC-M2-02 (W2-F3, Q9) adds exactly one (T-21: an extension, no M1 case removed).
+        #expect(TaskInvariantViolation.allCases.count == 10)
     }
 
     @Test("AC-M1-25: values just inside each invariant are accepted (boundary)")
@@ -108,6 +128,12 @@ struct InvariantTests {
             var object = try Fixtures.jsonObject(try Fixtures.task())
             object["allowedWeekdays"] = [Any]()
             return object
+        case .windowDateNotFinite:
+            // Strict JSON has no NaN or infinity (pinned in NonFiniteDateInvariantTests), so the value is spelled as a
+            // string that only `Fixtures.nonConformingDecoder` reads as NaN. A strict decoder sees a type mismatch.
+            var object = try Fixtures.jsonObject(try Fixtures.task())
+            object["windowStart"] = Fixtures.nonConformingNaN
+            return object
         case .windowEndNotAfterStart:
             var object = try Fixtures.jsonObject(try Fixtures.task())
             object["windowEnd"] = object["windowStart"]
@@ -143,8 +169,10 @@ struct InvariantTests {
           arguments: TaskInvariantViolation.allCases)
     func decodeThrows(violation: TaskInvariantViolation) throws {
         let object = try Self.violatingJSON(violation)
+        // Only the M2 non-finite case needs a decoder that accepts a non-finite spelling (AC-M2-02, W2-F3).
+        let decoder = violation == .windowDateNotFinite ? Fixtures.nonConformingDecoder() : JSONDecoder()
         #expect(throws: violation) {
-            _ = try Fixtures.decode(HouseholdTask.self, fromJSONObject: object)
+            _ = try Fixtures.decode(HouseholdTask.self, fromJSONObject: object, using: decoder)
         }
     }
 

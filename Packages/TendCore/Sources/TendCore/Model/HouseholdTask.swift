@@ -24,7 +24,7 @@ public struct HouseholdTask: Identifiable, Hashable, Sendable {
     public internal(set) var allowedWeekdays: Set<Weekday>
     /// Start of the half-open window `[windowStart, windowEnd)`.
     public internal(set) var windowStart: Date
-    /// End of the half-open window `[windowStart, windowEnd)`. Always after `windowStart`.
+    /// End of the half-open window `[windowStart, windowEnd)`. Always after `windowStart`; both are finite (AC-M2-02).
     public internal(set) var windowEnd: Date
     /// Days between occurrences; present exactly when `kind == .recurring`, and at least 1.
     public internal(set) var recurrenceIntervalDays: Int?
@@ -79,6 +79,11 @@ public struct HouseholdTask: Identifiable, Hashable, Sendable {
     func firstInvariantViolation() -> TaskInvariantViolation? {
         if allowedDayparts.isEmpty { return .noAllowedDayparts }
         if allowedWeekdays.isEmpty { return .noAllowedWeekdays }
+        // Before the order check: NaN makes `windowEnd > windowStart` false, which would report the wrong reason
+        // (AC-M2-02 W2-F3, Q9; Designer's position, M2 design.md).
+        if !windowStart.timeIntervalSinceReferenceDate.isFinite || !windowEnd.timeIntervalSinceReferenceDate.isFinite {
+            return .windowDateNotFinite
+        }
         if !(windowEnd > windowStart) { return .windowEndNotAfterStart }
         switch (kind, recurrenceIntervalDays) {
         case (.recurring, nil): return .recurringWithoutInterval
