@@ -2,7 +2,7 @@
 
 - **Owner:** Product Owner  ·  **Status:** Draft v4 (2026-11-21). v3 answered the Tester's v2 review (T-01…T-22, now
   closed). v4 answers the v3 review (T-23…T-30). Every change is listed in the "v3 change record" and "v4 change
-  record" below. It goes back to the Tester for re-review and is not yet Ready for planning. D-030 and ADR-0005 were merged in PR #11 (`a6009e8`), as the Tester's review records.
+  record" below. The Tester approved testability (commit `29e2d74`), and the brief is Ready for planning. D-030 and ADR-0005 were merged in PR #11 (`a6009e8`), as the Tester's review records.
   Q12, Q16 and Q17 are still open with the owner. The PO defaults apply until the owner answers.
 - **PRD scope:** *M2: On-Device AI Ingestion.* Voice and text brain-dump parsing, duplicate detection, and streaming
   structured output using on-device Foundation Models, plus the opt-in bring-your-own-key cloud path (ADR-0005) where
@@ -850,6 +850,9 @@ Tester's script and the result is recorded (CLAUDE.md §5). M2 cannot be `ACCEPT
 | Q21 | Where is the consent record stored so that a restore never turns cloud on (T-14)? | M2 defines the rule and tests it with fixtures (AC-M2-18). The durable consent store is delivered in **M3** together with the Settings screens. It must be excluded from device backups and from iCloud, so a restore always gives "no consent". The orphan-key deletion in AC-M2-18 then also removes a restored key. Owner: PO (an M3 brief AC), due with the M3 brief. | M3 brief |
 | Q22 | What are the cloud timeout and retry numbers (T-17)? | A 10.0 s per-capture deadline. Each attempt's resource timeout is the time left. The request (idle) timeout is min(time left, 4.0 s). One retry, only for 429/5xx, after a pause p = max(0.5 s, `Retry-After` in delta-seconds; a missing or unreadable value counts as 0), and only if ≥ 3.0 s are left before the deadline after the pause (the same rule as AC-M2-22; T-28). (PO default; the owner may tighten it.) | M2 planning |
 
+**Note on Q19 (before M3):** room names may contain a person's name, for example "Sam's room". The PO must settle how
+this fits the P-3 consent wording (ADR-0005) before the M3 brief. This note does not change any M2 AC.
+
 ## Tester testability review
 - [x] Every AC is observable and measurable  - [x] Device ACs identified (AC-M2-11, 15, 16, 17, 25, 26, 27)  -
   Reviewer note: **v4 accepted (Acceptance Tester, 2026-11-21, at `580d23e`).**
@@ -1281,7 +1284,7 @@ merge). No AC was removed, and the AC count stays 28.
 | Law | Status (pass / n.a. / concern) | Note |
 |---|---|---|
 | UX-1 Zero-Form Entry | pass | Capture is voice or free text. Every field is inferred (AC-M2-01…04), and confirmation is a single act (AC-M2-06). No form exists or is needed. |
-| UX-2 Rule of Three | pass | No new "what to do now" API. Committed tasks reach Now only through `NowSelection` (≤ 3, M1). The draft review list is defined as a capture review, not a Now surface (Q11). |
+| UX-2 Rule of Three | pass | No new "what to do now" API. Committed tasks reach Now only through `NowSelector` (≤ 3, M1). The draft review list is defined as a capture review, not a Now surface (Q11). |
 | UX-3 Zero-Guilt | pass | Calm-words guard (AC-M2-12). Calm outcomes when the model is unavailable (AC-M2-10). No new state or counter: the M1 model and D-2/D-3 are unchanged. |
 | UX-4 Design craft | n.a. | No product UI in M2 (M3). The `TendEval` harness is a debug-only test tool that is never shipped (AC-M2-28), so it is not judged against UX-4. |
 | P-1 On device first (D-030) | pass | `FoundationModels` is preferred whenever it is available (AC-M2-19). Speech is always on device (AC-M2-09, AC-M2-25), proven offline on device (AC-M2-11, AWAITING-DEVICE). Cloud is used only on the ADR-0005 routes. |

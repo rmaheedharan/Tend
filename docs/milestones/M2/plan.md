@@ -4,6 +4,9 @@
   `580d23e`, recorded at `29e2d74`)  ·  **Design:** M2 has no product UI. One small Designer naming item is needed
   (WI-M2-02, see "Design need")  ·  **Status:** Draft. WI-M2-01 is Ready now. Every other item becomes Ready when its
   dependencies and the conditions in its DoR row are met.
+- **PO decisions applied (2026-11-21):** P1–P7 acknowledged, with a change to P3 (T10, E15, E16); T11 "next week" is 7
+  calendar days; the Q18 model list is approved with five conditions (see WI-M2-10); HM-2 has a recommended rule
+  (proposed D-032, see HM-2). Source: the PO's saved decisions of 2026-11-21.
 - **Requirements:** FR-A1 (pipeline only), UX-2, UX-3, P-1, P-2, P-3, P-4 (as rewritten by D-030), ADR-0005, CLAUDE.md
   §3; carried M1 tickets D-016, W2-F3, W3-F6 (and the W3-F1 Darwin rerun). ACs: **AC-M2-01…28**.
 - **Milestone lock:** `STATUS.md` shows **M1 `ACCEPTED`** (2026-11-20), so M2 build work is unlocked (CLAUDE.md §5).
@@ -67,14 +70,14 @@ Sizes: S ≤ half a day, M ≤ 1 day. No item is L. WI-M2-11, 13 and M6 are at t
 |---|---|---|---|---|---|---|---|---|---|
 | WI-M2-01 | `TendIngestion` and `TendSourceScan` packages, ADR-0006, text primitives (name folding, keywords, stop words, banned-token matcher), canonical JSON writer, the AC-M2-09 scanner (Rules 1–6) with negative tests | ● AC-M2-09 | M | — (merge needs HM-1) | no | Developer | `m2/ingestion-foundation` | Linux | ☑ **Ready** |
 | WI-M2-02 | `TendCore`: one new `TaskInvariantViolation` case for a non-finite `windowStart`/`windowEnd`; both M1 repositories reject such a file with a typed error (W2-F3, Q9) | ○ AC-M2-02 | S | Designer names the case | **yes** (naming only) | Developer | `m2/nonfinite-date-invariant` | Linux | ☐ Designer name |
-| WI-M2-03 | `TimeHint` and the Q6 time resolver (the full table below) | ● AC-M2-03 | M | WI-M2-01 | no | Developer | `m2/time-resolver` | Linux | ☐ Tester review of the Q6 table; PO ack of rows P1–P7 |
+| WI-M2-03 | `TimeHint` and the Q6 time resolver (the full table below) | ● AC-M2-03 | M | WI-M2-01 | no | Developer | `m2/time-resolver` | Linux | ☑ Tester review of the Q6 table done (APPROVED 2026-11-21, 3 non-blocking findings applied: E17–E21 and the T9/T14 daypart rule); PO acknowledged P1–P7 on 2026-11-21, with the P3 change |
 | WI-M2-04 | Calm-words guard (AC-M2-12), room linking with name folding (AC-M2-04), `sourcePhrase` substring check | ● AC-M2-04, ● AC-M2-12 | M | WI-M2-01 | no | Developer | `m2/calm-words-and-rooms` | Linux | ☐ WI-M2-01 merged |
 | WI-M2-05 | Neutral model contract (`IngestionModel`, item snapshots, `IngestionDraft`), the Q5 repairs in order, mapping to `HouseholdTask`, ≥ 1,000-output property test against an independent Q5 oracle with counts per repair rule | ● AC-M2-01, ● AC-M2-02 | M | WI-M2-02, 03, 04 | no | Developer | `m2/draft-mapping` | Linux | ☐ deps merged |
 | WI-M2-06 | Draft stream assembly over neutral snapshots: item completion, `emitted` / `updated` / `itemSkipped` / `finished`, the four outcomes with route, cancellation, `noModel` for each neutral reason, the plain-note draft | ○ AC-M2-05, ○ AC-M2-10, ○ AC-M2-23 | M | WI-M2-05 | no | Developer | `m2/draft-stream` | Linux | ☐ deps merged |
 | WI-M2-07 | Duplicate rules: the deterministic shortlist, the neutral duplicate-lookup function that the `Tool` will wrap, in-input collapse, the cloud re-check (Q12 yes) and the local word-match (Q12 no), ≥ 500-household oracle | ○ AC-M2-07, ○ AC-M2-08 | M | WI-M2-01, 05 | no | Developer | `m2/duplicate-rules` | Linux | ☐ deps merged |
 | WI-M2-08 | `commit(confirmed:)`: injected ID generator with collision skip (W3-F6), proposed-room creation with fold de-duplication, `ofExisting` re-check at commit, contract over both M1 repositories, ≥ 500-household property with planted duplicates (exact, synonym, in-input; cloud drafts under Q12 yes and no) | ● AC-M2-06, ● AC-M2-08 | M | WI-M2-06, 07 | no | Developer | `m2/commit` | Linux | ☐ deps merged |
 | WI-M2-09 | Routing and consent: `Route`, neutral availability reasons, preference, consent-store and `APIKeyStore` protocols with in-memory implementations, orphan-key deletion, the full route matrix below, turn-off semantics (cancel in flight, no new request) through a neutral mock transport, restored-state fixtures (i)–(iii) | ● AC-M2-19, ○ AC-M2-18, ○ AC-M2-10 | M | WI-M2-06 | no | Developer | `m2/routing-and-consent` | Linux | ☐ deps merged |
-| WI-M2-10 | Context selector and payload builder for the three providers: provider table with bare hosts, canonical JSON body, header list, key placement, opt-outs, sampling, curated model IDs (Q18), the builder input type (`String`, `[String]`, `[String]`) with its `Mirror` test, recording mock transport, the 3 × 3 golden requests and the per-provider allowed key-path lists with roles (N-3) | ○ AC-M2-20 | M | WI-M2-07 | no | Developer | `m2/payload-builder` | Linux | ☐ deps merged; Q18 list approved by PO; owner answers Q12/Q16/Q17 or the PO confirms the defaults stand |
+| WI-M2-10 | Context selector and payload builder for the three providers: provider table with bare hosts, canonical JSON body, header list, key placement, opt-outs, sampling, curated model IDs (Q18), the builder input type (`String`, `[String]`, `[String]`) with its `Mirror` test, recording mock transport, the 3 × 3 golden requests and the per-provider allowed key-path lists with roles (N-3) | ○ AC-M2-20 | M | WI-M2-07 | no | Developer | `m2/payload-builder` | Linux | ☐ deps merged; owner answers Q12/Q16/Q17 or the PO confirms the defaults stand. (Q18 list approved by the PO 2026-11-21, with the five Q18 conditions.) |
 | WI-M2-11 | Payload proof: ≥ 500-household byte-level unique sentinels (AC-M2-20(a), four date forms, interval sentinels 600…729) and the structural key-path and value check (AC-M2-20(b)) for each provider | ● AC-M2-20 | M | WI-M2-10 | no | Developer | `m2/payload-sentinels` | Linux (golden bytes repeated on the Mac in MS-2) | ☐ deps merged |
 | WI-M2-12 | Server-sent-event framing and an incremental JSON reader that turns a growing JSON text into neutral item snapshots (field order, split chunks, truncation, invalid JSON, unknown enum values, non-integer numbers to `nil`) | ○ AC-M2-24 | M | WI-M2-06 | no | Developer | `m2/stream-json-snapshots` | Linux | ☐ deps merged |
 | WI-M2-13 | The three provider stream dialects (OpenAI, Anthropic, Gemini) on top of WI-M2-12, with synthetic fixtures for happy paths, out-of-order and split chunks, truncation, invalid JSON, schema-violating fields, unknown enums and a refusal; refusal before a draft → `noModel`, truncation after one → `interrupted` | ○ AC-M2-24 | M | WI-M2-12 | no | Developer | `m2/provider-dialects` | Linux | ☐ deps merged |
@@ -91,7 +94,7 @@ Sizes: S ≤ half a day, M ≤ 1 day. No item is L. WI-M2-11, 13 and M6 are at t
 | WI-M2-M3 | Speech adapter (MS-2): `SpeechAnalyzer` + `SpeechTranscriber`, falling back to `DictationTranscriber`; the transcriber used is reported; the speech-permission file per T-27; tests over a protocol with a fake audio source | ○ AC-M2-09, ○ AC-M2-11, ○ AC-M2-25 | M | WI-M2-M1 | no | Developer | `m2/speech-adapter` | Owner-run Mac | ☐ WI-M2-M1 merged |
 | WI-M2-M4 | Cloud transport and failure mapping (MS-2): allowlist files 1 and 2; ephemeral configuration, no cookies, no URL cache; HTTPS and routed-host-only; redirect to another host refused before sending; timeouts from WI-M2-14; each `URLError` and HTTP status to a neutral reason; `URLProtocol` mock tests in the Simulator host | ● AC-M2-22, ● AC-M2-23 | M | WI-M2-M1, 10, 14 | no | Developer | `m2/cloud-transport` | Owner-run Mac (Simulator host) | ☐ deps merged |
 | WI-M2-M5 | Keychain key store (MS-2): allowlist file 3; generic password, data-protection keychain, `WhenUnlockedThisDeviceOnly`, not synchronizable, proven by `kSecReturnAttributes`; masked form; delete leaves `errSecItemNotFound`; formatting test of every key-holding type; turn-off and remove-key delete the item | ● AC-M2-18, ● AC-M2-21 | M | WI-M2-M1, 09 | no | Developer | `m2/keychain-key-store` | Owner-run Mac (Simulator host) | ☐ deps merged |
-| WI-M2-M6 | Cloud adapters end to end (MS-2): the three provider `IngestionModel`s over the transport, every fixture through a mock transport; the cloud model is never given the `Tool`; **one real recording per provider** made by the owner (see "Real provider recordings") | ● AC-M2-24 | M | WI-M2-M4, M5, 13 | no | Developer + owner (recordings) | `m2/cloud-adapters` | Owner-run Mac | ☐ deps merged; owner keys available in MS-2 |
+| WI-M2-M6 | Cloud adapters end to end (MS-2): the three provider `IngestionModel`s over the transport, every fixture through a mock transport; the cloud model is never given the `Tool`; **one real recording per provider** made by the owner (see "Real provider recordings") | ● AC-M2-24 | M | WI-M2-M4, M5, 13 | no | Developer + owner (recordings) | `m2/cloud-adapters` | Owner-run Mac | ☐ deps merged; owner keys available in MS-2; each model still meets the five Q18 conditions |
 | WI-M2-M7 | `TendEval` harness (MS-3): everything in AC-M2-28 "What it does", the results writer, file sharing in Debug only, the fixtures hash on screen, the Release and Archive check, and the Linux `project.yml` scan test | ● AC-M2-28 | M | WI-M2-M2, M3, M6, 15, 16 | no (debug tool, not product UI; brief) | Developer | `m2/eval-harness` | Owner-run Mac + Linux (scan) | ☐ deps merged |
 | WI-M2-M8 | M2 green run on the merge commit (MS-3): Linux CI link, Mac commands B1–B5, the AC → test table with the environment of every test, the skip rule (T-22), then `TendEval` installed on both iPhones at that commit | ● AC-M2-13 | S | every item above | no | Developer | `m2/gate-green-run` | Linux CI + Owner-run Mac | ☐ all merged |
 
@@ -177,7 +180,7 @@ it to `required`. A required root with 0 files fails the test (lesson from M1 R-
 - Extending the M1 test that lists the cases is an extension, not a weakening. The Reviewer confirms that no M1
   assertion is removed. AC-M1-25 is not edited (T-21).
 
-**WI-M2-03 — `m2/time-resolver`**: implement the Q6 table below exactly. Test every row, every worked example (E1–E14),
+**WI-M2-03 — `m2/time-resolver`**: implement the Q6 table below exactly. Test every row, every worked example (E1–E21),
 the DST and year-boundary cases, and every invalid-hint rule. The Tester adds cases of their own.
 
 **WI-M2-05 — `m2/draft-mapping`**: Q5 runs in the brief's order (1)–(9). Steps 5 and 6 call the WI-M2-03 resolver.
@@ -197,10 +200,18 @@ stop-word-only queries.
   - Gemini: `POST generativelanguage.googleapis.com /v1beta/models/<model>:streamGenerateContent?alt=sse`,
     `responseMimeType: application/json`, `responseSchema`, `temperature: 0`, thinking off where the model allows it.
     Headers: `x-goog-api-key`, `Content-Type`. Never `key=` in the query.
-- **Q18, proposed curated default models** (from the Planner's knowledge; the Developer confirms each is current,
-  streams structured output and accepts the sampling setting; the **PO approves** the list before WI-M2-10 starts):
-  OpenAI `gpt-4.1-mini`, Anthropic `claude-haiku-4-5`, Gemini `gemini-2.5-flash`. A model that needs reasoning or
-  thinking tokens before the first output byte is a poor fit for AC-M2-27 (R-5).
+- **Q18, curated default models (approved by the PO 2026-11-21, with five conditions):** OpenAI `gpt-4.1-mini`,
+  Anthropic `claude-haiku-4-5`, Gemini `gemini-2.5-flash`. Each model must meet **all five** conditions. WI-M2-10
+  checks them when it writes the provider table, and WI-M2-M6 checks them again before the real recordings:
+  1. **Current:** the model is offered by the provider and is not deprecated or announced for removal.
+  2. **Pinned snapshot ID:** the request uses a fixed, dated snapshot ID for the model, not a moving alias. The exact
+     ID is written in the provider table and in the golden requests (AC-M2-20).
+  3. **Structured streaming:** the model streams output that follows the JSON schema (AC-M2-24).
+  4. **Temperature 0:** the request sets `temperature: 0`, and the model accepts it.
+  5. **No reasoning tokens:** the model spends no reasoning or thinking tokens before its output. For Gemini, the
+     request sets the thinking budget to 0. A model that cannot do this does not meet the condition (AC-M2-27, R-5).
+  If a model fails any condition, the Developer stops and asks the PO for a replacement. The Developer never picks a
+  different model alone (R-6).
 - Fixed numeric body parameters (for example a max-tokens value) and every number in the instructions and schema must
   not contain any decimal string 600…729, because those are the interval sentinels (N-3).
 - The key-path lists give each path a role: `fixed`, `capture`, `roomName` or `shortlistTitle` (N-3). Value
@@ -274,7 +285,8 @@ weekdays and interval using the injected `now`, calendar and time zone.
 - **Source:** "Q6" means a brief default or settled point. **P1…P7 are Planner proposals** that the brief does not
   cover. The eval composition needs them (for example "no wait, Thursday", Q3). The Tester reviews them with the
   table, and the **PO acknowledges P1–P7** as product meaning before WI-M2-03 is Ready. If the PO rejects a row, that
-  hint maps to T1.
+  hint maps to T1. **The PO acknowledged P1–P7 on 2026-11-21**, with one change to P3: "this week" said on a Sunday at
+  or after 18:00 means next week (row T10, examples E15 and E16).
 
 **Anchor rows:**
 
@@ -288,12 +300,12 @@ weekdays and interval using the injected `now`, calendar and time zone.
 | T6 | "tomorrow morning" … "tomorrow night" | `tomorrow` + `p` | `slot(p, D+1)` | {p} | ∅ | Q6 |
 | T7 | "Thursday", "on Thursday", "no wait, Thursday" | `weekday` W | `[mid(d), mid(d+1))`, where `d` is the first day **after** `D` with weekday W (1…7 days ahead; said on a Thursday it means next Thursday) | ∅ | ∅ | **P2** |
 | T8 | "Thursday evening" | `weekday` W + `p` | `slot(p, d)`, with `d` as in T7 | {p} | ∅ | **P2** |
-| T9 | "this weekend" | `thisWeekend` | Mon–Fri: `[mid(Sat), mid(Sat+2))`, where Sat is the first Saturday after `D`. Saturday: `[now, mid(D+2))`. Sunday, local time before 18:00: `[now, mid(D+1))`. Sunday at or after 18:00: `[mid(D+6), mid(D+8))` (the coming Saturday and Sunday). | ∅, or {p} if a daypart is given | {saturday, sunday} | Q6, Q6(b) |
-| T10 | "this week", "sometime this week" | `thisWeek` | `[now, mid(nextMon))` | ∅ | ∅ | **P3** |
-| T11 | "next week" | `nextWeek` | `[mid(nextMon), mid(nextMon+7))`. The brief's "+7 days" is read as 7 calendar days, so the window ends at local midnight across a DST change (Tester: please confirm this reading). | ∅ | ∅ | Q6 |
+| T9 | "this weekend" | `thisWeekend` | Mon–Fri: `[mid(Sat), mid(Sat+2))`, where Sat is the first Saturday after `D`. Saturday: `[now, mid(D+2))`. Sunday, local time before 18:00: `[now, mid(D+1))`. Sunday at or after 18:00: `[mid(D+6), mid(D+8))` (the coming Saturday and Sunday). **With a daypart `p`:** let `first` and `last` be the first and last weekend days of that window. The window is `[max(now, slot(p, first).start), slot(p, last).end)`. If that end ≤ now (Sunday before 18:00, for example "this weekend in the morning" said Sunday 15:00), use the coming weekend: `[slot(p, D+6).start, slot(p, D+7).end)`. | ∅, or {p} if a daypart is given | {saturday, sunday} | Q6, Q6(b), PO 2026-11-21 (daypart) |
+| T10 | "this week", "sometime this week" | `thisWeek` | `[now, mid(nextMon))`. Sunday at or after 18:00 local time: next week, the same window as T11, `[mid(nextMon), mid(nextMon+7))` (PO change, 2026-11-21). | ∅ | ∅ | **P3** (PO-acknowledged, changed) |
+| T11 | "next week" | `nextWeek` | `[mid(nextMon), mid(nextMon+7))`. The brief's "+7 days" means **7 calendar days** (PO decision T11, 2026-11-21), so the window ends at local midnight across a DST change. | ∅ | ∅ | Q6, PO T11 |
 | T12 | "before March", "by June" | `beforeMonth` M | `[now, b)`, where `b` is the **earliest** `mid(1 M y)` that is **later than** `now`. In the current month that is next year's (Q6(f)). | ∅ | ∅ | Q6, Q6(f) |
 | T13 | "before summer", "before winter" | `beforeSeason` S | `[now, b)`, where `b` is the earliest `mid(1 Ms y)` later than `now`; Ms is 1 Mar (spring), 1 Jun (summer), 1 Sep (autumn), 1 Dec (winter): meteorological, northern hemisphere (Q6(c)). In the current season that is next year's start (Q6(f)). | ∅ | ∅ | Q6, Q6(c), Q6(f) |
-| T14 | "in 3 days", "in two weeks" | `inDays` N (1…366) or `inWeeks` N (1…52) | `[mid(d), mid(d+1))`, `d = D + N` (or `D + 7N`) | ∅, or {p} if a daypart is given | ∅ | **P4** |
+| T14 | "in 3 days", "in two weeks" | `inDays` N (1…366) or `inWeeks` N (1…52) | No daypart: `[mid(d), mid(d+1))`. With a daypart `p`: `slot(p, d)`, the same as T6 and T8. In both cases `d = D + N` (or `D + 7N`). | ∅, or {p} if a daypart is given | ∅ | **P4**, PO 2026-11-21 (daypart) |
 | T15 | "in the morning", "some evening" (no day) | `none` + `p` | `[now, now + 7d)` | {p} | ∅ | **P5** |
 
 A `daypart` given with `thisWeek`, `nextWeek`, `beforeMonth` or `beforeSeason` sets dayparts to {p} and does not change
@@ -325,7 +337,7 @@ weekdays, so if the user does not do it that day the M1 rescheduler can move it 
 - An unknown `daypart` or `repeatUnit` is dropped (step 2). A `repeatEvery` < 1 means no repeat.
 - Numbers: the neutral hint carries counts as `Int?`. The provider parsers (WI-M2-12) and the on-device mapping turn
   any non-integer, non-finite or out-of-range JSON number into `nil` before the resolver sees it.
-- "Before 18:00" on a Sunday compares the local wall-clock time of `now` with 18:00:00.
+- "Before 18:00" and "at or after 18:00" on a Sunday (T9 and T10) compare the local wall-clock time of `now` with 18:00:00.
 - The calendar is the injected one. The eval and the tests use the Gregorian calendar (en-US, Q2). Month and season
   rows assume Gregorian months.
 
@@ -349,6 +361,13 @@ tzdata in the test), so that `mid(d)` moves to 01:00.
 | E12 | T6 tomorrow morning, 23 h day | Sat 2026-03-07 21:00 EST | `[2026-03-08T09:00Z, 2026-03-08T16:00Z)` | dayparts {morning} |
 | E13 | T1 no phrase, across spring-forward | Sat 2026-03-07 11:00 EST | `[2026-03-07T16:00Z, 2026-03-14T16:00Z)` (604,800 s; local end 12:00 EDT) | — |
 | E14 | R3 / Q5 step 6 | any | "every 3 months" → interval 90; "every 25 months" → one-off, no interval | — |
+| E15 | T10 this week, Sunday at 18:00 (means next week) | Sun 2026-11-01 18:00 EST | `[2026-11-02T05:00Z, 2026-11-09T05:00Z)` | PO P3 change |
+| E16 | T10 this week, Sunday before 18:00 | Sun 2026-11-01 17:59 EST | `[2026-11-01T22:59Z, 2026-11-02T05:00Z)` | PO P3 change |
+| E17 | T11 next week, across fall-back (25 h Sunday) | Thu 2026-10-22 10:00 EDT | `[2026-10-26T04:00Z, 2026-11-02T05:00Z)` (169 h) | Tester finding |
+| E18 | T11 next week, across spring-forward (23 h Sunday) | Thu 2026-02-26 10:00 EST | `[2026-03-02T05:00Z, 2026-03-09T04:00Z)` (167 h) | Tester finding |
+| E19 | T4 tonight, said after midnight | Mon 2026-11-23 01:00 EST | `[2026-11-23T06:00Z, 2026-11-24T10:00Z)` (Mon 01:00 to Tue 05:00 local) | dayparts {evening, night}; Tester finding |
+| E20 | T14 "in 3 days at night" | Thu 2026-11-19 10:00 EST | `[2026-11-23T03:00Z, 2026-11-23T10:00Z)` (Sun 22:00 to Mon 05:00 local) | dayparts {night}; PO 2026-11-21 |
+| E21 | T9 "this weekend in the morning", Sunday 15:00 (morning has passed) | Sun 2026-11-01 15:00 EST | `[2026-11-07T10:00Z, 2026-11-08T17:00Z)` (Sat 05:00 to Sun 12:00 local) | dayparts {morning}, weekdays {sat, sun}; PO 2026-11-21 |
 
 ## Route matrix (AC-M2-19, the full expected matrix)
 
@@ -608,12 +627,17 @@ Orchestrator prepares the PR for the owner. Proposed job:
 - The 30-minute timeout covers the M2 property tests (≥ 1,000 + 3 × ≥ 500 households). If a PR's runtime gets close,
   the Developer reports it; the counts the ACs need are never lowered (R-18).
 
-**HM-2 (owner decision, needed before the first Mac PR merges, MS-1).** No CI lane builds `TendAI`, `project.yml` or
-`TendEval` (Q8: no paid macOS runner). Under G3, the Gatekeeper cannot merge a Mac-only PR on Linux CI alone.
-Proposed default: a Mac PR carries the owner-run Mac evidence record for its head commit; the Gatekeeper reviews it and
-comments; **the owner merges it** (a human merge, so no rule change is needed). The Mac PRs of one session are merged
-together at its end. If the owner prefers that the Gatekeeper merges on a Mac evidence record, that is a G3 change in
-`.claude/skills/merge-gatekeeper` and `DECISIONS.md` (protected; owner merge).
+**HM-2 (needed before the first Mac PR merges, MS-1). Status: proposed D-032, needs a human-merged governance PR.**
+No CI lane builds `TendAI`, `project.yml` or `TendEval` (Q8: no paid macOS runner). Under G3, the Gatekeeper cannot
+merge a Mac-only PR on Linux CI alone. The PO recommends this rule (2026-11-21):
+- **The owner merges** every Mac-only PR (a human merge).
+- The PR carries an owner-run **Mac evidence record for its exact head commit**. A record for any other commit does not
+  count; a new push needs a new record.
+- The Gatekeeper reviews the PR and gives **`APPROVE` on every rule except G3**. G3 is the one rule it cannot check on
+  Linux CI, so the Mac evidence record and the owner's merge stand in for it.
+- The Mac PRs of one session may be merged together at its end, each with its own record.
+This rule is not in force until it is recorded as **D-032** in `DECISIONS.md` (and, if needed, in
+`.claude/skills/merge-gatekeeper`). Both are protected paths, so this needs a governance PR that the human owner merges.
 
 ## Risks
 
@@ -623,14 +647,14 @@ together at its end. If the owner prefers that the Gatekeeper merges on a Mac ev
 | R-2 | On-device accuracy falls below the Q3 thresholds (small model) | M | H | Tune instructions against a Developer dev set that is **not** the frozen eval; the Tester runs an exploratory charter with unseen inputs (R-19). | Developer; Acceptance Tester |
 | R-3 | Context window: long dumps + schema + instructions + tool output exceed the on-device limit | M | M | Eval inputs are ≤ 80 words (Q3); log token counts in dev notes; "context too long" maps to the calm `noModel` (AC-M2-10). | Developer |
 | R-4 | `PartiallyGenerated` snapshot order does not match the item-completion rules (fields arrive in declaration order; arrays grow) | M | M | WI-M2-06 is defined over neutral snapshots; WI-M2-M2 maps and tests every snapshot shape; Linux stream tests are the oracle. | Developer |
-| R-5 | Cloud TTFI ≥ 3.0 s (model reasoning or thinking tokens, structured-output warm-up, network) | M | H | Q18 picks non-reasoning fast models with thinking off; the real recordings in MS-2 give an early timing; the run record holds a speed test (Q15). | Developer |
+| R-5 | Cloud TTFI ≥ 3.0 s (model reasoning or thinking tokens, structured-output warm-up, network) | M | H | Q18 models are approved only with no reasoning tokens (Gemini thinking budget 0) and temperature 0; the real recordings in MS-2 give an early timing; the run record holds a speed test (Q15). | Developer |
 | R-6 | Provider APIs, model names or data terms change before the device run | M | M | Curated list per release; the Developer re-checks at WI-M2-10 and the Reviewer against current docs; a change goes to the PO (golden bytes under a PO decision). | Developer; PO |
 | R-7 | `SpeechTranscriber` is not supported on A15, or speech assets are missing in airplane mode | M | M | `DictationTranscriber` fallback, with the transcriber recorded (AC-M2-25); DS-1 and DS-2 preconditions download the assets online first. | Developer; Acceptance Tester |
 | R-8 | The T-27 answer is unclear from the Simulator alone | M | L | MS-1 records the docs and the Simulator result; DS-1 and DS-2 confirm the permission prompt on device; if the rule changes, the scope table and this plan are updated. | Developer |
 | R-9 | Keychain tests fail in the Simulator host (`errSecMissingEntitlement`, signing) | M | M | A dedicated `TendAITestHost` with a keychain access group, "Sign to Run Locally"; attributes read back with `kSecReturnAttributes`. | Developer |
 | R-10 | Linux and Darwin Foundation differ (string folding, sorting, JSON, `Calendar` DST) | M | H | Own canonical JSON writer; folding with fixed `en_US_POSIX`; B1 and B2 rerun every Linux suite on Darwin in MS-2 and MS-3; any difference is a defect, not a skip. | Developer |
 | R-11 | HM-1 is not merged, so G3 blocks every Phase A merge | H | H | HM-1 is the first owner item; work continues on branches meanwhile. | Orchestrator → owner |
-| R-12 | Mac PRs cannot pass G3 (no macOS CI) | H | M | HM-2 default: owner merge with a Mac evidence record, batched per session. | Orchestrator → owner |
+| R-12 | Mac PRs cannot pass G3 (no macOS CI) | H | M | HM-2 rule (proposed D-032): owner merges, with a Mac evidence record for the exact head commit; Gatekeeper `APPROVE` on all rules except G3. Needs a human-merged governance PR. | Orchestrator → owner |
 | R-13 | Owner time becomes the bottleneck (3 Mac sessions, 2 device sessions, keys, API cost of 3 × 20 inputs plus recordings) | M | H | Sessions are grouped and booked ahead; scripts and commands are ready before each session; Remote Control for everything except keys and phones. | Orchestrator |
 | R-14 | The free signing profile expires (7 days) or Developer Mode is off on a phone | M | L | Install in MS-3 within 7 days of DS-1 and DS-2; B7 can be rerun in minutes. | Human owner |
 | R-15 | Owner answers to Q12, Q16 or Q17 arrive after WI-M2-10, so the golden requests and runs change | M | M | Ask before WI-M2-10 starts; the effect is written down in the brief; regenerate under a PO decision before the freeze. | PO → owner |
@@ -642,7 +666,7 @@ together at its end. If the owner prefers that the Gatekeeper merges on a Mac ev
 | R-21 | The incremental JSON reader for partial provider streams is harder than estimated | M | M | WI-M2-12 is isolated and fixture-driven; split it into SSE framing and the JSON reader if it runs past one round. | Developer; Work Planner |
 | R-22 | The hand-written results-file conformance check drifts from `results-v1.schema.json` | M | M | A test maps every schema constraint to a check; the Tester reviews the schema with the fixtures. | Developer; Acceptance Tester |
 | R-23 | WI-M2-11, 13 and M6 are at the 1-day limit | M | M | If one runs past one round, split it (sentinels vs structural; one dialect per PR; adapters vs recordings). The ACs stay the same. | Work Planner |
-| R-24 | Planner proposals P1–P7 in the Q6 table are product meaning the PO has not decided | M | M | PO acknowledgement is in WI-M2-03's DoR; a rejected row maps to T1. | PO |
+| R-24 | Planner proposals P1–P7 in the Q6 table are product meaning | L | M | Closed 2026-11-21: the PO acknowledged P1–P7, with the P3 change (T10, E15, E16). The Tester's Q6 review is still a DoR condition. | PO |
 
 ## Verification environments
 
@@ -694,12 +718,12 @@ Phase A, not at the end.
 | Check | 01 | 02 | 03 | 04 | 05–15 | 16 | M1 | M2–M6 | M7, M8 | D1, D2 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Cites requirement IDs and AC IDs | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
-| ACs testable, verification type known | ☑ | ☑ | ☐ Q6 review | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ (DS scripts pending) |
+| ACs testable, verification type known | ☑ | ☑ | ☑ Q6 review APPROVED 2026-11-21 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ (DS scripts pending) |
 | Design spec `Ready` (if UI, copy or naming) | n.a. | ☐ name | n.a. | n.a. | n.a. | n.a. | n.a. | n.a. | n.a. (debug tool) | n.a. |
 | Dependencies merged or stubbed | ☑ | ☑ | ☐ WI-01 | ☐ WI-01 | ☐ per table | ☐ WI-15, 11, fixtures | ☐ WI-01 | ☐ per table | ☐ all | ☐ M8, scripts, Q20 |
 | Size ≤ 1 day; owner; branch | ☑ | ☑ | ☑ | ☑ | ☑ (R-23) | ☑ | ☑ | ☑ (R-23) | ☑ | ☑ |
 | Milestone lock (M1 `ACCEPTED`) | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
-| Owner condition | merge needs HM-1 | — | PO ack P1–P7 | — | WI-10: Q18 approved; Q12/16/17 asked | PO composition approval | MS-1 booked; HM-2 | MS-2 booked; keys | MS-3 booked | Q16, Q20, keys |
+| Owner condition | merge needs HM-1 | — | ☑ PO ack P1–P7 (2026-11-21) | — | WI-10: ☑ Q18 approved with 5 conditions; Q12/16/17 asked | PO composition approval | MS-1 booked; HM-2 | MS-2 booked; keys | MS-3 booked | Q16, Q20, keys |
 
 **Build start:** **WI-M2-01 is Ready now** and can be built in this container. Its PR can merge only after HM-1. No
 other DoR problem was found. All other items fail only the boxes shown, and each becomes Ready when they are met.
@@ -709,15 +733,15 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | # | Action | Who | Needed before |
 |---|---|---|---|
 | HM-1 | Merge the CI job above (`.github/workflows/ci.yml`) | Human owner (Orchestrator prepares) | WI-M2-01 merge |
-| HM-2 | Decide how Mac-only PRs merge (default: owner merges with a Mac evidence record) | Human owner | MS-1 merge |
+| HM-2 | Merge the governance PR that records proposed D-032 (owner merges Mac-only PRs with a Mac evidence record for the exact head commit; Gatekeeper `APPROVE` on all rules except G3) | PO prepares, human owner merges | MS-1 merge |
 | O-1 | Merge D-031 (`DECISIONS.md`) and the `STATUS.md` change to M2 `IN-BUILD` | PO prepares, owner merges | WI-M2-01 merge |
 | O-2 | Answer Q12 (titles for cloud duplicates), Q16 (which providers gate M2), Q17 (Gemini free tier), or confirm the PO defaults | Human owner | WI-M2-10 start |
 | O-3 | Q20: name the signing team (a free personal team is enough; 7-day profile) | Human owner | MS-3 |
 | O-4 | Book MS-1, MS-2 (about 20 min in person for keys, optional iPhone 15 Pro for SP-1) and MS-3 (both iPhones) | Human owner | each session |
 | O-5 | Provider keys for the recordings (MS-2) and the DS-2 runs; the API cost of 3 × 20 inputs | Human owner | MS-2, DS-2 |
 | O-6 | Run DS-1 and DS-2 | Human owner | gate |
-| R-a | Review the Q6 table (including P1–P7 and the T11 reading) | Acceptance Tester | WI-M2-03 |
-| R-b | Acknowledge P1–P7; approve the Q18 model list; approve the eval composition | Product Owner | WI-M2-03; WI-M2-10; WI-M2-16 |
+| R-a | Review the Q6 table — **done, APPROVED 2026-11-21** (3 non-blocking findings applied: E17–E21, T9/T14 daypart rule) | Acceptance Tester | WI-M2-03 |
+| R-b | Approve the eval composition (P1–P7 and the Q18 list are done, 2026-11-21) | Product Owner | WI-M2-16 |
 | R-c | Name the new invariant case | iOS Designer | WI-M2-02 |
 | R-d | Write the fixtures and golden set; review the key-path lists and golden requests; write DS-1 and DS-2 | Acceptance Tester | WI-M2-16; first device run |
 | R-e | ADR-0005's status line still says `Proposed`, though PR #11 merged it (the owner's approval). Update it to `Accepted` | Product Owner | when convenient |
@@ -739,8 +763,12 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | Date | From | To | Result (accepted / returned) | Notes |
 |---|---|---|---|---|
 | 2026-11-21 | Acceptance Tester → Product Owner | Work Planner | accepted (H1) | Brief Draft v4 with the testability tick (`580d23e`, recorded at `29e2d74`). 10 stories, 28 ACs, all citing FR/UX/P IDs, all with an environment and evidence. The Tester's "before DoR" conditions are answered in this plan: the Q6 table (for the Tester's review), the allowlist, speech, speech-permission and results-writer paths, the exact `xcodebuild` commands, the scoring tool and command, the harness ID generator, and the T-27 check as an early Mac item (WI-M2-M1). Nits N-1…N-3 are in WI-M2-01 and WI-M2-10 scope. Milestone lock satisfied (M1 `ACCEPTED`). |
-| 2026-11-21 | Work Planner | Acceptance Tester | sent for review | The Q6 table (T1–T15, R1–R7, E1–E14), including Planner proposals P1–P7 and the T11 "+7 days" reading. This is the DoR condition for WI-M2-03 (AC-M2-03). |
+| 2026-11-21 | Work Planner | Acceptance Tester | sent for review | The Q6 table (T1–T15, R1–R7, and the worked examples, now E1–E21), including Planner proposals P1–P7 and the T11 "+7 days" reading (now a PO decision). This is the DoR condition for WI-M2-03 (AC-M2-03). |
 | 2026-11-21 | Work Planner | Product Owner | sent | Please acknowledge P1–P7, approve the Q18 model list before WI-M2-10, set M2 to `IN-BUILD` and prepare D-031 (O-1), and update ADR-0005's status line. |
 | 2026-11-21 | Work Planner | iOS Designer | sent | Name the non-finite-date `TaskInvariantViolation` case and its position (WI-M2-02, Q9). |
 | 2026-11-21 | Work Planner | Developer (via Orchestrator) | sent (H2) | 16 Linux items, 8 owner-run Mac items in 3 sessions, 2 device items; every AC owned once. **WI-M2-01 is Ready now** (`m2/ingestion-foundation`); its merge needs HM-1. |
 | 2026-11-21 | Work Planner | Orchestrator → human owner | sent | HM-1 (CI job), HM-2 (Mac PR merges), O-1…O-6. |
+| 2026-11-21 | Product Owner | Work Planner | accepted | PO decisions applied: P1–P7 acknowledged; P3 changed ("this week" on a Sunday at or after 18:00 means next week; T10, E15, E16); T11 is 7 calendar days; Q18 models approved with five conditions (current, pinned snapshot ID, structured streaming, temperature 0, no reasoning tokens with Gemini thinking budget 0; WI-M2-10, WI-M2-M6); HM-2 recommended rule recorded as proposed D-032 (needs a human-merged governance PR). No AC changed (AC-M2-03, 20, 24, 27). |
+| 2026-11-21 | Work Planner | Acceptance Tester | sent for review | Please include the changed T10 row and E15, E16 in the Q6 review (WI-M2-03 DoR, AC-M2-03). |
+| 2026-11-21 | Work Planner | Orchestrator → Product Owner, human owner | sent | HM-2: prepare and merge the D-032 governance PR before the first Mac PR merges (MS-1). |
+| 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q6 table APPROVED with 3 non-blocking findings. Applied: E17, E18 (T11 across DST, 169 h / 167 h), E19 (T4 "tonight" after midnight), and the PO decision on finding 2 (T9 and T14 with a daypart; E20, E21). No AC meaning changed (AC-M2-03). WI-M2-03 DoR: Q6 review box ticked. All new UTC values checked with Python `zoneinfo` (America/New_York). The PO logs the daypart decision in `DECISIONS.md` with D-032. |
