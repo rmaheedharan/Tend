@@ -802,7 +802,96 @@ Tester's script and the result is recorded (CLAUDE.md §5). M2 cannot be `ACCEPT
 
 ## Tester testability review
 - [ ] Every AC is observable and measurable  - [x] Device ACs identified (AC-M2-11, 15, 16, 17, 25, 26, 27)  -
-  Reviewer note: **v2 returned to PO (Acceptance Tester, 2026-11-21).**
+  Reviewer note: **v3 returned to PO (Acceptance Tester, 2026-11-21, at `20862e2`).**
+  - **T-01…T-22 are closed.** I checked each row of the v3 change record against the text it points to. All six v2
+    Majors are fixed in the brief:
+    - environments per AC;
+    - module names and scan scope;
+    - draft fields, events and end rules;
+    - eval scoring rules with N ≥ 50 and a fresh household per input;
+    - the `TendEval` harness and results file v1 (AC-M2-28);
+    - the exact duplicate shortlist.
+    The Minors are fixed, or deferred with an owner and a due date. I accept the M rows as product meaning that the
+    PO owns. They still need D-031 in `DECISIONS.md`, through the owner's protected-path PR.
+  - I accept the authorship rule in AC-M2-14: I write the 20 inputs, the seeded household and the golden set as test
+    fixtures. The scoring rules are exact enough for me to write an independent re-scorer.
+  - I am returning v3 for **two new contradictions**, T-23 and T-24. A correct implementation cannot pass them as
+    written. They change AC wording, so the PO must make the fix. Everything else is ready.
+
+  **Where each AC can be proven (v3, 28 ACs)**
+  | Environment | ACs |
+  |---|---|
+  | Linux only | AC-M2-01, 02, 03, 04, 06, 08, 09 (scan, plus Reviewer), 12, 14 (plus Tester review), 19 and 13(a). |
+  | Linux + owner-run Mac | AC-M2-05, 07, 10, 18, 20 (golden bytes repeated on the Mac), 23, 24 and 28 (Release build check on the Mac). |
+  | Owner-run Mac only (Linux fakes are not evidence) | AC-M2-13(b), 21 (Simulator host app) and 22 (the deadline arithmetic also runs on Linux). |
+  | Device, run by the human owner, scored on Linux (AWAITING-DEVICE) | iPhone 15 Pro: AC-M2-11, 15, 16, 17. iPhone 13: AC-M2-25, 26, 27. |
+
+  - Owner dependencies:
+    - The Mac answer is in (Q8 closed). Every Mac AC, and the `TendEval` install for every device AC, now has a path.
+    - Q12, Q16 and Q17 are PO default; the owner may change them. Their effect on the ACs is written down (Q12:
+      AC-M2-20, 26; Q16 and Q17: AC-M2-20, 22, 26, 27).
+    - Q20 (signing team) must be answered before the first device run, not before the Definition of Ready.
+
+  *Major (blocks the tick):*
+  - **T-23 AC-M2-09 Rule 3 forbids what AC-M2-22 and 23 require.** Rule 3 allows only `URLSession`,
+    `URLSessionConfiguration`, `URLRequest`, `URL` and `HTTPURLResponse` in the cloud-adapter allowlist, and the
+    networking-pattern list bans `URL(string:` and `URLComponents`. But a correct transport needs these:
+    - a task delegate (`URLSessionTaskDelegate`, or `URLSessionDataDelegate`) to refuse a cross-host redirect
+      **before** it is sent (AC-M2-22);
+    - `URLError` to map offline, timeout, DNS and TLS failures to neutral reasons (AC-M2-23);
+    - a streaming read (`URLSession.AsyncBytes` / `bytes(for:delegate:)`) for the provider streams (AC-M2-24);
+    - one way to build the URL from the builder's host and path (`URLComponents` or `URL(string:`).
+    Fix: give a closed **allowed subset** for allowlisted files, for example the types above plus `URLError`. State
+    the scan rule as "every networking-pattern hit in an allowlisted file is in the subset". Add a negative test with
+    one hit just outside the subset.
+  - **T-24 AC-M2-20 sentinels cannot be planted in enum, Boolean or small-number fields.** The sentinel bullet lists
+    kind, effort, flags, dayparts, weekdays and state. Their values cannot be unique strings, and they also appear
+    legitimately in the bytes: the enum case names are in the fixed output schema, and `false` is in OpenAI's
+    `store: false`. So "no sentinel appears anywhere in the bytes" cannot be tested for them.
+    Fix: split the bullet.
+    - **(a) Byte-level unique sentinels** for the fields that can hold a unique value:
+      - task IDs and room IDs;
+      - titles not on the shortlist;
+      - window dates, `completedAt` and `lastTendedAt`;
+      - the interval, using values that never occur in the schema or the capture text;
+      - the injected `now`, the time-zone identifier and the calendar identifier.
+    - **(b) A structural check** for enum and Boolean fields: the decoded body's key-path set equals that provider's
+      allowed key-path list, and the only values at the capture, room-name and title paths are exactly the selector's
+      inputs.
+
+  *Minor (fix wording when convenient; does not block on its own):*
+  - **T-25 AC-M2-10 versus AC-M2-05.** AC-M2-10 expects `noModel` when on-device generation throws. A throw after the
+    first draft gives `interrupted` (Definitions, AC-M2-05). Say that the AC-M2-10 throwing mocks throw before the
+    first draft.
+  - **T-26 Rule 1 and the scorer, and the builder's hosts.** Rule 1 bans `contentsOf:`, every write and log API, and
+    `https://` literals in `TendIngestion`.
+    - The scorer therefore takes `Data` and returns a value. Reading the results file and writing the scorer log
+      happen in a test target or a named tool outside `TendIngestion/Sources`. The plan names the exact scoring
+      command (add it to the deferred list).
+    - The builder's provider table holds bare hosts, which Rule 4 allows, never `https://…` literals.
+  - **T-27 Rule 5 and speech permission.** If `SpeechAnalyzer` on iOS 26 still needs
+    `SFSpeechRecognizer.requestAuthorization(_:)`, Rule 5 must allow exactly that one call. The Developer confirms
+    this on the owner-run Mac during planning.
+  - **T-28 Retry-After wording.** Q22 says "a longer `Retry-After`". AC-M2-22 says "longer than the time left". Also
+    say whether the pause is a fixed 0.5 s or max(0.5 s, `Retry-After`). State one rule in both places.
+  - **T-29 Fixed fixture IDs (nit).**
+    - Seeded tasks and rooms carry fixed UUIDs in the fixtures, because the shortlist tie-break and the AC-M2-20
+      golden requests use `id.uuidString`.
+    - The harness's ID generator for committed tasks is deterministic.
+  - **T-30 Rule 4 near-misses (nit).** Keychain service names, bundle IDs and similar strings must not trip the host
+    pattern (for example `tend.ai.key`). The negative test includes one near-miss that should pass and one that should
+    fail.
+
+  - Still DoR conditions for the plan after the tick, unchanged from v3:
+    - the full Q6 table, reviewed by me (AC-M2-03);
+    - the allowlist paths, the speech file list, the results-writer file and the exact `xcodebuild` and scoring
+      commands;
+    - the Rule 3 allowed subset (T-23).
+  - Before the AC-M2-14 freeze: the allowed key-path lists and the golden requests.
+  - Before the first device run: the full DS-1 and DS-2 scripts in `acceptance.md` (my action) and Q20.
+
+  Earlier review, v2 (kept as written):
+  **v2 returned to PO (Acceptance Tester, 2026-11-21).**
   - Reviewed against ADR-0005 and D-030 as merged in PR #11 (`a6009e8`), CLAUDE.md §2, §3 and §5, and PRD §4 M2.
   - The brief is strong. All 27 ACs name a verification type and the evidence they need. All three PRD §4 M2 gate
     lines are mapped. All seven device ACs are marked AWAITING-DEVICE. No AC is weaker than ADR-0005.
@@ -1075,3 +1164,4 @@ protected-path PR; the PO proposes D-031 for this. No AC was removed.
 | 2026-11-21 | Product Owner | Orchestrator → human owner | to merge (protected paths) | Brief v2 (still Draft) for D-030 / ADR-0005: the owner chose BYOK cloud AI and an iPhone 13 floor. Added S-M2-07…09 and AC-M2-18…27 (device: AC-M2-25, 26, 27, all AWAITING-DEVICE). Rewrote AC-M2-09 and AC-M2-10, and closed Q1. New owner questions: Q12 (task titles for duplicates), Q16 (which providers gate M2), Q17 (Gemini free tier). Q13, Q14, Q15 and Q18 are PO defaults. Next: the owner merges the policy PR, then the Acceptance Tester runs the testability review of v2, then the Work Planner. |
 | 2026-11-21 | Acceptance Tester | Product Owner | returned | Testability review of v2 at `a6009e8`. Six Major items (T-01…T-06) block the tick; T-07…T-22 are Minor. The owner's Mac (Xcode 26) answers Q8 and gives the build path for the device harness. Q12, Q16 and Q17 are still open (PO defaults assumed). Split: Linux 01–04, 06, 08, 12, 19, 20, 23, 13(a) and the logic halves of 05, 07, 09, 10, 14, 18, 24; Mac 13(b), 21, 22 and the adapter halves; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, outlines DS-1 and DS-2). |
 | 2026-11-21 | Product Owner | Acceptance Tester | to re-review (v3) | Brief v3 answers T-01…T-22; see "v3 change record". All six Majors are fixed in the brief: environments per AC (T-01), the AC-M2-09 modules, imports and scope (T-02), the draft fields, events and end/error rules (T-03), the eval scoring rules (T-04), the never-shipped `TendEval` harness with results file v1 as new S-M2-10 / AC-M2-28 (T-05), and the exact duplicate shortlist (T-06). All Minors T-07…T-22 are fixed or deferred with an owner and due date. Meaning changes (M rows) are recorded in the change record; the PO proposes D-031 to mirror them in `DECISIONS.md` (protected path, owner merge). No AC was removed; the AC count is now 28. Q8 is closed (owner-run Mac). Q12, Q16 and Q17 stay **PO default, owner may change**. New: Q19 and Q22 (PO defaults), Q20 (signing team, owner), Q21 (consent store, deferred to M3). Next: the Tester re-reviews v3. If it is ticked, the brief goes to the Work Planner. |
+| 2026-11-21 | Acceptance Tester | Product Owner | returned | Re-review of v3 at `20862e2`. T-01…T-22 are closed. Two new Majors block the tick: T-23 (the AC-M2-09 Rule 3 networking allowlist forbids the delegate, `URLError`, streaming bytes and the URL building that AC-M2-22, 23 and 24 need) and T-24 (the AC-M2-20 sentinels cannot be planted in enum or Boolean fields; split into byte-level and structural checks). T-25…T-30 are Minor or nit. Split: Linux 01–04, 06, 08, 09, 12, 14, 19, 13(a); Linux + Mac 05, 07, 10, 18, 20, 23, 24, 28; Mac 13(b), 21, 22; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, scored on Linux). Q12, Q16, Q17 PO default; Q20 before the first device run. |
