@@ -303,12 +303,17 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
   - **Lists used by the rules (closed; T-11):**
     - **Networking patterns:** the AC-M1-23 networking patterns, plus `FoundationNetworking`, `URLSession`,
       `URLRequest`, `URLProtocol`, `URLSessionConfiguration`, `URL(string:`, `URLComponents`, `NWConnection`,
-      `import Network`, `import CFNetwork`, `SFSpeech`.
+      `import Network`, `import CFNetwork`, `SFSpeech`, and the session method calls `dataTask(`, `uploadTask(`,
+      `downloadTask(`, `streamTask(`, `webSocketTask(`, `data(for:`, `data(from:`, `upload(for:`, `upload(from:`,
+      `download(for:`, `download(from:`, `download(resumeFrom:`, `bytes(from:` (M2 Q24). Each method call is matched
+      at an identifier boundary, with or without a receiver.
     - **Media types:** `AVAudioBuffer`, `AVAudioPCMBuffer`, `AVAudioFile`, `AVAsset`, `CMSampleBuffer`,
       `CVPixelBuffer`, `CVImageBuffer`, `CGImage`, `CIImage`, `UIImage`, `NSImage`.
-    - **Write and log APIs:** `write(to:`, `FileManager`, `FileHandle`, `OutputStream`, `createFile(`, `UserDefaults`,
-      `NSUbiquitousKeyValueStore`, `print(`, `debugPrint(`, `dump(`, `NSLog(`, `os_log(`, `os_signpost(`, `Logger`,
-      `OSLog`.
+    - **Write and log APIs:** `write(to:`, `write(toFile:`, `FileManager`, `FileHandle`, `OutputStream`,
+      `createFile(`, `UserDefaults`, `NSUbiquitousKeyValueStore`, `fopen(`, `freopen(`, `fdopen(`, `fwrite(`,
+      `fputs(`, `fputc(`, `print(`, `printf(`, `fprintf(`, `debugPrint(`, `dump(`, `NSLog(`, `os_log(`,
+      `os_signpost(`, `Logger`, `OSLog` (M2 Q24). Call names are matched at an identifier boundary, so `inputs(` is
+      not `puts(` and `fprintf(` is listed separately from `printf(`.
   - **Rule 1, `TendIngestion`:**
     - The only imports are `Foundation` and `TendCore`.
     - None of the full AC-M1-23 closed list (clock, randomness, locale and networking) occurs, apart from
@@ -330,6 +335,8 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
       - `URLSession.AsyncBytes` and `bytes(for:delegate:)`, the streaming read;
       - `URLRequest`, `URL`, `URLComponents` (the one way to build the URL from the builder's host and path);
       - `URLResponse`, `HTTPURLResponse`, `URLError`.
+      - The only session method allowed is `bytes(for:delegate:)`. Every method in the networking list's
+        session-method calls is a hit, even when its task type is inferred.
     - **Scan rule:** in an allowlisted file, every networking-pattern hit, and every identifier token that starts with
       `URL`, `NSURL`, `HTTP`, `NW`, `CFHost`, `CFStream` or `CFNetwork`, must be in the allowed subset. In particular,
       `URL(string:`, `URLSessionWebSocketTask`, `URLSessionStreamTask`, `URLSessionUploadTask`,
@@ -360,10 +367,35 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
     - If the Developer finds they are not needed, there is no exception.
     - **Negative test:** an `SFSpeechRecognizer(` initialiser in the speech-permission file is caught.
   - **Rule 6, `TendEval` (AC-M2-28):**
+    - The only imports are `Foundation`, `SwiftUI`, `CryptoKit` (fixtures SHA-256), `TendCore`, `TendIngestion` and
+      `TendAI`. `Darwin`, `Glibc`, `FoundationNetworking`, `Network`, `CFNetwork`, `os` and every third-party module
+      are therefore hits. Any other import needs a PO decision (M2 Q24).
     - No networking pattern occurs.
+    - **Fixtures loader exception (M2 Q23).** In exactly one file, the fixtures loader named in the plan
+      (`Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift`), the form `Data(contentsOf:` is allowed. This is the
+      only `contentsOf:` exception outside AC-M1-23's own exceptions. In that file:
+      - every URL passed to it comes from `Bundle.main.url(forResource:` in the same file;
+      - no other `contentsOf:` form occurs (`String(contentsOf:`, `.init(contentsOf:`, `NSData(contentsOf:`, any
+        other type);
+      - no URL is built any other way (`URL(`, `URL(string:`, `URL(fileURLWithPath:`, `URL(filePath:`,
+        `URLComponents`, `NSURL`);
+      - no literal contains `://`;
+      - no write or log API occurs.
+
+      The loader returns the bytes as `Data` and keeps nothing.
+    - **Negative tests:** `Data(contentsOf:` in any other TendEval file is caught. In the loader file,
+      `String(contentsOf:` and `URL(fileURLWithPath:` are each caught. **Positive test:** a loader that uses only
+      `Bundle.main.url(forResource:` and `Data(contentsOf:` passes.
+    - The Reviewer confirms that the loader reads only bundle resources.
     - Write APIs occur in exactly one file, the results writer named in the plan. It writes only the results-file
       type, which holds no audio, request body, response body or key fields.
     - Log APIs never occur.
+  - **Negative tests for M2 Q24:** one plant for each M2 Q24 addition must be caught:
+    - `write(toFile:` in TendIngestion;
+    - `import Darwin` and `fwrite(` in TendEval, each caught on its own;
+    - `s.uploadTask(with:` and `s.webSocketTask(with:` in an allowlisted Rule 3 file with an inferred type.
+
+    A file using only `bytes(for:delegate:)` still passes.
   - **Reviewer:** the Reviewer confirms that audio buffers, request bodies, responses and keys are never persisted or
     logged anywhere in the three modules. Transcripts are never persisted in `TendIngestion` or `TendAI`. The only
     exception is `TendEval`, which records the transcript of a **scripted eval utterance** and the parsed drafts in its
@@ -849,6 +881,8 @@ Tester's script and the result is recorded (CLAUDE.md §5). M2 cannot be `ACCEPT
 | Q20 | Which Apple signing team installs `TendEval` on the iPhones (AC-M2-28)? | The owner's own team: a personal (free) team is enough for a debug install, but its profile lasts 7 days, so reinstall before each run. The Planner records it in the plan. **Human owner to confirm.** | Before the first device run |
 | Q21 | Where is the consent record stored so that a restore never turns cloud on (T-14)? | M2 defines the rule and tests it with fixtures (AC-M2-18). The durable consent store is delivered in **M3** together with the Settings screens. It must be excluded from device backups and from iCloud, so a restore always gives "no consent". The orphan-key deletion in AC-M2-18 then also removes a restored key. Owner: PO (an M3 brief AC), due with the M3 brief. | M3 brief |
 | Q22 | What are the cloud timeout and retry numbers (T-17)? | A 10.0 s per-capture deadline. Each attempt's resource timeout is the time left. The request (idle) timeout is min(time left, 4.0 s). One retry, only for 429/5xx, after a pause p = max(0.5 s, `Retry-After` in delta-seconds; a missing or unreadable value counts as 0), and only if ≥ 3.0 s are left before the deadline after the pause (the same rule as AC-M2-22; T-28). (PO default; the owner may tighten it.) | M2 planning |
+| Q23 | PR #15 review, R1-F1 point 4: how may the `TendEval` harness read its bundled fixtures under the `contentsOf:` ban (AC-M1-23)? (P-2, P-4) | **In one named file only:** the fixtures loader `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift` may use `Data(contentsOf:`, with URLs only from `Bundle.main.url(forResource:` in the same file, no other `contentsOf:` form, no other URL building, no `://` literal and no write or log API. It returns `Data` and keeps nothing. Negative and positive tests are in AC-M2-09 Rule 6. AC-M1-23 gets a cross-reference only. (PO decision 2026-11-21, stricter only: one narrow exception with new checks; no AC removed) | M2, before WI-M2-M7 is reviewed |
+| Q24 | PR #15 review, R1-F5: the closed lists do not name some session method calls, C file and print calls or `write(toFile:`, and Rule 6 has no import list. Close the gaps? (P-2, P-3, P-4) | **Yes.** The networking list adds the session method calls (`dataTask(` … `bytes(from:`), matched at an identifier boundary with or without a receiver. The write and log list adds `write(toFile:`, `fopen(`, `freopen(`, `fdopen(`, `fwrite(`, `fputs(`, `fputc(`, `printf(` and `fprintf(`. In Rule 3 the only session method allowed is `bytes(for:delegate:)`. Rule 6 gets a closed import list. New negative tests are in AC-M2-09. (PO decision 2026-11-21, stricter only; no AC removed) | M2, before WI-M2-M4 or WI-M2-M7 is reviewed |
 
 **Note on Q19 (before M3):** room names may contain a person's name, for example "Sam's room". The PO must settle how
 this fits the P-3 consent wording (ADR-0005) before the M3 brief. This note does not change any M2 AC.
@@ -1302,3 +1336,4 @@ merge). No AC was removed, and the AC count stays 28.
 | 2026-11-21 | Acceptance Tester | Product Owner | returned | Re-review of v3 at `20862e2`. T-01…T-22 are closed. Two new Majors block the tick: T-23 (the AC-M2-09 Rule 3 networking allowlist forbids the delegate, `URLError`, streaming bytes and the URL building that AC-M2-22, 23 and 24 need) and T-24 (the AC-M2-20 sentinels cannot be planted in enum or Boolean fields; split into byte-level and structural checks). T-25…T-30 are Minor or nit. Split: Linux 01–04, 06, 08, 09, 12, 14, 19, 13(a); Linux + Mac 05, 07, 10, 18, 20, 23, 24, 28; Mac 13(b), 21, 22; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, scored on Linux). Q12, Q16, Q17 PO default; Q20 before the first device run. |
 | 2026-11-21 | Product Owner | Acceptance Tester | to re-review (v4) | Brief v4 answers T-23…T-30; see "v4 change record". T-23: closed allowed networking subset in AC-M2-09 Rule 3, with an identifier-prefix scan rule and a negative test. T-24: AC-M2-20 sentinels split into (a) byte-level unique sentinels and (b) a structural key-path and value check against the golden request. T-25…T-30 are all fixed in the brief. Meaning changes: T-23, T-24, T-27 and T-28 (M rows), to be added to the proposed D-031 (owner merge). No AC was removed; there are still 28 ACs. New planning items: the scoring tool and command, the speech-permission check (Developer, on the Mac) and the ID-generator definition. Owner items unchanged: Q12, Q16, Q17 (PO default, owner may change) and Q20 (before the first device run). Next: the Tester re-reviews v4; if it is ticked, the Work Planner. |
 | 2026-11-21 | Acceptance Tester | Product Owner → Work Planner | accepted (testability ticked) | Re-review of v4 at `580d23e`. T-23…T-30 are closed, so T-01…T-30 are all closed. All 28 ACs are observable and measurable, with an environment and evidence each. Final split: Linux 01–04, 06, 08, 09, 12, 14, 19, 13(a); Linux + Mac 05, 07, 10, 18, 20, 23, 24, 28; Mac 13(b), 21, 22; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, scored on Linux). Nits N-1…N-3 go to the plan and the Developer. Conditions: the plan items before the DoR (Q6 table reviewed by the Tester, file paths, commands, scoring tool, ID generator); the fixtures, key-path lists and golden requests before the AC-M2-14 freeze; DS-1 and DS-2 before the first device run; D-031 by owner merge. Q12, Q16, Q17 PO default; Q20 before the first device run. |
+| 2026-11-21 | Product Owner | Work Planner → Developer, Reviewer | accepted | PO 2026-11-21, stricter only, from PR #15 review (R1-F1 point 4, R1-F5). Q23: one fixtures-loader exception for `Data(contentsOf:` in `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift`, bundle URLs only, with negative and positive tests (AC-M2-09 Rule 6; cross-reference in M1 AC-M1-23). Q24: session method calls added to the networking list; C file and print calls and `write(toFile:` added to the write and log list; Rule 3 allows only `bytes(for:delegate:)`; Rule 6 gets a closed import list; new negative tests (AC-M2-09). No AC removed; there are still 28 ACs. DECISIONS.md entries for M2 Q23 and Q24 go in the human-merged governance PR. Timing is in `plan.md`. |

@@ -254,7 +254,7 @@ result can be reproduced, trusted and tested on any machine without touching the
   allowed — only because every URL-from-string API above is banned and file URLs come from file-path initialisers; and
   (ii) anywhere, a `contentsOf:` whose immediately enclosing call is named exactly `append` or `insert` (the collection
   methods `append(contentsOf:)` and `insert(contentsOf:at:)`, with or without a receiver) is allowed, because it is not
-  URL loading. No other `contentsOf:` exception may be added without a PO decision (Q23). Exactly two type names are exempt from the `Stream(` pattern: `AsyncStream` and
+  URL loading. No other `contentsOf:` exception may be added without a PO decision (Q23). M2 Q23 adds one named exception for the TendEval fixtures loader. It is defined in M2 AC-M2-09 Rule 6. Exactly two type names are exempt from the `Stream(` pattern: `AsyncStream` and
   `AsyncThrowingStream` (Swift concurrency, not networking); no other exemption may be added without a PO decision.
   Names are matched at camelCase word boundaries. A negative test proves the scanner detects each pattern when planted
   (for `contentsOf:`, at least `Data(contentsOf:`, `NSMutableData(contentsOf:`, `.init(contentsOf:`, a call on a
