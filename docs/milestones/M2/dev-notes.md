@@ -453,3 +453,185 @@ than the work item asks, and it only matters for values made through internal se
 |---|---|---|---|---|
 | 2026-11-21 | iOS Designer | Developer | accepted | Case name and position (design.md Addendum A). |
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent | Branch pushed, no PR opened (as instructed). Two open questions for PO/Planner. |
+
+---
+
+## WI-M2-04 — calm-words guard (AC-M2-12), room linking with name folding (AC-M2-04), `sourcePhrase` check
+
+- **Owner:** Developer  ·  **Branch:** `m2/calm-words-and-rooms`, based on `origin/main` at `8076d64` (WI-M2-01
+  merged)  ·  **PR:** not opened (as instructed; the Orchestrator opens it)  ·  **ADRs:** none new. Follows
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md) (files sit in `TendIngestion/Sources`, Foundation +
+  TendCore only).
+- **Requirements:** FR-A1 (room linking, `sourcePhrase`), UX-3 (calm-words guard). **Owns AC-M2-04 and AC-M2-12**
+  ([plan.md](plan.md) WI-M2-04). Brief inputs: Definitions ("Draft", "Name folding", "Banned tokens"), AC-M2-04,
+  AC-M2-12, T-09, T-10, Q5 steps 7 and 8, Q19 (room names are user labels).
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED` and M2 `IN-BUILD`. The DoR condition "WI-M2-01 merged" is met
+  (PR #15, `8076d64`).
+
+### What changed
+- **`TendIngestion` (new files, all Foundation + TendCore):**
+  - `Rooms/DraftRoom.swift`: `DraftRoom` = `existing(Room.ID)` / `proposed(String)` / `none` (brief T-03 field set).
+    WI-M2-05 uses it in `IngestionDraft`.
+  - `Rooms/RoomLinker.swift`: `RoomLinker.link(_:in:)` (parse time, pure, never creates or renames a room) and
+    `RoomLinker.commitPlan(for:existing:makeID:)` with `RoomCommitPlan` (`newRooms`, `roomIDs`). The commit plan is pure
+    too: the caller (WI-M2-05/06 `commit(confirmed:)`) appends `newRooms`. IDs come from the injected `makeID`.
+  - `Guard/CalmWordsGuard.swift`: `CalmWordsGuard.calmed(_:input:)`, `CalmWordsGuard.apply(title:room:sourcePhrase:input:)`
+    → `CalmWordsDecision` (`keep(title:room:)` / `skip(CalmWordsSkipReason)`), `CalmWordsSkipReason.noTitleWordsLeft`.
+  - `Text/SourcePhrase.swift`: `SourcePhrase.checked(_:input:)`.
+  - `Text/BannedTokens.swift`: header comment only (it now points at the exemption, see E1).
+- **Tests (`TendIngestionTests`):** `CalmWordsGuardTests` (AC-M2-12), `RoomLinkingTests` (AC-M2-04),
+  `SourcePhraseCheckTests`, `CalmVocabularyScanTests` (AC-M2-12 vocabulary clause, with the exemption and its
+  negative tests). The calm-guard cases use the brief's Outcome sentence as the input; room cases use the brief's
+  examples ("the kitchen", "Sam's room", the five articles, the AC-M1-02 list).
+- **Not changed:** `TendCore`, `TendSourceScan`, every protected path, every dependency.
+
+### How the pieces fit (for WI-M2-05, Q5 steps 7 and 8)
+1. Before step 7: `RoomLinker.link(modelRoomText, in: household.rooms)`. Linking uses the **model's raw room text**,
+   so a household room the user named "Late-night den" still links (the label is the user's own word, Q19).
+2. Step 7: `CalmWordsGuard.apply(title:room:sourcePhrase:input:)`. Only a `proposed` name is guarded.
+3. Step 8: `SourcePhrase.checked(sourcePhrase, input:)` for the draft's stored `sourcePhrase`.
+4. Commit: `RoomLinker.commitPlan(for: confirmedRooms, existing: household.rooms, makeID:)`.
+
+### Decisions the Reviewer should know (technical or literal readings; each is tested)
+- **E1: the banned-list vocabulary exemption (WI-M2-01 review follow-up).** AC-M2-12's "every outcome and reason name
+  and the model instructions contain no banned token" is checked by the **AC-M1-02 vocabulary scan** (identifiers
+  split at camelCase, digits and `_`, plus every string literal; comments removed) over every `.swift` file of the
+  three AC-M2-09 roots (`ScanScope.roots`: TendIngestion required; TendAI and TendEval scanned as soon as they exist).
+  This is stricter than the clause, because it covers every identifier and literal, so future outcome/reason names and
+  instruction strings are covered as they are written. There is **one named exemption, `BannedTokenListExemption`**
+  (in `CalmVocabularyScanTests.swift`), and no file-level exemption. A hit is exempted only when all hold:
+  1. the path is exactly `Packages/TendIngestion/Sources/TendIngestion/Text/BannedTokens.swift`;
+  2. the anchor `public static let all: [String] = [` occurs **exactly once in the lexed code** (not in a comment);
+  3. the hit's line is in the declaration's span (anchor line to the first `]` after it);
+  4. the hit is a string literal whose **whole text** is the token (`"late"`, not `"late fee"`);
+  5. each token is exempted **at most once**.
+  If the anchor is missing or repeated, nothing is exempted (fail-closed: all nine are reported). The real scan also
+  asserts that exactly the nine list tokens were exempted and that `BannedTokens.all == SourceScanner.bannedTokens`.
+  Negative tests: the declaration in four other paths (9 hits each), a literal, an identifier, an outcome-style case
+  name and an instruction string outside the span, `"late fee"` and an identifier inside the span, a repeated entry,
+  a renamed anchor, a doubled anchor, an anchor in a comment, and a single-line declaration. A further test checks
+  *which* hit is kept (by excerpt and line), so the once-only rule cannot hide a span or whole-text mutant.
+  *Why in the test target, not `TendSourceScan`:* it is one fact about one file of this module, and keeping it next
+  to the scan keeps `TendSourceScan` unchanged. Moving it is a reversible refactor.
+- **E2: "whole input" is compared as whole tokens.** A banned token is kept only when the same folded whole token is
+  in the input ("lateness" in the input does not allow "late" in the title). This is the brief's token rule applied to
+  both sides; it removes more, so it is the stricter reading.
+- **E3: "punctuation" is Unicode general category P\*** (Pc, Pd, Ps, Pe, Pi, Pf, Po), on the first scalar of each
+  character. Symbols (`$`, `+`, `€`) are not trimmed. The tidy-up (collapse and trim) runs **only after a removal**,
+  as the brief says ("After a removal, …"); otherwise the text is returned unchanged.
+- **E4: a fallback title is a verified, calm `sourcePhrase`.** When the guard empties a title, the stand-in is the
+  `sourcePhrase` only if it passes the step 8 substring check, trimmed and collapsed, and itself calmed. Otherwise
+  the item is skipped (`noTitleWordsLeft`). Reason: Q5 runs the guard (7) before the `sourcePhrase` check (8), so an
+  unchecked phrase is model text, not the user's words, and could carry an introduced token. See open question 1.
+- **E5: link first, then guard.** Linking uses the model's raw text; the guard applies only to a `proposed` name
+  (AC-M2-04: "If none matches, it carries `proposed(name)`, … after the calm-words guard"). A proposed name is stored
+  trimmed and collapsed. A name that folds to empty is `none` at link time; a proposed name the guard empties is `none`.
+- **E6: commit.** Proposals are grouped by folded name; the first confirmed draft's text names the new room. A proposal
+  whose folded name equals an **existing** room's name at commit uses that room (lowest `id.uuidString`) and creates
+  nothing. This covers a name the guard reduced to an existing name ("late kitchen" → "kitchen") and a room added
+  between parse and commit. An `existing(id)` whose room is gone gives no room. See open question 2.
+- **E7: `sourcePhrase` match is a plain `Character` substring** of the folded input, implemented by hand (no
+  Foundation `range(of:)`, so no platform option differences, R-10). A phrase that folds to empty is nil. A phrase
+  that passes is returned exactly as given (not folded or tidied). "alcon" in "balcony" passes: the brief says
+  substring, not whole words.
+- **E8: tie order** is ascending UTF-8 bytes of `id.uuidString` (`TextFolding.utf8Precedes`), the same as the
+  shortlist tie-break.
+
+### AC coverage
+| AC | Test(s) | Result |
+|---|---|---|
+| AC-M2-04 | `RoomLinkingTests` (AC-M2-04 suite): folded linking (13 cases: trim/collapse, articles the/my/our, ASCII vs typographic apostrophe, diacritics incl. decomposed, width, folding of the stored name); exact-not-fuzzy (8 cases: plural, prefix, digits, spacing, double article, punctuation, apostrophe); nil/empty → `none` (4); proposed text kept (3); tie → lowest `uuidString` in 3 array orders; empty household; no room created or renamed during parsing; link-then-guard (4); user label with a banned token links; commit: equal folded proposals create one room, distinct proposals in order, proposal equal to an existing room, missing existing room, nothing confirmed | PASS (Linux) |
+| AC-M2-12 | `CalmWordsGuardTests` (AC-M2-12 suite): removal and tidy-up (12); each of the 9 tokens (9); folded matching (5); whole tokens only (7); no tidy without removal (3); user's words kept (7); input compared as whole tokens (3); empty title → `sourcePhrase` (and tidied); skip with typed reason for nil/empty/blank/unverified phrase (4); fallback guarded; proposed room guarded, emptied → `none` (5); user-said room name kept; existing/none untouched; title kept ignores phrase; 2,000-case seeded property (seed `0x0CA13E5EED000412`, printed; 1,448 titles changed): no kept title or proposed name holds a token absent from the input, never empty; reason case names calm. `CalmVocabularyScanTests`: the module-Sources vocabulary scan (8 files, 9 exempted, 0 violations) and the exemption's negative tests | PASS (Linux) |
+| (Q5 step 8, no AC owned) | `SourcePhraseCheckTests`: kept (10, from the brief's Outcome sentence), dropped (5), nil/empty (4), both sides folded (4 checks) | PASS (Linux) |
+
+AC-M2-12's instruction clause has no instruction strings to check yet: the on-device and cloud instructions are written
+in later items (WI-M2-05/10/11). The vocabulary scan covers them automatically when they land in any of the three roots.
+If instructions are ever kept outside `.swift` files (for example a resource file), that item must extend the scan.
+
+### Test runs
+| Command | Summary line |
+|---|---|
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `✔ Test run with 59 tests in 7 suites passed after 0.409 seconds.` Scan lines: `AC-M2-09 scan: 8 files in total, 0 violations`; `AC-M2-12 vocabulary scan: 8 files, 9 exempted (the list), 0 violations`. |
+| `swift build --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `Build complete!` |
+
+0 warnings, 0 failures, 0 skips. Swift 6.2.4 in the `swift:6.2-noble` image (container). TendSourceScan and TendCore
+are unchanged, so they were not rerun.
+
+### Mutation check
+Each mutant was applied alone, run with `-warnings-as-errors`, and restored with a touch (mtime-safe). The clean
+baseline afterwards was 59 tests green. **All 22 are killed.**
+
+| Mutant | Killed by |
+|---|---|
+| Guard ignores the input (removes every banned token) | user's words kept, input as whole tokens (4 tests) |
+| Input compared as a substring, not whole tokens (compiling variant; the first variant left `said` unused and failed the build, so it was rerun) | input compared as whole tokens (3 tests) |
+| No punctuation trim (compiling variant, as above) | removal and tidy-up, folded matching (6 tests) |
+| No whitespace collapse | removal and tidy-up, user's words (3 tests) |
+| Tidy-up without a removal | no tidy without removal |
+| Fallback skips the `sourcePhrase` check | skip with typed reason (unverified phrase) |
+| Fallback not calmed | fallback guarded |
+| Emptied proposed room kept as `proposed("")` | proposed room guarded (3 tests) |
+| Proposed room not guarded | proposed room guarded (3 tests) |
+| Tie picks the highest `uuidString` | tie test |
+| Linking without the article strip | folded linking |
+| Stored room names not folded | tie test, folded linking |
+| Commit: no grouping of equal proposals | one room for equal proposals |
+| Commit: proposal not checked against existing rooms | proposal equal to an existing room |
+| Commit: a missing existing room kept (compiling variant, as above) | missing existing room |
+| `sourcePhrase`: input side not folded | kept cases, both sides folded |
+| `sourcePhrase`: empty needle allowed | nil/empty |
+| Exemption: no path check | other-file plants |
+| Exemption: a literal may hold more text (`contains`) | kept hit is the planted one (**survived the first run**: the count-only test let the once-only rule hide it; the excerpt check was added) |
+| Exemption: span ignored | kept hit is the planted one (**survived the first run** for the same reason; line checks added) |
+| Exemption: repeated entries allowed | rest-of-file plants (repeated entry) |
+| Exemption: anchor count not checked | fail-closed (doubled anchor) |
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendIngestion: 59 tests, AC-M2-04, AC-M2-12, sourcePhrase, AC-M2-09 scan, vocabulary scan | ✔ container | — | — | — | Linux CI on the PR. |
+| Folding-based behaviour on Darwin Foundation (R-10) | — | — | — | — | Not verified (no Mac). Plan B2 (MS-2). The guard and linker use `TextFolding`, so the WI-M2-01 pins cover them. |
+
+Device ACs: none in this item.
+
+### Things the reviewer should look at closely
+- **E1, the exemption**: whether the five conditions are narrow enough, and the fail-closed paths.
+- **E4 and E6** (open questions below): both are the stricter reading, but they are product meaning.
+- `CalmWordsGuard.calmed` removes by original ranges from `BannedTokens.matches`, so a decomposed accent inside a
+  token is removed with it (`Late\u{301}` case).
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| Instruction strings do not exist yet; the vocabulary scan covers them once written in `.swift` files of the three roots | Nit | WI-M2-05/10/11 |
+| The exemption is anchored on the declaration's first line; reformatting it fails closed (red, not silently green) | Nit | — |
+| Not verified on Darwin (R-10) | — | Plan B2, MS-2 |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection API. |
+| UX-3 Zero-Guilt | pass | The guard removes every banned token the user did not say from titles and proposed room names (AC-M2-12, property test). The skip reason `noTitleWordsLeft` is calm. The vocabulary scan keeps every identifier and literal in the module Sources free of banned tokens, except the one list. No overdue state or counter. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No inference. |
+| P-2 No data leaves device (except user iCloud) | pass | Pure functions; no networking (AC-M2-09 scan: 0 violations). |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | n.a. | — |
+| P-4 Media not persisted without consent | pass | No write or log API; nothing is stored. Parsing never creates a room. |
+
+### Open questions
+1. **PO (AC-M2-12, E4):** when the guard empties a title, should the stand-in be the raw `sourcePhrase` (literal "it
+   becomes the draft's `sourcePhrase`") or only a phrase that passes the step 8 check and is itself calm (built)? The
+   built reading never shows model words the user did not say. It differs from the literal one only when the phrase is
+   not in the input, or holds a banned token that is a substring but not a whole token of the input.
+2. **PO (AC-M2-04, E6):** at commit, a proposed name that folds to an existing room's name uses that room instead of
+   creating a second room with the same folded name (built). And when two drafts' proposals fold the same, the first
+   confirmed draft's text names the room (built). Please confirm both.
+3. **PO / Tester (AC-M2-12, E2, E3):** confirm that "occurs anywhere in the input" is a whole-token comparison, that
+   "punctuation" is Unicode P\* (symbols kept), and that text is tidied only after a removal.
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-21 | Orchestrator | Developer | accepted (H2) | WI-M2-04 Ready: WI-M2-01 merged (`8076d64`). Includes the WI-M2-01 review follow-up (vocabulary scan exemption). |
+| 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed before the code). 22 mutants killed (2 after adding a test). TendIngestion 59 tests green, 0 warnings, Linux. Mutation-checked. Three open questions for the PO. Pushed; no PR opened. |

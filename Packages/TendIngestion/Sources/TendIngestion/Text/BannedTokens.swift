@@ -1,8 +1,10 @@
 // The banned-token matcher for generated text (brief Definitions, "Banned tokens"): split at non-letters, then
 // name-fold, then compare whole tokens. UX-3 (Zero-Guilt). The calm-words guard (AC-M2-12, WI-M2-04) builds on this.
 //
-// The list itself must live in the shipped module, because the guard needs it. That is why the AC-M1-02 vocabulary
-// scan is not applied to `TendIngestion/Sources` (dev-notes WI-M2-01).
+// The list itself must live in the shipped module, because the guard needs it. The AC-M1-02 vocabulary scan of the
+// module Sources (AC-M2-12, `CalmVocabularyScanTests`) exempts exactly the string literals of the one `all`
+// declaration below, once each (`BannedTokenListExemption`, dev-notes WI-M2-04 E1). Keep the declaration's first line
+// as it is: the exemption is anchored on it, and fails closed (flags all nine) if it changes.
 
 import Foundation
 
