@@ -1,6 +1,6 @@
-# M2 Code Review — PR #18 (WI-M2-03, `m2/time-resolver`; round 1 @ `09346cf`, PR head `65e3665`)
+# M2 Code Review — PR #18 (WI-M2-03, `m2/time-resolver`; round 1 @ `09346cf`, round 2 @ `bce7771`)
 
-- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 1
+- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** APPROVE (round 2, head `bce7771`; round 1 was CHANGES REQUIRED)  ·  **Round:** 2
 - **Scope:** WI-M2-03: `TimeHint`, the Q6 time resolver and `RecurrenceSettlement` in `TendIngestion`. This item owns
   **AC-M2-03** (FR-A1). It also supplies Q5 step 5 (the window and the 366-day range rule) and step 6 (interval
   settlement) for WI-M2-05 (AC-M2-02). Code diff reviewed: `ce3ad5a..09346cf` (4 files: `Time/TimeHint.swift`,
@@ -130,14 +130,14 @@ start. The rework should be small. The rest of the code can stay as it is.
 ## Findings
 | # | Severity | File:line | Finding | Required change | Status |
 |---|---|---|---|---|---|
-| R1-F1 | **Major** | `Packages/TendIngestion/Sources/TendIngestion/Time/TimeResolver.swift:86-100`, `:156-165`; tests `TimeResolverTests.swift:375-396`, `:431-439`, `:640-645` | **PO Q-T2 is not built (AC-M2-03, plan "How the hint meets Q5" at `65e3665`, E22, E25).** Every `.unusable` or out-of-range result goes to `Self.fallback`, which hard-codes dayparts ∅ and interval `nil`. Under Q-T2, an invalid anchor gives the T1 window and ∅ weekdays, but a valid daypart still gives {p} and a valid repeat still gives its interval. Probe: E22 gives interval `nil` (expected 7), and E25 gives dayparts ∅ (expected {evening}). So a recurring "every week" item whose weekday was lost becomes a one-off in step 6, which the PO has ruled out. The tests pin the old behaviour: the invalid-hint test expects ∅ / `nil`, the first `InvalidHints` row sends `morning` + daily, and the property test expects ∅ / `nil` on every fallback. | On an invalid anchor (any `FallbackReason` except a non-finite `now`), return the T1 window and weekdays ∅, dayparts `dayparts(of:)` (that is {p} if the daypart is valid; a broken `tonight` cannot happen), and interval `interval(of:)`. Keep `basis = .fallback(reason)`. Update the invalid-hint test, its `InvalidHints` rows and the property-test fallback assertion to the new rule. Add E22 and E25 as exact cases. Update DT1 in dev-notes. Changing these tests follows a PO product decision. It is not a weakening, but say so in the dev-notes. | Open |
-| R1-F2 | **Major** | `TimeResolver.swift:124-127`; test `TimeResolverTests.swift:346-350` | **PO Q-T1 is not built (R5 row at `65e3665`, E23).** `guard hasRepeat, hint.repeatUnit == .week` sets {W} only for weekly repeats. The PO's R5 covers `week`, `month` and `year`, and only a `day` repeat keeps ∅ (E24). Probe: E23 gives weekdays ∅, but {thursday} is expected. The test "weekday + monthly repeat: weekdays stay empty" pins the rejected reading. | Set {W} when the anchor is `weekday`, the weekday is present, the interval is non-nil, and `repeatUnit ∈ {week, month, year}`. Replace the pinned test with E23 and E24, and add a yearly case. Update DT2. | Open |
-| R1-F3 | **Major** | `TimeResolverTests.swift:400` (worked examples E1–E21 only); `TimeResolver.swift:398-410` (`RecurrenceSettlement`) | **No tests for E22–E26.** The plan's WI-M2-03 scope is now E1–E26 (plan WI-M2-03 paragraph at `65e3665`), so these AC-M2-03 rows have no tests. That alone is Major. E26 also needs Q5 step 6 to drop R5's {W} together with the interval. `settle(kind:intervalDays:)` cannot do that, because it does not see weekdays, and no test shows that the drop happens anywhere. | Add E22–E25 to the worked examples as exact resolver-output cases. For E26, either (a) extend `RecurrenceSettlement` to settle the weekdays too (for example `settle(kind:resolution:)` returning kind, interval and weekdays, where a dropped interval clears an R5 {W}) and test E26 here, or (b) get the Planner to record that E26 is tested in WI-M2-05 (AC-M2-02) and say which API carries it. Option (a) is preferred because the plan places E26 in WI-M2-03's scope. | Open |
-| R1-F4 | Minor | `TimeResolver.swift:387-395` (`endHour`); test `TimeResolverTests.swift:656-679` | **The drift oracle covers slot starts only.** M17 shows the oracle catches a change to an M1 start hour. But in M1 a slot's end is defined as the next slot's start (`SlotCalendar.swift:98-100`), while `TendIngestion` keeps a second, separate `endHour` table. If M1 moved a start hour, a fix to `startHour` alone would leave a stale `endHour`, and no test would compare it with M1. The oracle's zones also have no DST gap at a slot hour, so a change to M1's Q11 policy at a slot hour would not be seen. | Derive `endHour` from the next daypart's `startHour` (night → `morning.startHour` on `d+1`, as now), or add an end oracle using M1's public API: `nextEligibleWindow(from: end − 1 ms)` returns the anchor itself, and `from: end` returns a later start. Ticket; does not block. | Open |
-| R1-F5 | Minor | `TimeResolver.swift:87-90`; test `TimeResolverTests.swift:453-459` | **A non-finite `now` with a `nil` hint is reported as `.noHint`, not `.fallback(.calendarUnresolved)`.** The `nil` guard runs before the finite check, so DT9's claim ("the result is the T1 fallback with reason `calendarUnresolved`") is true only for a non-nil hint. Probe: `resolve(nil, now: .nan)` gives `basis noHint`, with non-finite dates. The test covers only `TimeHint(anchor: .tomorrow)`. WI-M2-05's per-rule counts (AC-M2-02) would count this as "no hint". | Run the finite check first, add the `nil` case to `nonFiniteNow`, and keep DT9 accurate. Note for WI-M2-05: both paths return a non-finite window, which the Q9 invariant (AC-M2-02) rejects with a typed skip. | Open |
-| R1-F6 | Minor | `docs/milestones/M2/dev-notes.md` (WI-M2-03: DT1, DT2, Q-T1/Q-T2 rows, "E1–E21", AC coverage) | The handoff note is out of date at the PR head. It lists Q-T1 and Q-T2 as open and gives E1–E21 as the scope. | Update it with the rework: the PO answers, E22–E26, the new test names and counts, and a new run log. | Open |
-| R1-N1 | Nit | `TimeHint.swift:16`, `:35-36` | `Anchor.unrecognized` is in `CaseIterable` and has a raw value. The schema mirrors (on-device `@Generable`, cloud schemas, WI-M2-10/12) must not offer it to the model as a valid choice. | Add a doc note, or a `static let modelChoices` that excludes it, for the schema work. | Open |
-| R1-N2 | Nit | `TimeResolver.swift:151` with `:233-237` | Observation, not a code defect. "In 366 days" said at local midnight falls back to T1 when D+366 is on the other side of a DST change. Probe: `inDays` 366 at 2026-03-09 00:00 EDT gives `windowOutOfRange`, because `mid(D+366)` = now + 366 d + 1 h. This is the table read literally (count 1…366 against an absolute 366 × 86,400 s limit). | For Tester/PO awareness only. No change needed unless the PO wants it. | Open |
+| R1-F1 | **Major** | `Packages/TendIngestion/Sources/TendIngestion/Time/TimeResolver.swift:86-100`, `:156-165`; tests `TimeResolverTests.swift:375-396`, `:431-439`, `:640-645` | **PO Q-T2 is not built (AC-M2-03, plan "How the hint meets Q5" at `65e3665`, E22, E25).** Every `.unusable` or out-of-range result goes to `Self.fallback`, which hard-codes dayparts ∅ and interval `nil`. Under Q-T2, an invalid anchor gives the T1 window and ∅ weekdays, but a valid daypart still gives {p} and a valid repeat still gives its interval. Probe: E22 gives interval `nil` (expected 7), and E25 gives dayparts ∅ (expected {evening}). So a recurring "every week" item whose weekday was lost becomes a one-off in step 6, which the PO has ruled out. The tests pin the old behaviour: the invalid-hint test expects ∅ / `nil`, the first `InvalidHints` row sends `morning` + daily, and the property test expects ∅ / `nil` on every fallback. | On an invalid anchor (any `FallbackReason` except a non-finite `now`), return the T1 window and weekdays ∅, dayparts `dayparts(of:)` (that is {p} if the daypart is valid; a broken `tonight` cannot happen), and interval `interval(of:)`. Keep `basis = .fallback(reason)`. Update the invalid-hint test, its `InvalidHints` rows and the property-test fallback assertion to the new rule. Add E22 and E25 as exact cases. Update DT1 in dev-notes. Changing these tests follows a PO product decision. It is not a weakening, but say so in the dev-notes. | Closed (round 2, `aa98bcb`) |
+| R1-F2 | **Major** | `TimeResolver.swift:124-127`; test `TimeResolverTests.swift:346-350` | **PO Q-T1 is not built (R5 row at `65e3665`, E23).** `guard hasRepeat, hint.repeatUnit == .week` sets {W} only for weekly repeats. The PO's R5 covers `week`, `month` and `year`, and only a `day` repeat keeps ∅ (E24). Probe: E23 gives weekdays ∅, but {thursday} is expected. The test "weekday + monthly repeat: weekdays stay empty" pins the rejected reading. | Set {W} when the anchor is `weekday`, the weekday is present, the interval is non-nil, and `repeatUnit ∈ {week, month, year}`. Replace the pinned test with E23 and E24, and add a yearly case. Update DT2. | Closed (round 2, `aa98bcb`) |
+| R1-F3 | **Major** | `TimeResolverTests.swift:400` (worked examples E1–E21 only); `TimeResolver.swift:398-410` (`RecurrenceSettlement`) | **No tests for E22–E26.** The plan's WI-M2-03 scope is now E1–E26 (plan WI-M2-03 paragraph at `65e3665`), so these AC-M2-03 rows have no tests. That alone is Major. E26 also needs Q5 step 6 to drop R5's {W} together with the interval. `settle(kind:intervalDays:)` cannot do that, because it does not see weekdays, and no test shows that the drop happens anywhere. | Add E22–E25 to the worked examples as exact resolver-output cases. For E26, either (a) extend `RecurrenceSettlement` to settle the weekdays too (for example `settle(kind:resolution:)` returning kind, interval and weekdays, where a dropped interval clears an R5 {W}) and test E26 here, or (b) get the Planner to record that E26 is tested in WI-M2-05 (AC-M2-02) and say which API carries it. Option (a) is preferred because the plan places E26 in WI-M2-03's scope. | Closed (round 2, `aa98bcb`) |
+| R1-F4 | Minor | `TimeResolver.swift:387-395` (`endHour`); test `TimeResolverTests.swift:656-679` | **The drift oracle covers slot starts only.** M17 shows the oracle catches a change to an M1 start hour. But in M1 a slot's end is defined as the next slot's start (`SlotCalendar.swift:98-100`), while `TendIngestion` keeps a second, separate `endHour` table. If M1 moved a start hour, a fix to `startHour` alone would leave a stale `endHour`, and no test would compare it with M1. The oracle's zones also have no DST gap at a slot hour, so a change to M1's Q11 policy at a slot hour would not be seen. | Derive `endHour` from the next daypart's `startHour` (night → `morning.startHour` on `d+1`, as now), or add an end oracle using M1's public API: `nextEligibleWindow(from: end − 1 ms)` returns the anchor itself, and `from: end` returns a later start. Ticket; does not block. | Closed (round 2, `aa98bcb`) |
+| R1-F5 | Minor | `TimeResolver.swift:87-90`; test `TimeResolverTests.swift:453-459` | **A non-finite `now` with a `nil` hint is reported as `.noHint`, not `.fallback(.calendarUnresolved)`.** The `nil` guard runs before the finite check, so DT9's claim ("the result is the T1 fallback with reason `calendarUnresolved`") is true only for a non-nil hint. Probe: `resolve(nil, now: .nan)` gives `basis noHint`, with non-finite dates. The test covers only `TimeHint(anchor: .tomorrow)`. WI-M2-05's per-rule counts (AC-M2-02) would count this as "no hint". | Run the finite check first, add the `nil` case to `nonFiniteNow`, and keep DT9 accurate. Note for WI-M2-05: both paths return a non-finite window, which the Q9 invariant (AC-M2-02) rejects with a typed skip. | Closed (round 2, `aa98bcb`) |
+| R1-F6 | Minor | `docs/milestones/M2/dev-notes.md` (WI-M2-03: DT1, DT2, Q-T1/Q-T2 rows, "E1–E21", AC coverage) | The handoff note is out of date at the PR head. It lists Q-T1 and Q-T2 as open and gives E1–E21 as the scope. | Update it with the rework: the PO answers, E22–E26, the new test names and counts, and a new run log. | Closed (round 2, `aa98bcb`) |
+| R1-N1 | Nit | `TimeHint.swift:16`, `:35-36` | `Anchor.unrecognized` is in `CaseIterable` and has a raw value. The schema mirrors (on-device `@Generable`, cloud schemas, WI-M2-10/12) must not offer it to the model as a valid choice. | Add a doc note, or a `static let modelChoices` that excludes it, for the schema work. | Closed (round 2, `aa98bcb`) |
+| R1-N2 | Nit | `TimeResolver.swift:151` with `:233-237` | Observation, not a code defect. "In 366 days" said at local midnight falls back to T1 when D+366 is on the other side of a DST change. Probe: `inDays` 366 at 2026-03-09 00:00 EDT gives `windowOutOfRange`, because `mid(D+366)` = now + 366 d + 1 h. This is the table read literally (count 1…366 against an absolute 366 × 86,400 s limit). | For Tester/PO awareness only. No change needed unless the PO wants it. | Open (observation; no change asked) |
 
 ## Checklist
 - [ ] Correctness vs ACs: matches the table at `09346cf`, but **not** the current table (PO Q-T1/Q-T2, E22–E26): R1-F1…F3
@@ -175,3 +175,122 @@ start. The rework should be small. The rest of the code can stay as it is.
 |---|---|---|---|---|
 | 2026-11-21 | Developer (via Orchestrator) | Reviewer | accepted for review | PR #18, WI-M2-03, code at `09346cf`, stacked on PR #15 (`ce3ad5a`). AC-M2-03. |
 | 2026-11-21 | Reviewer | Developer (via Orchestrator) | returned (CHANGES REQUIRED, round 1) | The code matches the table as it was at `09346cf`: 26 values recomputed with `zoneinfo`, 17/17 mutants killed, drift oracle proven, 0 warnings, AC-M2-09 0 violations. But the PR head `65e3665` carries PO Q-T1/Q-T2 and E22–E26, which the code does not build. 3 Major findings: R1-F1 (Q-T2), R1-F2 (Q-T1), R1-F3 (no E22–E26 tests, E26 settlement). 3 Minor: R1-F4 (end-hour drift), R1-F5 (non-finite `now` + `nil`), R1-F6 (dev-notes). 2 Nits. Next: Developer rework; Reviewer round 2 on the new head. |
+
+---
+
+## Round 2 — head `bce7771` (2026-11-21)
+
+- **Verdict:** **APPROVE**. No open Blocker or Major. R1-F1 to R1-F6 and R1-N1 are closed, each checked in the new
+  diff. R1-N2 stays open as an observation for the Tester and PO; it asks for no change.
+- **What changed:**
+  - `aa98bcb`: the fixes. It adds `TimeResolution.weekdaysFollowRepeat`, `RecurrenceSettlement.settle(kind:resolution:)`
+    with `Settled`, and `TimeHint.Anchor.modelChoices`, and derives `endHour` from the next daypart's start.
+  - `bce7771`: merges `m2/ingestion-foundation`. PR #15 is merged to main, and PR #18's base is now main.
+- **Worktree:** `/home/user/wt-rev18`, detached at `bce777185656acbd14898fc5ab4c368fc52dcb58`. Swift 6.2.4 via
+  `swift:6.2-noble`.
+
+### Scope of the diff against `origin/main`
+- `origin/main` (`8076d64`, the PR #15 merge commit) is not an ancestor of the head. But `git diff HEAD...origin/main`
+  is empty, so main has no content that the branch lacks. The only commit on main that the branch lacks is the merge
+  commit itself.
+- `git diff origin/main HEAD` touches 6 files, all WI-M2-03:
+  - `Time/TimeHint.swift`, `Time/TimeResolver.swift` and `TimeResolverTests.swift` (new);
+  - `dev-notes.md`: the header line plus the appended WI-M2-03 section; the WI-M2-01 and WI-M2-02 sections are
+    unchanged;
+  - `plan.md`: the PO/Planner commits `815fd33` and `65e3665` for Q-T1/Q-T2 and E22–E26;
+  - this review file, at round 1 and copied in unchanged.
+- No change under `Packages/TendCore`, `Packages/TendSourceScan`, `CLAUDE.md`, `docs/PRD.md`, `.claude/**`,
+  `.github/**`, `docs/governance/**` or `docs/milestones/STATUS.md`. No new dependency.
+
+### What I ran
+| Command | Result |
+|---|---|
+| `swift build --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `Build complete!`, 0 warnings |
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `✔ Test run with 37 tests in 4 suites passed after 6.040 seconds.` 0 warnings (`grep -c warning:` = 0). `TimeResolver property: seed 0x71E50A11CE000003, 6000 cases over 7 zones` → `4116 resolved from the hint, 1884 fell back to T1`. `Slot oracle: seed 0x51070AC1E, 1,400 cases over 7 zones`. |
+| AC-M2-09 regression (in the run above) | `TendIngestion (required) Packages/TendIngestion/Sources: 6 files scanned`, `6 files in total, 0 violations` |
+
+### Re-check of E22–E26 and my round 1 probes (probe test in a scratch copy, not committed)
+| Probe | Output at `bce7771` | Expected | Result |
+|---|---|---|---|
+| E22 `weekday`, no weekday, + 1 week | `[2026-11-23T15:00Z, 2026-11-30T15:00Z)`, dayparts ∅, weekdays ∅, interval 7, `fallback(requiredFieldAbsent)` | plan E22 | ✔ |
+| E23 Thursday + 1 month | `[2026-11-26T05:00Z, 2026-11-27T05:00Z)`, weekdays {thursday}, interval 30, `weekdaysFollowRepeat` true | plan E23 | ✔ |
+| E24 Thursday + 1 day | T7 window, weekdays ∅, interval 1 | plan E24 | ✔ |
+| E25 `inDays` 400 + evening | T1 window, dayparts {evening}, weekdays ∅, no interval, `fallback(fieldOutOfRange)` | plan E25 | ✔ |
+| E26 E23 settled as one-off / restock / recurring | one-off: no interval, 7 effective weekdays, effective dayparts = `Daypart.defaultAllowed`; restock: same; recurring: 30, {thursday} | plan E26 (and Q5 step 6) | ✔ |
+| Monday + every 3 years, settled recurring | 1095 > 730 → one-off, {monday} dropped | Q5 step 6 + PO Q-T1 | ✔ |
+| `unrecognized` + night + `Int.max` years | T1 window, {night}, no interval (overflow), no trap | Q-T2, DT3 | ✔ |
+| R1-F5: `resolve(nil, now: .nan)` | `fallback(calendarUnresolved)` | DT9 | ✔ |
+| R1-N2: `inDays` 366 at 2026-03-09 00:00 EDT | `windowOutOfRange` (unchanged, as expected) | the table read literally | observation stays |
+| `endHour` | morning 5–12, afternoon 12–17, evening 17–22, night 22–5 (from `Daypart.allCases` order in TendCore: morning, afternoon, evening, night) | M1 Q2 | ✔ |
+| `modelChoices` | the plan's 12 anchors, without `unrecognized` | R1-N1 | ✔ |
+
+The E22/E25 and E23/E24 windows were recomputed independently with `zoneinfo` in round 1; they are unchanged.
+
+### Mutants planted in round 2 (scratch copy `/tmp/claude-0/rev18/w2`, each alone, then restored)
+| # | Mutant | Result |
+|---|---|---|
+| N1 | Invalid anchor drops the daypart again (`allowedDayparts: []`) | killed (938 issues) |
+| N2 | Invalid anchor drops the interval again | killed (441) |
+| N3 | R5 units `{week, month}` (year missing) | killed (10) |
+| N4 | R5 units include `day` | killed (19) |
+| N5 | `weekdaysFollowRepeat` also true for the weekend {sat, sun} | killed (2, `settleResolution`) |
+| N6 | Settlement drops any weekdays when the interval drops (also R6's weekend) | killed (2) |
+| N7 | Settlement condition `kind != .recurring` instead of `intervalDays == nil` | survived: **equivalent** (`settle` returns no interval exactly when the kind is not `recurring`) |
+| N8 | Fallback keeps `weekdays(of:)` instead of ∅ | survived: **equivalent** in reachable states (a fallback `weekday` anchor has no weekday; `thisWeekend` never falls back unless the calendar fails) |
+| N9 | `nil` hint reported as `unrecognizedAnchor` | killed (2) |
+| N11 | `effectiveDayparts` default = all four | killed (2, E26) |
+| N12 | Night `endHour` = 22 (index clamped instead of wrapping) | killed (738; 701 from the oracle) |
+| N13 | The next-day end used for evening instead of night | killed (814; 701 from the oracle) |
+| Drift | **TendCore** afternoon start 12 → 13, TendIngestion unchanged | killed **only** by the slot oracle (701 issues). The new end oracle sees the stale morning end, which the round 1 oracle could not. |
+
+(N10 was a no-op rewrite that I wrote by mistake, so it is not counted.) Result: 11 of 11 non-equivalent mutants
+killed, plus the drift mutant.
+
+### Round 1 findings, verified
+| # | Round 2 evidence | Status |
+|---|---|---|
+| R1-F1 (Q-T2) | `TimeResolver.swift:98-135`: on any `FallbackReason` the result is the T1 window, weekdays ∅, `dayparts(of:)` and `interval(of:)`, with `basis` kept. Tests: `InvalidHints` (`TimeResolverTests.swift:405-436`, 17 rows with expected dayparts and interval), E22, E25 (`:138`, `:150`). The property test now checks interval and dayparts against an independent re-computation (`:728-738`) on every case. | Closed |
+| R1-F2 (Q-T1) | `weekdayRepeatUnits = [.week, .month, .year]` (`:82`, used at `:147-155`). Tests: E23, E24, "R5 monthly on Thursday", "R5 every year on a Thursday" (`:370`), "weekday + every 2 days", "repeatEvery 0 week". | Closed |
+| R1-F3 (E22–E26) | E22–E25 are exact worked examples. E26 goes through `settle(kind:resolution:)` (`TimeResolver.swift:453`) and `e26()` (test `:485`). `settleResolution` (`:511`, 6 cases) covers keep, drop (> 730, restock) and the R6 weekend that stays. | Closed |
+| R1-F4 (drift) | `endHour` is derived from the next daypart's `startHour` (`TimeResolver.swift:417-421`). The slot oracle adds an end check (test `:773-779`). My drift mutant shows it works. | Closed |
+| R1-F5 (non-finite `now` + `nil`) | The finite check runs first (`TimeResolver.swift:99-102`). `nonFiniteNow` (`:531`) covers NaN and ±∞ × `nil` and two hints. | Closed |
+| R1-F6 (dev-notes) | The WI-M2-03 section has DT1, DT2, DT8 and DT9 updated, the Q-T1/Q-T2 answers, E1–E26, the new test names, the 37-test run log and the round 2 handoff row. | Closed |
+| R1-N1 (`unrecognized`) | `TimeHint.Anchor.modelChoices` (`TimeHint.swift:40`) and the test `modelChoices()` (`:651`). WI-M2-10/12 must use it. | Closed |
+| R1-N2 (`inDays` 366 at midnight across DST) | Unchanged, as expected: the table read literally. | Open (observation) |
+
+### New findings (round 2)
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| R2-N1 | Nit | `TimeResolver.swift:44`, public `init(…, weekdaysFollowRepeat: Bool = false)` | A caller can build a `TimeResolution` by hand with R5 weekdays and the default `false`. `settle(kind:resolution:)` would then keep {W} when the interval drops. Only the resolver builds resolutions in product code, so this is not reachable today. | Optional: make the initialiser internal, or document that only `TimeResolver` builds it. WI-M2-05 should take its resolutions from `resolve` only. | Open (optional) |
+
+### Checklist (round 2)
+- [x] Correctness vs ACs: AC-M2-03 against the current table: T1–T15, R1–R7 (with R5 under PO Q-T1), the
+  invalid-anchor rule (PO Q-T2) and E1–E26, all tested exactly.
+- [x] Tests meaningful: 11 of 11 non-equivalent round 2 mutants killed, plus a drift mutant caught by the start and end
+  oracle. The tests that change pin PO decisions; no assertion was weakened (the round 1 ∅/`nil` expectations are
+  replaced by the PO's exact values).
+- [x] Swift 6 concurrency safe: value types only, all `Sendable`; built with `-warnings-as-errors`.
+- [x] No force unwraps / `try!` in product code.
+- [x] Privacy (P-1…P-4): AC-M2-09: 6 files, 0 violations; no I/O.
+- [x] UX-2/UX-3: UX-2 n.a.; no overdue state, field or helper; start ≥ `now`; no banned token in the added names.
+- [x] Accessibility (UI): n.a.
+- [x] Performance: O(1) per hint.
+- [x] No new dependency without ADR.
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Times come from the model's structured hint (FR-A1). Nothing asks the user for a field. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No overdue state or helper. A broken anchor falls back calmly to `[now, now + 7 d)` and keeps the user's daypart and repeat (Q-T2). Every window starts at or after `now`. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | Pure computation. |
+| P-2 No data leaves device (except user iCloud) | pass | AC-M2-09 scan: 0 violations. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | n.a. | No request built here. `modelChoices` keeps the schema mirrors (WI-M2-10/12) to the plan's 12 anchors. |
+| P-4 Media not persisted without consent | pass | No write, log or media API. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-21 | Developer (via Orchestrator) | Reviewer | accepted for review (round 2) | Head `bce7771`: `aa98bcb` fixes plus the merge of `m2/ingestion-foundation`. Base is now main. |
+| 2026-11-21 | Reviewer | Orchestrator → Merge Gatekeeper / Acceptance Tester | accepted (APPROVE, round 2) | 37 tests green, 0 warnings, AC-M2-09 0 violations. E22–E26 and the round 1 probes re-checked. 11 of 11 non-equivalent mutants killed (2 equivalent), and a drift mutant caught by the end oracle. R1-F1…F6 and R1-N1 closed. R1-N2 (observation) and R2-N1 (optional Nit) stay open; neither blocks. The diff against main is WI-M2-03 only. Not verified on Darwin (R-10, plan B2). `TendIngestion` is not in CI yet; the Gatekeeper checks G3. |
