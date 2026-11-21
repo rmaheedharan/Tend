@@ -1,8 +1,8 @@
 # ADR-0005: Opt-in cloud AI with the user's own provider key (BYOK)
 
-- **Status:** Proposed. The human owner chose the key model (BYOK) on 2026-11-21 (D-030). The whole ADR is awaiting
-  the human owner's approval, given by merging the PR that adds it (protected paths). Under P-3 it also needs the
-  Product Owner's approval, which the PO gives by writing it.
+- **Status:** Accepted (2026-11-21). The human owner chose the key model (BYOK) on 2026-11-21 (D-030) and approved this
+  whole ADR by merging PR #11 (`a6009e8`) on 2026-11-21. The Product Owner approved it under P-3 by writing it. A new
+  provider, a new request field or any Tend-run server still needs a new ADR (P-3).
 - **Date:** 2026-11-21
 - **Deciders:** Human owner (product direction, key model), Product Owner (policy, P-3). Developer and Reviewer to
   confirm the technical parts during M2 planning.

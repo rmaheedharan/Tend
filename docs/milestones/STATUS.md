@@ -10,7 +10,7 @@ States: `NOT-STARTED` → `PLANNING` → `IN-BUILD` → `IN-ACCEPTANCE` → (`AW
 | Milestone | State | Brief | Acceptance report | Gate signed |
 |---|---|---|---|---|
 | M1 Core Engine & Cognitive Shielding | **ACCEPTED** | [M1/brief.md](M1/brief.md) | [M1/acceptance.md](M1/acceptance.md) (25/25 PASS) | 2026-11-20, Product Owner ([signature](#m1--accepted--2026-11-20)) |
-| M2 On-Device AI Ingestion | PLANNING (build unlocked by M1 ACCEPTED; brief Draft, awaiting Tester testability review) | [M2/brief.md](M2/brief.md) | — | — |
+| M2 On-Device AI Ingestion | **IN-BUILD** (since 2026-11-21; build unlocked by M1 ACCEPTED. Brief Draft v4, Tester testability review ticked, recorded at `29e2d74`; plan at `81fd80a`; meaning changes in D-031. Seven device ACs will need a human run: AC-M2-11, 15, 16, 17, 25, 26, 27) | [M2/brief.md](M2/brief.md), [M2/plan.md](M2/plan.md) | — | — |
 | M3 Award-Caliber Liquid Glass UI | NOT-STARTED (locked) | — | — | — |
 | M4 Multimodal & System Surfaces | NOT-STARTED (locked) | — | — | — |
 | M5 Household Sync & Polish | NOT-STARTED (locked) | — | — | — |

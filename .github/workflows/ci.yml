@@ -1,4 +1,4 @@
-# Build and test the platform-independent engine on Linux (CLAUDE.md §3, §7).
+# Build and test the platform-independent packages on Linux (CLAUDE.md §3, §7).
 # This is the check that the Merge Gatekeeper rule G3 needs before it merges Swift code.
 name: CI
 
@@ -51,4 +51,43 @@ jobs:
         with:
           name: tendcore-linux-test-log
           path: swift-test.log
+          if-no-files-found: ignore
+
+  tendingestion-linux:
+    name: TendIngestion swift test (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.2-noble
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain version
+        run: swift --version
+      - name: Test TendSourceScan
+        shell: bash
+        run: |
+          if [ ! -f Packages/TendSourceScan/Package.swift ]; then echo "::notice::TendSourceScan not present yet"; exit 0; fi
+          swift test --package-path Packages/TendSourceScan -Xswiftc -warnings-as-errors 2>&1 | tee tendsourcescan-test.log
+          exit "${PIPESTATUS[0]}"
+      - name: Build TendIngestion (warnings are errors)
+        shell: bash
+        run: |
+          if [ ! -f Packages/TendIngestion/Package.swift ]; then echo "::notice::TendIngestion not present yet"; exit 0; fi
+          swift build --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors
+      - name: Test TendIngestion
+        shell: bash
+        run: |
+          if [ ! -f Packages/TendIngestion/Package.swift ]; then exit 0; fi
+          swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors 2>&1 | tee tendingestion-test.log
+          exit "${PIPESTATUS[0]}"
+      - name: Build tools
+        shell: bash
+        run: |
+          if [ ! -f Tools/TendTools/Package.swift ]; then exit 0; fi
+          swift build --package-path Tools/TendTools -Xswiftc -warnings-as-errors
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tendingestion-linux-test-logs
+          path: "*-test.log"
           if-no-files-found: ignore

@@ -79,10 +79,12 @@ struct ZeroGuiltModelTests {
         #expect(try Fixtures.roundTrip([PromptTone.gentle]) == [.gentle])
     }
 
-    @Test("AC-M1-25 naming: TaskInvariantViolation has exactly the nine design-list cases")
+    @Test("AC-M1-25 / AC-M2-02 naming: TaskInvariantViolation has exactly the nine M1 design-list cases plus windowDateNotFinite, in order")
     func invariantViolationCases() {
+        // The nine M1 cases in M1 order, with the M2 case (Designer, M2 design.md addendum 2026-11-21; W2-F3, Q9)
+        // inserted after noAllowedWeekdays (T-21: extended, nothing removed).
         #expect(TaskInvariantViolation.allCases == [
-            .noAllowedDayparts, .noAllowedWeekdays, .windowEndNotAfterStart, .recurringWithoutInterval,
+            .noAllowedDayparts, .noAllowedWeekdays, .windowDateNotFinite, .windowEndNotAfterStart, .recurringWithoutInterval,
             .intervalBelowOneDay, .intervalOnNonRecurringTask, .criticalAndDeepClean, .maintenanceOnNonDeepClean,
             .resurfacedOnNonCritical,
         ])

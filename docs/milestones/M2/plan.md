@@ -192,8 +192,17 @@ it to `required`. A required root with 0 files fails the test (lesson from M1 R-
 - One new `TaskInvariantViolation` case, named by the Designer. Its position in the case order is part of the naming
   decision, because `firstInvariantViolation()` checks cases in order.
 - Construction with a non-finite `windowStart` or `windowEnd` throws it.
-- `JSONFileHouseholdRepository` and `InMemoryHouseholdRepository` reject a household whose date decodes to a
-  non-finite value with `HouseholdStoreError.invalidTask(…)`, as in AC-M1-06.
+- Both M1 repositories reject a non-finite window date with a typed `HouseholdStoreError`, as in AC-M1-06, and keep
+  their previous contents (PO, 2026-11-21):
+  - `JSONFileHouseholdRepository`, loading a hand-written file: `unreadableFile`, because strict JSON cannot carry a
+    non-finite number. The file bytes are unchanged and no empty household is returned.
+  - `JSONFileHouseholdRepository`, saving a value set through an `internal(set)` setter: `writeUnsuccessful`. The
+    previous file is kept, as in AC-M1-07. The AC-M1-07 assertion is not changed.
+  - `InMemoryHouseholdRepository`, `save` or `upsertTask`: `invalidTask(.windowDateNotFinite)`. Nothing is stored.
+    The PO also accepts that this guard checks every model invariant, not only finiteness (`invalidTask(<case>)`);
+    it stays within AC-M1-25 and AC-M2-02.
+  - The model decode throws `windowDateNotFinite`. A test proves this with a lenient decoder, which no repository
+    uses.
 - Extending the M1 test that lists the cases is an extension, not a weakening. The Reviewer confirms that no M1
   assertion is removed. AC-M1-25 is not edited (T-21).
 
@@ -810,6 +819,8 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | 2026-11-21 | Work Planner | Orchestrator → human owner | sent | HM-1 (CI job), HM-2 (Mac PR merges), O-1…O-6. |
 | 2026-11-21 | Product Owner | Work Planner | accepted | PO decisions applied: P1–P7 acknowledged; P3 changed ("this week" on a Sunday at or after 18:00 means next week; T10, E15, E16); T11 is 7 calendar days; Q18 models approved with five conditions (current, pinned snapshot ID, structured streaming, temperature 0, no reasoning tokens with Gemini thinking budget 0; WI-M2-10, WI-M2-M6); HM-2 recommended rule recorded as proposed D-032 (needs a human-merged governance PR). No AC changed (AC-M2-03, 20, 24, 27). |
 | 2026-11-21 | Work Planner | Acceptance Tester | sent for review | Please include the changed T10 row and E15, E16 in the Q6 review (WI-M2-03 DoR, AC-M2-03). |
+| 2026-11-21 | iOS Designer | Work Planner | accepted | WI-M2-02 case named `windowDateNotFinite`, no associated value, after `noAllowedWeekdays` and before `windowEndNotAfterStart` (recorded as `design.md` Addendum A). |
+| 2026-11-21 | Product Owner | Work Planner | accepted | WI-M2-02 store errors (Q9, W2-F3): `unreadableFile` is acceptable for a hand-written non-finite file; the stores may throw different errors for values set through internal setters; AC-M1-07 unchanged; the in-memory all-invariants guard is in scope. Needs a DECISIONS.md entry (human merge). |
 | 2026-11-21 | Work Planner | Orchestrator → Product Owner, human owner | sent | HM-2: prepare and merge the D-032 governance PR before the first Mac PR merges (MS-1). |
 | 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q6 table APPROVED with 3 non-blocking findings. Applied: E17, E18 (T11 across DST, 169 h / 167 h), E19 (T4 "tonight" after midnight), and the PO decision on finding 2 (T9 and T14 with a daypart; E20, E21). No AC meaning changed (AC-M2-03). WI-M2-03 DoR: Q6 review box ticked. All new UTC values checked with Python `zoneinfo` (America/New_York). The PO logs the daypart decision in `DECISIONS.md` as a separate entry with its own number, in the same human-merged governance PR as D-032. |
 | 2026-11-21 | Product Owner | Work Planner | accepted | PO 2026-11-21, stricter only, from the PR #15 review: M2 Q23 and Q24 (AC-M2-09; AC-M1-23 cross-reference). Added the fixtures loader to "Named files", the Developer constraint (no `data(for:`/`data(from:` method names; unlisted Rule 6 imports go to the PO) and the timing: Q24 in WI-M2-01 round 2 or a follow-up before WI-M2-M4/M7 review; Q23 in a follow-up before WI-M2-M7 review; WI-M2-01 round 2 stays strict. Fixed two Gatekeeper minors from PR #14: R-24 now records the Tester's Q6 review as done; the daypart decision is its own `DECISIONS.md` entry in the D-032 governance PR. No AC changed. |
