@@ -261,7 +261,9 @@ struct IngestionSourceRulesTests {
         return planted
     }()
 
+    /// The hand-written M2 Q24 plants (TendIngestion, Rule 1) are part of the set, so the coverage test sees them.
     static let allPlanted = rule1Planted + rule2Planted + rule3Planted + rule4Planted + rule5Planted + rule6Planted
+        + Q24RulesTests.q24Plants.map { Planted.ingestion($0.0, $0.1) }
 
     @Test("AC-M2-09 negative: every planted hit is caught by its rule", arguments: allPlanted)
     func plantedHitIsCaught(planted: Planted) {

@@ -1,5 +1,6 @@
 // The AC-M2-09 rule engine: Rules 1–6 over the `Sources` of `TendIngestion`, `TendAI` and `TendEval`, with comments
-// removed (the AC-M1-23 approach, through `SourceScanner.lex`). Brief M2 v4, AC-M2-09; plan WI-M2-01; ADR-0006.
+// removed (the AC-M1-23 approach, through `SourceScanner.lex`). Brief M2 AC-M2-09 (v4 plus PO decision
+// M2 Q24); plan WI-M2-01; ADR-0006.
 // P-1, P-2, P-3, P-4.
 //
 // The closed lists below are copied from the brief. Changing one needs a PO decision that updates AC-M2-09.
@@ -14,9 +15,22 @@
 // - Media types and the write and log names: the name occurs **anywhere inside** an identifier (case-sensitive
 //   substring). This is stricter than the camelCase split, so `AVAssetReader`, `AppLogger` and `OSLogType` are hits.
 //   (`AVURLAsset` does not contain `AVAsset` and is not a hit; it needs `AVFoundation`, which Rules 1–3 do not allow.)
-// - The write and log calls (`write(to:`, `createFile(`, `print(`, `debugPrint(`, `dump(`, `NSLog(`, `os_log(`,
-//   `os_signpost(`): at an identifier boundary on the left, so `Swift.print(` and `x.write(to:` are hits and
-//   `reprint(` is not.
+//   Every camelCase word-boundary hit is also a substring hit, so this relaxes none of the type-name patterns that
+//   M2 Q24 keeps on the AC-M1-23 camelCase rule (`Logger`, `FileManager`, `OSLog`, `AppStorage` and the rest).
+// - Call patterns (M2 Q24, "How call patterns match"): every write, log and session-method call. A call matches only
+//   when the character before the name is not a letter, digit or `_` (a `.` receiver is fine). Matching is
+//   case-sensitive. Whitespace and newlines are ignored between the name and `(`, and between `(` and the first label.
+//   Backticks are removed first. So `Swift.print(` and `x.write(to:` are hits, and `reprint(`, `inputs(` (not
+//   `puts(`), `snprintf(` (not `printf(`), `metadata(for:` (not `data(for:`) and `data(forKey:` are not.
+// - Method references (M2 Q24): `dataTask`, `uploadTask`, `downloadTask`, `streamTask` and `webSocketTask` are also
+//   hits as whole tokens without `(`, so `let f = s.dataTask` is caught.
+// - Rule 3 session methods (M2 Q24): the only allowed session-method call is `bytes(for:` whose balanced argument list
+//   contains the label `delegate:` (checked like AC-M1-23's `using:` rule).
+// - Rule 6 imports (M2 Q24): the module is the first path component after `import` and any kind keyword
+//   (`import struct Darwin.C` is `Darwin`). Attributes are ignored, so `@_exported` and `@_implementationOnly` imports
+//   count. Rules 1–3 keep the stricter M1 form: the whole import target must be a listed module.
+// - The M2 Q23 fixtures-loader exception is **not** built here (WI-M2-01 stays strict, plan WI-M2-01); it comes in a
+//   scanner follow-up before WI-M2-M7 is reviewed. Until then `Data(contentsOf:` is a hit in every TendEval file.
 // - Rule 3 prefix rule (N-1): an identifier token is the **whole** Swift identifier, never split at camelCase, so
 //   `willPerformHTTPRedirection` is not a hit and `HTTPCookieStorage` is.
 // - Rule 4 (T-30): host-like is tested on the **whole** decoded literal segment (the lexer splits a literal at each
@@ -116,6 +130,22 @@ public enum IngestionSourceRules {
         "URLComponents", "NWConnection", "SFSpeech",
     ]
 
+    /// Networking patterns, M2 Q24: the session-method calls (call-pattern rule).
+    public static let sessionMethodCalls: [String] = [
+        "dataTask(", "uploadTask(", "downloadTask(", "streamTask(", "webSocketTask(", "data(for:", "data(from:",
+        "bytes(for:", "bytes(from:", "upload(for:", "upload(from:", "download(for:", "download(from:",
+        "download(resumeFrom:",
+    ]
+
+    /// Networking patterns, M2 Q24: the task-creating names that also match as whole tokens without `(`.
+    public static let methodReferenceNames: [String] = [
+        "dataTask", "uploadTask", "downloadTask", "streamTask", "webSocketTask",
+    ]
+
+    /// Rule 3 (M2 Q24): the one allowed session-method call, when its argument list contains `delegate:`.
+    public static let streamingReadCall = "bytes(for:"
+    public static let delegateLabelPattern = SourceScanner.leftBoundary + #"delegate\s*:"#
+
     /// Networking imports: `import Network`, `import CFNetwork`, and `FoundationNetworking` (banned everywhere).
     public static let networkingImports: Set<String> = ["Network", "CFNetwork", "FoundationNetworking"]
 
@@ -132,15 +162,22 @@ public enum IngestionSourceRules {
         "CVPixelBuffer", "CVImageBuffer", "CGImage", "CIImage", "UIImage", "NSImage",
     ]
 
-    /// Write APIs (closed): type names, then call patterns.
+    /// Write APIs (closed; M2 Q24): type names, then call patterns.
     public static let writeNames: [String] = [
-        "FileManager", "FileHandle", "OutputStream", "UserDefaults", "NSUbiquitousKeyValueStore",
+        "FileManager", "FileHandle", "OutputStream", "UserDefaults", "NSUbiquitousKeyValueStore", "AppStorage",
+        "SceneStorage",
     ]
-    public static let writeCalls: [String] = ["write(to:", "createFile("]
+    public static let writeCalls: [String] = [
+        "write(to:", "write(toFile:", "createFile(", "archiveRootObject(", "fopen(", "freopen(", "fdopen(", "fwrite(",
+        "fputs(", "fputc(", "mkstemp(", "tmpfile(", "creat(",
+    ]
 
-    /// Log APIs (closed): type names, then call patterns.
+    /// Log APIs (closed; M2 Q24): type names, then call patterns.
     public static let logNames: [String] = ["Logger", "OSLog"]
-    public static let logCalls: [String] = ["print(", "debugPrint(", "dump(", "NSLog(", "os_log(", "os_signpost("]
+    public static let logCalls: [String] = [
+        "print(", "debugPrint(", "dump(", "NSLog(", "os_log(", "os_signpost(", "printf(", "fprintf(", "vprintf(",
+        "vfprintf(", "dprintf(", "puts(", "putc(", "putchar(", "perror(", "syslog(",
+    ]
 
     /// Imports allowed per rule.
     public static let rule1Imports: Set<String> = ["Foundation", "TendCore"]
@@ -148,6 +185,14 @@ public enum IngestionSourceRules {
         "Foundation", "FoundationModels", "Speech", "AVFAudio", "TendCore", "TendIngestion",
     ]
     public static let rule3Imports: Set<String> = rule2Imports.union(["Security"])
+    /// Rule 6 (M2 Q24): the closed `TendEval` import list, compared with the module name (`importedModule(of:)`).
+    public static let rule6Imports: Set<String> = [
+        "Foundation", "SwiftUI", "CryptoKit", "TendCore", "TendIngestion", "TendAI",
+    ]
+    /// Import kind keywords skipped before the module path (`import struct Darwin.C` is `Darwin`).
+    public static let importKindKeywords: Set<String> = [
+        "typealias", "struct", "class", "enum", "protocol", "let", "var", "func",
+    ]
 
     /// Rule 3: the allowed networking subset (closed; T-23). `URLSession.AsyncBytes` is the identifier `URLSession`
     /// followed by `AsyncBytes` (which has no networking prefix); `bytes(for:delegate:)` has no networking identifier.
@@ -191,8 +236,22 @@ public enum IngestionSourceRules {
 
     /// Every fixed regex the rules use (a self-test compiles each one).
     public static var allPatterns: [String] {
-        [hostLikePattern, speechExceptionCallPattern] + (writeCalls + logCalls).map(callPattern)
-            + SourceScanner.allPatterns
+        [hostLikePattern, speechExceptionCallPattern, delegateLabelPattern]
+            + (writeCalls + logCalls + sessionMethodCalls).map(callPattern)
+            + methodReferenceNames.map(wholeTokenPattern) + SourceScanner.allPatterns
+    }
+
+    /// A whole identifier token: not preceded or followed by a letter, digit or `_`.
+    static func wholeTokenPattern(_ name: String) -> String {
+        SourceScanner.leftBoundary + NSRegularExpression.escapedPattern(for: name) + SourceScanner.rightBoundary
+    }
+
+    /// The module an import statement imports: the first path component after any kind keyword (M2 Q24).
+    public static func importedModule(of importTarget: String) -> String {
+        let words = importTarget.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
+        guard let first = words.first else { return importTarget }
+        let path = importKindKeywords.contains(first) && words.count > 1 ? words[1] : first
+        return path.split(separator: ".").first.map(String.init) ?? path
     }
 
     // MARK: - Scan
@@ -260,8 +319,9 @@ public enum IngestionSourceRules {
         var result = facts.importViolations(.rule3, allowed: rule3Imports)
         // Networking-pattern hits: a name hit is allowed only when the whole identifier is in the subset. Every other
         // hit (`URL(string:`, `contentsOf:`, `Host(`, `Stream(`, `Host.current`, networking imports) is never in it.
+        // M2 Q24: the only session-method call allowed is `bytes(for:` with `delegate:` in its argument list.
         let names = Set(networkingNames)
-        for hit in facts.networkingHits {
+        for hit in facts.networkingHits where !facts.isStreamingReadWithDelegate(hit) {
             let isSubsetIdentifier = names.contains(hit.rule) && allowedNetworkingSubset.contains(hit.excerpt)
             if !isSubsetIdentifier {
                 result.append(facts.violation(.rule3, check: "networking outside subset: " + hit.rule, hit: hit))
@@ -311,9 +371,14 @@ public enum IngestionSourceRules {
             .map { facts.violation(.rule5, check: "SFSpeech* API", hit: $0) }
     }
 
-    /// Rule 6, `TendEval`: no networking pattern; write APIs only in the results writer; no log API.
+    /// Rule 6, `TendEval`: the closed import list (M2 Q24); no networking pattern, including `contentsOf:` (no M2 Q23
+    /// loader exception yet); write APIs only in the results writer; no log API.
     static func rule6(_ facts: FileFacts) -> [RuleViolation] {
-        var result = facts.networkingViolations(.rule6)
+        var result = SourceScanner.imports(inCode: facts.lexed.code)
+            .filter { !rule6Imports.contains(importedModule(of: $0.target)) }
+            .map { RuleViolation(rule: .rule6, check: "import", file: facts.file.path, line: $0.line,
+                                 excerpt: "import \($0.target)") }
+        result += facts.networkingViolations(.rule6)
         if facts.file.path != facts.configuration.resultsWriterFile {
             result += facts.writeViolations(.rule6)
         }
@@ -337,6 +402,10 @@ struct FileFacts {
     /// before any exception. The Rule 5 exception is removed from these in `networkingViolations`.
     let networkingHits: [ScanHit]
     let speechExceptionOffsets: Set<Int>
+    /// Code with backticks removed, for the call-pattern rule (M2 Q24). Offsets of call hits refer to this text.
+    let callCode: String
+    /// Offsets (in `callCode`) of `bytes(for:` calls whose argument list contains `delegate:` (Rule 3, M2 Q24).
+    let streamingReadOffsets: Set<Int>
 
     init(file: ScannedFile, lexed: LexedSource, configuration: IngestionScanConfiguration) {
         self.file = file
@@ -361,8 +430,31 @@ struct FileFacts {
             hits.append(ScanHit(file: file.path, line: match.line, rule: SourceScanner.contentsOfRule,
                                 excerpt: "\(call ?? "?")(\(match.text)", offset: match.startOffset))
         }
+        // M2 Q24: session-method calls (call-pattern rule) and task-creating method references (whole tokens).
+        callCode = code.replacingOccurrences(of: "`", with: "")
+        let callScalars = Array(callCode.unicodeScalars)
+        var streaming: Set<Int> = []
+        for call in IngestionSourceRules.sessionMethodCalls {
+            for match in SourceScanner.matches(of: IngestionSourceRules.callPattern(call), in: callCode) {
+                hits.append(ScanHit(file: file.path, line: match.line, rule: call, excerpt: match.text,
+                                    offset: match.startOffset))
+                if call == IngestionSourceRules.streamingReadCall,
+                   let arguments = Self.argumentList(in: callScalars, from: match.startOffset),
+                   !SourceScanner.matches(of: IngestionSourceRules.delegateLabelPattern, in: arguments).isEmpty {
+                    streaming.insert(match.startOffset)
+                }
+            }
+        }
+        streamingReadOffsets = streaming
+        for name in IngestionSourceRules.methodReferenceNames {
+            for match in SourceScanner.matches(of: IngestionSourceRules.wholeTokenPattern(name), in: callCode) {
+                hits.append(ScanHit(file: file.path, line: match.line, rule: name, excerpt: match.text,
+                                    offset: match.startOffset))
+            }
+        }
         for statement in SourceScanner.imports(inCode: code)
-        where IngestionSourceRules.networkingImports.contains(Self.moduleName(of: statement.target)) {
+        where IngestionSourceRules.networkingImports
+            .contains(IngestionSourceRules.importedModule(of: statement.target)) {
             hits.append(ScanHit(file: file.path, line: statement.line, rule: "import",
                                 excerpt: "import \(statement.target)", offset: statement.offset))
         }
@@ -380,11 +472,28 @@ struct FileFacts {
         speechExceptionOffsets = offsets
     }
 
-    /// `struct Foundation.Date` → `Foundation`; `Network` → `Network`.
-    static func moduleName(of importTarget: String) -> String {
-        let words = importTarget.split(separator: " ")
-        let path = words.last.map(String.init) ?? importTarget
-        return path.split(separator: ".").first.map(String.init) ?? path
+    /// The top level of the balanced argument list of the call whose name starts at `start`: the text between its
+    /// `(` and the matching `)`, with every nested bracketed part blanked, so `bytes(for: make(delegate: d))` does not
+    /// count as passing `delegate:`. `nil` when there is no `(`.
+    static func argumentList(in scalars: [Unicode.Scalar], from start: Int) -> String? {
+        guard var index = scalars[start...].firstIndex(of: "(") else { return nil }
+        var depth = 0
+        var text = String.UnicodeScalarView()
+        while index < scalars.count {
+            let scalar = scalars[index]
+            if scalar == "(" || scalar == "[" || scalar == "{" { depth += 1 }
+            text.append(depth == 1 ? scalar : " ")
+            if scalar == ")" || scalar == "]" || scalar == "}" { depth -= 1 }
+            if depth == 0 { break }
+            index += 1
+        }
+        return String(text)
+    }
+
+    /// Rule 3 (M2 Q24): this hit is the allowed `bytes(for:` call with `delegate:`.
+    func isStreamingReadWithDelegate(_ hit: ScanHit) -> Bool {
+        guard hit.rule == IngestionSourceRules.streamingReadCall, let offset = hit.offset else { return false }
+        return streamingReadOffsets.contains(offset)
     }
 
     var isAllowlisted: Bool {
@@ -427,7 +536,7 @@ struct FileFacts {
     func callViolations(_ rule: IngestionScanRule, kind: String, calls: [String]) -> [RuleViolation] {
         var result: [RuleViolation] = []
         for call in calls {
-            for match in SourceScanner.matches(of: IngestionSourceRules.callPattern(call), in: lexed.code) {
+            for match in SourceScanner.matches(of: IngestionSourceRules.callPattern(call), in: callCode) {
                 result.append(RuleViolation(rule: rule, check: "\(kind) \(call)", file: file.path, line: match.line,
                                             excerpt: match.text))
             }

@@ -94,15 +94,31 @@ what AC-M2-09 reports, so I flag them for the Tester as well.
      and it allows `https://<host>` in the allowlisted files, so counting the literals as Rule 3 hits would make Rules 3
      and 4 contradict each other. The Reviewer accepted this half.
    - In round 1 I had also excluded `contentsOf:`, so that `TendEval` could read its bundled fixtures. That narrowed a
-     closed list without the PO decision that AC-M1-23 / Q23 require. It is reverted. Whether `TendEval` gets a named
-     fixtures-loader exception is a PO question (asked by the Reviewer); until the PO decides, the strict rule stands.
-     `Apps/TendEval/Sources` does not exist yet, so nothing breaks.
+     closed list without the PO decision that AC-M1-23 / Q23 require. It is reverted.
+   - **Round 3: the PO has answered both review questions (PR #16, merged into main and then into this branch).**
+     - **M2 Q24** (the Reviewer's R1-F5 gaps): stricter lists, built in this round. The session-method calls, the
+       method references and the `bytes(for:` + `delegate:` rule are now networking patterns. `write(toFile:`,
+       `AppStorage`, `SceneStorage`, `archiveRootObject(` and the C calls are on the write and log lists. The exact
+       call-pattern rule applies, `contentsOf:` is banned in Rules 2, 3 and 6 by the brief's own words, and Rule 6
+       has a closed import list.
+     - **M2 Q23** (R1-F1(4)): one named fixtures-loader file
+       (`Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift`) may use `Data(contentsOf:` under the brief's
+       conditions. Per the plan, **WI-M2-01 stays strict** and the exception comes in a scanner follow-up that merges
+       before WI-M2-M7 is reviewed. Until then `Data(contentsOf:` is a hit in every `TendEval` file, including the
+       loader file (test "the fixtures-loader file has no exception …"). The brief's "Caught in the fixtures-loader
+       file" plants and its loader positive are left for that follow-up, because they only make sense with the
+       exception's own rules (the whole token `URL`, the `Bundle` uses, the literal-argument checks).
+     - `Apps/TendEval/Sources` does not exist yet, so nothing breaks.
    - Tests: "(R1-F1) negative: Data(contentsOf:, String(contentsOf:, .init(contentsOf: … are caught in every module
      and file kind" and "(R1-F1) positive: append(contentsOf:) and insert(contentsOf:at:) pass in Rules 1, 2, 3 and 6".
-2. **D2: media types and the write/log names match as a substring of an identifier.**
-   - The brief gives no matching rule for these M2 lists. A substring match is strictly stronger than the camelCase
-     split, so `AVAssetReader`, `AppLogger` and `OSLogType` are hits.
-   - The write/log calls match at a left identifier boundary: `Swift.print(` is a hit and `reprint` is not.
+2. **D2: media types and the write/log type names match as a substring of an identifier.**
+   - A substring match is strictly stronger than the camelCase split, so `AVAssetReader`, `AppLogger` and `OSLogType`
+     are hits.
+   - Round 3: M2 Q24 says the type-name patterns "keep the AC-M1-23 camelCase word-boundary rule" and that it
+     "relaxes none of them". Every camelCase word-boundary hit is also a substring hit, because consecutive camelCase
+     words are a contiguous substring. So the substring match keeps that rule and adds to it; it relaxes nothing. For
+     the Reviewer: if the PO wants the exact camelCase rule rather than the superset, that is a one-line change.
+   - Calls follow the M2 Q24 call-pattern rule (D10).
 3. **D3: where Rule 4 lets the allowed hosts appear.** I read "Where they may appear" strictly:
    - bare hosts appear only in `TendIngestion`, for the provider table;
    - `https://<host>` appears only in the three allowlisted files;
@@ -120,8 +136,7 @@ what AC-M2-09 reports, so I flag them for the Tester as well.
      is true. It is **off** until WI-M2-M1.
    - Every other `SFSpeech*` use, including `SFSpeechRecognizer(` and `.init(`, is a hit, with the exception off or on.
 6. **D6: Rule 6 does not require the results writer to exist** or to contain a write. It only bans write APIs in
-   every other `TendEval` file. Rule 6 sets no `TendEval` import list (the brief gives none), but networking imports
-   are still caught.
+   every other `TendEval` file. (Round 3: Rule 6 now also has the closed M2 Q24 import list; see D10.)
 7. **D7: Rule 4 works on decoded literal segments.**
    - The lexer splits a literal at each interpolation, so `"https://\(host)"` gives the segment `https://`, which is
      host-like and not allowed. URLs must therefore be built with `URLComponents`, as T-23 intends.
@@ -141,6 +156,25 @@ what AC-M2-09 reports, so I flag them for the Tester as well.
 9. **D9: canonical JSON members are an ordered list, not a `[String: …]` dictionary.**
    - `"é"` and `"e\u{301}"` are equal as Swift `String`s, but they are different keys by bytes.
    - Duplicate detection uses UTF-8 bytes and throws a typed error.
+10. **D10: the M2 Q24 call-pattern rule** (round 3), applied to every write, log and session-method call:
+    - The regex is `(?<![\p{L}\p{N}_])name\s*\(` plus `\s*label\s*:` when the pattern has a first label. It runs
+      on the lexed code with comments and string text blanked and backticks removed. `\s` includes newlines, and it
+      is case-sensitive.
+    - So `Swift.print(`, `` `print`(x) ``, `print\n(x)` and `d.write(\n to: u)` are hits. `inputs(`, `snprintf(`,
+      `metadata(for:`, `reprint(` and `data(forKey:` are not.
+    - I also allow whitespace between the label and `:`. That is stricter, not looser.
+    - Method references: `dataTask`, `uploadTask`, `downloadTask`, `streamTask` and `webSocketTask` are hits as whole
+      identifier tokens (`let f = s.dataTask`). `dataTaskCount` and `DataTask` are not.
+    - **Rule 3 streaming read.** The only allowed session-method call is `bytes(for:` when the label `delegate:`
+      appears at the **top level** of its own argument list. Brackets nested inside the argument list are blanked
+      before the check, so `bytes(for: make(delegate: d))` is a hit. I read "checked like AC-M1-23's `using:` rule" as
+      the call's own arguments. This is stricter than a check over the whole text, and it is tested. `delegatee:` is
+      not `delegate:`.
+    - **Rule 6 imports.** `IngestionSourceRules.importedModule(of:)` skips one kind keyword (`typealias`, `struct`,
+      `class`, `enum`, `protocol`, `let`, `var`, `func`), then takes the first path component (`import struct
+      Darwin.C` → `Darwin`, `import os.log` → `os`). Attributes come before `import`, so they are ignored, and
+      `@_exported` / `@_implementationOnly` imports count. Rules 1–3 keep the stricter M1 form, where the whole target
+      must be a listed module (`import struct Foundation.Date` is a hit there).
 
 ### AC coverage
 | AC | Test(s) | Result |
@@ -148,6 +182,7 @@ what AC-M2-09 reports, so I flag them for the Tester as well.
 | AC-M2-09 (scan) | `TendIngestionTests` › "AC-M2-09: Rules 1–6 hold over every .swift file in the three module Sources (file counts logged per module)" | PASS on Linux. Log: `TendIngestion (required) Packages/TendIngestion/Sources: 4 files scanned`; `TendAI (optional) …: not present`; `TendEval (optional) …: not present`; `4 files in total, 0 violations`. **Partial:** two roots do not exist yet. The evidence for the AC is the WI-M2-M8 run with all three roots required. |
 | AC-M2-09 (negative, one planted hit per rule) | `TendSourceScanTests` › "AC-M2-09 negative: every planted hit is caught by its rule" (171 cases over Rules 1–6), "AC-M2-09 coverage: the planted fixtures exercise every entry…", and `TendIngestionTests` › "AC-M2-09 negative (driver): one planted hit per rule…" | PASS |
 | AC-M2-09 closed lists pinned to the brief (round 2, R1-F2) | `TendSourceScanTests` › `BriefPinTests`. The pins compare the engine with a literal copy of the brief text for: the networking names and imports, the AC-M1-23 networking names, call names and `contentsOf:` exemptions, the media types, the write and log APIs (and their write/log split), the Rule 1/2/3 imports, the hosts, the host-like regex (string equality) and the T-27 forms. There are hand-written plants per entry for media (Rules 1–3), write (Rules 1–3 and 6), log (Rules 1–3, 6 and the results writer), networking (Rules 1, 2 and 6, and Rule 3 outside the subset), imports and hosts. | PASS |
+| AC-M2-09 M2 Q24 (round 3) | `TendSourceScanTests` › `Q24RulesTests`. It covers: the M2 Q24 list plants, each caught on its own in TendIngestion (37 parameterised cases, every session-method call, `write(toFile:`, `AppStorage`, `SceneStorage`, `archiveRootObject(` and each C call), plus a coverage check; `import Darwin` and `fwrite(` in TendEval; `@AppStorage` in TendEval; Rule 3 `uploadTask(`, `webSocketTask(`, `bytes(for:` without `delegate:`, `s.dataTask`, a misspelled `delegatee:` and a nested `delegate:`, in all 3 allowlisted files; the exact Rule 3 positive; `Data(contentsOf: u)` in TendAI outside the allowlist, in an allowlisted file and in TendEval; the loader file strict until Q23; the Rule 6 imports (17 forms caught, 6 listed modules pass); import parsing; the call-pattern matches and near-misses. `BriefPinTests` now also pins the session-method calls, the method references, the separate Write and Log lists, the Rule 6 imports and the brief's positives, and adds hand-written plants for every new entry. | PASS |
 | AC-M2-09 `contentsOf:` (round 2, R1-F1) | "(R1-F1) negative: …" (6 plants × 8 locations: the three allowlisted files, two `TendAI` adapter files, `TendEval` and its results writer, and `TendIngestion`); "(R1-F1) positive: append(contentsOf:) and insert(contentsOf:at:) …"; `rule6Positive` rewritten so it uses no `contentsOf:` | PASS |
 | AC-M2-09 Rule 3 (T-23, N-1) | "Rule 3 (T-23): URLSessionWebSocketTask and URL(string: are caught; a subset-only file passes"; "Rule 3 (N-1): … willPerformHTTPRedirection is not a hit"; "Rule 3: the allowed subset is exactly the brief's closed list" | PASS |
 | AC-M2-09 Rule 4 (T-30) | "Rule 4 (T-30): tend.ai.key and com.tend.eval pass; api.example.com and https://api.example.com/v1 are caught" (in every module); "Rule 4: bare hosts pass in TendIngestion; https:// hosts pass only in allowlisted files"; "Rule 4: host-like is decided on the whole literal" (17 cases) | PASS |
@@ -162,8 +197,8 @@ what AC-M2-09 reports, so I flag them for the Tester as well.
 ### Test runs (R-18 runtime record)
 | Command | Summary line | Tests / cases | Runtime |
 |---|---|---|---|
-| `swift test --package-path Packages/TendSourceScan -Xswiftc -warnings-as-errors` (round 2) | `✔ Test run with 48 tests in 3 suites passed after 0.563 seconds.` | 48 tests, 385 cases (round 1: 33 / 365) | ~0.6 s (plus the build) |
-| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` (round 2) | `✔ Test run with 17 tests in 3 suites passed after 0.106 seconds.` The scan log is unchanged: 4 files, 0 violations. | 17 tests, 72 cases (round 1: 17 / 70) | ~0.1 s |
+| `swift test --package-path Packages/TendSourceScan -Xswiftc -warnings-as-errors` (round 3, M2 Q24) | `✔ Test run with 63 tests in 4 suites passed after 2.269 seconds.` | 63 tests, 529 cases (round 2: 48 / 385; round 1: 33 / 365) | ~2 s (plus the build) |
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` (round 3) | `✔ Test run with 17 tests in 3 suites passed after 0.155 seconds.` The scan log is unchanged: 4 files, 0 violations. | 17 tests, 72 cases (unchanged since round 2) | ~0.2 s |
 | `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` (round 1; not rerun in round 2, because `Packages/TendCore` is unchanged) | `✔ Test run with 127 tests in 17 suites passed after 113.063 seconds.` | 127 tests | ~113 s |
 | `swift build --package-path Packages/TendCore` and `Packages/TendIngestion`, each with `-Xswiftc -warnings-as-errors` | `Build complete!` | — | — |
 
@@ -213,6 +248,23 @@ of those mutants one at a time against the round 2 tests, with mtime-safe restor
 The review's prose says 17 survivors, but it lists 16 that are not equivalent (8 media, 2 write, 3 log, 2 import sets,
 1 host set). I ran all 16, the 2 near-equivalent ones it names, and 2 new R1-F1 mutants: 20 in total, 20 killed.
 
+**Round 3 (M2 Q24).** Each mutant was applied alone and restored with a touch; the clean baseline afterwards was 63 tests
+green. **All 17 are killed:**
+
+| Mutant | Killed by |
+|---|---|
+| Delete session call `download(resumeFrom:`; delete `data(for:` | Q24 list plants, Q24 coverage, pin |
+| Rule 3 allows `bytes(for:` without `delegate:` (compiling variant; my first variant failed to build, so it proved nothing and was rerun) | Rule 3 session-method plants, networking plants |
+| `delegate:` counted at any depth | the nested-`delegate:` plant |
+| Backticks not removed before call matching | call-pattern match test |
+| Method references off | Rule 3 `s.dataTask` plant, call-pattern test |
+| Call pattern left boundary dropped | brief positives, near-miss test |
+| Label matched as a prefix (`data(for` matches `data(forKey:`) | brief positives, near-miss test |
+| Rule 6 imports widened with `Darwin`; the Rule 6 import check removed | Rule 6 import tests, `import Darwin` test |
+| `importedModule` ignores the kind keyword | Rule 6 positive, import parsing |
+| Delete `creat(`, `AppStorage`, `write(toFile:`, `syslog(` | Q24 plants, pins, hand-written plants |
+| A loader-file `contentsOf:` exception leaks in early (M2 Q23 not approved for this item) | the loader-file strictness test |
+
 One process note: my first batch restored files with an old mtime, so SwiftPM reused mutated objects in a few later
 runs. I fixed the helper (it now touches the restored file), reran every affected mutant on its own, and confirmed a
 clean green baseline afterwards. The table above is from the clean reruns.
@@ -220,8 +272,8 @@ clean green baseline afterwards. The table above is from the clean reruns.
 ### Verification environment
 | Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
 |---|---|---|---|---|---|
-| TendSourceScan: 48 tests, 385 cases, 0 warnings (round 2) | ✔ container | — | — | — | Linux CI runs it after HM-1 merges. The Gatekeeper should confirm the log shows "48 tests". |
-| TendIngestion: 17 tests, 72 cases, 0 warnings, including the AC-M2-09 repository scan (round 2) | ✔ container | — | — | — | Linux CI after HM-1 (confirm "17 tests" and the "4 files scanned" line). |
+| TendSourceScan: 63 tests, 529 cases, 0 warnings (round 3) | ✔ container | — | — | — | Linux CI runs it after HM-1 merges. The Gatekeeper should confirm the log shows "63 tests". |
+| TendIngestion: 17 tests, 72 cases, 0 warnings, including the AC-M2-09 repository scan (round 3) | ✔ container | — | — | — | Linux CI after HM-1 (confirm "17 tests" and the "4 files scanned" line). |
 | TendCore regression: 127 tests | ✔ container | — | — | — | — |
 | Folding and canonical JSON on Darwin Foundation (R-10) | — | — | — | — | Not verified. No Mac here. Plan B2 (MS-2) reruns `TendIngestion` on the Mac. The Linux pins (`ß` gives `ss`, fullwidth to ASCII, decomposed accents) must hold there. |
 | AC-M2-09 over `TendAI` and `TendEval` | — | — | — | — | The roots do not exist yet. WI-M2-M1 creates them and switches them to `required`. Final evidence is in WI-M2-M8. |
@@ -248,8 +300,10 @@ Device ACs: none in this item.
 ### Known limitations / follow-ups
 | Item | Severity | Ticket |
 |---|---|---|
-| Q-D1, `AVURLAsset` (corrected in round 2, review R1-F4): it is not caught by the `AVAsset` entry, because the substring is not present. (a) Rule 6 bans no media types in `TendEval`, so this is not a gap there: `AVAsset` itself is allowed in `TendEval`. The AC-M2-09 Reviewer clause (no audio persisted) is protected by the Rule 6 write confinement and by the AC-M2-28 results-file type. (b) In Rules 1–3, `AVURLAsset` needs `AVFoundation`, which the import lists ban. `AVFAudio` does not declare `AVAsset` types. No scanner change in this PR. | Nit (optional PO note: add `AVURLAsset`, or a Rule 6 import list, see R1-F5) | Q-D1 (non-blocking) |
-| R1-F5: the brief's closed lists have gaps. `write(toFile:`, `fopen(`/`fwrite(` and `import Darwin` in `TendEval` (Rule 6 has no import list), and inferred task types (`uploadTask(`, `webSocketTask(` …) are not caught. The scanner follows the lists as written. | Minor (PO/Tester question) | R1-F5, before WI-M2-M4 and WI-M2-M7 |
+| Q-D1, `AVURLAsset` (corrected in round 2, review R1-F4; round 3: Rule 6 now has a closed import list (M2 Q24), so `AVFoundation` is a hit in `TendEval` too): it is not caught by the `AVAsset` entry, because the substring is not present. (a) Rule 6 bans no media types in `TendEval`, so this is not a gap there: `AVAsset` itself is allowed in `TendEval`. The AC-M2-09 Reviewer clause (no audio persisted) is protected by the Rule 6 write confinement and by the AC-M2-28 results-file type. (b) In Rules 1–3, `AVURLAsset` needs `AVFoundation`, which the import lists ban. `AVFAudio` does not declare `AVAsset` types. No scanner change in this PR. | Nit (optional PO note: add `AVURLAsset`, or a Rule 6 import list, see R1-F5) | Q-D1 (non-blocking) |
+| R1-F5: the brief's closed lists had gaps. **Closed in round 3 by M2 Q24**, built and tested here. | — | Done (M2 Q24) |
+| M2 Q23, the fixtures-loader exception: not built in WI-M2-01. The brief's loader-file plants and the loader positive come with it. | Planned | Scanner follow-up, merged before WI-M2-M7 is reviewed (plan) |
+| Developer constraint (plan, M2 Q24): no source method in the three modules may share a name and first label with a session-method call (`data(for:` …). `CanonicalJSONWriter.data(_:)` has the first label `_`, so it does not collide. | — | Every later item |
 | R1-F6: bare allowed hosts may appear in any `TendIngestion` file | Minor | WI-M2-10 names the provider-table file |
 | D3: no provider-table file is named, so any `TendIngestion` file may hold a bare allowed host | Minor | Open question Q-D2 (Planner/Tester; WI-M2-10) |
 | The AC-M1-02 vocabulary scan is not applied to `TendIngestion/Sources` (the banned list must live there) | Minor | WI-M2-04 |
@@ -277,3 +331,5 @@ Device ACs: none in this item.
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first. TendSourceScan: 33 tests / 365 cases. TendIngestion: 17 tests / 70 cases. TendCore: 127 tests, unchanged. All green, 0 warnings, on Linux Swift 6.2.4. Mutation-checked (15 mutants killed, 1 equivalent mutant). ADR-0006 Proposed. Open questions: Q-D1 (`AVURLAsset` / Rule 6 imports) and Q-D2 (provider-table file). D1–D3 flagged for the Tester. Not verified on Darwin (B2). Pushed; no PR opened. |
 | 2026-11-21 | Reviewer | Developer (via Orchestrator) | returned (round 1: CHANGES REQUIRED) | [review-WI-M2-01.md](review-WI-M2-01.md), copied unchanged into this branch. R1-F1 and R1-F2 Major; R1-F3 and R1-F4 Minor; R1-F5 is a PO/Tester ticket; R1-F6 goes to WI-M2-10; R1-F7 Nit. |
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (round 2) | R1-F1 fixed: `contentsOf:` is a networking pattern in Rules 2, 3 and 6 (only `append`/`insert` exempt), with negatives in 8 locations and positives in each rule. `rule6Positive` is rewritten. D1, the header comment and the ADR-0006 P-2 line are corrected. R1-F2 fixed: `BriefPinTests` pins every closed list to literal brief text, with hand-written plants per entry; the reviewer's 16 non-equivalent survivors, its 2 near-equivalent ones and 2 new R1-F1 mutants are all killed. R1-F3 comment and R1-F4 Q-D1 row corrected. R1-F7: the case is pinned (`"x \u{301} y"` → `"x y"`) and D8 softened, and the order is flagged to the PO and Tester. TendSourceScan 48 tests / 385 cases and TendIngestion 17 / 72, green, 0 warnings. TendCore unchanged, so not rerun. |
+| 2026-11-21 | Orchestrator | Developer | accepted | PR #16 merged into main (PO decisions M2 Q23 and Q24, stricter only). Build Q24 in WI-M2-01; leave Q23 out. |
+| 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (round 3) | `origin/main` merged into the branch (no rebase). M2 Q24 built in full: session-method calls and method references, the `bytes(for:` + top-level `delegate:` rule in Rule 3, the Write and Log lists, the exact call-pattern rule (backticks, whitespace, left boundary, case), `contentsOf:` in Rules 2, 3 and 6, and the closed Rule 6 import list with import parsing. Every brief Q24 plant and positive is tested, the pins extend to the new lists, and 17 Q24 mutants are killed. M2 Q23 is not built (plan); the loader file stays strict and is tested. D1 updated, D2 clarified, D10 added. TendSourceScan 63 tests / 529 cases and TendIngestion 17 / 72, green, 0 warnings. |

@@ -22,16 +22,39 @@ struct BriefPinTests {
     static let briefNetworking = """
         - **Networking patterns:** the AC-M1-23 networking patterns, plus `FoundationNetworking`, `URLSession`,
           `URLRequest`, `URLProtocol`, `URLSessionConfiguration`, `URL(string:`, `URLComponents`, `NWConnection`,
-          `import Network`, `import CFNetwork`, `SFSpeech`.
+          `import Network`, `import CFNetwork`, `SFSpeech`, and the session-method calls `dataTask(`, `uploadTask(`,
+          `downloadTask(`, `streamTask(`, `webSocketTask(`, `data(for:`, `data(from:`, `bytes(for:`, `bytes(from:`,
+          `upload(for:`, `upload(from:`, `download(for:`, `download(from:`, `download(resumeFrom:` (M2 Q24).
+        """
+    static let briefMethodReferences = """
+          - The task-creating names `dataTask`, `uploadTask`, `downloadTask`, `streamTask` and `webSocketTask` also match
+            as whole tokens without `(` (method references).
         """
     static let briefMedia = """
         - **Media types:** `AVAudioBuffer`, `AVAudioPCMBuffer`, `AVAudioFile`, `AVAsset`, `CMSampleBuffer`,
           `CVPixelBuffer`, `CVImageBuffer`, `CGImage`, `CIImage`, `UIImage`, `NSImage`.
         """
-    static let briefWriteAndLog = """
-        - **Write and log APIs:** `write(to:`, `FileManager`, `FileHandle`, `OutputStream`, `createFile(`, `UserDefaults`,
-          `NSUbiquitousKeyValueStore`, `print(`, `debugPrint(`, `dump(`, `NSLog(`, `os_log(`, `os_signpost(`, `Logger`,
-          `OSLog`.
+    static let briefWrite = """
+        - **Write APIs:** `write(to:`, `write(toFile:`, `FileManager`, `FileHandle`, `OutputStream`, `createFile(`,
+          `UserDefaults`, `NSUbiquitousKeyValueStore`, `AppStorage`, `SceneStorage`, `archiveRootObject(`, `fopen(`,
+          `freopen(`, `fdopen(`, `fwrite(`, `fputs(`, `fputc(`, `mkstemp(`, `tmpfile(`, `creat(` (M2 Q24).
+        """
+    static let briefLog = """
+        - **Log APIs:** `print(`, `debugPrint(`, `dump(`, `NSLog(`, `os_log(`, `os_signpost(`, `Logger`, `OSLog`,
+          `printf(`, `fprintf(`, `vprintf(`, `vfprintf(`, `dprintf(`, `puts(`, `putc(`, `putchar(`, `perror(`, `syslog(`
+          (M2 Q24).
+        """
+    static let briefRule6Imports = """
+          - The only imports are `Foundation`, `SwiftUI`, `CryptoKit` (for the fixtures SHA-256), `TendCore`,
+            `TendIngestion` and `TendAI`.
+        """
+    static let briefRule6ImportHits = """
+          - So `Darwin`, `Glibc`, `FoundationNetworking`, `Network`, `CFNetwork`, `os`, `AVFAudio`,
+            `UniformTypeIdentifiers` and every third-party module are hits.
+        """
+    static let briefPositives = """
+        - Anywhere: `inputs(`, `snprintf(`, `metadata(for:`, `reprint(`, `data(forKey:`, `append(contentsOf:)` and
+          `insert(contentsOf:at:)`.
         """
     static let briefRule1Imports = "- The only imports are `Foundation` and `TendCore`."
     static let briefRule2Imports =
@@ -66,8 +89,14 @@ struct BriefPinTests {
     func networkingPin() {
         let items = backticked(Self.briefNetworking)
         let imports = items.filter { $0.hasPrefix("import ") }.map { String($0.dropFirst("import ".count)) }
-        let names = items.filter { !$0.hasPrefix("import ") && $0 != "URL(string:" }
+        let names = items.filter { !$0.hasPrefix("import ") && !$0.contains("(") }
+        let sessionCalls = items.filter { $0.contains("(") && $0 != "URL(string:" }
         #expect(IngestionSourceRules.addedNetworkingNames == names)
+        #expect(IngestionSourceRules.sessionMethodCalls == sessionCalls)                      // M2 Q24
+        #expect(sessionCalls.count == 14)
+        #expect(IngestionSourceRules.methodReferenceNames == backticked(Self.briefMethodReferences)
+            .filter { $0 != "(" })
+        #expect(IngestionSourceRules.streamingReadCall == "bytes(for:")
         #expect(items.contains("URL(string:"))
         #expect(SourceScanner.identifierPatterns.contains { $0.name == "URL(string:" })
         // `FoundationNetworking` is a name in the list and is never imported (Rule 3), so its import is banned too.
@@ -97,21 +126,48 @@ struct BriefPinTests {
         #expect(IngestionSourceRules.mediaTypes == backticked(Self.briefMedia))
     }
 
-    @Test("Pin: the write and log APIs are exactly the brief's list, split into write (Rule 6) and log")
+    @Test("Pin: the Write APIs and the Log APIs are exactly the brief's two lists (M2 Q24)")
     func writeAndLogPin() {
-        let brief = backticked(Self.briefWriteAndLog)
-        let engine = IngestionSourceRules.writeNames + IngestionSourceRules.writeCalls
-            + IngestionSourceRules.logNames + IngestionSourceRules.logCalls
-        #expect(Set(engine) == Set(brief))
-        #expect(engine.count == brief.count)
-        // The split, hand-written: writing persists data; logging prints or records it.
-        #expect(Set(IngestionSourceRules.writeNames + IngestionSourceRules.writeCalls) == [
-            "write(to:", "FileManager", "FileHandle", "OutputStream", "createFile(", "UserDefaults",
-            "NSUbiquitousKeyValueStore",
-        ])
-        #expect(Set(IngestionSourceRules.logNames + IngestionSourceRules.logCalls) == [
-            "print(", "debugPrint(", "dump(", "NSLog(", "os_log(", "os_signpost(", "Logger", "OSLog",
-        ])
+        let write = backticked(Self.briefWrite)
+        let log = backticked(Self.briefLog)
+        #expect(Set(IngestionSourceRules.writeNames + IngestionSourceRules.writeCalls) == Set(write))
+        #expect(IngestionSourceRules.writeNames.count + IngestionSourceRules.writeCalls.count == write.count)
+        #expect(Set(IngestionSourceRules.logNames + IngestionSourceRules.logCalls) == Set(log))
+        #expect(IngestionSourceRules.logNames.count + IngestionSourceRules.logCalls.count == log.count)
+        // Type names have no `(`; call patterns do.
+        #expect(IngestionSourceRules.writeNames.allSatisfy { !$0.contains("(") })
+        #expect(IngestionSourceRules.writeCalls.allSatisfy { $0.contains("(") })
+        #expect(IngestionSourceRules.logNames.allSatisfy { !$0.contains("(") })
+        #expect(IngestionSourceRules.logCalls.allSatisfy { $0.contains("(") })
+    }
+
+    @Test("Pin: the Rule 6 import list is exactly the brief's (M2 Q24), and the brief's named hits are not in it")
+    func rule6ImportsPin() {
+        #expect(IngestionSourceRules.rule6Imports == Set(backticked(Self.briefRule6Imports)))
+        for module in backticked(Self.briefRule6ImportHits) {
+            #expect(!IngestionSourceRules.rule6Imports.contains(module), "\(module)")
+        }
+        #expect(backticked(Self.briefRule6ImportHits).count == 8)
+    }
+
+    @Test("Brief positives (M2 Q24): inputs(, snprintf(, metadata(for:, reprint(, data(forKey:, append/insert(contentsOf:) pass in every module")
+    func briefPositivesPass() {
+        let forms = backticked(Self.briefPositives)
+        #expect(forms.count == 7)
+        // One hand-written call per brief form, in the same order.
+        let calls = ["let a = inputs(x)", "let b = snprintf(&buf, 8, f)", "let c = metadata(for: k)",
+                     "let d = reprint(x)", "let e = defaults.data(forKey: k)", "xs.append(contentsOf: ys)",
+                     "xs.insert(contentsOf: ys, at: 0)"]
+        for (form, call) in zip(forms, calls) {
+            // The call name and first label of the form: `insert(contentsOf:at:)` → `insert(contentsOf:`.
+            let prefix = form.firstIndex(of: ":").map { String(form[...$0]) } ?? form
+            #expect(call.contains(prefix), "plant `\(call)` does not use the brief form `\(form)`")
+        }
+        let code = calls.joined(separator: "\n")
+        for (module, path, rule) in [Self.ingestion, Self.adapter, Self.cloud, Self.eval, Self.writer] {
+            let found = scan(module, path, code)
+            #expect(found.isEmpty, "\(rule) in \(path): \(found)")
+        }
     }
 
     @Test("Pin: the Rule 1, Rule 2 and Rule 3 import lists are exactly the brief's")
@@ -173,6 +229,20 @@ struct BriefPinTests {
         ("_ = fm.createFile(atPath: p, contents: d)", "write API createFile("),
         ("let u = UserDefaults.standard", "write API UserDefaults"),
         ("let k = NSUbiquitousKeyValueStore.default", "write API NSUbiquitousKeyValueStore"),
+        // M2 Q24
+        ("try s.write(toFile: p, atomically: true, encoding: .utf8)", "write API write(toFile:"),
+        ("@AppStorage(\"k\") var key = \"\"", "write API AppStorage"),
+        ("@SceneStorage(\"k\") var tab = 0", "write API SceneStorage"),
+        ("NSKeyedArchiver.archiveRootObject(x, toFile: p)", "write API archiveRootObject("),
+        ("let f = fopen(p, m)", "write API fopen("),
+        ("let f = freopen(p, m, stdout)", "write API freopen("),
+        ("let f = fdopen(fd, m)", "write API fdopen("),
+        ("fwrite(b, 1, n, f)", "write API fwrite("),
+        ("fputs(s, f)", "write API fputs("),
+        ("fputc(c, f)", "write API fputc("),
+        ("let fd = mkstemp(&t)", "write API mkstemp("),
+        ("let f = tmpfile()", "write API tmpfile("),
+        ("let fd = creat(p, 0o600)", "write API creat("),
     ]
 
     static let logPlants: [(String, String)] = [
@@ -184,6 +254,17 @@ struct BriefPinTests {
         ("os_signpost(.begin, log: l, name: n)", "log API os_signpost("),
         ("let l = Logger()", "log API Logger"),
         ("let t: OSLog? = nil", "log API OSLog"),
+        // M2 Q24
+        ("printf(f, s)", "log API printf("),
+        ("fprintf(stderr, f, s)", "log API fprintf("),
+        ("vprintf(f, a)", "log API vprintf("),
+        ("vfprintf(h, f, a)", "log API vfprintf("),
+        ("dprintf(2, f, s)", "log API dprintf("),
+        ("puts(s)", "log API puts("),
+        ("putc(c, h)", "log API putc("),
+        ("putchar(c)", "log API putchar("),
+        ("perror(s)", "log API perror("),
+        ("syslog(p, f, s)", "log API syslog("),
     ]
 
     static let networkingPlants: [(String, String)] = [
@@ -219,6 +300,27 @@ struct BriefPinTests {
         ("getaddrinfo(h, nil, &hints, &r)", "networking getaddrinfo"),
         ("let x = gethostbyname(n)", "networking gethostbyname"),
         ("let x = try Data(contentsOf: u)", "networking contentsOf:"),
+        // M2 Q24 session-method calls.
+        ("let t = s.dataTask(with: r)", "networking dataTask("),
+        ("let t = s.uploadTask(with: r, from: d)", "networking uploadTask("),
+        ("let t = s.downloadTask(with: r)", "networking downloadTask("),
+        ("let t = s.streamTask(withHostName: h, port: 1)", "networking streamTask("),
+        ("let t = s.webSocketTask(with: r)", "networking webSocketTask("),
+        ("let (d, r) = try await s.data(for: q)", "networking data(for:"),
+        ("let (d, r) = try await s.data(from: u)", "networking data(from:"),
+        ("let (b, r) = try await s.bytes(for: q)", "networking bytes(for:"),
+        ("let (b, r) = try await s.bytes(from: u)", "networking bytes(from:"),
+        ("let (d, r) = try await s.upload(for: q, from: b)", "networking upload(for:"),
+        ("let (d, r) = try await s.upload(from: b)", "networking upload(from:"),
+        ("let (u, r) = try await s.download(for: q)", "networking download(for:"),
+        ("let (u, r) = try await s.download(from: u)", "networking download(from:"),
+        ("let (u, r) = try await s.download(resumeFrom: d)", "networking download(resumeFrom:"),
+        // M2 Q24 method references (whole tokens, no `(`).
+        ("let f = s.dataTask", "networking dataTask"),
+        ("let f = s.uploadTask", "networking uploadTask"),
+        ("let f = s.downloadTask", "networking downloadTask"),
+        ("let f = s.streamTask", "networking streamTask"),
+        ("let f = s.webSocketTask", "networking webSocketTask"),
     ]
 
     static let ingestion = (ScannedModule.tendIngestion, PlanPaths.ingestionFile, IngestionScanRule.rule1)
