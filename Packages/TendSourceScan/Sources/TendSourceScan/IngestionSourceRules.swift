@@ -1,0 +1,442 @@
+// The AC-M2-09 rule engine: Rules 1–6 over the `Sources` of `TendIngestion`, `TendAI` and `TendEval`, with comments
+// removed (the AC-M1-23 approach, through `SourceScanner.lex`). Brief M2 v4, AC-M2-09; plan WI-M2-01; ADR-0006.
+// P-1, P-2, P-3, P-4.
+//
+// The closed lists below are copied from the brief. Changing one needs a PO decision that updates AC-M2-09.
+//
+// How each list is matched (the brief fixes the lists, the matching follows the M1 precedent):
+// - Networking patterns: the AC-M1-23 networking patterns as M1 matches them (names at camelCase word boundaries, the
+//   call names `Stream(` `InputStream(` `OutputStream(` `Host(` `socket(` and `Host.current`, `URL(string:`), plus the
+//   M2 names (camelCase word boundaries), plus `import Network`, `import CFNetwork` and `import FoundationNetworking`.
+//   Two AC-M1-23 entries are not networking patterns here: `http(s)` string literals (Rule 4 governs every literal) and
+//   `contentsOf:` (AC-M1-23 file loading; it stays banned in `TendIngestion` through Rule 1's full AC-M1-23 list).
+// - Media types and the write and log names: the name occurs **anywhere inside** an identifier (case-sensitive
+//   substring). This is stricter than the camelCase split, so `AVURLAsset`, `AppLogger` and `OSLogType` are hits.
+// - The write and log calls (`write(to:`, `createFile(`, `print(`, `debugPrint(`, `dump(`, `NSLog(`, `os_log(`,
+//   `os_signpost(`): at an identifier boundary on the left, so `Swift.print(` and `x.write(to:` are hits and
+//   `reprint(` is not.
+// - Rule 3 prefix rule (N-1): an identifier token is the **whole** Swift identifier, never split at camelCase, so
+//   `willPerformHTTPRedirection` is not a hit and `HTTPCookieStorage` is.
+// - Rule 4 (T-30): host-like is tested on the **whole** decoded literal segment (the lexer splits a literal at each
+//   interpolation, so `"https://\(host)"` gives the segment `https://`, which is host-like and not allowed).
+
+import Foundation
+
+/// The three scanned modules (brief Definitions, binding names).
+public enum ScannedModule: String, Sendable, CaseIterable, Comparable {
+    case tendIngestion = "TendIngestion"
+    case tendAI = "TendAI"
+    case tendEval = "TendEval"
+
+    public static func < (lhs: ScannedModule, rhs: ScannedModule) -> Bool {
+        allCases.firstIndex(of: lhs) ?? 0 < allCases.firstIndex(of: rhs) ?? 0
+    }
+}
+
+/// One source file to scan. `path` is repository-relative with `/` separators; the configuration's file lists use
+/// the same form.
+public struct ScannedFile: Sendable, Equatable {
+    public var module: ScannedModule
+    public var path: String
+    public var text: String
+
+    public init(module: ScannedModule, path: String, text: String) {
+        self.module = module
+        self.path = path
+        self.text = text
+    }
+}
+
+/// The six rules of AC-M2-09.
+public enum IngestionScanRule: Int, Sendable, CaseIterable, CustomStringConvertible {
+    case rule1 = 1, rule2, rule3, rule4, rule5, rule6
+
+    public var description: String { "Rule \(rawValue)" }
+}
+
+/// One AC-M2-09 finding: which rule, which check inside it, where, and the matched text.
+public struct RuleViolation: Sendable, Equatable, CustomStringConvertible {
+    public var rule: IngestionScanRule
+    public var check: String
+    public var file: String
+    public var line: Int
+    public var excerpt: String
+
+    public init(rule: IngestionScanRule, check: String, file: String, line: Int, excerpt: String) {
+        self.rule = rule
+        self.check = check
+        self.file = file
+        self.line = line
+        self.excerpt = excerpt
+    }
+
+    public var description: String { "\(file):\(line): [\(rule) \(check)] \(excerpt)" }
+}
+
+/// The file paths the rules name (plan "Named files"). Moving one needs a plan update and the Tester's note.
+public struct IngestionScanConfiguration: Sendable, Equatable {
+    /// Rule 3: the cloud-adapter allowlist (closed list of file paths in the plan).
+    public var cloudAdapterAllowlist: Set<String>
+    /// Rule 2: the only `TendAI` files where media types may appear.
+    public var speechAdapterFiles: Set<String>
+    /// Rule 5: the one file where the T-27 exception may apply.
+    public var speechPermissionFile: String
+    /// Rule 5: `true` only after the T-27 check on the owner-run Mac confirms that iOS 26 needs the two calls
+    /// (WI-M2-M1). Until then there is no exception.
+    public var speechPermissionExceptionEnabled: Bool
+    /// Rule 6: the only `TendEval` file where write APIs may appear.
+    public var resultsWriterFile: String
+
+    public init(
+        cloudAdapterAllowlist: Set<String>,
+        speechAdapterFiles: Set<String>,
+        speechPermissionFile: String,
+        speechPermissionExceptionEnabled: Bool,
+        resultsWriterFile: String
+    ) {
+        self.cloudAdapterAllowlist = cloudAdapterAllowlist
+        self.speechAdapterFiles = speechAdapterFiles
+        self.speechPermissionFile = speechPermissionFile
+        self.speechPermissionExceptionEnabled = speechPermissionExceptionEnabled
+        self.resultsWriterFile = resultsWriterFile
+    }
+}
+
+public enum IngestionSourceRules {
+
+    // MARK: - Closed lists (brief AC-M2-09, T-11, T-23, T-27, T-30)
+
+    /// Networking patterns: the M2 names added to the AC-M1-23 networking names (`SourceScanner.networkingNames`).
+    /// Matched at camelCase word boundaries like the M1 names. (`URLSession`, `URLRequest` and `URLComponents` are
+    /// already in the M1 list; they are repeated here because the brief names them.)
+    public static let addedNetworkingNames: [String] = [
+        "FoundationNetworking", "URLSession", "URLRequest", "URLProtocol", "URLSessionConfiguration",
+        "URLComponents", "NWConnection", "SFSpeech",
+    ]
+
+    /// Networking imports: `import Network`, `import CFNetwork`, and `FoundationNetworking` (banned everywhere).
+    public static let networkingImports: Set<String> = ["Network", "CFNetwork", "FoundationNetworking"]
+
+    /// The full name list used for networking-pattern hits.
+    public static var networkingNames: [String] {
+        var names = SourceScanner.networkingNames
+        for name in addedNetworkingNames where !names.contains(name) { names.append(name) }
+        return names
+    }
+
+    /// Media types (closed).
+    public static let mediaTypes: [String] = [
+        "AVAudioBuffer", "AVAudioPCMBuffer", "AVAudioFile", "AVAsset", "CMSampleBuffer",
+        "CVPixelBuffer", "CVImageBuffer", "CGImage", "CIImage", "UIImage", "NSImage",
+    ]
+
+    /// Write APIs (closed): type names, then call patterns.
+    public static let writeNames: [String] = [
+        "FileManager", "FileHandle", "OutputStream", "UserDefaults", "NSUbiquitousKeyValueStore",
+    ]
+    public static let writeCalls: [String] = ["write(to:", "createFile("]
+
+    /// Log APIs (closed): type names, then call patterns.
+    public static let logNames: [String] = ["Logger", "OSLog"]
+    public static let logCalls: [String] = ["print(", "debugPrint(", "dump(", "NSLog(", "os_log(", "os_signpost("]
+
+    /// Imports allowed per rule.
+    public static let rule1Imports: Set<String> = ["Foundation", "TendCore"]
+    public static let rule2Imports: Set<String> = [
+        "Foundation", "FoundationModels", "Speech", "AVFAudio", "TendCore", "TendIngestion",
+    ]
+    public static let rule3Imports: Set<String> = rule2Imports.union(["Security"])
+
+    /// Rule 3: the allowed networking subset (closed; T-23). `URLSession.AsyncBytes` is the identifier `URLSession`
+    /// followed by `AsyncBytes` (which has no networking prefix); `bytes(for:delegate:)` has no networking identifier.
+    public static let allowedNetworkingSubset: Set<String> = [
+        "URLSession", "URLSessionConfiguration", "URLSessionTask", "URLSessionTaskDelegate",
+        "URLRequest", "URL", "URLComponents", "URLResponse", "HTTPURLResponse", "URLError",
+    ]
+
+    /// Rule 3: identifier prefixes that must be in the subset (case-sensitive, whole identifier; N-1).
+    public static let networkingPrefixes: [String] = ["URL", "NSURL", "HTTP", "NW", "CFHost", "CFStream", "CFNetwork"]
+
+    /// Rule 4: the only host-like literals (bare host, or `https://` followed by one of them).
+    public static let allowedHosts: [String] = [
+        "api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com",
+    ]
+
+    /// Rule 4: a literal is host-like when it contains `://` or the whole literal matches this (brief, verbatim).
+    public static let hostLikePattern =
+        #"(?i)^[a-z0-9-]+(\.[a-z0-9-]+)*\.(com|net|org|io|ai|dev|app|co|cloud)(:\d+)?(/\S*)?$"#
+
+    /// Rule 5 (T-27): the exact exception forms, valid only in the speech-permission file and only when enabled.
+    public static let speechExceptionCallPattern =
+        SourceScanner.leftBoundary + #"SFSpeechRecognizer\s*\.\s*(?:requestAuthorization|authorizationStatus)\s*\("#
+    public static let speechExceptionType = "SFSpeechRecognizerAuthorizationStatus"
+
+    // MARK: - Fixed regexes
+
+    static func callPattern(_ call: String) -> String {
+        // `write(to:` → `write\s*\(\s*to\s*:`; `print(` → `print\s*\(`.
+        var name = call
+        var label: String?
+        if let open = call.firstIndex(of: "(") {
+            name = String(call[..<open])
+            let rest = call[call.index(after: open)...]
+            if rest.hasSuffix(":") { label = String(rest.dropLast()) }
+        }
+        var pattern = SourceScanner.leftBoundary + NSRegularExpression.escapedPattern(for: name) + #"\s*\("#
+        if let label { pattern += #"\s*"# + NSRegularExpression.escapedPattern(for: label) + #"\s*:"# }
+        return pattern
+    }
+
+    /// Every fixed regex the rules use (a self-test compiles each one).
+    public static var allPatterns: [String] {
+        [hostLikePattern, speechExceptionCallPattern] + (writeCalls + logCalls).map(callPattern)
+            + SourceScanner.allPatterns
+    }
+
+    // MARK: - Scan
+
+    /// Runs Rules 1–6 over `files`. Each file is checked by the rules of its module; Rules 4 and 5 apply to all three.
+    public static func violations(in files: [ScannedFile], configuration: IngestionScanConfiguration)
+        -> [RuleViolation] {
+        files.flatMap { violations(in: $0, configuration: configuration) }
+    }
+
+    public static func violations(in file: ScannedFile, configuration: IngestionScanConfiguration)
+        -> [RuleViolation] {
+        let lexed = SourceScanner.lex(file.text)
+        let facts = FileFacts(file: file, lexed: lexed, configuration: configuration)
+        var result: [RuleViolation] = []
+        switch file.module {
+        case .tendIngestion:
+            result += rule1(facts)
+        case .tendAI:
+            if configuration.cloudAdapterAllowlist.contains(file.path) {
+                result += rule3(facts)
+            } else {
+                result += rule2(facts)
+            }
+        case .tendEval:
+            result += rule6(facts)
+        }
+        result += rule4(facts)
+        result += rule5(facts)
+        return result
+    }
+
+    // MARK: - Rules
+
+    /// Rule 1, `TendIngestion`: imports `Foundation` and `TendCore` only; none of the full AC-M1-23 closed list (no
+    /// `contentsOf:` allowlist here); no networking pattern, media type, write or log API.
+    /// `Locale(identifier: "en_US_POSIX")` is allowed: no AC-M1-23 pattern matches it (a positive test proves it).
+    static func rule1(_ facts: FileFacts) -> [RuleViolation] {
+        var result = SourceScanner.apiHits(in: facts.file.text, file: facts.file.path,
+                                           allowedImports: rule1Imports, contentsOfAllowlist: [])
+            .map { facts.violation(.rule1, check: "AC-M1-23 " + $0.rule, hit: $0) }
+        result += facts.networkingViolations(.rule1)
+        result += facts.mediaViolations(.rule1)
+        result += facts.writeViolations(.rule1)
+        result += facts.logViolations(.rule1)
+        return result
+    }
+
+    /// Rule 2, `TendAI` outside the allowlist: closed imports; no networking pattern, no write or log API; media types
+    /// only in the speech adapter files.
+    static func rule2(_ facts: FileFacts) -> [RuleViolation] {
+        var result = facts.importViolations(.rule2, allowed: rule2Imports)
+        result += facts.networkingViolations(.rule2)
+        result += facts.writeViolations(.rule2)
+        result += facts.logViolations(.rule2)
+        if !facts.configuration.speechAdapterFiles.contains(facts.file.path) {
+            result += facts.mediaViolations(.rule2)
+        }
+        return result
+    }
+
+    /// Rule 3, `TendAI` allowlisted cloud-adapter files: Rule 2 imports plus `Security`; every networking-pattern hit
+    /// and every identifier with a networking prefix is in the allowed subset; no media type, write or log API.
+    static func rule3(_ facts: FileFacts) -> [RuleViolation] {
+        var result = facts.importViolations(.rule3, allowed: rule3Imports)
+        // Networking-pattern hits: an identifier hit is allowed only when the whole identifier is in the subset.
+        // Call-form hits (`URL(string:`, `Host(`, `Stream(` …) and networking imports are never in the subset.
+        for hit in facts.networkingHits {
+            let isSubsetIdentifier = !hit.rule.hasSuffix("(") && hit.rule != "URL(string:"
+                && hit.rule != "Host.current" && hit.rule != "import"
+                && allowedNetworkingSubset.contains(hit.excerpt)
+            if !isSubsetIdentifier {
+                result.append(facts.violation(.rule3, check: "networking outside subset: " + hit.rule, hit: hit))
+            }
+        }
+        for identifier in facts.identifiers
+        where networkingPrefixes.contains(where: { identifier.text.hasPrefix($0) })
+            && !allowedNetworkingSubset.contains(identifier.text) {
+            result.append(RuleViolation(rule: .rule3, check: "networking prefix outside subset",
+                                        file: facts.file.path, line: identifier.line, excerpt: identifier.text))
+        }
+        result += facts.mediaViolations(.rule3)
+        result += facts.writeViolations(.rule3)
+        result += facts.logViolations(.rule3)
+        return result
+    }
+
+    /// Rule 4, all three modules: every host-like literal is an allowed host (bare) or `https://` + an allowed host.
+    /// Bare hosts may appear only in `TendIngestion` (the payload builder's provider table); `https://` hosts only in
+    /// the allowlisted cloud-adapter files.
+    static func rule4(_ facts: FileFacts) -> [RuleViolation] {
+        var result: [RuleViolation] = []
+        for literal in facts.lexed.literals where isHostLike(literal.text) {
+            let text = literal.text
+            let check: String?
+            if allowedHosts.contains(text) {
+                check = facts.file.module == .tendIngestion ? nil : "bare host outside TendIngestion"
+            } else if allowedHosts.contains(where: { "https://" + $0 == text }) {
+                check = facts.isAllowlisted ? nil : "https:// host outside the cloud-adapter allowlist"
+            } else {
+                check = "host-like literal not allowed"
+            }
+            if let check {
+                result.append(RuleViolation(rule: .rule4, check: check, file: facts.file.path, line: literal.line,
+                                            excerpt: "\"\(text)\""))
+            }
+        }
+        return result
+    }
+
+    /// Rule 5, all three modules: no `SFSpeech*` API, except (T-27, only when enabled, only in the speech-permission
+    /// file) exactly `SFSpeechRecognizer.requestAuthorization(`, `SFSpeechRecognizer.authorizationStatus(` and the
+    /// `SFSpeechRecognizerAuthorizationStatus` type.
+    static func rule5(_ facts: FileFacts) -> [RuleViolation] {
+        facts.networkingHits
+            .filter { $0.rule == "SFSpeech" && !facts.isSpeechException($0) }
+            .map { facts.violation(.rule5, check: "SFSpeech* API", hit: $0) }
+    }
+
+    /// Rule 6, `TendEval`: no networking pattern; write APIs only in the results writer; no log API.
+    static func rule6(_ facts: FileFacts) -> [RuleViolation] {
+        var result = facts.networkingViolations(.rule6)
+        if facts.file.path != facts.configuration.resultsWriterFile {
+            result += facts.writeViolations(.rule6)
+        }
+        result += facts.logViolations(.rule6)
+        return result
+    }
+
+    /// Rule 4 host-like test (T-30): contains `://`, or the whole literal matches `hostLikePattern`.
+    public static func isHostLike(_ literal: String) -> Bool {
+        literal.contains("://") || !SourceScanner.matches(of: hostLikePattern, in: literal).isEmpty
+    }
+}
+
+/// Facts about one lexed file, computed once and shared by the rules.
+struct FileFacts {
+    let file: ScannedFile
+    let lexed: LexedSource
+    let configuration: IngestionScanConfiguration
+    let identifiers: [SourceScanner.RegexMatch]
+    /// Networking-pattern hits (names, call names, `Host.current`, `URL(string:`, networking imports), before any
+    /// exception. The Rule 5 exception is removed from these in `networkingViolations`.
+    let networkingHits: [ScanHit]
+    let speechExceptionOffsets: Set<Int>
+
+    init(file: ScannedFile, lexed: LexedSource, configuration: IngestionScanConfiguration) {
+        self.file = file
+        self.lexed = lexed
+        self.configuration = configuration
+        let code = lexed.code
+        identifiers = SourceScanner.identifiers(inCode: code)
+
+        var hits = SourceScanner.networkingHits(in: code, file: file.path,
+                                                names: IngestionSourceRules.networkingNames)
+        for pattern in SourceScanner.identifierPatterns where pattern.name == "URL(string:" {
+            for match in SourceScanner.matches(of: pattern.regex, in: code) {
+                hits.append(ScanHit(file: file.path, line: match.line, rule: pattern.name, excerpt: match.text,
+                                    offset: match.startOffset))
+            }
+        }
+        for statement in SourceScanner.imports(inCode: code)
+        where IngestionSourceRules.networkingImports.contains(Self.moduleName(of: statement.target)) {
+            hits.append(ScanHit(file: file.path, line: statement.line, rule: "import",
+                                excerpt: "import \(statement.target)", offset: statement.offset))
+        }
+        networkingHits = hits
+
+        var offsets: Set<Int> = []
+        if configuration.speechPermissionExceptionEnabled && file.path == configuration.speechPermissionFile {
+            for match in SourceScanner.matches(of: IngestionSourceRules.speechExceptionCallPattern, in: code) {
+                offsets.insert(match.startOffset)
+            }
+            for identifier in identifiers where identifier.text == IngestionSourceRules.speechExceptionType {
+                offsets.insert(identifier.startOffset)
+            }
+        }
+        speechExceptionOffsets = offsets
+    }
+
+    /// `struct Foundation.Date` → `Foundation`; `Network` → `Network`.
+    static func moduleName(of importTarget: String) -> String {
+        let words = importTarget.split(separator: " ")
+        let path = words.last.map(String.init) ?? importTarget
+        return path.split(separator: ".").first.map(String.init) ?? path
+    }
+
+    var isAllowlisted: Bool {
+        file.module == .tendAI && configuration.cloudAdapterAllowlist.contains(file.path)
+    }
+
+    func isSpeechException(_ hit: ScanHit) -> Bool {
+        guard let offset = hit.offset else { return false }
+        return speechExceptionOffsets.contains(offset)
+    }
+
+    func violation(_ rule: IngestionScanRule, check: String, hit: ScanHit) -> RuleViolation {
+        RuleViolation(rule: rule, check: check, file: file.path, line: hit.line, excerpt: hit.excerpt)
+    }
+
+    func importViolations(_ rule: IngestionScanRule, allowed: Set<String>) -> [RuleViolation] {
+        SourceScanner.imports(inCode: lexed.code)
+            .filter { !allowed.contains($0.target) }
+            .map { RuleViolation(rule: rule, check: "import", file: file.path, line: $0.line,
+                                 excerpt: "import \($0.target)") }
+    }
+
+    func networkingViolations(_ rule: IngestionScanRule) -> [RuleViolation] {
+        networkingHits
+            .filter { !isSpeechException($0) }
+            .map { violation(rule, check: "networking " + $0.rule, hit: $0) }
+    }
+
+    func nameViolations(_ rule: IngestionScanRule, kind: String, names: [String]) -> [RuleViolation] {
+        var result: [RuleViolation] = []
+        for identifier in identifiers {
+            for name in names where identifier.text.contains(name) {
+                result.append(RuleViolation(rule: rule, check: "\(kind) \(name)", file: file.path,
+                                            line: identifier.line, excerpt: identifier.text))
+            }
+        }
+        return result
+    }
+
+    func callViolations(_ rule: IngestionScanRule, kind: String, calls: [String]) -> [RuleViolation] {
+        var result: [RuleViolation] = []
+        for call in calls {
+            for match in SourceScanner.matches(of: IngestionSourceRules.callPattern(call), in: lexed.code) {
+                result.append(RuleViolation(rule: rule, check: "\(kind) \(call)", file: file.path, line: match.line,
+                                            excerpt: match.text))
+            }
+        }
+        return result
+    }
+
+    func mediaViolations(_ rule: IngestionScanRule) -> [RuleViolation] {
+        nameViolations(rule, kind: "media type", names: IngestionSourceRules.mediaTypes)
+    }
+
+    func writeViolations(_ rule: IngestionScanRule) -> [RuleViolation] {
+        nameViolations(rule, kind: "write API", names: IngestionSourceRules.writeNames)
+            + callViolations(rule, kind: "write API", calls: IngestionSourceRules.writeCalls)
+    }
+
+    func logViolations(_ rule: IngestionScanRule) -> [RuleViolation] {
+        nameViolations(rule, kind: "log API", names: IngestionSourceRules.logNames)
+            + callViolations(rule, kind: "log API", calls: IngestionSourceRules.logCalls)
+    }
+}
