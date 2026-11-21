@@ -351,8 +351,216 @@ Tester's script and the result is recorded (CLAUDE.md §5). M2 cannot be `ACCEPT
 | Q18 | Which model per provider is the default? | The Developer proposes one model per provider in the plan: fast, structured-output capable, and in a curated list that can be updated per release. There is no free-text model ID. The PO approves the list. (PO default) | M2 planning |
 
 ## Tester testability review
-- [ ] Every AC is observable and measurable  - [ ] Device ACs identified (AC-M2-11, 15, 16, 17, 25, 26, 27)  -
-  Reviewer note: pending (v2 adds AC-M2-18…27).
+- [ ] Every AC is observable and measurable  - [x] Device ACs identified (AC-M2-11, 15, 16, 17, 25, 26, 27)  -
+  Reviewer note: **v2 returned to PO (Acceptance Tester, 2026-11-21).**
+  - Reviewed against ADR-0005 and D-030 as merged in PR #11 (`a6009e8`), CLAUDE.md §2, §3 and §5, and PRD §4 M2.
+  - The brief is strong. All 27 ACs name a verification type and the evidence they need. All three PRD §4 M2 gate
+    lines are mapped. All seven device ACs are marked AWAITING-DEVICE. No AC is weaker than ADR-0005.
+  - I am returning it because six gaps (T-01…T-06) stop me from writing an independent oracle, or stop the device
+    runs from being carried out as written. I have not changed any AC meaning.
+  - **Owner input received (via Orchestrator, 2026-11-21):** the owner can run tests on their own Apple-silicon Mac
+    (M4 Air or M1 mini) with Xcode 26. The Orchestrator may also drive that Mac remotely.
+    - This answers Q8. The "macOS lane" for AC-M2-13(b) is an owner-run Mac. Its results are recorded as owner-run
+      evidence: who ran it, which Mac, Xcode build, commit SHA and log.
+    - The same Mac builds and installs the eval build on both iPhones (T-05).
+    - Device ACs still need the human owner to run them on the iPhones. An agent-driven Mac run is fine for Mac ACs.
+      It is never evidence for a device AC.
+  - Still open with the owner, with the PO defaults treated as current:
+    - Q12 affects AC-M2-20, 24 and 26.
+    - Q16 affects AC-M2-26 and 27 (how many provider runs, and whose keys).
+    - Q17 affects AC-M2-26 and 27 (whether Gemini is run), and AC-M2-20 and 22 (whether Gemini's host stays on the
+      list).
+
+  **Where each AC can be proven**
+  | Environment | ACs |
+  |---|---|
+  | Linux container / Linux CI (`swift test`) | AC-M2-01, 02, 03, 04, 06, 08, 12, 19, 20, 23 and 13(a). The scorer self-test and fixture-composition check in 14 (the freeze review is done by the Tester). The source scan in 09, which is a text scan, plus Reviewer review. The platform-neutral logic in 05 (stream assembly), 07 (duplicate rule and candidate provider), 10 (outcome for each neutral availability reason or error), 18 (consent, route and cancel with an in-memory key store) and 24 (the three provider stream parsers fed fixtures). |
+  | Owner-run Mac, Xcode 26 (macOS tests or the iOS Simulator) | AC-M2-13(b), 21 (real Keychain, see T-16), 22 (`URLSession` and `URLProtocol`, see T-17). The adapter halves of 05 (`PartiallyGenerated` to neutral snapshot), 07 (the `Tool` conformance), 10 (mapping `SystemLanguageModel.availability` and `GenerationError`), 18(a) (real Keychain delete) and 24 (the cloud adapters end to end over fixtures). Building the eval harness for the devices (T-05). **All of these depend on the owner's Mac answer, which is now yes.** |
+  | Device, run by the human owner (AWAITING-DEVICE) | iPhone 15 Pro: AC-M2-11, 15, 16, 17, and the information-only line in 27. iPhone 13: AC-M2-25, 26, 27. |
+
+  *Major (blocks the testability tick):*
+  - **T-01 Verification environment per AC.** AC-M2-02…08, 10, 12, 18, 21, 22 and 23 say only "unit". AC-M2-05,
+    07, 09, 10 and 24 cross the Linux/Mac line.
+    - Each AC needs to name where it runs, using the split above, or the PO's own version of it.
+    - Each AC needs to say which part is platform-neutral (in the ingestion layer, on Linux) and which part is an
+      adapter (`TendAI`, on the owner's Mac).
+    - Q8 and AC-M2-13(b) should be reworded to "an owner-run Mac with Xcode 26". At present they say "a CI lane, or a
+      human-recorded Mac run". Q8 can be closed.
+  - **T-02 AC-M2-09 import rules break the intended design.**
+    - The first bullet lets `TendAI` files outside the cloud-adapter allowlist import only `Foundation`,
+      `FoundationModels`, `Speech`, `AVFAudio` and `TendCore`. But the on-device adapter must import the
+      platform-neutral ingestion module, because the mapping, stream assembly, routing and `IngestionModel` contract
+      live there (ADR-0005 Decision 3, AC-M2-13(a)). As written, a correct design fails the scan.
+    - The scan only covers "`TendAI` sources". It leaves out the ingestion layer, which holds the payload builder and
+      the parsers, where request bodies and responses exist.
+    - On Linux, `URLSession` lives in `FoundationNetworking`, so "Foundation networking" needs to name the module.
+    - Fix: name the ingestion module. Add it to the import list for `TendAI`. Give it its own scan rule: `Foundation`
+      and `TendCore` only, no networking, and no file or log writes. The builder returns plain values, so it needs no
+      networking.
+  - **T-03 AC-M2-05 stream rules have no oracle.**
+    - "As soon as all its required fields are present": the list of required fields is not given. Q5 gives a default
+      for almost every field. The PO needs to say whether a title alone is enough, or whether the title plus kind plus
+      `sourcePhrase` is needed.
+    - "In input order" could mean the order of items in the model output or the order of `sourcePhrase` in the input.
+      These can differ.
+    - The brief does not say what happens to an item that is still incomplete when the stream ends early or throws.
+      Is it dropped with a typed reason, or emitted with Q5 defaults?
+    - The event types need naming: one `emitted` per draft ID, then zero or more `updated` events.
+    - AC-M2-16 and 27 inherit this rule, because TTFI is defined by the first *complete* draft.
+  - **T-04 The eval scorer is undefined** (AC-M2-14, 15, 17, 26; rubric Q3).
+    - Matching: there is no rule for pairing a draft with a golden item. For voice inputs the `sourcePhrase` is a
+      substring of the transcript, not of the fixture text, so the rule must survive transcription differences.
+      Example: token overlap after folding, then a fixed one-to-one assignment with a tie-break.
+    - Denominators: is each percentage over expected items (an unmatched one counts as wrong) or over matched pairs?
+    - Room: how is a *proposed new* room scored against the golden set?
+    - Item count: the golden set needs a stated minimum number of expected items (for example ≥ 50), so that 95%,
+      90% and 85% are whole-number limits.
+    - Household: does each input start from a fresh copy of the seeded household, or do the 20 inputs build on each
+      other? This changes what counts as a duplicate in AC-M2-17 and 26.
+    - False merges: how are they counted against the golden set?
+    - The PO may delegate the details to the plan, as Q6 does. If so, the brief must say that the Tester reviews them
+      before the AC-M2-14 freeze.
+  - **T-05 The device runs have no harness surface and no build path.**
+    - AC-M2-11, 15…17 and 25…27 need an app on the iPhone that does the following: captures live voice, runs the 20
+      frozen inputs against the seeded household, times TTFI and total time, and writes a results file. But the
+      out-of-scope list puts all UI in M3.
+    - State that M2 includes a **debug-only eval harness target**. It is never shipped and is left out of the Release
+      configuration. It is built and installed from the owner's Mac with Xcode 26 (signing team stated in the plan).
+    - Define the results-file format and how the file is exported, for example via Files or AirDrop to the repo.
+    - The harness has to record per-request metadata for AC-M2-26: byte count and JSON key paths, never values.
+      Reconcile this with AC-M2-09's "request bodies … never written to disk".
+  - **T-06 The Q12 pre-filter rule is not deterministic** (AC-M2-20 golden bytes and sentinel oracle; AC-M2-26).
+    - With the Q12 default (yes), "same room or shared keywords" needs to be exact:
+      - how keywords are found (folding and a stop-word list);
+      - how candidates are ranked;
+      - the tie-break;
+      - the cap of 10;
+      - completed tasks are left out (Definitions).
+    - If the owner answers no, the golden requests change. The local word-match rule that AC-M2-26 then relies on
+      needs the same precision.
+
+  *Minor (fix wording when convenient; does not block on its own):*
+  - **T-07 AC-M2-02 / Q5.**
+    - Define "out-of-range date" with numbers.
+    - "Default dayparts" should cite `Daypart.defaultAllowed` (morning, afternoon, evening).
+    - Give the order in which repairs run. For example, an unknown kind becomes a one-off, and then any interval is
+      dropped.
+    - Say what happens to unknown daypart or weekday *elements*. Suggestion: drop the element, then apply the
+      empty-set default.
+  - **T-08 AC-M2-03 / Q6 table.** The Tester's review of the plan's table is a Definition of Ready condition for
+    AC-M2-03. The table must fix these:
+    - the first day of the week (Monday, or the calendar's `firstWeekday`);
+    - "this weekend" when said on a Saturday, and on a Sunday evening;
+    - how seasons are defined (meteorological or astronomical, and which hemisphere);
+    - when "tonight" ends;
+    - "end of today" on a DST day;
+    - "before <month>" when that month is the current one.
+  - **T-09 AC-M2-04 matching.** Say whether whitespace is trimmed and collapsed, whether a leading article is stripped
+    ("the kitchen"), and which locale folding uses. State that matching is exact after folding, not fuzzy.
+  - **T-10 AC-M2-12 guard rules.**
+    - Matching is case-insensitive and on whole tokens split at non-letters.
+    - Whitespace is collapsed after a token is removed.
+    - "In the user's input" means anywhere in the whole input.
+    - The guard also applies to proposed new room names, which are model-generated text.
+  - **T-11 Closed token lists for the scans** (AC-M2-09, 21), as in M1 T-05.
+    - Media types: `AVAudioBuffer`, `AVAudioPCMBuffer`, `CMSampleBuffer`, `CVPixelBuffer`, `CGImage`, `CIImage`,
+      `UIImage`.
+    - File-write and log APIs: `write(to:`, `FileManager` create and write, `FileHandle`, `OutputStream`,
+      `UserDefaults`, `print`, `debugPrint`, `dump`, `NSLog`, `os_log`, `Logger`, `OSLog`.
+  - **T-12 AC-M2-10 / 19 cases.**
+    - Add "unsupported language/locale" as an unavailable reason (ADR-0005 Decision 1(a), Q2).
+    - The matrix should also cover consent and a key stored for a provider that is *not* selected, and "always use my
+      cloud model" while cloud is off.
+  - **T-13 AC-M2-11 / 25 pass rules.**
+    - "Equal to their online run" is fragile if sampling varies. Suggested rule: each fixed input (IDs named in the
+      script) meets the per-item rubric match against the golden set.
+    - The harness should use greedy sampling for the on-device model and the lowest-variance setting each provider
+      offers, recorded in the results file.
+    - AC-M2-25 "parse through the cloud" needs a pass rule. Suggested: route = `cloud(X)`, all drafts valid, and the
+      segmentation matches the golden set.
+  - **T-14 AC-M2-18 "restored state".** Define it as concrete fixtures. Note that a `ThisDeviceOnly` Keychain item
+    can come back when an encrypted backup is restored to the *same* device. Give the rule that keeps cloud off after
+    a restore anyway (ADR-0005 Decision 2). Say that a real restore is not exercised on a device in M2.
+  - **T-15 AC-M2-20 details.**
+    - Golden bytes must be identical on Linux and on the Mac: sorted keys and fixed escaping.
+    - Say whether "rejected by type" means the builder's input type cannot carry media (a compile-time and API check)
+      or a runtime rejection.
+    - For each provider, list its opt-outs explicitly, or state "none offered".
+    - PO to decide on room names that contain a person's name, for example "Sam's room". Suggested default: room names
+      are user labels and are sent as written. The sentinel generator keeps member-name sentinels out of room names.
+      The consent copy says room names are sent.
+  - **T-16 AC-M2-21 Keychain environment.** `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` needs the data-protection
+    keychain. A plain macOS `swift test` with no host app may fail with `errSecMissingEntitlement`.
+    - Specify an iOS Simulator test with a host app, run on the owner's Mac (`xcodebuild test`).
+    - Assert on the attributes read back (`kSecReturnAttributes`).
+    - Define the masked format, and what happens to short keys.
+  - **T-17 AC-M2-22 timeout and environment.**
+    - Say which timeout is meant (resource or request). The per-attempt timeout plus the one allowed retry must fit
+      inside the 10 s total (Q15).
+    - Run it on the owner's Mac. `URLProtocol` and redirect handling in Linux `FoundationNetworking` are not reliable
+      enough to serve as evidence.
+  - **T-18 AC-M2-23 "none blames the user".** This cannot be measured in M2, because M2 has no copy. Make it Reviewer
+    inspection of the outcome case names, and leave the copy to the Designer in M3. Test the retry timing with an
+    injected clock.
+  - **T-19 AC-M2-24 fixtures.**
+    - "Recorded" fixtures need real keys and the network. Either the owner records them on the Mac with fixed text
+      that holds no household data, or they are synthetic from each provider's documented stream format, plus at
+      least one real recording per provider.
+    - Say which parts of AC-M2-01…08 apply to cloud output. The `Tool` clause of 07 does not apply; the local
+      re-check of the shortlist replaces it.
+  - **T-20 Device-run integrity.**
+    - At most one retake per voice input, and only when the speaker misread the script. The reason is logged and
+      every attempt is kept in the results file. No re-running to get a pass.
+    - The run record names: iOS build, app commit SHA, the on-device model or provider model ID, and the network
+      with a speed-test result (Q15).
+  - **T-21 Traceability gaps.**
+    - Q9 (W2-F3) changes an accepted M1 AC (AC-M1-25). Put the new invariant case in an M2 AC clause instead, for
+      example in AC-M2-02 (Linux).
+    - UX-2 is in scope but has no M2 AC. Say in Gate mapping that AC-M2-13 keeping the M1 `NowSelector` suite green
+      covers it.
+  - **T-22 AC-M2-13 skips.** A test compiled out on Linux (`#if canImport(...)`) does not count as skipped only if it
+    runs on the Mac. The AC → test table gives the environment for every test.
+
+  **Device script outlines** (the full scripts go in `acceptance.md` before the first run; these depend on T-04,
+  T-05, T-13 and T-20):
+  - **DS-1, iPhone 15 Pro, on device: AC-M2-15, 16, 17, then 11.**
+    - Preconditions:
+      - iOS 26.x (build recorded). Apple Intelligence on. Model ready. en-US. Cloud off.
+      - Speech assets installed.
+      - The eval harness from the owner's Mac at the commit under test, with the frozen fixtures (hash recorded) and
+        the seeded household loaded.
+    - Steps:
+      1. Run the 20 inputs in fixture order. Type the text inputs from the fixture. Speak the voice inputs live from
+         the printed script. No audio is stored.
+      2. Export the results file.
+      3. Turn airplane mode on, with Wi-Fi and Bluetooth off. Run the 3 named AC-M2-11 inputs (2 voice, 1 text) and
+         export again.
+    - Record: per-input TTFI and total time, the cold-start TTFI, the drafts, the rubric scores, duplicates and false
+      merges.
+    - Pass rules:
+      - AC-M2-15: the Q3 thresholds.
+      - AC-M2-16: every input has TTFI < 1.5 s and total ≤ 5.0 s.
+      - AC-M2-17: 0 duplicates and ≤ 1 false merge.
+      - AC-M2-11: each of the 3 meets the rubric offline (T-13).
+  - **DS-2, iPhone 13, cloud: AC-M2-25, 26, 27.**
+    - Preconditions:
+      - iOS 26.x. en-US. On-device model reported as not eligible.
+      - Home Wi-Fi, with a speed-test result recorded.
+      - For each Q16 provider: consent given and the owner's key stored.
+      - Speech assets installed.
+    - Steps:
+      1. AC-M2-25: in airplane mode, speak the 2 named voice inputs. Record the transcriber used, the calm offline
+         outcome, the plain-note offer and that no task was created. Go back online and run the same 2.
+      2. AC-M2-26/27: for each provider, run all 20 inputs and export the results. These record the route, timings,
+         per-request byte counts and JSON key paths (no values).
+      3. Information only: run one provider on the iPhone 15 Pro with "always use my cloud model".
+    - Pass rules:
+      - AC-M2-25: T-13.
+      - AC-M2-26: for each provider, the Q3 thresholds, 0 duplicates, ≤ 1 false merge, and the sent key paths are a
+        subset of the AC-M2-20 allowed content.
+      - AC-M2-27: every input has cloud TTFI < 3.0 s and total ≤ 10.0 s.
+  - All seven device ACs stay **AWAITING-DEVICE** until the human owner's run is recorded in `acceptance.md` with
+    who, when, which device and which build.
 
 ## Law check
 | Law | Status (pass / n.a. / concern) | Note |
@@ -371,3 +579,4 @@ Tester's script and the result is recorded (CLAUDE.md §5). M2 cannot be `ACCEPT
 |---|---|---|---|---|
 | 2026-11-20 | Product Owner | Acceptance Tester | to send for testability review | Brief v1 (Draft), written after the M1 gate (ACCEPTED, STATUS.md). 6 stories, 17 ACs (AC-M2-01…17); device ACs AC-M2-11, 15, 16 and 17 are AWAITING-DEVICE. Human-owner questions: Q1 (PCC), Q8 (macOS lane); Q3 thresholds are open to owner tightening. After the Tester's review, the PO hands off to the Work Planner (H1). |
 | 2026-11-21 | Product Owner | Orchestrator → human owner | to merge (protected paths) | Brief v2 (still Draft) for D-030 / ADR-0005: the owner chose BYOK cloud AI and an iPhone 13 floor. Added S-M2-07…09 and AC-M2-18…27 (device: AC-M2-25, 26, 27, all AWAITING-DEVICE). Rewrote AC-M2-09 and AC-M2-10, and closed Q1. New owner questions: Q12 (task titles for duplicates), Q16 (which providers gate M2), Q17 (Gemini free tier). Q13, Q14, Q15 and Q18 are PO defaults. Next: the owner merges the policy PR, then the Acceptance Tester runs the testability review of v2, then the Work Planner. |
+| 2026-11-21 | Acceptance Tester | Product Owner | returned | Testability review of v2 at `a6009e8`. Six Major items (T-01…T-06) block the tick; T-07…T-22 are Minor. The owner's Mac (Xcode 26) answers Q8 and gives the build path for the device harness. Q12, Q16 and Q17 are still open (PO defaults assumed). Split: Linux 01–04, 06, 08, 12, 19, 20, 23, 13(a) and the logic halves of 05, 07, 09, 10, 14, 18, 24; Mac 13(b), 21, 22 and the adapter halves; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, outlines DS-1 and DS-2). |
