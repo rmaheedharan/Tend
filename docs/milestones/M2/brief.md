@@ -310,6 +310,7 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
     - `@AppStorage("k") var key = ""` in TendEval;
     - `let t = s.uploadTask(with: r, from: d)` and `let w = s.webSocketTask(with: r)` in an allowlisted Rule 3 file;
     - `session.bytes(for: request)` (no `delegate:`) in an allowlisted Rule 3 file;
+    - `let f = s.dataTask` in an allowlisted Rule 3 file is caught.
     - `Data(contentsOf: u)` in a TendAI file outside the allowlist, in an allowlisted Rule 3 file, and in a TendEval
       file other than the loader.
   - **Caught in the fixtures-loader file:**
@@ -317,6 +318,10 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
     - `Bundle.main.resourceURL!.appendingPathComponent("x.json")`
     - `Bundle.main.url(forResource: "../x", withExtension: "json")`
     - `String(contentsOf:`
+    - `let u = URL(fileURLWithPath: "/tmp/x.json")`, and `NSURL(fileURLWithPath: "/tmp/x.json")` (caught by the
+      networking list)
+    - `func load(_ u: Path) throws -> Data { try Data(contentsOf: u) }` together with a separate
+      `let u = Bundle.main.url(forResource: "fixtures", withExtension: "json")` is caught.
   - **Positive (not reported):**
     - In the loader file, exactly
       `guard let u = Bundle.main.url(forResource: "fixtures", withExtension: "json") else { throw LoaderError.missing }; return try Data(contentsOf: u)`.
@@ -350,6 +355,8 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
         their own patterns.
       - Type-name patterns (`Logger`, `FileManager`, `OSLog`, `AppStorage` and the rest) keep the AC-M1-23 camelCase
         word-boundary rule, and so do the inherited AC-M1-23 patterns. This bullet relaxes none of them.
+      - The task-creating names `dataTask`, `uploadTask`, `downloadTask`, `streamTask` and `webSocketTask` also match
+        as whole tokens without `(` (method references).
   - **Rule 1, `TendIngestion`:**
     - The only imports are `Foundation` and `TendCore`.
     - None of the full AC-M1-23 closed list (clock, randomness, locale and networking) occurs, apart from
@@ -432,6 +439,8 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
       - The only `contentsOf:` form is `Data(contentsOf: <name>)`. `<name>` is one plain identifier and there are no
         other arguments. It is bound in the same file by `let <name> = Bundle.main.url(forResource:`,
         `guard let <name> = Bundle.main.url(forResource:` or `if let <name> = Bundle.main.url(forResource:`.
+      - `<name>` is bound exactly once in the file, in the same function body and before the `Data(contentsOf:` call.
+        No function, initialiser, subscript or closure in the loader file declares a parameter.
       - The whole token `URL` does not occur.
       - The only use of `Bundle` is `Bundle.main.url(forResource:`. `Bundle(`, `.resourceURL`, `.bundleURL`,
         `.urls(forResourcesWithExtension:`, `.path(forResource:`, `appendingPathComponent(`, `appending(path:`,
@@ -1386,3 +1395,4 @@ merge). No AC was removed, and the AC count stays 28.
 | 2026-11-21 | Acceptance Tester | Product Owner → Work Planner | accepted (testability ticked) | Re-review of v4 at `580d23e`. T-23…T-30 are closed, so T-01…T-30 are all closed. All 28 ACs are observable and measurable, with an environment and evidence each. Final split: Linux 01–04, 06, 08, 09, 12, 14, 19, 13(a); Linux + Mac 05, 07, 10, 18, 20, 23, 24, 28; Mac 13(b), 21, 22; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, scored on Linux). Nits N-1…N-3 go to the plan and the Developer. Conditions: the plan items before the DoR (Q6 table reviewed by the Tester, file paths, commands, scoring tool, ID generator); the fixtures, key-path lists and golden requests before the AC-M2-14 freeze; DS-1 and DS-2 before the first device run; D-031 by owner merge. Q12, Q16, Q17 PO default; Q20 before the first device run. |
 | 2026-11-21 | Product Owner | Work Planner → Developer, Reviewer | accepted | PO 2026-11-21, stricter only, from PR #15 review (R1-F1 point 4, R1-F5). Q23: one fixtures-loader exception for `Data(contentsOf:` in `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift`, bundle URLs only, with negative and positive tests (AC-M2-09 Rule 6; cross-reference in M1 AC-M1-23). Q24: session method calls added to the networking list; C file and print calls and `write(toFile:` added to the write and log list; Rule 3 allows only `bytes(for:delegate:)`; Rule 6 gets a closed import list; new negative tests (AC-M2-09). No AC removed; there are still 28 ACs. DECISIONS.md entries for M2 Q23 and Q24 go in the human-merged governance PR. Timing is in `plan.md`. |
 | 2026-11-21 | Acceptance Tester → Product Owner | Work Planner | accepted | Tester returned PR #16 (findings 1-9); PO accepted all, stricter only. AC-M2-09 v2 texts applied, replacing the v1 Q23/Q24 wording: separate write and log lists (new `AppStorage`, `SceneStorage`, `archiveRootObject(`, `mkstemp(`, `tmpfile(`, `creat(`, `vprintf(`, `vfprintf(`, `dprintf(`, `puts(`, `putc(`, `putchar(`, `perror(`, `syslog(`), `bytes(for:` added to the session-method calls, an exact call-pattern matching rule, `contentsOf:` bullets in Rules 2, 3 and 6, the Rule 3 session-method rule (`bytes(for:` only with `delegate:`), Rule 6 rewritten (import parsing, literal-only fixtures loader), and new plant and positive tests. Q23/Q24 rows updated; M1 AC-M1-23 cross-reference revised. No AC removed; there are still 28 ACs. |
+| 2026-11-21 | Acceptance Tester | PO -> Work Planner | accepted (testability ticked) | Re-review of PR #16 at 25ddc36; findings 1-9 closed; Minors 1-3 folded in (stricter only). |
