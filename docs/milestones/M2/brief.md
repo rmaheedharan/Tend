@@ -1,8 +1,8 @@
 # M2 Brief — On-Device AI Ingestion
 
-- **Owner:** Product Owner  ·  **Status:** Draft v3 (2026-11-21). This version answers the Acceptance Tester's v2
-  review (T-01…T-22). Every change is listed in "v3 change record" below. It goes back to the Tester for re-review and is
-  not yet Ready for planning. D-030 and ADR-0005 were merged in PR #11 (`a6009e8`), as the Tester's review records.
+- **Owner:** Product Owner  ·  **Status:** Draft v4 (2026-11-21). v3 answered the Tester's v2 review (T-01…T-22, now
+  closed). v4 answers the v3 review (T-23…T-30). Every change is listed in the "v3 change record" and "v4 change
+  record" below. It goes back to the Tester for re-review and is not yet Ready for planning. D-030 and ADR-0005 were merged in PR #11 (`a6009e8`), as the Tester's review records.
   Q12, Q16 and Q17 are still open with the owner. The PO defaults apply until the owner answers.
 - **PRD scope:** *M2: On-Device AI Ingestion.* Voice and text brain-dump parsing, duplicate detection, and streaming
   structured output using on-device Foundation Models, plus the opt-in bring-your-own-key cloud path (ADR-0005) where
@@ -315,6 +315,9 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
       `Locale(identifier: "en_US_POSIX")`.
     - No networking pattern, no media type and no write or log API occurs.
     - The payload builder returns plain values (provider, path, header names, body bytes), so it needs no networking.
+    - **Scorer I/O (T-26):** the scorer in `TendIngestion` takes the results file and fixtures as `Data` and returns
+      a value. Reading files and writing the scorer log happen outside `TendIngestion/Sources`, in its test target or
+      in a named scoring tool. The plan names the tool and the exact scoring command.
   - **Rule 2, `TendAI` outside the cloud-adapter allowlist:**
     - The only imports are `Foundation`, `FoundationModels`, `Speech`, `AVFAudio`, `TendCore` and `TendIngestion`.
     - No networking pattern and no write or log API occurs.
@@ -322,16 +325,40 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
   - **Rule 3, `TendAI` cloud-adapter allowlist (a fixed list of file paths in the plan):**
     - The only imports are those in Rule 2, plus `Security`. `FoundationNetworking` is never imported, because
       `TendAI` is Apple-only.
-    - The only networking types are `URLSession`, `URLSessionConfiguration`, `URLRequest`, `URL` and `HTTPURLResponse`.
+    - **Allowed networking subset (closed; T-23):**
+      - `URLSession`, `URLSessionConfiguration`, `URLSessionTask`, `URLSessionTaskDelegate`;
+      - `URLSession.AsyncBytes` and `bytes(for:delegate:)`, the streaming read;
+      - `URLRequest`, `URL`, `URLComponents` (the one way to build the URL from the builder's host and path);
+      - `URLResponse`, `HTTPURLResponse`, `URLError`.
+    - **Scan rule:** in an allowlisted file, every networking-pattern hit, and every identifier token that starts with
+      `URL`, `NSURL`, `HTTP`, `NW`, `CFHost`, `CFStream` or `CFNetwork`, must be in the allowed subset. In particular,
+      `URL(string:`, `URLSessionWebSocketTask`, `URLSessionStreamTask`, `URLSessionUploadTask`,
+      `URLSessionDownloadTask`, `URLSessionDataDelegate`, `URLProtocol` and `URLCache` are hits. Setting
+      `configuration.urlCache = nil` and `httpCookieStorage = nil` uses lower-case properties and is not a hit.
+    - **Negative test:** one planted hit just outside the subset (`URLSessionWebSocketTask`) and one `URL(string:`
+      must both be caught, and a file that uses only the subset must pass.
+    - Test targets may use `URLProtocol` for mocks; the scan covers `Sources` only.
     - No provider SDK or third-party module is imported.
     - No media type and no write or log API occurs.
-  - **Rule 4, host literals in all three modules:**
-    - Every string literal that contains `://`, or that matches `(?i)\b[a-z0-9-]+(\.[a-z0-9-]+)*\.(com|net|org|io|ai|dev|app|co|cloud)\b`,
-      is exactly one of `api.openai.com`, `api.anthropic.com` and `generativelanguage.googleapis.com`, or `https://`
-      followed by one of them.
-    - These literals appear only in allowlisted files and in the payload builder's provider table.
+  - **Rule 4, host literals in all three modules (T-30):**
+    - A literal is **host-like** when it contains `://`, or when the **whole literal** matches
+      `(?i)^[a-z0-9-]+(\.[a-z0-9-]+)*\.(com|net|org|io|ai|dev|app|co|cloud)(:\d+)?(/\S*)?$`.
+      - Reverse-DNS strings such as bundle IDs and Keychain service names (`com.tend.eval`, `tend.ai.key`) are not
+        host-like.
+    - Every host-like literal is exactly one of `api.openai.com`, `api.anthropic.com` and
+      `generativelanguage.googleapis.com`, or `https://` followed by one of them.
+    - **Where they may appear (T-26):**
+      - The payload builder's provider table in `TendIngestion` holds the **bare hosts** only.
+      - `https://` literals appear only in allowlisted cloud-adapter files.
+    - **Negative test:** `tend.ai.key` passes, while `api.example.com` and `https://api.example.com/v1` are caught.
   - **Rule 5, speech:** speech uses only `SpeechAnalyzer` with `SpeechTranscriber` or `DictationTranscriber`. No
-    `SFSpeech*` API (the server-capable recogniser) occurs.
+    `SFSpeech*` API (the server-capable recogniser) occurs, with one exception (T-27).
+    - If the Developer confirms on the owner-run Mac during planning that iOS 26 still needs it for `SpeechAnalyzer`,
+      exactly `SFSpeechRecognizer.requestAuthorization(` and `SFSpeechRecognizer.authorizationStatus(` (with the
+      `SFSpeechRecognizerAuthorizationStatus` type) are allowed.
+    - They are allowed in one speech-permission file named in the plan, and only there.
+    - If the Developer finds they are not needed, there is no exception.
+    - **Negative test:** an `SFSpeechRecognizer(` initialiser in the speech-permission file is caught.
   - **Rule 6, `TendEval` (AC-M2-28):**
     - No networking pattern occurs.
     - Write APIs occur in exactly one file, the results writer named in the plan. It writes only the results-file
@@ -350,8 +377,9 @@ anywhere I didn't choose, and nothing kept that I didn't keep, so that I can tal
   contains a banned token. The cases are:
   - **cloud off** with each on-device reason that is not available: device not eligible, Apple Intelligence not
     enabled, model not ready, and **unsupported language or locale** (T-12; Q2; ADR-0005 Decision 1(a));
-  - **cloud on or off** with a mock in which on-device generation throws (guardrail, context too long, any other
-    generation error).
+  - **cloud on or off** with a mock in which on-device generation throws **before the first draft is emitted**
+    (guardrail, context too long, any other generation error; T-25). A throw after the first draft gives
+    `interrupted` (AC-M2-05). Either way, the route never changes to the cloud.
   *Verification:* unit  *Environment:* Linux for the outcome for each neutral reason (`TendIngestion`). Owner-run Mac
   for the adapter mapping of every `SystemLanguageModel.Availability` case, `supportsLocale` and every
   `LanguageModelSession.GenerationError` case to a neutral reason (`TendAI`; an exhaustive switch with no `default`).
@@ -440,6 +468,8 @@ As someone who already feels behind, I want Tend never to add a guilt word, so t
 
 #### Eval scoring rules (binding for AC-M2-11, 14, 15, 17, 25, 26; T-04)
 - **Fixtures.**
+  - **Fixed IDs (T-29).** Every seeded task and room has a **fixed UUID** in the fixtures, because the shortlist
+    tie-break and the AC-M2-20 golden requests use `id.uuidString`. No fixture ID is generated at run time.
   - Each **seeded task** has a stable key, its M1 fields and **match groups**. A match group is a set of synonym
     tokens, already keyword-folded, for example `{ac, aircon, air, conditioner, hvac}` and
     `{service, servicing, serviced, check}`.
@@ -582,17 +612,33 @@ stay calm when the cloud isn't there, so that saying yes to the cloud never cost
 **Acceptance criteria**
 - **AC-M2-20** Given ≥ 500 seeded households, when the context selector and the payload builder build a cloud request
   for a capture, for each provider, then:
-  - **Sentinels.** The households carry planted sentinel values in every field the M2 household model has that lies
-    outside allowed content:
+  - **(a) Byte-level unique sentinels (T-24)** cover every field outside allowed content that can hold a unique value:
     - task IDs and room IDs;
     - the titles of tasks **not** on the shortlist;
-    - every other task field (kind, effort, flags, dayparts, weekdays, window dates, interval, state, `completedAt`);
-    - each room's `lastTendedAt`;
-    - the injected `now`, time zone and calendar.
-    Each request body, decoded, contains only allowed request content (Definitions).
-    - The M1 model has no member, assignee, notes or household-ID fields. When M5 adds members and assignees (FR-E2),
-      the M5 brief extends this AC with their sentinels (T-15; PO, due with the M5 brief).
-  - No sentinel value outside allowed content appears anywhere in the bytes. This includes headers, path and query.
+    - `windowStart`, `windowEnd`, `completedAt` and each room's `lastTendedAt`;
+    - the interval;
+    - the injected `now`, the time-zone identifier and the calendar identifier.
+    Each date sentinel is checked in four forms: ISO 8601, Unix seconds, Unix milliseconds and reference-date seconds.
+    - **String sentinels** (IDs, titles, date forms, identifiers) must appear nowhere in the captured request: not in
+      the method, path, query, header names, header values or body bytes.
+    - **Interval sentinels** use whole-day values in 600…729 whose decimal form occurs nowhere in the fixed
+      instructions, the schema or the capture text. In the decoded body, no JSON number equals one and no string
+      contains one. In the path, the query and the header values, none appears.
+  - **(b) Structural check (T-24)** covers enum, Boolean and set fields (kind, effort, flags, dayparts, weekdays,
+    state), which cannot hold unique values and whose case names appear legitimately in the fixed schema. For each
+    decoded body:
+    - The set of JSON key paths equals that provider's **allowed key-path list** (AC-M2-26), with array indices
+      written as `[]`.
+    - The value at the capture path is exactly the capture text.
+    - The values at the room-name paths are exactly the selector's room names, in order.
+    - The values at the shortlist paths are exactly the shortlist titles with indices 1…n.
+    - Every other path holds exactly the value at that path in the provider's golden request. These are the fixed
+      instructions, the schema, the model ID and the opt-outs.
+    - The header names equal the provider's fixed list. Every header value except the auth header equals the golden
+      value.
+    So no household field can change any byte outside the capture, room-name and title values.
+  - The M1 model has no member, assignee, notes or household-ID fields. When M5 adds members and assignees (FR-E2), the
+    M5 brief extends this AC with their sentinels (T-15; PO, due with the M5 brief).
   - **Shortlist (Q12 = yes).** The titles sent are exactly the duplicate shortlist for the capture text (Definitions),
     in rank order with indices 1…n, and n ≤ 10. When Q12 = no, no task title is sent, and the golden requests are
     regenerated under a PO decision.
@@ -642,8 +688,10 @@ stay calm when the cloud isn't there, so that saying yes to the cloud never cost
     moment the pipeline receives the input.
     - Each attempt sets `timeoutIntervalForResource` to the time left before the deadline, and
       `timeoutIntervalForRequest` to min(time left, 4.0 s).
-    - The one allowed retry (AC-M2-23) starts only if ≥ 3.0 s are left after a fixed 0.5 s pause. A `Retry-After`
-      longer than the time left means no retry.
+    - **Retry rule (one rule, also in Q22; T-28).**
+      - The one allowed retry (AC-M2-23, 429/5xx only) waits a pause p = max(0.5 s, `Retry-After`). `Retry-After` is
+        read only in its delta-seconds form; a missing or unreadable value counts as 0.
+      - The retry starts only if, after the pause, ≥ 3.0 s are left before the deadline. Otherwise there is no retry.
   *Verification:* unit (mock `URLProtocol`; injected clock)  *Environment:* Owner-run Mac. `URLProtocol` and redirect
   handling in Linux `FoundationNetworking` are not evidence. The deadline and retry arithmetic is also unit-tested on
   Linux (`TendIngestion`).  *Evidence expected:* test name + Mac evidence record + log.
@@ -718,6 +766,8 @@ results file, so that the gate can be proven on real iPhones without any product
     - The fixtures are bundled at build time, and the harness shows their SHA-256 manifest hash.
   - **What it does.**
     - It loads a fresh copy of the seeded household into the M1 in-memory repository for every input.
+    - Its injected ID generator for committed tasks and rooms is **deterministic** (T-29). It is seeded from the
+      input ID and attempt number, as defined in the plan, and never yields a fixture UUID.
     - It shows each input's script.
     - It feeds text inputs verbatim, and captures voice inputs live through the M2 speech adapter.
     - It prewarms as AC-M2-16 says, times TTFI and total time on a monotonic clock, commits as AC-M2-17 says, and
@@ -798,7 +848,7 @@ Tester's script and the result is recorded (CLAUDE.md §5). M2 cannot be `ACCEPT
 | Q19 | Room names (and shortlisted titles) may contain a person's name, for example "Sam's room" (T-15). | They are user labels and are sent **as the user wrote them**. M2 has no member model, so Tend cannot recognise names in labels. The M3 consent copy must say "your room names, as you wrote them". The AC-M2-20 sentinel generator never puts sentinels into room names. M5 revisits this when members exist (FR-E2). (PO default) | M2 (copy in M3) |
 | Q20 | Which Apple signing team installs `TendEval` on the iPhones (AC-M2-28)? | The owner's own team: a personal (free) team is enough for a debug install, but its profile lasts 7 days, so reinstall before each run. The Planner records it in the plan. **Human owner to confirm.** | Before the first device run |
 | Q21 | Where is the consent record stored so that a restore never turns cloud on (T-14)? | M2 defines the rule and tests it with fixtures (AC-M2-18). The durable consent store is delivered in **M3** together with the Settings screens. It must be excluded from device backups and from iCloud, so a restore always gives "no consent". The orphan-key deletion in AC-M2-18 then also removes a restored key. Owner: PO (an M3 brief AC), due with the M3 brief. | M3 brief |
-| Q22 | What are the cloud timeout and retry numbers (T-17)? | A 10.0 s per-capture deadline. Each attempt's resource timeout is the time left. The request (idle) timeout is min(time left, 4.0 s). One retry, only for 429/5xx, after a fixed 0.5 s pause, and only if ≥ 3.0 s are left. A longer `Retry-After` means no retry. (PO default; the owner may tighten it.) | M2 planning |
+| Q22 | What are the cloud timeout and retry numbers (T-17)? | A 10.0 s per-capture deadline. Each attempt's resource timeout is the time left. The request (idle) timeout is min(time left, 4.0 s). One retry, only for 429/5xx, after a pause p = max(0.5 s, `Retry-After` in delta-seconds; a missing or unreadable value counts as 0), and only if ≥ 3.0 s are left before the deadline after the pause (the same rule as AC-M2-22; T-28). (PO default; the owner may tighten it.) | M2 planning |
 
 ## Tester testability review
 - [ ] Every AC is observable and measurable  - [x] Device ACs identified (AC-M2-11, 15, 16, 17, 25, 26, 27)  -
@@ -1145,6 +1195,30 @@ protected-path PR; the PO proposes D-031 for this. No AC was removed.
 - The full device scripts DS-1 and DS-2 in `acceptance.md`. Owner: Acceptance Tester. Due: before the first device
   run.
 
+## v4 change record (PO response to T-23…T-30, 2026-11-21)
+The same C / M convention applies as in v3. The M rows are added to the proposed D-031 entry (protected path, owner
+merge). No AC was removed, and the AC count stays 28.
+
+| T-item | Sev. | Change | C / M | Where |
+|---|---|---|---|---|
+| T-23 | Major | AC-M2-09 Rule 3 now has a **closed allowed networking subset** for allowlisted cloud-adapter files: `URLSession`, `URLSessionConfiguration`, `URLSessionTask`, `URLSessionTaskDelegate`, `URLSession.AsyncBytes` / `bytes(for:delegate:)`, `URLRequest`, `URL`, `URLComponents`, `URLResponse`, `HTTPURLResponse` and `URLError`. The scan rule is that every networking-pattern hit, and every `URL`/`NSURL`/`HTTP`/`NW`/`CFHost`/`CFStream`/`CFNetwork` identifier, in an allowlisted file is in the subset. `URLComponents` is the one way to build a URL; `URL(string:` stays banned. Negative test: `URLSessionWebSocketTask` and `URL(string:` are caught, and a subset-only file passes. This makes the redirect refusal (AC-M2-22), error mapping (AC-M2-23) and streaming read (AC-M2-24) possible within the scan. The subset is now fixed in the brief, so the plan only names the files. | M (allowed set widened to exactly what AC-M2-22…24 need) | AC-M2-09 Rule 3 |
+| T-24 | Major | The AC-M2-20 sentinels are split into two checks. (a) **Byte-level unique sentinels:** IDs, non-shortlisted titles, window dates, `completedAt`, `lastTendedAt` (each in four date forms), the interval (600…729 days, chosen to collide with nothing), and the `now`, time-zone and calendar identifiers. String sentinels are absent from the whole request; interval sentinels are absent as numbers and digits in the body, path, query and header values. (b) **Structural check** for enum, Boolean and set fields: the key-path set equals the allowed list; the capture, room-name and title values are exactly the selector's inputs; every other value and header equals the golden request. Enum and Boolean fields are no longer byte sentinels. | M (the test method changes; the protection is the same or stronger) | AC-M2-20 |
+| T-25 | Minor | The AC-M2-10 throwing mocks throw **before the first draft**. A throw after a draft is `interrupted` (AC-M2-05). The route never changes to the cloud either way. | C | AC-M2-10 |
+| T-26 | Minor | The scorer in `TendIngestion` takes `Data` and returns a value. File reading and log writing happen in its test target or a named scoring tool, and the plan names the tool and the command. Rule 4: the builder's provider table holds bare hosts only; `https://` literals appear only in allowlisted files. | C | AC-M2-09 Rules 1 and 4 |
+| T-27 | Minor | Rule 5 has a conditional exception: exactly `SFSpeechRecognizer.requestAuthorization(` and `authorizationStatus(` (and the status type), in one named speech-permission file, and only if the Developer confirms on the owner-run Mac that iOS 26 needs them. Otherwise there is no exception. There is a negative test for the `SFSpeechRecognizer(` initialiser. | M (narrow, conditional exception) | AC-M2-09 Rule 5 |
+| T-28 | Minor | One retry rule in AC-M2-22 and Q22: the pause is max(0.5 s, `Retry-After` in delta-seconds, where missing or unreadable counts as 0). The retry happens only if ≥ 3.0 s are left after the pause. | M (the `Retry-After` value is now honoured, not only compared) | AC-M2-22; Q22 |
+| T-29 | Minor | Seeded tasks and rooms carry fixed UUIDs in the fixtures. The harness ID generator is deterministic (seeded by input and attempt, defined in the plan) and never yields a fixture UUID. | C | Eval scoring rules; AC-M2-28 |
+| T-30 | Minor | Rule 4 matches host-like literals against the **whole literal**, so reverse-DNS bundle IDs and Keychain service names are not hits. Negative test: `tend.ai.key` passes; `api.example.com` and `https://api.example.com/v1` are caught. | C | AC-M2-09 Rule 4 |
+
+**Added to the deferred list (v4):**
+- The scoring tool and the exact scoring command (T-26). Owner: Work Planner with the Developer, in `plan.md`. Due:
+  before the Definition of Ready.
+- The speech-permission check and the file name (T-27). Owner: Developer, on the owner-run Mac. Due: during planning,
+  before the Definition of Ready.
+- The speech-permission file name and the harness ID-generator definition (T-27, T-29). Owner: Work Planner, in
+  `plan.md`. Due: before the Definition of Ready.
+- The Rule 3 allowed subset is no longer deferred; it is fixed in the brief. The plan only lists the allowlisted files.
+
 ## Law check
 | Law | Status (pass / n.a. / concern) | Note |
 |---|---|---|
@@ -1153,7 +1227,7 @@ protected-path PR; the PO proposes D-031 for this. No AC was removed.
 | UX-3 Zero-Guilt | pass | Calm-words guard (AC-M2-12). Calm outcomes when the model is unavailable (AC-M2-10). No new state or counter: the M1 model and D-2/D-3 are unchanged. |
 | UX-4 Design craft | n.a. | No product UI in M2 (M3). The `TendEval` harness is a debug-only test tool that is never shipped (AC-M2-28), so it is not judged against UX-4. |
 | P-1 On device first (D-030) | pass | `FoundationModels` is preferred whenever it is available (AC-M2-19). Speech is always on device (AC-M2-09, AC-M2-25), proven offline on device (AC-M2-11, AWAITING-DEVICE). Cloud is used only on the ADR-0005 routes. |
-| P-2 Data leaves only via iCloud or a P-3 request (D-030) | pass | Networking only in allowlisted cloud files, only `URLSession`, only three fixed hosts, no SDKs (AC-M2-09, AC-M2-22). The duplicate `Tool` reads only the local household and is never given to a cloud model (AC-M2-07, AC-M2-24). |
+| P-2 Data leaves only via iCloud or a P-3 request (D-030) | pass | Networking only in allowlisted cloud files, only a closed `URLSession` subset, only three fixed hosts, no SDKs (AC-M2-09 Rules 3 and 4, AC-M2-22). The duplicate `Tool` reads only the local household and is never given to a cloud model (AC-M2-07, AC-M2-24). |
 | P-3 Cloud AI opt-in and minimised, ADR-0005 (D-030) | pass (ADR-0005 merged in PR #11) | Off by default and consent-gated, an orphan key is deleted, and a restore never turns cloud on (AC-M2-18, Q21). Payload limited to allowed content through a narrow builder input type and a deterministic shortlist, proven byte for byte on Linux and the Mac (AC-M2-20). The key travels only in the auth header, never the URL. Keychain only (AC-M2-21). Calm fallback (AC-M2-23). Retention options requested (AC-M2-20); honest disclosure copy is M3. Owner questions Q12, Q16 and Q17 are open. |
 | P-4 Media not persisted without consent | pass | Audio and transcripts stay in memory in the shipped modules (AC-M2-09). The never-shipped harness writes only scripted eval transcripts, drafts and request metadata, never audio, bodies or keys (AC-M2-28). No background queue (AC-M2-23). Nothing is saved before commit (AC-M2-06). Audio and images are never sent to a cloud model (AC-M2-09, AC-M2-20). Eval voice inputs are spoken live and never recorded (AC-M2-15, AC-M2-26). The Privacy Manifest and privacy label, including cloud use, ship with the app target (M3). |
 
@@ -1165,3 +1239,4 @@ protected-path PR; the PO proposes D-031 for this. No AC was removed.
 | 2026-11-21 | Acceptance Tester | Product Owner | returned | Testability review of v2 at `a6009e8`. Six Major items (T-01…T-06) block the tick; T-07…T-22 are Minor. The owner's Mac (Xcode 26) answers Q8 and gives the build path for the device harness. Q12, Q16 and Q17 are still open (PO defaults assumed). Split: Linux 01–04, 06, 08, 12, 19, 20, 23, 13(a) and the logic halves of 05, 07, 09, 10, 14, 18, 24; Mac 13(b), 21, 22 and the adapter halves; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, outlines DS-1 and DS-2). |
 | 2026-11-21 | Product Owner | Acceptance Tester | to re-review (v3) | Brief v3 answers T-01…T-22; see "v3 change record". All six Majors are fixed in the brief: environments per AC (T-01), the AC-M2-09 modules, imports and scope (T-02), the draft fields, events and end/error rules (T-03), the eval scoring rules (T-04), the never-shipped `TendEval` harness with results file v1 as new S-M2-10 / AC-M2-28 (T-05), and the exact duplicate shortlist (T-06). All Minors T-07…T-22 are fixed or deferred with an owner and due date. Meaning changes (M rows) are recorded in the change record; the PO proposes D-031 to mirror them in `DECISIONS.md` (protected path, owner merge). No AC was removed; the AC count is now 28. Q8 is closed (owner-run Mac). Q12, Q16 and Q17 stay **PO default, owner may change**. New: Q19 and Q22 (PO defaults), Q20 (signing team, owner), Q21 (consent store, deferred to M3). Next: the Tester re-reviews v3. If it is ticked, the brief goes to the Work Planner. |
 | 2026-11-21 | Acceptance Tester | Product Owner | returned | Re-review of v3 at `20862e2`. T-01…T-22 are closed. Two new Majors block the tick: T-23 (the AC-M2-09 Rule 3 networking allowlist forbids the delegate, `URLError`, streaming bytes and the URL building that AC-M2-22, 23 and 24 need) and T-24 (the AC-M2-20 sentinels cannot be planted in enum or Boolean fields; split into byte-level and structural checks). T-25…T-30 are Minor or nit. Split: Linux 01–04, 06, 08, 09, 12, 14, 19, 13(a); Linux + Mac 05, 07, 10, 18, 20, 23, 24, 28; Mac 13(b), 21, 22; device 11, 15, 16, 17, 25, 26, 27 (AWAITING-DEVICE, scored on Linux). Q12, Q16, Q17 PO default; Q20 before the first device run. |
+| 2026-11-21 | Product Owner | Acceptance Tester | to re-review (v4) | Brief v4 answers T-23…T-30; see "v4 change record". T-23: closed allowed networking subset in AC-M2-09 Rule 3, with an identifier-prefix scan rule and a negative test. T-24: AC-M2-20 sentinels split into (a) byte-level unique sentinels and (b) a structural key-path and value check against the golden request. T-25…T-30 are all fixed in the brief. Meaning changes: T-23, T-24, T-27 and T-28 (M rows), to be added to the proposed D-031 (owner merge). No AC was removed; there are still 28 ACs. New planning items: the scoring tool and command, the speech-permission check (Developer, on the Mac) and the ID-generator definition. Owner items unchanged: Q12, Q16, Q17 (PO default, owner may change) and Q20 (before the first device run). Next: the Tester re-reviews v4; if it is ticked, the Work Planner. |
