@@ -7,16 +7,21 @@
 //   holds a later item; (c) the stream finishes normally. Only the last item of a snapshot can be in progress, so items
 //   complete in output order. Completion is final: an item is mapped (Q5) once for emission; a skipped item stays
 //   skipped, even if a later snapshot gives it a title.
-// - **Emission.** A complete item that Q5 maps to a draft gets the next `draftID` (1, 2, 3 …; the counter advances only
-//   for a draft, WI-M2-05 D5) and its duplicate marker from the injected check, then is `emitted`. A Q5 skip gives
-//   `itemSkipped(reason)`.
-// - **The duplicate hook (WI-M2-07 contract).** The check is called exactly once per draft position, in output order,
-//   before that draft's `emitted` (`completeNext`). It is never called again: an update carries the marker set at
-//   emission.
-// - **Updates.** On each snapshot, every emitted draft whose item is still in the snapshot is mapped again with its
-//   `draftID`, keeping its marker. A draft that differs from its last version gives `updated`. A re-map that Q5 would skip, or an item missing from a shorter snapshot, gives no
-//   event: a draft is never withdrawn. Within one snapshot, updates (ascending `draftID`) come before new emissions.
-// - **End.** A normal finish completes the remaining items (rule c), then `completed`. A stop with no emitted draft is
+// - **Emission.** A complete item that Q5 maps to a draft gets the next `draftID` (1, 2, 3 …; the counter
+//   advances only for a draft, WI-M2-05 D5) and its duplicate marker from the injected check, then is `emitted`.
+//   A Q5 skip gives `itemSkipped(reason)`.
+// - **The duplicate hook (WI-M2-07 contract; PO WI-M2-06 ruling 5).** At emission, the check is called once per draft
+//   position, in output order, before that draft's `emitted` (`completeNext`), with the latest lower drafts.
+// - **Updates and re-marking.** On each snapshot, every emitted draft whose item is still in the snapshot is mapped
+//   again with its `draftID`. If any draft's content changed, the check runs again in ascending `draftID` for the
+//   lowest changed draft and every later emitted draft, each against the latest versions of all lower drafts (this
+//   covers `ofDraft` cascades). Each draft whose content or marker changed gets exactly one `updated` (a full
+//   replacement). If no content changed, the check is not called. A re-map that Q5 would skip, or an item missing
+//   from a shorter snapshot, keeps the last content: a draft is never withdrawn. Within one snapshot, updates
+//   (ascending `draftID`) come before new emissions, so a new draft is checked against the re-marked drafts. After
+//   `finished`, each marker equals one pass of the check over the final drafts in `draftID` order.
+// - **End.** A normal finish completes the remaining items (rule c), then `completed`; with no emitted draft it also
+//   returns the input and a plain note (PO WI-M2-06 ruling 1). A stop with no emitted draft is
 //   `noModel` with the input and a plain note (T-25). A stop after a draft is `interrupted`; an in-progress item is
 //   discarded (`stoppedBeforeComplete`). Nothing is accepted after `finished`.
 
@@ -70,6 +75,10 @@ struct DraftStreamAssembler: Sendable {
         guard !isFinished else { return [] }
         var events: [DraftStreamEvent] = []
         while completedCount < items.count { events += completeNext() }
+        // PO WI-M2-06 ruling 1: nothing the person said is lost when no draft came out.
+        if drafts.isEmpty {
+            return events + finish(.completed(route: route, input: mapper.input, plainNote: plainNote()))
+        }
         return events + finish(.completed(route: route))
     }
 
@@ -123,20 +132,25 @@ struct DraftStreamAssembler: Sendable {
     }
 
     private mutating func refreshEmitted() -> [DraftStreamEvent] {
-        var events: [DraftStreamEvent] = []
-        var refreshed: [IngestionDraft] = []
-        refreshed.reserveCapacity(drafts.count)
+        // 1. Re-map each emitted draft whose item is still present (content only; the marker is decided in step 2).
+        var latest = drafts
         for (offset, last) in drafts.enumerated() {
-            var next = last
             let index = itemIndexOfDraft[offset]
-            if index < items.count, case let .draft(mapped) = mapper.map(items[index], draftID: last.draftID).outcome {
-                next = mapped
+            if index < items.count, case var .draft(mapped) = mapper.map(items[index], draftID: last.draftID).outcome {
+                mapped.duplicate = last.duplicate
+                latest[offset] = mapped
             }
-            next.duplicate = last.duplicate   // marked once, at emission (the WI-M2-07 hook contract)
-            refreshed.append(next)
-            if next != last { events.append(.updated(next)) }
         }
-        drafts = refreshed
+        // 2. Re-mark from the lowest changed draft onward, in ascending draftID (PO WI-M2-06 ruling 5).
+        guard let lowest = latest.indices.first(where: { latest[$0] != drafts[$0] }) else { return [] }
+        for offset in lowest..<latest.count {
+            latest[offset].duplicate = duplicateCheck.duplicate(of: latest[offset], earlier: Array(latest[..<offset]))
+        }
+        // 3. One `updated` per draft whose content or marker changed.
+        let events: [DraftStreamEvent] = latest.indices.compactMap { offset in
+            latest[offset] != drafts[offset] ? .updated(latest[offset]) : nil
+        }
+        drafts = latest
         return events
     }
 }

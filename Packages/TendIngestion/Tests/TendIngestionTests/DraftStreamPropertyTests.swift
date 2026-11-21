@@ -6,9 +6,10 @@
 // Oracle independence: the assembler is incremental (it keeps a completed count and walks forward per snapshot). The
 // oracle is a timeline: it first computes each item's completion step from the whole script (rules a, b, c), then
 // builds the event list step by step from those completion steps. It shares only `DraftMapper.map` (the Q5 mapping,
-// proven by AC-M2-01/02) and the injected duplicate check (a test double), which it calls once per draft, at
-// emission. It does not call
-// `ItemSnapshot.hasValueForEveryField`; rule (a) is re-written field by field below.
+// proven by AC-M2-01/02) and the injected duplicate check (a test double). It does not call
+// `ItemSnapshot.hasValueForEveryField`; rule (a) is re-written field by field below. The re-mark rule (PO WI-M2-06
+// ruling 5) is written as a fresh marking pass from the first changed draft, and the zero-draft `completed` (ruling 1)
+// uses its own count of emitted events. Each script is also checked against the ruling 5 invariant.
 
 import Foundation
 import Testing
@@ -63,16 +64,25 @@ enum StreamOracle {
         }
         for step in 0..<steps {
             let items = snapshots[step]
-            // Updates of drafts completed at an earlier step, in draftID order; each keeps its emission marker.
-            for (k, old) in current.enumerated() {
+            // Updates (PO WI-M2-06 ruling 5), written as "new contents, then a fresh marking pass from the first
+            // changed draft": drafts below it keep their markers; every draft from it onward is marked against the
+            // final versions of all lower drafts; each draft that differs in any field gets one `updated`.
+            let contents: [IngestionDraft] = current.enumerated().map { k, old in
                 let index = itemOfDraft[k]
                 guard index < items.count, case var .draft(mapped) = mapper.map(items[index], draftID: k + 1).outcome
-                else { continue }
+                else { return old }
                 mapped.duplicate = old.duplicate
-                if mapped != old {
-                    current[k] = mapped
-                    events.append(.updated(mapped))
+                return mapped
+            }
+            if let first = contents.indices.first(where: { contents[$0] != current[$0] }) {
+                var next = Array(contents[..<first])
+                for k in first..<contents.count {
+                    var draft = contents[k]
+                    draft.duplicate = check.duplicate(of: draft, earlier: next)
+                    next.append(draft)
                 }
+                for (old, new) in zip(current, next) where old != new { events.append(.updated(new)) }
+                current = next
             }
             for index in 0..<maxItems where completion[index] == step { complete(index, from: items) }
         }
@@ -81,7 +91,14 @@ enum StreamOracle {
             if let last = snapshots.last {
                 for index in 0..<maxItems where completion[index] == steps { complete(index, from: last) }
             }
-            events.append(.finished(.completed(route: route)))
+            // PO WI-M2-06 ruling 1, from an independent count of the emitted events.
+            let emittedCount = events.filter { if case .emitted = $0 { true } else { false } }.count
+            if emittedCount == 0 {
+                let note = PlainNote.draft(for: mapper.input, now: mapper.now, resolver: mapper.resolver)
+                events.append(.finished(.completed(route: route, input: mapper.input, plainNote: note)))
+            } else {
+                events.append(.finished(.completed(route: route)))
+            }
         case let .stop(reason):
             let lastCount = snapshots.last?.count ?? 0
             let doneCount = completion.prefix(lastCount).filter { $0 != nil }.count
@@ -185,6 +202,7 @@ struct DraftStreamPropertyTests {
         let check = SameTitleCheck()
         var counts: [String: Int] = [:]
         var mismatches = 0
+        var invariantMisses = 0
         for run in 0..<2_000 {
             let (snapshots, ending) = generator.script()
             let route: Route = pick(run)
@@ -204,13 +222,24 @@ struct DraftStreamPropertyTests {
                 }
             }
             checkRules(events, route: route, seed: seed, run: run, counts: &counts)
+            // PO ruling 5 invariant: final markers = one pass of the check over the final drafts.
+            var summary = DraftStreamSummary()
+            for event in events { summary.apply(event) }
+            if summary.drafts.map(\.duplicate) != DraftStreamTests.onePass(summary.drafts, check) {
+                invariantMisses += 1
+            }
+            if events.contains(where: { if case let .updated(d) = $0 { d.duplicate != .none } else { false } }) {
+                counts["remarked", default: 0] += 1
+            }
         }
         print("AC-M2-05 property seed \(String(seed, radix: 16)): 2000 scripts, \(mismatches) oracle mismatches, "
+              + "\(invariantMisses) invariant misses, "
               + counts.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))
         #expect(mismatches == 0, "seed \(seed)")
+        #expect(invariantMisses == 0, "seed \(seed): marker invariant")
         // Coverage: every event and outcome kind occurs on every seed.
-        for key in ["emitted", "updated", "itemSkipped", "completed", "interrupted", "noModel", "discarded",
-                    "dup"] {
+        for key in ["emitted", "updated", "itemSkipped", "completed", "completedNoDraft", "interrupted", "noModel",
+                    "discarded", "dup", "remarked"] {
             #expect((counts[key] ?? 0) > 0, "seed \(seed): \(key) never occurred")
         }
     }
@@ -244,7 +273,14 @@ struct DraftStreamPropertyTests {
                 #expect(position == events.count - 1, "seed \(seed) run \(run): finished not last")
                 #expect(outcome.route == route)
                 switch outcome {
-                case .completed: counts["completed", default: 0] += 1
+                case let .completed(_, input, note):
+                    counts["completed", default: 0] += 1
+                    if emitted.isEmpty {
+                        counts["completedNoDraft", default: 0] += 1
+                        #expect(input == StreamFixtures.input && note != nil, "seed \(seed) run \(run)")
+                    } else {
+                        #expect(input == nil && note == nil, "seed \(seed) run \(run)")
+                    }
                 case let .interrupted(_, _, discarded, input):
                     counts["interrupted", default: 0] += 1
                     if discarded != nil { counts["discarded", default: 0] += 1 }

@@ -220,6 +220,25 @@ struct PlainNoteTests {
         #expect(infinityGivesNil)
     }
 
+    @Test("PO WI-M2-06 ruling 1: a blank input with an empty output gives completed with the input and no plain note")
+    func blankInputCompleted() async {
+        let events = await F.pipelineEvents([.snapshot([]), .finish], input: "  ")
+        #expect(events == [.finished(.completed(route: .onDevice, input: "  ", plainNote: nil))])
+    }
+
+    @Test("PO WI-M2-06 ruling 1: completed with no draft carries the input and plain note on every route",
+          arguments: [nil] + CloudProvider.allCases.map(Optional.some))
+    func completedNoDraftEveryRoute(_ provider: CloudProvider?) async {
+        let route: Route = provider.map(Route.cloud) ?? .onDevice
+        var summary = DraftStreamSummary()
+        for event in await F.pipelineEvents([.snapshot([ItemSnapshot(isCritical: true)]), .finish], cloud: provider) {
+            summary.apply(event)
+        }
+        #expect(summary.outcome == .completed(route: route, input: F.input, plainNote: O.plainNote(F.input)))
+        #expect(summary.outcome?.input == F.input && summary.outcome?.plainNote == O.plainNote(F.input))
+        #expect(summary.drafts.isEmpty && summary.skipped == [.noTitle])   // the note is an offer, not a draft
+    }
+
     @Test("Plain note: a blank input gives noModel with no plain note, and the input is still returned")
     func blankInputOutcome() async {
         var events: [DraftStreamEvent] = []
@@ -236,7 +255,8 @@ struct DraftStreamNamesTests {
     /// Every outcome, reason and event name, split at camelCase like the AC-M1-02 scan, has no banned token.
     static var allNames: [String] {
         let outcomes: [DraftStreamOutcome] = [
-            .completed(route: .onDevice), .cancelled(route: .none),
+            .completed(route: .onDevice), .completed(route: .onDevice, input: "", plainNote: nil),
+            .cancelled(route: .none),
             .interrupted(route: .cloud(.openAI), reason: .offline, discardedItem: .stoppedBeforeComplete, input: ""),
             .noModel(route: .none, reason: .onDeviceUnavailable(.modelNotReady), input: "", plainNote: nil),
             .noModel(route: .onDevice, reason: .stoppedBeforeFirstDraft(.guardrail), input: "", plainNote: nil),
@@ -300,6 +320,10 @@ struct DraftStreamNamesTests {
                                                          input: "y")
         #expect(interrupted.input == "y" && interrupted.plainNote == nil)
         #expect(DraftStreamOutcome.completed(route: .cloud(.openAI)).input == nil)
+        #expect(DraftStreamOutcome.completed(route: .cloud(.openAI)).plainNote == nil)
+        let completedNoDraft = DraftStreamOutcome.completed(route: .onDevice, input: "x", plainNote: note)
+        #expect(completedNoDraft.input == "x" && completedNoDraft.plainNote == note
+                && completedNoDraft.route == .onDevice)
         #expect(DraftStreamOutcome.cancelled(route: .onDevice).input == nil)
         #expect(DraftStreamOutcome.cancelled(route: .onDevice).route == .onDevice)
     }

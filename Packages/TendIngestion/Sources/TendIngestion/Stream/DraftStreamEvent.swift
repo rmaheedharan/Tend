@@ -27,8 +27,10 @@ public enum DiscardedItemReason: CaseIterable, Hashable, Sendable {
 
 /// How a draft stream ended (brief Definitions). Every outcome carries the route.
 public enum DraftStreamOutcome: Hashable, Sendable {
-    /// The model's stream finished normally.
-    case completed(route: Route)
+    /// The model's stream finished normally. If no draft was emitted (no items, or every item skipped), the input text
+    /// is returned in memory with a plain-note offer (`nil` only for a blank input), as for `noModel` (PO WI-M2-06
+    /// ruling 1). With at least one draft, both are nil.
+    case completed(route: Route, input: String? = nil, plainNote: IngestionDraft? = nil)
     /// The stream stopped after at least one draft was emitted. Emitted drafts stay available for confirmation; the
     /// in-progress item, if any, is discarded (`discardedItem`). The input text is returned in memory. No plain note
     /// is offered, because a draft was emitted.
@@ -41,25 +43,30 @@ public enum DraftStreamOutcome: Hashable, Sendable {
 
     public var route: Route {
         switch self {
-        case let .completed(route), let .cancelled(route): route
+        case let .completed(route, _, _): route
+        case let .cancelled(route): route
         case let .interrupted(route, _, _, _): route
         case let .noModel(route, _, _, _): route
         }
     }
 
-    /// The input text returned in memory (`interrupted` and `noModel`), so M3 can keep it if the user wants.
+    /// The input text returned in memory (`interrupted`, `noModel`, and `completed` with no draft), so M3 can keep it
+    /// if the user wants.
     public var input: String? {
         switch self {
-        case .completed, .cancelled: nil
+        case let .completed(_, input, _): input
+        case .cancelled: nil
         case let .interrupted(_, _, _, input): input
         case let .noModel(_, _, input, _): input
         }
     }
 
-    /// The plain-note offer (`noModel` only).
+    /// The plain-note offer (`noModel`, and `completed` with no draft).
     public var plainNote: IngestionDraft? {
-        if case let .noModel(_, _, _, note) = self { return note }
-        return nil
+        switch self {
+        case let .noModel(_, _, _, note), let .completed(_, _, note): note
+        case .interrupted, .cancelled: nil
+        }
     }
 }
 
@@ -89,10 +96,14 @@ public struct DraftStreamSummary: Hashable, Sendable {
     }
 }
 
-/// The duplicate marker for a draft (brief Definitions "Duplicate"). The rules are WI-M2-07's. The stream calls the
-/// check **exactly once per draft position, in output order, before that draft's `emitted`**, with the draft and every
-/// draft with a lower `draftID` (latest versions, ascending). It is not called on an update: an `updated` draft keeps
-/// the marker it was emitted with.
+/// The duplicate marker for a draft (brief Definitions "Duplicate", "Draft stream events"). The rules are WI-M2-07's.
+/// This is the one place the calling rule is stated (PO WI-M2-06 ruling 5):
+/// - **At emission:** once per draft position, in output order, before that draft's `emitted`, with every draft with a
+///   lower `draftID` (latest versions, ascending).
+/// - **After updates:** when a snapshot changes the content of any emitted draft, the check runs again in ascending
+///   `draftID` for the lowest changed draft and every later emitted draft, each with the latest lower drafts. Each
+///   draft whose content or marker changed gets one `updated`. If no content changed, it is not called.
+/// - So after `finished`, each marker equals one pass of the check over the final drafts in `draftID` order.
 public protocol DraftDuplicateCheck: Sendable {
     func duplicate(of draft: IngestionDraft, earlier: [IngestionDraft]) -> DraftDuplicate
 }

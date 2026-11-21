@@ -329,9 +329,27 @@ struct DraftStreamTests {
             expected: [.skipped(.noTitle), .emitted(1, service), .finished(.completed(route: .onDevice))]
         ),
         Case(
-            name: "no items at all: completed with no draft",
+            name: "no items at all: completed with the input and a plain note (PO ruling 1)",
             steps: [.snapshot([]), .finish],
-            expected: [.finished(.completed(route: .onDevice))]
+            expected: [.finished(.completed(route: .onDevice, input: F.input,
+                                            plainNote: OutcomeFixtures.plainNote(F.input)))]
+        ),
+        Case(
+            name: "every item skipped: itemSkipped first, then completed with the input and a plain note (PO ruling 1)",
+            steps: [
+                .snapshot([ItemSnapshot(kind: .known(.oneOff)), ItemSnapshot(title: "  ")]),
+                .snapshot([ItemSnapshot(kind: .known(.oneOff)), ItemSnapshot(title: "  "), ItemSnapshot()]),
+                .finish,
+            ],
+            expected: [.skipped(.noTitle), .skipped(.noTitle), .skipped(.noTitle),
+                       .finished(.completed(route: .onDevice, input: F.input,
+                                            plainNote: OutcomeFixtures.plainNote(F.input)))]
+        ),
+        Case(
+            name: "one draft then a normal finish: completed with no input and no plain note (PO ruling 1)",
+            steps: [.snapshot([ItemSnapshot(kind: .known(.oneOff)), F.titleOnly(mop)]), .finish],
+            expected: [.skipped(.noTitle), .emitted(1, mop),
+                       .finished(.completed(route: .onDevice, input: nil, plainNote: nil))]
         ),
         Case(
             name: "a title calmed by the guard is emitted calm; an unsaid banned token never reaches an event",
@@ -413,43 +431,131 @@ struct DraftStreamTests {
         #expect(assembler.isFinished)
     }
 
-    @Test("AC-M2-05: the duplicate marker is set once, before emitted, and an update keeps it (WI-M2-07 hook contract)")
-    func duplicateMarkerSetAtEmission() {
+    @Test("AC-M2-05 / PO ruling 5: markers are re-checked after an update, for the updated draft and every later one")
+    func duplicateMarkerReMarked() {
         let steps: [ScriptStep] = [
             .snapshot([F.full("Buy"), F.full(Self.pods)]),
-            .snapshot([F.full(Self.pods), F.full(Self.pods)]),                   // draft 2 keeps .none
+            .snapshot([F.full(Self.pods), F.full(Self.pods)]),                   // 1 retitled: 2 becomes ofDraft(1)
             .snapshot([F.full(Self.pods), F.full(Self.pods), F.full(Self.pods)]),
-            .snapshot([F.full(Self.mop), F.full(Self.pods), F.full(Self.pods)]), // draft 3 keeps .ofDraft(1)
+            .snapshot([F.full(Self.mop), F.full(Self.pods), F.full(Self.pods)]), // 1 retitled: 2 none, 3 ofDraft(2)
             .finish,
         ]
         let expected: [Ev] = [
             .emitted(1, "Buy"), .emitted(2, Self.pods),
-            .updated(1, Self.pods),
+            .updated(1, Self.pods), .updated(2, Self.pods, .ofDraft(1)),
             .emitted(3, Self.pods, .ofDraft(1)),
-            .updated(1, Self.mop),
+            .updated(1, Self.mop), .updated(2, Self.pods), .updated(3, Self.pods, .ofDraft(2)),
             .finished(.completed(route: .onDevice)),
         ]
         #expect(F.assemble(steps, check: SameTitleCheck()).map(Ev.init) == expected)
     }
 
-    @Test("AC-M2-05: the duplicate hook is called exactly once per draft position, in output order, before emitted, with the earlier drafts")
+    struct MarkCase: Sendable, CustomTestStringConvertible {
+        let name: String
+        let steps: [ScriptStep]
+        let expected: [Ev]
+        var testDescription: String { name }
+    }
+
+    static let markCases: [MarkCase] = [
+        MarkCase(
+            name: "none becomes a duplicate after a title update",
+            steps: [.snapshot([F.full(pods), F.full("Mop")]), .snapshot([F.full(pods), F.full(pods)]), .finish],
+            expected: [.emitted(1, pods), .emitted(2, "Mop"), .updated(2, pods, .ofDraft(1)),
+                       .finished(.completed(route: .onDevice))]
+        ),
+        MarkCase(
+            name: "a duplicate becomes none after a title update",
+            steps: [.snapshot([F.full(pods), F.full(pods)]), .snapshot([F.full(pods), F.full(mop)]), .finish],
+            expected: [.emitted(1, pods), .emitted(2, pods, .ofDraft(1)), .updated(2, mop),
+                       .finished(.completed(route: .onDevice))]
+        ),
+        MarkCase(
+            name: "cascade: draft 1 retitled, so draft 2 (content unchanged) gets an updated with its new marker",
+            steps: [.snapshot([F.full(pods), F.full(pods)]), .snapshot([F.full(mop), F.full(pods)]), .finish],
+            expected: [.emitted(1, pods), .emitted(2, pods, .ofDraft(1)), .updated(1, mop), .updated(2, pods),
+                       .finished(.completed(route: .onDevice))]
+        ),
+        MarkCase(
+            name: "an update re-marks before a new emission in the same snapshot, which sees the re-marked drafts",
+            steps: [.snapshot([F.full("Buy"), F.titleOnly("x")]),
+                    .snapshot([F.full(pods), F.titleOnly(pods), F.titleOnly("y")]), .finish],
+            expected: [.emitted(1, "Buy"), .updated(1, pods), .emitted(2, pods, .ofDraft(1)), .emitted(3, "y"),
+                       .finished(.completed(route: .onDevice))]
+        ),
+        MarkCase(
+            name: "a lower draft unchanged and a higher one retitled: only the higher one is re-marked",
+            steps: [.snapshot([F.full(mop), F.full(pods), F.full(service)]),
+                    .snapshot([F.full(mop), F.full(pods), F.full(pods)]), .finish],
+            expected: [.emitted(1, mop), .emitted(2, pods), .emitted(3, service), .updated(3, pods, .ofDraft(2)),
+                       .finished(.completed(route: .onDevice))]
+        ),
+    ]
+
+    @Test("AC-M2-05 / PO ruling 5: re-mark cases (direction, cascade, order)", arguments: markCases)
+    func reMarkCases(_ testCase: MarkCase) async {
+        #expect(F.assemble(testCase.steps, check: SameTitleCheck()).map(Ev.init) == testCase.expected,
+                "\(testCase.name)")
+        #expect(await F.pipelineEvents(testCase.steps, check: SameTitleCheck()).map(Ev.init) == testCase.expected,
+                "\(testCase.name)")
+    }
+
+    @Test("AC-M2-05 / PO ruling 5: the duplicate hook is called once per position at emission, again only from the lowest changed draft onward, never when nothing changed")
     func duplicateHookContract() {
         let check = RecordingCheck()
         let events = F.assemble([
             .snapshot([F.full("Buy"), ItemSnapshot(kind: .known(.oneOff)), F.titleOnly("Serv")]),
+            // Draft 1 retitled: re-mark from 1 (no later draft yet); then item 2 completes as draft 2.
             .snapshot([F.full(Self.pods), ItemSnapshot(kind: .known(.oneOff)), F.titleOnly(Self.service),
                        F.titleOnly("M")]),
+            // No emitted draft changes: no call. (Item 3 is still in progress.)
             .snapshot([F.full(Self.pods), ItemSnapshot(kind: .known(.oneOff)), F.titleOnly(Self.service),
                        F.titleOnly(Self.mop)]),
             .finish,
         ], check: check)
-        // Skipped items take no position; updates do not call the hook.
-        #expect(check.calls == [Call(draftID: 1, earlier: []), Call(draftID: 2, earlier: [1]),
-                                Call(draftID: 3, earlier: [1, 2])])
-        // Each emitted draft already carries the hook's marker (the hook ran before emitted).
+        // Skipped items take no position.
+        #expect(check.calls == [Call(draftID: 1, earlier: []), Call(draftID: 1, earlier: []),
+                                Call(draftID: 2, earlier: [1]), Call(draftID: 3, earlier: [1, 2])])
         let emittedMarkers = events.compactMap { if case let .emitted(d) = $0 { d.duplicate } else { nil } }
         #expect(emittedMarkers == [.none, .ofDraft(1), .ofDraft(2)])
-        #expect(events.contains { if case .updated = $0 { true } else { false } })
+    }
+
+    @Test("AC-M2-05 / PO ruling 5: a repeated identical snapshot calls the hook no more")
+    func noUpdateNoCalls() {
+        let check = RecordingCheck()
+        _ = F.assemble([
+            .snapshot([F.full(Self.pods), F.full(Self.mop)]),
+            .snapshot([F.full(Self.pods), F.full(Self.mop)]),
+            .snapshot([F.full(Self.pods), F.full(Self.mop)]),
+            .snapshot([F.full(Self.pods)]),                      // a shorter snapshot withdraws nothing, changes nothing
+            .finish,
+        ], check: check)
+        #expect(check.calls == [Call(draftID: 1, earlier: []), Call(draftID: 2, earlier: [1])])
+    }
+
+    @Test("AC-M2-05 / PO ruling 5 invariant: after finished, each marker equals one pass of the check over the final drafts")
+    func markerInvariant() {
+        let check = SameTitleCheck()
+        let scripts: [[ScriptStep]] = [
+            [.snapshot([F.full("Buy"), F.full(Self.pods)]), .snapshot([F.full(Self.pods), F.full(Self.pods)]),
+             .snapshot([F.full(Self.pods), F.full(Self.pods), F.full(Self.pods)]),
+             .snapshot([F.full(Self.mop), F.full(Self.pods), F.full(Self.pods)]), .finish],
+        ] + Self.markCases.map(\.steps)
+        for steps in scripts {
+            var summary = DraftStreamSummary()
+            for event in F.assemble(steps, check: check) { summary.apply(event) }
+            #expect(summary.drafts.map(\.duplicate) == Self.onePass(summary.drafts, check))
+        }
+    }
+
+    /// One pass of `check` over `drafts` in ascending `draftID` (the invariant's right-hand side).
+    static func onePass(_ drafts: [IngestionDraft], _ check: any DraftDuplicateCheck) -> [DraftDuplicate] {
+        var marked: [IngestionDraft] = []
+        for var draft in drafts.sorted(by: { $0.draftID < $1.draftID }) {
+            draft.duplicate = check.duplicate(of: draft, earlier: marked)
+            marked.append(draft)
+        }
+        return marked.map(\.duplicate)
     }
 
     @Test("AC-M2-05: the model is asked once, with the capture text and the household's room names")
@@ -562,9 +668,42 @@ struct Held: Sendable {
     var afterFinished: Ev?
 }
 
+/// What a bounded consumer saw (review F6). Consumption stops at the first `finished`; `next()` is then asked once more
+/// (`afterFinished`, which must be nil); and no more than `BoundedRun.cap` events are ever read. So a broken
+/// "finished once" rule fails on an assertion instead of spinning without a suspension point.
+struct BoundedRun: Equatable, Sendable {
+    static let cap = 64
+    var events: [Ev]
+    var afterFinished: Ev?
+    var hitCap: Bool
+}
+
+/// Reads `sequence` with the bounds of `BoundedRun`. `onEvent` gets the running count, for consumers that cancel
+/// themselves.
+func collectBounded(_ sequence: DraftEventSequence, onEvent: (Int) -> Void = { _ in }) async -> BoundedRun {
+    var iterator = sequence.makeAsyncIterator()
+    var events: [Ev] = []
+    while events.count < BoundedRun.cap, let event = await iterator.next() {
+        events.append(Ev(event))
+        onEvent(events.count)
+        if case .finished = event {
+            let after = await iterator.next()
+            return BoundedRun(events: events, afterFinished: after.map(Ev.init), hitCap: false)
+        }
+    }
+    return BoundedRun(events: events, afterFinished: nil, hitCap: events.count >= BoundedRun.cap)
+}
+
 @Suite("AC-M2-05 cancellation is cooperative and ends with cancelled (FR-A1)")
 struct DraftStreamCancellationTests {
     typealias F = StreamFixtures
+
+    /// Expects exactly `events`, then nil, within the cap.
+    func expectEnds(_ run: BoundedRun, with events: [Ev], sourceLocation: SourceLocation = #_sourceLocation) {
+        #expect(run.events == events, sourceLocation: sourceLocation)
+        #expect(run.afterFinished == nil, "an event after finished", sourceLocation: sourceLocation)
+        #expect(!run.hitCap, "more than \(BoundedRun.cap) events", sourceLocation: sourceLocation)
+    }
 
     @Test("AC-M2-05: cancelling the consuming task while it waits for the model ends the sequence with cancelled; earlier events stay, nothing is written, the model stream is ended", .timeLimit(.minutes(1)))
     func cancelWhileWaiting() async throws {
@@ -575,12 +714,7 @@ struct DraftStreamCancellationTests {
         let repository = InMemoryHouseholdRepository()
         try await repository.save(household)
         let consumer = Task {
-            var events: [Ev] = []
-            for await event in pipeline.events(from: .onDevice(model)) {
-                events.append(Ev(event))
-                seenSignal.yield()
-            }
-            return events
+            await collectBounded(pipeline.events(from: .onDevice(model))) { _ in seenSignal.yield() }
         }
         // If the time limit cancels this test, cancel the consumer too, so a broken rule fails instead of hanging.
         let stopConsumer: @Sendable () -> Void = { consumer.cancel() }
@@ -588,8 +722,8 @@ struct DraftStreamCancellationTests {
         var waiter = seen.makeAsyncIterator()
         _ = await withTaskCancellationHandler { await waiter.next() } onCancel: { stopConsumer() }  // emitted(1)
         consumer.cancel()
-        let events = await consumer.value
-        #expect(events == [.emitted(1, "Buy dishwasher pods"), .finished(.cancelled(route: .onDevice))])
+        let run = await consumer.value
+        expectEnds(run, with: [.emitted(1, "Buy dishwasher pods"), .finished(.cancelled(route: .onDevice))])
         var ends = model.terminations.makeAsyncIterator()
         #expect(await ends.next() == "cancelled")
         #expect(model.callCount == 1)
@@ -606,16 +740,13 @@ struct DraftStreamCancellationTests {
             F.titleOnly("Buy dishwasher pods"), F.titleOnly("Service the AC"), F.titleOnly("Mop the kitchen floor"),
             F.titleOnly("x"),
         ]))
-        let pipeline = F.pipeline()
-        let events = await consumeInOwnTask {
-            var events: [Ev] = []
-            for await event in pipeline.events(from: .onDevice(model)) {
-                events.append(Ev(event))
-                if events.count == 1 { withUnsafeCurrentTask { $0?.cancel() } }
+        let sequence = F.pipeline().events(from: .onDevice(model))
+        let run = await consumeInOwnTask {
+            await collectBounded(sequence) { count in
+                if count == 1 { withUnsafeCurrentTask { $0?.cancel() } }
             }
-            return events
         }
-        #expect(events == [.emitted(1, "Buy dishwasher pods"), .finished(.cancelled(route: .onDevice))])
+        expectEnds(run, with: [.emitted(1, "Buy dishwasher pods"), .finished(.cancelled(route: .onDevice))])
         var ends = model.terminations.makeAsyncIterator()
         #expect(await ends.next() == "cancelled")
     }
@@ -642,7 +773,7 @@ struct DraftStreamCancellationTests {
     }
 
     @Test("AC-M2-05: a task cancelled before it starts gets only finished(cancelled); the model is never asked",
-          arguments: [Route.onDevice, .cloud(.anthropic), .none])
+          .timeLimit(.minutes(1)), arguments: [Route.onDevice, .cloud(.anthropic), .none])
     func cancelBeforeStart(_ route: Route) async {
         let model = ControlledModel()
         let routed: RoutedModel = switch route {
@@ -650,14 +781,12 @@ struct DraftStreamCancellationTests {
         case let .cloud(provider): .cloud(provider, model)
         case .none: .none(.modelNotReady)
         }
-        let pipeline = F.pipeline()
-        let events = await consumeInOwnTask {
+        let sequence = F.pipeline().events(from: routed)
+        let run = await consumeInOwnTask {
             withUnsafeCurrentTask { $0?.cancel() }
-            var events: [Ev] = []
-            for await event in pipeline.events(from: routed) { events.append(Ev(event)) }
-            return events
+            return await collectBounded(sequence)
         }
-        #expect(events == [.finished(.cancelled(route: route))])
+        expectEnds(run, with: [.finished(.cancelled(route: route))])
         #expect(model.callCount == 0)
     }
 
@@ -667,16 +796,11 @@ struct DraftStreamCancellationTests {
         let model = ControlledModel()
         model.continuation.yield(IngestionSnapshot(items: [F.full("Buy dishwasher pods")]))
         model.continuation.finish()
-        let pipeline = F.pipeline()
-        let events = await consumeInOwnTask {
-            var events: [Ev] = []
-            for await event in pipeline.events(from: .onDevice(model)) {
-                events.append(Ev(event))
-                withUnsafeCurrentTask { $0?.cancel() }
-            }
-            return events
+        let sequence = F.pipeline().events(from: .onDevice(model))
+        let run = await consumeInOwnTask {
+            await collectBounded(sequence) { _ in withUnsafeCurrentTask { $0?.cancel() } }
         }
-        #expect(events == [.emitted(1, "Buy dishwasher pods"), .finished(.cancelled(route: .onDevice))])
+        expectEnds(run, with: [.emitted(1, "Buy dishwasher pods"), .finished(.cancelled(route: .onDevice))])
     }
 
     @Test("AC-M2-05: the assembler's cancel gives cancelled with the route, and nothing after it")
