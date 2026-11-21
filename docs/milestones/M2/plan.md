@@ -55,7 +55,7 @@ note, because AC-M2-09 scans these paths.
 | Speech adapter files (the only `TendAI` files where media types may appear) | `Packages/TendAI/Sources/TendAI/Speech/SpeechTranscriptionAdapter.swift` (`SpeechAnalyzer` with `SpeechTranscriber`, falling back to `DictationTranscriber`)<br>`Packages/TendAI/Sources/TendAI/Speech/MicrophoneAudioSource.swift` (`AVAudioEngine` tap to `AnalyzerInput`, in memory only) | Rule 2, Rule 5 |
 | Speech-permission file | `Packages/TendAI/Sources/TendAI/Speech/SpeechPermission.swift`. The Rule 5 exception (`SFSpeechRecognizer.requestAuthorization(`, `SFSpeechRecognizer.authorizationStatus(`, `SFSpeechRecognizerAuthorizationStatus`) applies here **only if** the T-27 check in WI-M2-M1 confirms that iOS 26 needs it. Until WI-M2-M1 records the result, the scanner runs with **no exception**. | Rule 5 |
 | Results writer (the only `TendEval` file with write APIs) | `Apps/TendEval/Sources/Results/EvalResultsWriter.swift`. It writes only `EvalResultsFileV1` (the results-file type, defined in `TendIngestion` next to the scorer) as canonical JSON to the harness's Documents directory. | Rule 6 |
-| Fixtures loader (the only TendEval file allowed `Data(contentsOf:`, bundle URLs only; M2 Q23) | `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift` | Rule 6 |
+| Fixtures loader (the only TendEval file allowed `Data(contentsOf:`, bundle resources named by string literals only; M2 Q23) | `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift` | Rule 6 |
 | Harness transport wrapper (N-2) | `Apps/TendEval/Sources/Run/RecordingTransport.swift`. It wraps the neutral `CloudTransport` protocol (plain request value in, byte-chunk stream out) and records only the byte count and key paths. It uses no `URL*` type. | Rule 6 |
 | Scoring tool | `Tools/TendTools/Sources/tend-eval-score/` (see "Scoring tool and command") | Outside Rule 1 |
 
@@ -176,10 +176,15 @@ it to `required`. A required root with 0 files fails the test (lesson from M1 R-
   before WI-M2-M4 or WI-M2-M7 is reviewed.
 - **M2 Q23 (the fixtures loader exception in Rule 6):** a scanner follow-up after the brief amendment, merged before
   WI-M2-M7 opens for review. WI-M2-01 round 2 stays strict: it has no loader exception.
-- **Developer constraint (M2 Q24; also WI-M2-M5, the key store, and every later item):** no source method may be
-  named `data(for:`/`data(from:`. If the plan needs an import Rule 6 does not list (e.g. AVFAudio in the harness),
-  raise it with the PO.
-- The `DECISIONS.md` entries for M2 Q23 and Q24 go in the human-merged governance PR.
+- **Developer constraints (M2 Q24, M2 Q23; also WI-M2-M5, the key store, and every later item):**
+  - No source method in TendIngestion, TendAI or TendEval may share a name and first label with any session-method
+    call in the AC-M2-09 networking list (for example `data(for:`, `bytes(from:`, `upload(for:`, `download(from:`).
+  - Fixtures are bundled as a small, fixed set of files. Each is loaded by its own literal
+    `Bundle.main.url(forResource:` call.
+  - If the harness needs an import that Rule 6 does not list (for example `AVFAudio` or `UniformTypeIdentifiers`), the
+    Developer raises it with the PO before building. It is never added without a PO decision.
+- The `DECISIONS.md` entries for M2 Q23 and Q24 go in the human-merged governance PR. They say "revised after the
+  Tester's testability review of PR #16 (findings 1–9)".
 - **ADR-0006 (M2 module layout):** the table above, the canonical JSON choice, the scan library, and the reason the
   scoring tool sits outside `TendIngestion/Sources`.
 
@@ -260,8 +265,9 @@ schema's subset (types, required keys, enums, `additionalProperties: false`). A 
 - Information only, never evidence: TTFI of one FoundationModels `streamResponse` call with a draft-sized schema on the
   Mac, to size R-1 early.
 
-**WI-M2-M5 — `m2/keychain-key-store`**: the Developer constraint in WI-M2-01 applies (M2 Q24): no source method
-may be named `data(for:`/`data(from:`.
+**WI-M2-M5 — `m2/keychain-key-store`**: the Developer constraints in WI-M2-01 apply (M2 Q24): no source method may
+share a name and first label with any session-method call in the AC-M2-09 networking list (for example `data(for:`,
+`bytes(from:`, `upload(for:`, `download(from:`).
 
 **WI-M2-M7 — `m2/eval-harness`**: the harness's debug screens are plain test controls (input list, script text, start,
 retake reason, network fields, key field, export, "Remove key"). They are not product UI and are not judged against
@@ -790,3 +796,4 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | 2026-11-21 | Work Planner | Orchestrator → Product Owner, human owner | sent | HM-2: prepare and merge the D-032 governance PR before the first Mac PR merges (MS-1). |
 | 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q6 table APPROVED with 3 non-blocking findings. Applied: E17, E18 (T11 across DST, 169 h / 167 h), E19 (T4 "tonight" after midnight), and the PO decision on finding 2 (T9 and T14 with a daypart; E20, E21). No AC meaning changed (AC-M2-03). WI-M2-03 DoR: Q6 review box ticked. All new UTC values checked with Python `zoneinfo` (America/New_York). The PO logs the daypart decision in `DECISIONS.md` as a separate entry with its own number, in the same human-merged governance PR as D-032. |
 | 2026-11-21 | Product Owner | Work Planner | accepted | PO 2026-11-21, stricter only, from the PR #15 review: M2 Q23 and Q24 (AC-M2-09; AC-M1-23 cross-reference). Added the fixtures loader to "Named files", the Developer constraint (no `data(for:`/`data(from:` method names; unlisted Rule 6 imports go to the PO) and the timing: Q24 in WI-M2-01 round 2 or a follow-up before WI-M2-M4/M7 review; Q23 in a follow-up before WI-M2-M7 review; WI-M2-01 round 2 stays strict. Fixed two Gatekeeper minors from PR #14: R-24 now records the Tester's Q6 review as done; the daypart decision is its own `DECISIONS.md` entry in the D-032 governance PR. No AC changed. |
+| 2026-11-21 | Product Owner | Work Planner | accepted | Tester returned PR #16 (findings 1-9); PO accepted all, stricter only. Applied the v2 texts: the fixtures loader row now says "bundle resources named by string literals only"; the v1 `data(for:`/`data(from:` constraint is replaced in WI-M2-01 and WI-M2-M5 by the session-method name rule, the literal-only fixtures rule and the import rule; the DECISIONS.md wording for Q23/Q24 is recorded. Timing unchanged. No AC changed. |
