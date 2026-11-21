@@ -1,6 +1,6 @@
-# M2 Code Review — PR #15 (WI-M2-01, `m2/ingestion-foundation` @ `6143908`)
+# M2 Code Review — PR #15 (WI-M2-01, `m2/ingestion-foundation`; round 1 @ `6143908`, round 2 @ `7bc22b9`)
 
-- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 1
+- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** APPROVE (round 2, head `7bc22b9`; round 1 was CHANGES REQUIRED)  ·  **Round:** 2
 - **Scope:** WI-M2-01: `TendIngestion` and `TendSourceScan` packages, ADR-0006, text primitives, canonical JSON, and
   the AC-M2-09 scanner. This item owns AC-M2-09 and lays groundwork for AC-M2-04, 07, 08, 12, 14, 20 and 28.
 - **Inputs read:** `CLAUDE.md`; `docs/milestones/M2/brief.md` (v4; AC-M2-09 Rules 1–6, Definitions) and `plan.md`
@@ -157,3 +157,146 @@ There are no Blockers. Two Majors are open, so the verdict is **CHANGES REQUIRED
 | 2026-11-21 | Developer (via Orchestrator) | Reviewer | accepted for review | PR #15, head `6143908`. Fresh worktree. All three commands rerun on Linux Swift 6.2: 33 tests and 17 tests green, 0 warnings, AC-M2-09 scan log as in dev-notes. 25 planted violations and 37 single-change mutants run. |
 | 2026-11-21 | Reviewer | Developer (via Orchestrator) | returned (CHANGES REQUIRED) | Fix R1-F1 and R1-F2 (Major). Fix R1-F3 and R1-F4 in the same round (both are small). R1-F6 is ticketed to WI-M2-10. R1-F7 is optional. |
 | 2026-11-21 | Reviewer | Product Owner + Acceptance Tester (via Orchestrator) | question | R1-F1(4): does `TendEval` need a named `contentsOf:` fixtures-loader exception? R1-F5: add `write(toFile:`, `fopen(`/`fwrite(`, a Rule 6 import list and the `URLSession` task-creating methods to AC-M2-09? Q-D1: no change needed (R1-F4). |
+
+---
+
+## Round 2 — head `7bc22b9` (2026-11-21)
+
+- **Verdict:** APPROVE. No Blocker or Major is open. Two new Minors (R2-F1, R2-F2) are ticketed and do not block.
+- **What changed since round 1:**
+  - `ed3dbcc`: the R1-F1 to R1-F4 and R1-F7 fixes.
+  - `a94e37c`: main merged, including PR #16 (the PO decisions M2 Q23 and Q24 in the brief and the plan).
+  - `7bc22b9`: M2 Q24 built in full. M2 Q23 is deliberately not built, so this item stays strict.
+  - New Developer decision D10: `delegate:` counts only at the top level of the `bytes(for:` call's arguments.
+- **Inputs re-read:** AC-M2-09 on `origin/main` (Q24 lists, call-pattern rule, Rule 3 session methods, Rule 6 imports,
+  the Q23 fixtures-loader exception, and the new plants and positives); plan lines 10, 58, 174-186 and 442-443 (the
+  timing of Q23 and Q24); dev-notes D1, D2, D8, D10 and the round 2 and round 3 handoff rows; the diff
+  `6143908..7bc22b9`.
+
+### What I ran (Linux, Swift 6.2 `swift:6.2-noble`, worktree detached at `7bc22b9`)
+| Command | Result |
+|---|---|
+| `swift test --package-path Packages/TendSourceScan -Xswiftc -warnings-as-errors` | `✔ Test run with 63 tests in 4 suites passed after 1.972 seconds.` 0 warnings. |
+| `swift build --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `Build complete!`, 0 warnings. |
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `✔ Test run with 17 tests in 3 suites passed after 0.147 seconds.` Scan log: `TendIngestion (required) …: 4 files scanned`, `TendAI` and `TendEval` `not present`, `4 files in total, 0 violations`. |
+
+### Re-planted round 1 misses, plus my own Q24 plants
+I used a temp copy with one extra test file. The configuration has the plan's file names and the T-27 exception **on**.
+
+| # | Plant | Where | Result |
+|---|---|---|---|
+| P01 / P02 / P03 | `Data(contentsOf: …)` | allowlisted file / TendAI adapter / TendEval | caught (Rules 3 / 2 / 6, `contentsOf:`) |
+| P03b | the brief's Q23 positive form, exactly | `Fixtures/EvalFixturesLoader.swift` | caught (Rule 6). Strict, as the plan requires before Q23. |
+| P05 | `AVURLAsset(url:)`, no import | TendAI | not caught, as expected (R1-F4: needs `AVFoundation`, which the import lists ban) |
+| P08 / P15 | `write(toFile:` | TendEval / TendAI | caught (Q24 write list) |
+| P14a / P14b | `import Darwin` / `fwrite(` | TendEval | each caught on its own (Q24) |
+| P17, Q01 | `s.uploadTask(with:from:)` / `s.webSocketTask(with:)` | allowlisted | caught (session-method call and method reference) |
+| Q02 | `s.bytes(for: r)` | allowlisted | caught (no `delegate:`) |
+| Q03 / Q04 | `bytes(for: r, delegate: nil)`; `bytes(\nfor:r,delegate:d)` | allowlisted | pass. The brief asks only that `delegate:` is in the argument list. |
+| Q05 | `` s.`bytes`(for: r) `` | allowlisted | caught (backticks removed) |
+| Q06 / Q07 | `delegate:` only inside a comment / only inside a string | allowlisted | caught (comments and string text are removed before D10 looks) |
+| Q08 | an allowed `bytes(for:…delegate:)` followed by `data(for:` | allowlisted | caught (`data(for:`) |
+| Q09 / Q10 | `let f = s.dataTask` / `let f = s.data` | allowlisted | caught / pass. `data` is not on the brief's method-reference list. |
+| Q11 / Q12 | `bytes(from: u, delegate: d)`; `download(resumeFrom:` | allowlisted | caught |
+| Q13 to Q16 | `@_exported import os`; `@preconcurrency import Darwin`; `import func Glibc.fwrite`; `import Foundation; import UniformTypeIdentifiers` | TendEval | caught (Rule 6 import) |
+| Q17 | `import struct SwiftUI.Text` | TendEval | pass (module `SwiftUI`) |
+| Q18 to Q22, Q26, Q31 | `fputs(`, `putchar(`, `archiveRootObject(`, `@SceneStorage`, `printf (`, `creat(`, `mkstemp(` | across the modules | caught |
+| Q23 / Q24 | `` `print`(x) ``; `Swift.print\n(x)` | TendIngestion | caught |
+| Q25 | the brief's positives: `inputs(`, `snprintf(`, `metadata(for:`, `reprint(`, `data(forKey:`, `append(contentsOf:)`, `insert(contentsOf:at:)` | TendIngestion | pass |
+| Q27 / Q28 | `tmpfile()` / `puts(x)` | the results writer | pass (write allowed there) / caught (log never allowed) |
+| Q29 | `xs.append(Data(contentsOf: u))` | TendAI | caught. The exemption applies only to the call that directly encloses the label. |
+| Q32 | `URLSession.shared.data(for: r)` | TendEval | caught |
+| **Q30** | `` `…` (44 backticks) SFSpeechRecognizer.authorizationStatus(); x.data(for: r) `` | `SpeechPermission.swift`, T-27 exception **on** | **not caught**. See R2-F1. With the exception off, as it is today, the hit is reported. |
+
+### Mutant sample (one change at a time to `IngestionSourceRules.swift`, full TendSourceScan suite each time)
+All 17 were **killed**.
+- **Six of the round 1 survivors**, deleted or widened again: AVAudioBuffer, OutputStream, `debugPrint(` and
+  `os_signpost(` deleted; Rule 2 imports widened with `AVFoundation`; Rule 4 hosts widened with `api.example.org`.
+- **Q24 entries deleted:** `fputs(`, `creat(`, `puts(`, `bytes(from:`, `data(for:`, `SceneStorage`, and the `dataTask`
+  method reference.
+- **Rule 6 imports widened** with `os`.
+- **D10 broken:** `delegate:` counted at any depth.
+- **The `func` import kind keyword dropped.**
+- **`contentsOf:` exempted everywhere.**
+
+R1-F2 is fixed in substance: `BriefPinTests.swift` compares each list with the brief text, and every entry has a
+hand-written plant.
+
+### Q24 coverage check (brief AC-M2-09 on main → code and test)
+| Brief item | Code | Test | OK |
+|---|---|---|---|
+| Session-method calls (14) and method references (5) | `IngestionSourceRules.swift:133-143`, FileFacts `:425-455` | `Q24RulesTests` "list plants" (parameterised, TendIngestion) and "coverage"; `BriefPinTests` networking pin | yes |
+| Write list (20) and log list (18), with their split | `:165-180` | `BriefPinTests` write/log pin; hand-written plants | yes |
+| Call-pattern rule: left boundary, case-sensitive, whitespace and newlines, backticks, exact first label | `callPattern`, `callCode` (`:434`) | `Q24RulesTests:177-220` | yes |
+| Type names keep the AC-M1-23 camelCase rule | D2: substring match. Every camelCase hit is also a substring hit, so this is stricter and relaxes nothing (the brief says "relaxes none of them"). | pins and plants | accepted |
+| Rule 3: only `bytes(for:` with `delegate:` (D10: top level, after comments and strings are removed) | `:320-330`, `argumentList` `:478-492` | `Q24RulesTests:94-117` (includes `delegatee:` and a nested `delegate:`) | yes. D10 is the strict reading of "checked like AC-M1-23's `using:` rule". |
+| `contentsOf:` in Rules 2, 3 and 6, with only `append`/`insert` exempt | FileFacts `:425-431` | `Q24RulesTests:119-125`, R1-F1 tests in 8 locations | yes |
+| Rule 6 closed imports: first path component after a kind keyword; `@_exported` and `@_implementationOnly` count | `rule6Imports`, `importedModule(of:)`, `rule6` | `Q24RulesTests:140-175`; `BriefPinTests:144` | yes |
+| "Also caught" items: `import Darwin`, `fwrite(`, `@AppStorage`, `uploadTask`, `webSocketTask`, `bytes(for:` without `delegate:`, `s.dataTask`, `Data(contentsOf:` in 3 places | — | `Q24RulesTests:81-125` | yes |
+| Positives: the Rule 3 streaming read exactly, and the "anywhere" list | — | `Q24RulesTests:109`, `BriefPinTests:153` | yes |
+| Q23 loader exception, its "caught in the loader file" plants, and its loader positive | **not built** (header `:31-32`) | `Q24RulesTests:127` shows that the loader file is strict | correct for now. See R2-F2. |
+
+**Leaving Q23 out is correct.**
+- The plan requires it: line 10, lines 177 and 442-443 ("WI-M2-01 round 2 stays strict"), with Q23 in a follow-up
+  scanner PR that merges before WI-M2-M7 opens for review.
+- It is the stricter state. With no exception, every `contentsOf:` in TendEval is a hit, including the loader's
+  allowed form.
+- `Apps/TendEval/Sources` does not exist yet, so no real code is blocked.
+- The brief's Q23 loader positive cannot pass until the follow-up. That is a planned gap, not a defect in this item.
+
+### Round 1 findings, re-verified
+| # | Round 1 severity | Status in round 2 | Evidence |
+|---|---|---|---|
+| R1-F1 | Major | **Closed** | P01–P03 caught; `contentsOf-exempt-all` mutant killed; `rule6Positive` no longer uses `contentsOf:`; D1, the header comment and the ADR-0006 P-2 line are corrected. |
+| R1-F2 | Major | **Closed** | `BriefPinTests.swift` pins every closed list to the literal brief text and has hand-written plants. All 6 round 1 survivors I re-ran are killed, and so are the 11 Q24 and D10 mutants. |
+| R1-F3 | Minor | **Closed** | The header now says `AVAssetReader` is a hit and `AVURLAsset` is not (`IngestionSourceRules.swift:16-17`). |
+| R1-F4 | Minor | **Closed** | The dev-notes Q-D1 row is corrected (dev-notes line 303). Rule 6 now also bans `AVFoundation` through its import list. |
+| R1-F5 | Minor (PO/Tester) | **Closed** | M2 Q24 added `write(toFile:`, the C write and log calls, a Rule 6 import list and the session methods (P08, P14, P15, P17 caught). |
+| R1-F6 | Minor | Open (ticket, WI-M2-10) | Unchanged. Bare hosts may still appear in any TendIngestion file until the provider-table file is named. |
+| R1-F7 | Nit | **Closed** | D8 is softened, and the case is pinned in `TextPrimitivesTests.swift:42-45` (`"x \u{301} y"` → `"x y"`). |
+
+### Round 2 findings
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| R2-F1 | Minor | `Packages/TendSourceScan/Sources/TendSourceScan/IngestionSourceRules.swift:434` (call hits use offsets in `callCode`, where backticks are removed), `:465-472` (the T-27 offsets are taken in `code`), `:503-506` (`isSpeechException` compares the two), `:519` (`networkingViolations`) | **Two offset spaces are mixed.** Session-method call hits and method-reference hits carry offsets in the text with backticks removed. The Rule 5 exception offsets are positions in the original code. When the T-27 exception is on, a session call whose `callCode` offset equals an exception offset in the speech-permission file is wrongly exempt. Plant Q30 shows this: 44 backticks before the exception call hide a later `data(for:`. Today the exception is off, so the case cannot happen, and it needs very unusual code. But WI-M2-M1 may turn T-27 on, and the Q23 follow-up will add more offset-based exemptions on top of this. | Keep one coordinate space. Either make `isSpeechException` match only hits whose rule is `SFSpeech`, or record which text each offset came from. Add Q30 as a negative test with the exception on. Do this in the Q23 follow-up scanner PR, or in WI-M2-M1 before `speechPermissionExceptionEnabled` becomes `true`, whichever comes first. | Open (ticket) |
+| R2-F2 | Minor | Brief AC-M2-09 "Caught in the fixtures-loader file" and the loader positive; `Q24RulesTests.swift:127-138` | Without Q23, the loader-file plants are only partly tested. The `contentsOf:`, `String(contentsOf:` and `NSURL` forms are caught today. `Bundle.main.resourceURL!.appendingPathComponent(`, `url(forResource: "../x"`, `URL(fileURLWithPath:` and the parameter-bound `Data(contentsOf: u)` with a separate binding have no test yet: they only become meaningful once the exception exists. The loader positive cannot pass until then. | The Q23 follow-up PR must add every "Caught in the fixtures-loader file" plant and the exact loader positive. Its reviewer must also confirm that the loader reads only bundle resources (AC-M2-09 Reviewer clause). Track this in `TRACEABILITY.md` and the plan, as AC-M2-09 part "Q23 follow-up". | Open (ticket, Q23 follow-up) |
+
+There are no Blockers or Majors, so the verdict is **APPROVE** (OPERATING_MODEL §6).
+
+**Merge conditions are outside this review.** The Merge Gatekeeper still needs these before merging:
+- HM-1, so that CI runs TendSourceScan and TendIngestion (plan R-11; G3);
+- the owner's O-1 change (M2 `IN-BUILD` in `STATUS.md`);
+- green checks on `7bc22b9`.
+
+### Round 2 checklist
+- [x] Correctness vs ACs: every Q24 rule, plant and positive is implemented and tested. Q23 is deferred, as the plan
+  says (R2-F2).
+- [x] Tests meaningful: the pins and hand-written plants are in place, and all 17 sampled mutants are killed.
+- [x] Swift 6 concurrency safe: no new shared state. `callCode` and `streamingReadOffsets` are `let`s, computed once
+  per file. 0 warnings.
+- [x] No force unwraps / `try!` in product code paths. TendIngestion `Sources` is unchanged since round 1.
+- [x] Privacy (P-1…P-4): the guard is now at least as strict as the brief, with one Minor gap that cannot happen today
+  (R2-F1).
+- [x] UX-2/UX-3 enforced in engine: UX-2 does not apply. UX-3 is unchanged.
+- [x] Accessibility (UI): does not apply (no UI).
+- [x] Performance: the extra regex passes run in tests only, linear per file.
+- [x] No new dependency without ADR.
+
+### Round 2 law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection API. `TendCore` is unchanged. |
+| UX-3 Zero-Guilt | pass | Unchanged since round 1. No new identifier or string uses a banned token. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | Rule 5 is unchanged and P12 is still caught. The R2-F1 gap applies only with T-27 on, and it is ticketed before that. |
+| P-2 No data leaves device (except user iCloud) | pass | `contentsOf:` and every Q24 session method are hits outside the Rule 3 subset. Rule 6 has a closed import list. The R1-F1 concern is closed. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | In the allowlisted files the only network read allowed is `bytes(for:` with a top-level `delegate:` (D10), so AC-M2-22's transport controls cannot be skipped through `data(for:`, `contentsOf:` or the task methods. Rule 4 is unchanged. |
+| P-4 Media not persisted without consent | pass | The write and log lists now include `write(toFile:`, `AppStorage`, `SceneStorage`, `archiveRootObject(` and the C calls. TendIngestion has 0 violations. The results writer may write but never log (Q27, Q28). |
+
+### Round 2 handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-21 | Developer (via Orchestrator) | Reviewer | accepted for review | Head `7bc22b9`. Reran 3 commands: 63 and 17 tests green, 0 warnings. 42 plants and 17 mutants run. |
+| 2026-11-21 | Reviewer | Merge Gatekeeper (via Orchestrator) | accepted (APPROVE) | No open Blocker or Major. Merge still needs HM-1, O-1 and green checks. ADR-0006 may move to Accepted. |
+| 2026-11-21 | Reviewer | Developer / Work Planner (via Orchestrator) | tickets | R2-F1 (one offset space; before T-27 is turned on or in the Q23 follow-up). R2-F2 (Q23 follow-up: every loader plant and the loader positive). R1-F6 (WI-M2-10). |
