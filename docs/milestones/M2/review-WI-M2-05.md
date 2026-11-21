@@ -1,6 +1,7 @@
 # M2 Code Review — WI-M2-05, PR #20 (`m2/draft-mapping`)
 
-- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE (round 2, head `9e22263`; round 1 at `4e2991b` was CHANGES
+  REQUIRED)  ·  **Round:** 2 (see [Round 2](#round-2--head-9e22263) at the end)
 - **Requirements:** FR-A1, D-016, UX-1, UX-3. ACs: **AC-M2-01** and **AC-M2-02** (owned by this item, plan WI-M2-05).
   The item also touches AC-M2-04 (room linking after the guard, R19-F3), AC-M2-12 (guard in step 7) and AC-M2-03
   (`TimeResolution.init` narrowed, R2-N1). It implements Q5 steps 1–9 and T-07.
@@ -168,3 +169,92 @@ which is the caveat in F2.
 | 2026-11-21 | Orchestrator | Reviewer | accepted | PR #20 at `4e2991b`. Points: step order, oracle independence, R2-N1, R19-F3, missing anchor. |
 | 2026-11-21 | Orchestrator | Reviewer | accepted | PO rulings `po-m2-wi05.md`: ruling 1 reverses R19-F3 (re-link required), rulings 2 and 3 accept as built. |
 | 2026-11-21 | Reviewer | Developer (via Orchestrator) | returned | CHANGES REQUIRED: F1 Major (re-link per PO ruling 1, items 1–5). F2 and F3 Minor (evidence notes), F4 and F5 Nit, all to fix in the same round. Re-review covers the F1 delta and the new mutant. |
+
+---
+
+## Round 2 — head `9e22263`
+
+- **Commits reviewed:** `9e8e73e` (code and tests) and `9e22263` (dev notes; the round 1 report committed unchanged).
+  Delta `git diff 4e2991b 9e22263`:
+  - `DraftMapper.swift` (+15/−2);
+  - the two `DraftMapping*Tests.swift` files;
+  - `dev-notes.md`;
+  - this file.
+
+  No protected path is touched, no dependency is added, and the milestone lock is unchanged (M1 `ACCEPTED`, M2
+  `IN-BUILD`).
+- **Verdict: APPROVE.** F1 (Major) is fixed as PO ruling 1 (`po-m2-wi05.md`) specifies, and verified. F2, F3 and F4 are
+  fixed. F5 (Nit) stays open by choice, with a sound reason. No Blocker or Major is open.
+
+### Findings, round 2 status
+| # | Severity | Round 2 verification | Status |
+|---|---|---|---|
+| F1 | Major | `DraftMapper.swift:195-203`: the re-link runs only when the guard changed the room and left it `proposed(calmedName)`. The calmed name goes through `RoomLinker.link`, which applies the AC-M2-04 rule: name folding, exact match, lowest `id.uuidString` via `lowestRoom` with `utf8Precedes`. A match gives `existing(id)` and logs `roomLinkedAfterCalming` (step 7) after `roomNameCalmed`. This matches ruling 1 items 1 and 2. The tests also match the ruling (item 3): the R19-F3 test is flipped to `existing(kitchen.id)` with `repairs.suffix(2) == [.roomNameCalmed, .roomLinkedAfterCalming]`, and the commit plan still creates no room (`made == 0`); the tie case uses `"the  KITCHEN"` …0001 against `"Kitchen"` …00FF in 3 array orders (→ …0001); the no-match case is "late pantry" → `proposed("pantry")` with no re-link repair; the "only when changed" case covers an unchanged name and an emptied one. The oracle has its own fold-and-compare with a `String <` `min` tie (`DraftMappingPropertyTests.swift:318-324`) (item 4). The generator adds calmed-to-existing texts, and the coverage list requires the rule on every seed: 125 / 138 / 139 in my run. Dev notes D1 and open question 1 are updated (item 5). **Note:** "re-link even when unchanged" is an *equivalent* mutant. An unchanged proposed name is the collapsed model text, which already failed the same fold-and-match in step 2. So the "only when changed" test can only show that nothing changes there, and it does. That is acceptable. | **Closed** |
+| F2 | Minor | The oracle now computes the step 5 fallback itself (`[now, now + 604,800 s)`, weekdays ∅; `DraftMappingPropertyTests.swift:257-267`). Header comment and D8 state the conditional independence and cite the suites that cover the two shared functions. Verified: mutant `o` (6-day fallback), run with the property suite alone, now gives 828 / 830 / 820 oracle mismatches (it gave 0 in round 1). | **Closed** |
+| F3 | Minor | D7 maps "end ≤ start" (impossible from the contract; `rangeProblem` unit test) and "non-finite" (`ModelNumber` nil, the generator's `odd` values, `initialiserRejects`) to their tests. The cited tests exist (`TimeResolverTests.swift:646-647`). | **Closed** |
+| F4 | Nit | The AC-M2-01 cases assert `draft.title == c.title`, a hand-written string per case name. | **Closed** |
+| F5 | Nit | Not changed. The reason given is sound: removing the second call would change the WI-M2-04 `CalmWordsDecision` API, and the result is correct. | Open (optional, no action required) |
+
+### NaN-`Date` test change (`DraftMappingTests.swift:596-603`)
+The assertion is the same condition (`outcome == .skipped(.taskRejected(.windowDateNotFinite))`), now evaluated to a
+`Bool` before `#expect`. This is not a weakening: the test still fails on exactly the same outcomes. It only stops
+Swift Testing from describing a draft with a NaN `Date`, which the developer reports traps on Linux.
+
+I checked it with my own step 9 mutant: emit the draft instead of skipping it (`catch` → `.draft(draft)`). The test
+**fails cleanly** for NaN, +∞ and −∞ ("Expectation failed: rejected", 3 issues, no crash). My first version of this
+mutant (removing the `try`) did not compile, so it is not counted.
+
+### Reviewer re-link mutants (each applied alone by script, full TendIngestion suite, then restored)
+| Mutant | Result |
+|---|---|
+| `R5` re-link by exact, unfolded name (`rooms.first { $0.name == calmedName }`) | killed: property, R19-F3, tie (514 issues) |
+| `R8` re-link gated on the *title* changing instead of the room | killed: property, R19-F3, tie |
+| `R9` `room = keptRoom` re-assigned after the re-link (overwrites it) | killed: property, R19-F3, tie |
+| `R11` tie goes to the *highest* `uuidString` | killed: property, tie (173 issues) |
+| `R13` re-link only when the model's room text has no space | killed: property, R19-F3, tie |
+| `o` T1 fallback 6 days (property suite alone) | killed by the property (F2 fix) |
+| step 9: emit a rejected draft | killed: `initialiserRejects` ×3, clean failure |
+
+7 of 7 are killed. The developer's own reverse mutant ("no re-link after the guard") is the round 1 code, and the
+round 1 run of the flipped tests would fail on it. I did not re-run it separately.
+
+After the mutation run, the clean re-run gave `✔ Test run with 117 tests in 11 suites passed after 6.568 seconds.`,
+and `git status` is clean.
+
+### Test runs (Reviewer, round 2)
+Environment: `docker run swift:6.2-noble`, Swift 6.2.4, worktree `/home/user/wt-rev20` detached at `9e22263`. These are
+the CI commands of `.github/workflows/ci.yml` (build then test, `-Xswiftc -warnings-as-errors`,
+`--scratch-path /tmp/rev20-<pkg>`):
+
+| Package | Result |
+|---|---|
+| TendIngestion | `✔ Test run with 117 tests in 11 suites passed after 6.956 seconds.` 0 warnings. AC-M2-02: seed `…0501` 1,697 drafts / 303 skipped, `…0502` 1,737 / 263, `…0503` 1,733 / 267. Total 5,167 drafts and 833 skipped (matches dev notes), **0 oracle mismatches**. AC-M2-09 scan: 13 files, 0 violations. AC-M2-12 vocabulary scan: 13 files, 9 exempted, 0 violations (covers the new case `roomLinkedAfterCalming`) |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 1.959 seconds.` |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 117.887 seconds.` |
+
+### Notes for later items (no finding)
+- **WI-M2-07** can now rely on "a proposed room never equals an existing room" as a parse-time draft invariant (PO
+  ruling 1 follow-up). It should still re-check at commit (ruling 2b), because rooms can change between parse and
+  commit.
+- **WI-M2-06/08:** pass confirmed drafts to commit in ascending `draftID` (D6, PO WI-M2-04 ruling 2a). WI-M2-04's
+  R19-F1 and R19-F2 still belong to WI-M2-08.
+- **Governance PR (human merge):** DECISIONS.md entries for `po-m2-wi05.md` rulings 1–3, and the brief Q5 clarifying
+  sentence ("Step 3 applies to the sets after steps 5 and 6").
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | The draft now shows the room commit will use (PO ruling 1). The user has nothing to correct. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | The re-link uses only the calmed name. The new case name passes the AC-M2-12 vocabulary scan. The property still checks that no title holds an unsaid banned token. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No inference. |
+| P-2 No data leaves device (except user iCloud) | pass | Pure functions over the injected rooms. AC-M2-09 scan: 0 violations. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | n.a. | No cloud path. |
+| P-4 Media not persisted without consent | pass | Nothing persisted. No room is created at parse time. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-21 | Orchestrator | Reviewer | accepted | Round 2 at `9e22263` (`9e8e73e` code and tests, `9e22263` dev notes). |
+| 2026-11-21 | Reviewer | Orchestrator → Merge Gatekeeper, Acceptance Tester | accepted (APPROVE) | F1–F4 closed and verified; F5 Nit open (optional). 117 / 63 / 141 green, 0 warnings. 7/7 reviewer mutants killed. Tester: note the R19-F3 test flip and the new tie, no-match and only-when-changed tests for AC-M2-04 and AC-M2-02 evidence. |
