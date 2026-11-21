@@ -35,23 +35,25 @@ Any role may stop the line for a law violation. No milestone passes with an open
 
 | ID | Law |
 |---|---|
-| **P-1** | All routine AI inference runs **on device** (`FoundationModels`, `Speech`, `Vision`). |
-| **P-2** | No third-party analytics, ad SDKs, or cloud LLM APIs. No household data leaves the device except via the user's own iCloud (CloudKit, encrypted fields for sensitive data). |
-| **P-3** | Any cloud escalation must be Apple Private Cloud Compute or an equivalent zero-retention service, behind an ADR approved by the Product Owner **and** the human owner. Until then, the fallback for "model unavailable" is graceful degradation, never a cloud call. |
+| **P-1** | **On device first.** AI inference runs on device (`FoundationModels`) whenever the on-device model is available, unless the user has explicitly chosen their cloud model. `Speech` and `Vision` always run on device; audio, camera frames and images never go to a cloud AI. Only the language-model step may run in the cloud, and only under P-3. |
+| **P-2** | No third-party analytics, ad or tracking SDKs, and no Tend server. Household data leaves the device only (a) via the user's own iCloud (CloudKit, encrypted fields for sensitive data) or (b) as a minimised P-3 request sent directly over HTTPS (`URLSession`) to the AI provider the user chose. No provider SDK or other dependency without its own ADR. |
+| **P-3** | **Cloud AI is opt-in, off by default, and follows [ADR-0005](docs/architecture/adr/0005-cloud-ai-providers.md).** Bring-your-own-key only (OpenAI, Anthropic, Google Gemini); the key lives only in the device Keychain. Cloud runs only after a plain-language consent naming the provider and what is sent, and only when the on-device model is unavailable or the user chose cloud; it can be turned off at any time. Each request carries only the one capture being processed (text) and the minimum context ADR-0005 lists, never the whole household, people's names or identifiers. Request no-retention / no-training options where offered and state each provider's retention honestly; never claim zero retention we cannot guarantee. With no usable model the app degrades calmly to plain notes; an on-device error never silently escalates. Privacy Manifest and App Store privacy label declare the cloud use. A new provider, a new request field, or any Tend-run server needs a new ADR approved by the Product Owner **and** the human owner. |
 | **P-4** | Camera frames, audio, and shared documents are processed in memory and not persisted unless the user saves the result. Ship an accurate Privacy Manifest (`PrivacyInfo.xcprivacy`). |
 
 ## 3. Technical targets and defaults
 
 These are defaults. Changing one needs an ADR in `docs/architecture/adr/`.
 
-- **Platforms:** iOS 26+ / iPadOS 26+. Hardware floor iPhone 15 Pro (A17 Pro). iPad gets an adaptive
-  layout; features that need Action Button or Dynamic Island degrade gracefully on iPad.
+- **Platforms:** iOS 26+ / iPadOS 26+. Hardware floor iPhone 13 (A15) (ADR-0005). iPad gets an adaptive
+  layout; features that need Action Button or Dynamic Island degrade gracefully on iPad and on iPhones without them.
+  ProMotion 120 Hz where the display has it, 60 Hz smooth elsewhere.
 - **Language:** Swift 6, strict concurrency on, no warnings. SwiftUI first; UIKit only by ADR.
 - **Architecture:** a pure-Swift domain package (**`TendCore`**: models, Rule-of-Three selector,
   energy/time filter, compassionate rescheduler, sprint builder, load balancer). It imports only
   `Foundation`, has no UI and no Apple-only frameworks, and takes `now`, calendar, weather and
   randomness as injected inputs so every result is deterministic and testable (ideally on Linux too).
-  Feature modules sit on top: `TendAI` (FoundationModels/Speech/Vision adapters behind protocols),
+  Feature modules sit on top: `TendAI` (FoundationModels/Speech/Vision adapters and BYOK cloud adapters behind
+  protocols),
   `TendPersistence`, `TendUI`, plus app, widget, Live Activity, Share and Intents extensions.
 - **Persistence & sync:** SwiftData or Core Data behind a repository protocol. Household sharing
   (FR-E1) needs CloudKit shared databases (`CKShare`); pick the store in an ADR during M1 with M5 in mind.
@@ -59,6 +61,10 @@ These are defaults. Changing one needs an ADR in `docs/architecture/adr/`.
   `LanguageModelSession`, `@Generable` / `@Guide` structured output, `streamResponse` for FR-A1
   streaming, `Tool` for duplicate lookup. Speech via `SpeechAnalyzer`/`SpeechTranscriber` (on device).
   Images via `Vision` / `VisionKit` (text, barcodes, classification) feeding text to the model.
+  Where `SystemLanguageModel` is unavailable (e.g. iPhone 13 to iPhone 15 non-Pro), or the user chose it, the
+  language-model step may use an opt-in cloud adapter (OpenAI, Anthropic, Gemini) under P-3 and ADR-0005: plain
+  `URLSession` HTTPS, the user's own Keychain key, a pure Foundation-only payload builder outside `TendCore`, the same
+  protocol and draft stream as the on-device adapter. `TendCore` stays Foundation-only with no networking (AC-M1-23).
 - **System surfaces:** App Intents (+ `AppShortcutsProvider`) for Siri, Spotlight, Shortcuts and the
   Action Button; WidgetKit interactive widgets with `AppIntent` buttons; ActivityKit Live Activity with
   `LiveActivityIntent` check-off.
@@ -128,7 +134,7 @@ Build in five vertical slices, **M1 → M5**, as defined in PRD §4. Gate status
   Planning the next milestone's brief is allowed; building is not.
 - A milestone is `ACCEPTED` only when: every acceptance criterion is PASS with evidence, the
   Reviewer has no open Blocker/Major, the Documenter has signed off, and the PO has signed.
-- **Real-device gates need the human.** M2 (latency eval on iPhone 15 Pro), M4 (physical end-to-end),
+- **Real-device gates need the human.** M2 (eval on iPhone 15 Pro on-device and iPhone 13 cloud), M4 (physical end-to-end),
   and M5 (multi-device sync, 120 Hz, thermal) cannot be proven from a cloud container. The Acceptance
   Tester writes an exact device test script; the criterion stays `AWAITING-DEVICE` until the human owner
   runs it and the result is recorded. Never mark a device criterion PASS from simulation alone.
@@ -179,10 +185,11 @@ docs/product/                 ← user-facing docs, traceability, changelog, rel
 
 ## 9. Open questions (owned by the PO; resolve before the milestone that needs them)
 
-1. **iPad scope.** The owner said "iPhone & iPad"; the PRD targets iPhone 15 Pro. Default: iPad is
+1. **iPad scope.** The owner said "iPhone & iPad"; the PRD targets iPhone (floor iPhone 13, ADR-0005). Default: iPad is
    supported with adaptive layout from M3; no iPad-only features. Confirm before M3.
-2. **Private Cloud Compute.** Third-party access to PCC through `FoundationModels` may not exist for
-   our use case. Default: on-device only, degrade gracefully. Confirm before M2.
+2. **Cloud AI.** *Resolved 2026-11-21 (D-030, ADR-0005):* the owner wants cloud AI when appropriate and iPhone 13
+   support. Opt-in, off by default, bring-your-own-key (OpenAI, Anthropic, Gemini), direct from the phone, no Tend
+   server; on-device first. Third-party PCC access is not available for our use case and is not relied on.
 3. **Weather context (FR-B1, FR-A1).** *Resolved 2026-11-20 (D-023):* the owner allows WeatherKit with
    coarse location only; an ADR is required before wiring (M3/M4). The engine keeps weather as an injected input.
 4. **Naming.** PRD uses "Hearth" in places. Treated as Tend. PO to clean the PRD text when convenient.
