@@ -192,8 +192,15 @@ it to `required`. A required root with 0 files fails the test (lesson from M1 R-
 - One new `TaskInvariantViolation` case, named by the Designer. Its position in the case order is part of the naming
   decision, because `firstInvariantViolation()` checks cases in order.
 - Construction with a non-finite `windowStart` or `windowEnd` throws it.
-- `JSONFileHouseholdRepository` and `InMemoryHouseholdRepository` reject a household whose date decodes to a
-  non-finite value with `HouseholdStoreError.invalidTask(…)`, as in AC-M1-06.
+- Both M1 repositories reject a non-finite window date with a typed `HouseholdStoreError`, as in AC-M1-06, and keep
+  their previous contents (PO, 2026-11-21):
+  - `JSONFileHouseholdRepository`, loading a hand-written file: `unreadableFile`, because strict JSON cannot carry a
+    non-finite number. The file bytes are unchanged and no empty household is returned.
+  - `JSONFileHouseholdRepository`, saving a value set through an `internal(set)` setter: `writeUnsuccessful`. The
+    previous file is kept, as in AC-M1-07. The AC-M1-07 assertion is not changed.
+  - `InMemoryHouseholdRepository`, `save` or `upsertTask`: `invalidTask(.windowDateNotFinite)`. Nothing is stored.
+  - The model decode throws `windowDateNotFinite`. A test proves this with a lenient decoder, which no repository
+    uses.
 - Extending the M1 test that lists the cases is an extension, not a weakening. The Reviewer confirms that no M1
   assertion is removed. AC-M1-25 is not edited (T-21).
 
