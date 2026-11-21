@@ -1,6 +1,6 @@
 import Foundation
 
-/// Why a task could not be constructed or decoded (AC-M1-25, brief "Model invariants" and Q15).
+/// Why a task could not be constructed or decoded (AC-M1-25, brief "Model invariants" and Q15; AC-M2-02 W2-F3, Q9).
 /// Degenerate tasks are rejected, never silently repaired. Cases are listed, and checked, in this order.
 /// Developer-facing only; a later UI maps any user-visible problem to calm copy (design.md).
 public enum TaskInvariantViolation: Error, CaseIterable, Hashable, Sendable {
@@ -8,6 +8,8 @@ public enum TaskInvariantViolation: Error, CaseIterable, Hashable, Sendable {
     case noAllowedDayparts
     /// `allowedWeekdays` is empty, so the task could never fit a moment.
     case noAllowedWeekdays
+    /// `windowStart` or `windowEnd` is not a finite point in time (NaN or infinite interval), so the window cannot be placed.
+    case windowDateNotFinite
     /// `windowEnd` is not strictly after `windowStart` (windows are half-open and non-empty).
     case windowEndNotAfterStart
     /// A recurring task has no `recurrenceIntervalDays`.
