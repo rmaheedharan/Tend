@@ -90,6 +90,13 @@ public struct ItemSnapshot: Hashable, Sendable {
     public var time: TimeHintSnapshot?
     /// The user's own words for the item, as the model quotes them (kept only if found in the input, Q5 step 8).
     public var sourcePhrase: String?
+    /// The model's in-input claim: the 1-based position of an earlier item of this output that this item repeats
+    /// (skipped items count). Optional, and not a schema field for completion rule (a): a model may say nothing.
+    /// The duplicate rules decide whether it is valid (WI-M2-07); the schemas map into it (WI-M2-M2, 10, 12).
+    public var sameAsItem: Int?
+    /// The model's existing-task claim (on device: a title the duplicate `Tool` returned; cloud with Q12 = yes: a
+    /// shortlist index). Optional, and not a schema field for completion rule (a).
+    public var sameAsExisting: ExistingTaskClaim?
 
     public init(
         title: String? = nil,
@@ -100,7 +107,9 @@ public struct ItemSnapshot: Hashable, Sendable {
         isDeepClean: Bool? = nil,
         isWeatherDependent: Bool? = nil,
         time: TimeHintSnapshot? = nil,
-        sourcePhrase: String? = nil
+        sourcePhrase: String? = nil,
+        sameAsItem: Int? = nil,
+        sameAsExisting: ExistingTaskClaim? = nil
     ) {
         self.title = title
         self.kind = kind
@@ -111,6 +120,17 @@ public struct ItemSnapshot: Hashable, Sendable {
         self.isWeatherDependent = isWeatherDependent
         self.time = time
         self.sourcePhrase = sourcePhrase
+        self.sameAsItem = sameAsItem
+        self.sameAsExisting = sameAsExisting
+    }
+
+    /// The two claims as the duplicate rules read them. Which claim counts on which path is the rules' business.
+    public var duplicateClaim: DuplicateClaim {
+        switch sameAsExisting {
+        case let .lookupTitle(title)?: DuplicateClaim(sameAsItem: sameAsItem, sameAsTitle: title)
+        case let .shortlistIndex(index)?: DuplicateClaim(sameAsItem: sameAsItem, sameAsShortlistIndex: index)
+        case nil: DuplicateClaim(sameAsItem: sameAsItem)
+        }
     }
 }
 
@@ -118,9 +138,14 @@ public struct ItemSnapshot: Hashable, Sendable {
 /// previous one (as a `PartiallyGenerated` value does); the last item may still be in progress.
 public struct IngestionSnapshot: Hashable, Sendable {
     public var items: [ItemSnapshot]
+    /// On device: every query the duplicate-lookup `Tool` received so far in this parse, in call order (cumulative;
+    /// each snapshot carries the whole list). Empty for cloud models, which have no Tool. The duplicate rules replay
+    /// these queries on the parse's fixed household to resolve title claims (`DraftDuplicateRules`, review R22-R2-F2).
+    public var lookupQueries: [String]
 
-    public init(items: [ItemSnapshot]) {
+    public init(items: [ItemSnapshot], lookupQueries: [String] = []) {
         self.items = items
+        self.lookupQueries = lookupQueries
     }
 }
 
@@ -150,6 +175,10 @@ public struct IngestionRequest: Hashable, Sendable {
 ///    consumer cancels; a reference kept by the adapter would stop the termination handler from running.
 /// 3. Cancel all model and network work in the stream's `onTermination` (the `streamResponse` loop, the URL session
 ///    bytes task), so nothing keeps running after the user cancels or turns cloud off (P-3, WI-M2-09).
+/// 4. On device, put every duplicate-`Tool` query of this parse into `IngestionSnapshot.lookupQueries` (cumulative, in
+///    call order), and yield one more snapshot after a Tool call that no snapshot has carried yet, before finishing.
+///    The Tool must read the same `Household` value that `DraftDuplicateRules.onDevice(household:)` was given, so that
+///    replaying the queries gives exactly the entries the model saw. Cloud adapters leave `lookupQueries` empty.
 public protocol IngestionModel: Sendable {
     func snapshots(for request: IngestionRequest) -> AsyncThrowingStream<IngestionSnapshot, any Error>
 }

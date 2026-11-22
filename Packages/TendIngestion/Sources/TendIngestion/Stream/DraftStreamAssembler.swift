@@ -11,15 +11,20 @@
 //   advances only for a draft, WI-M2-05 D5) and its duplicate marker from the injected check, then is `emitted`.
 //   A Q5 skip gives `itemSkipped(reason)`.
 // - **The duplicate hook (WI-M2-07 contract; PO WI-M2-06 ruling 5).** At emission, the check is called once per draft
-//   position, in output order, before that draft's `emitted` (`completeNext`), with the latest lower drafts.
+//   position, in output order, before that draft's `emitted` (`completeNext`), with the latest lower drafts. It gets
+//   each draft's item position (skipped items included), the model's claim from the latest item, and the latest
+//   snapshot's lookup queries (`DuplicateCheckEntry`; WI-M2-06/07 integration).
 // - **Updates and re-marking.** On each snapshot, every emitted draft whose item is still in the snapshot is mapped
-//   again with its `draftID`. If any draft's content changed, the check runs again in ascending `draftID` for the
-//   lowest changed draft and every later emitted draft, each against the latest versions of all lower drafts (this
-//   covers `ofDraft` cascades). Each draft whose content or marker changed gets exactly one `updated` (a full
-//   replacement). If no content changed, the check is not called. A re-map that Q5 would skip, or an item missing
+//   again with its `draftID`, and its claim is read again. If any draft's content or claim changed, the check runs
+//   again in ascending `draftID` for the lowest changed draft and every later emitted draft, each against the latest
+//   versions of all lower drafts (this covers `ofDraft` cascades). If the snapshot's lookup queries differ from the
+//   last ones (on device, the Tool's log grew; review R22-R2-F2), it runs for every emitted draft. Each draft whose
+//   content or marker changed gets exactly one `updated` (a full replacement). If nothing the check reads changed, it
+//   is not called. A re-map that Q5 would skip, or an item missing
 //   from a shorter snapshot, keeps the last content: a draft is never withdrawn. Within one snapshot, updates
 //   (ascending `draftID`) come before new emissions, so a new draft is checked against the re-marked drafts. After
-//   `finished`, each marker equals one pass of the check over the final drafts in `draftID` order.
+//   `finished`, each marker equals one pass of the check over the final drafts in `draftID` order, with the final
+//   claims and queries (the check is pure, `DraftDuplicateCheck`).
 // - **End.** A normal finish completes the remaining items (rule c), then `completed`; with no emitted draft it also
 //   returns the input and a plain note (PO WI-M2-06 ruling 1). A stop with no emitted draft is
 //   `noModel` with the input and a plain note (T-25). A stop after a draft is `interrupted`; an in-progress item is
@@ -52,6 +57,10 @@ struct DraftStreamAssembler: Sendable {
     private var drafts: [IngestionDraft] = []
     /// The item index of each emitted draft; index = `draftID` - 1.
     private var itemIndexOfDraft: [Int] = []
+    /// The model's claim of each emitted draft, from the latest version of its item; index = `draftID` - 1.
+    private var claims: [DuplicateClaim] = []
+    /// The latest snapshot's lookup queries: the ones every current marker was computed with.
+    private var lookupQueries: [String] = []
     private(set) var isFinished = false
 
     init(mapper: DraftMapper, duplicateCheck: any DraftDuplicateCheck, route: Route) {
@@ -63,7 +72,9 @@ struct DraftStreamAssembler: Sendable {
     mutating func receive(_ snapshot: IngestionSnapshot) -> [DraftStreamEvent] {
         guard !isFinished else { return [] }
         items = snapshot.items
-        var events = refreshEmitted()
+        let queriesChanged = snapshot.lookupQueries != lookupQueries
+        lookupQueries = snapshot.lookupQueries
+        var events = refreshEmitted(queriesChanged: queriesChanged)
         while completedCount < items.count,
               completedCount + 1 < items.count || items[completedCount].hasValueForEveryField {
             events += completeNext()
@@ -122,35 +133,58 @@ struct DraftStreamAssembler: Sendable {
         completedCount += 1
         switch mapper.map(items[index], draftID: drafts.count + 1).outcome {
         case var .draft(draft):
-            draft.duplicate = duplicateCheck.duplicate(of: draft, earlier: drafts)
+            let claim = items[index].duplicateClaim
+            draft.duplicate = duplicateCheck.duplicate(
+                of: DuplicateCheckEntry(draft: draft, position: index + 1, claim: claim),
+                earlier: entries(drafts, claims), lookupQueries: lookupQueries)
             drafts.append(draft)
             itemIndexOfDraft.append(index)
+            claims.append(claim)
             return [.emitted(draft)]
         case let .skipped(reason):
             return [.itemSkipped(reason)]
         }
     }
 
-    private mutating func refreshEmitted() -> [DraftStreamEvent] {
-        // 1. Re-map each emitted draft whose item is still present (content only; the marker is decided in step 2).
+    /// The check's view of the first `drafts.count` drafts.
+    private func entries(_ drafts: [IngestionDraft], _ claims: [DuplicateClaim]) -> [DuplicateCheckEntry] {
+        drafts.indices.map {
+            DuplicateCheckEntry(draft: drafts[$0], position: itemIndexOfDraft[$0] + 1, claim: claims[$0])
+        }
+    }
+
+    private mutating func refreshEmitted(queriesChanged: Bool) -> [DraftStreamEvent] {
+        // 1. Re-map each emitted draft whose item is still present, and read its latest claim (the marker is decided
+        //    in step 2). A re-map that Q5 would skip keeps the last content and claim: a draft is never withdrawn.
         var latest = drafts
+        var latestClaims = claims
         for (offset, last) in drafts.enumerated() {
             let index = itemIndexOfDraft[offset]
             if index < items.count, case var .draft(mapped) = mapper.map(items[index], draftID: last.draftID).outcome {
                 mapped.duplicate = last.duplicate
                 latest[offset] = mapped
+                latestClaims[offset] = items[index].duplicateClaim
             }
         }
-        // 2. Re-mark from the lowest changed draft onward, in ascending draftID (PO WI-M2-06 ruling 5).
-        guard let lowest = latest.indices.first(where: { latest[$0] != drafts[$0] }) else { return [] }
+        // 2. Re-mark in ascending draftID (PO WI-M2-06 ruling 5): from the lowest draft whose content or claim
+        //    changed, or from draft 1 when the lookup queries changed (review R22-R2-F2: the Tool's log grew).
+        let lowest = queriesChanged && !latest.isEmpty
+            ? 0 : latest.indices.first { latest[$0] != drafts[$0] || latestClaims[$0] != claims[$0] }
+        guard let lowest else { return [] }
+        var earlier = entries(Array(latest[..<lowest]), Array(latestClaims[..<lowest]))
         for offset in lowest..<latest.count {
-            latest[offset].duplicate = duplicateCheck.duplicate(of: latest[offset], earlier: Array(latest[..<offset]))
+            let entry = DuplicateCheckEntry(draft: latest[offset], position: itemIndexOfDraft[offset] + 1,
+                                            claim: latestClaims[offset])
+            latest[offset].duplicate = duplicateCheck.duplicate(of: entry, earlier: earlier,
+                                                                lookupQueries: lookupQueries)
+            earlier.append(DuplicateCheckEntry(draft: latest[offset], position: entry.position, claim: entry.claim))
         }
         // 3. One `updated` per draft whose content or marker changed.
         let events: [DraftStreamEvent] = latest.indices.compactMap { offset in
             latest[offset] != drafts[offset] ? .updated(latest[offset]) : nil
         }
         drafts = latest
+        claims = latestClaims
         return events
     }
 }
