@@ -1135,3 +1135,381 @@ cleanly in "Q5 (9)".
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 114 tests green, 0 warnings, Linux; AC-M2-02 property 6,000 outputs, 0 oracle mismatches. 25/25 mutants killed (2 equivalent ones removed by simplifying). Two open questions (R19-F3 re-link, missing anchor). Pushed; no PR opened. |
 | 2026-11-21 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: F1 Major (re-link per PO ruling 1), F2 and F3 Minor, F4 and F5 Nit. PO rulings `po-m2-wi05.md`: 1 re-link; 2 and 3 accepted as built. |
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1 fixed (re-link plus tests and oracle, reverse mutant killed); F2, F3 documented and the oracle's own fallback check added; F4 fixed; F5 not changed (reason given). TendIngestion 117, TendSourceScan 63, TendCore 141 green, 0 warnings. 29/29 mutants killed. Review file committed with the fix. |
+
+---
+
+## WI-M2-06 — draft stream assembly over neutral snapshots, the four outcomes with route, `noModel` reasons, the plain note
+
+- **Owner:** Developer  ·  **Branch:** `m2/draft-stream`, from `origin/main` at `2f9f86f` (WI-M2-05 merged, PR #20)
+  ·  **PR:** not opened (the Orchestrator opens it)  ·  **ADRs:** none new. Follows
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md): new files under `TendIngestion/Sources`, Foundation and
+  TendCore only.
+- **Requirements:** FR-A1, P-1, P-3, P-4, UX-3. This item delivers the **Linux parts** of AC-M2-05, AC-M2-10 and
+  AC-M2-23 ([plan.md](plan.md) WI-M2-06, all ○). The Mac parts stay with WI-M2-M2 (`PartiallyGenerated` →
+  neutral snapshots, `Availability` / `GenerationError` → neutral reasons) and WI-M2-M4 (`URLError` / HTTP status →
+  neutral reasons). The retry and deadline decisions of AC-M2-23 are WI-M2-14.
+- **Brief inputs:** Definitions ("Draft", "Item completion", "Draft stream events", "Route", "Plain note"), T-03, T-12,
+  T-25. **Rulings:** PO WI-M2-04 ruling 2 and WI-M2-05 D6 (commit order), WI-M2-05 D5 (the caller's `draftID`).
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED` and M2 `IN-BUILD`. DoR "deps merged" is met (WI-M2-05 is on
+  `main`).
+- **Parallel work:** WI-M2-07 (duplicate rules) is being built at the same time. This item contains no duplicate
+  logic. It only calls an injected `DraftDuplicateCheck` (see D7).
+
+### What changed
+All new files are in `Packages/TendIngestion`. No existing source file was changed.
+- `Sources/TendIngestion/Stream/ModelRoute.swift`:
+  - `CloudProvider` (`openAI`, `anthropic`, `gemini`) and `Route` (`onDevice`, `cloud(provider)`, `none`).
+  - `OnDeviceUnavailableReason`: the plan's four reasons, `deviceNotEligible`, `appleIntelligenceNotEnabled`,
+    `modelNotReady` and `unsupportedLocale`.
+  - `ModelStopReason: Error` (16 cases): the neutral on-device, cloud and stream reasons. An adapter ends its snapshot
+    stream by throwing one of them.
+  - `NoModelReason` (`onDeviceUnavailable(_)`, `stoppedBeforeFirstDraft(_)`).
+  - `RoutedModel` (`onDevice(model)`, `cloud(provider, model)`, `none(reason)`, plus `route`).
+- `Sources/TendIngestion/Stream/DraftStreamEvent.swift`:
+  - `DraftStreamEvent` (`emitted`, `updated`, `itemSkipped`, `finished`).
+  - `DraftStreamOutcome` (`completed`, `interrupted`, `noModel`, `cancelled`), each carrying `route`, with the
+    accessors `route`, `input` and `plainNote`.
+  - `DiscardedItemReason.stoppedBeforeComplete`.
+  - `DraftStreamSummary`, which folds events into the latest drafts in ascending `draftID`.
+  - The `DraftDuplicateCheck` protocol and `NoDuplicateCheck`.
+- `Sources/TendIngestion/Stream/DraftStreamAssembler.swift`:
+  - `ItemSnapshot.hasValueForEveryField` (completion rule (a)).
+  - The internal, pure, synchronous `DraftStreamAssembler`. It takes snapshots in and gives events out.
+- `Sources/TendIngestion/Stream/DraftPipeline.swift`:
+  - The public `DraftPipeline(input:rooms:now:calendar:timeZone:duplicateCheck:)` and
+    `events(from: RoutedModel) -> DraftEventSequence`.
+  - `DraftEventSequence` is an `AsyncSequence` with `Failure == Never`. Its iterator implements both `next()` and
+    `next(isolation:)`.
+- `Sources/TendIngestion/Draft/PlainNote.swift`: `PlainNote.draft(for:now:calendar:timeZone:) -> IngestionDraft?`.
+- Tests (new, written first; the first build failed with "cannot find type 'ModelStopReason' in scope"):
+  - `DraftStreamTests.swift`: the AC-M2-05 oracle table, the event shape tests and the cancellation suite.
+  - `DraftStreamOutcomeTests.swift`: AC-M2-10, AC-M2-23, the plain note, calm names and D6.
+  - `DraftStreamPropertyTests.swift`: the AC-M2-05 property and its timeline oracle.
+- Not changed: `TendCore`, `TendSourceScan`, every protected path and every dependency. `IngestionModel` keeps its
+  WI-M2-05 shape. Availability is not a method on the model: the route (WI-M2-09) decides, and `RoutedModel.none`
+  carries the reason (D2).
+
+### The rules as built (brief Definitions; each one is tested)
+- **Completion (T-03).** An item is complete at the first of three moments:
+  - (a) `hasValueForEveryField`;
+  - (b) the snapshot holds a later item;
+  - (c) the stream finishes normally.
+
+  Only the last item of a snapshot can still be in progress, so items complete in model-output order. On completion,
+  `DraftMapper.map` runs the Q5 repairs. A draft gets the next `draftID`, and the counter advances only for a draft
+  (D5). A Q5 skip gives `itemSkipped(reason)`.
+- **`emitted`.** It comes once per `draftID`, at completion, with the duplicate marker already set.
+- **`updated`.**
+  - On every snapshot, each emitted draft whose item is still present is mapped again with its own `draftID`.
+  - **Round 2 (PO WI-M2-06 ruling 5):** if any draft's content changed, the duplicate check runs again in ascending
+    `draftID` for the lowest changed draft and every later emitted draft, each against the latest lower drafts. If no
+    content changed, the check is not called (D7).
+  - Each draft whose content or marker changed gets exactly one `updated`, which is a full replacement.
+  - Within one snapshot, the updates (in ascending `draftID`) come before any new emissions, so a new draft is checked
+    against the re-marked drafts.
+  - A draft is never withdrawn. If Q5 would now skip the item, or a shorter snapshot no longer holds it, there is no
+    event and the last version stays.
+- **End.**
+  - A normal finish completes the rest of the items, then gives `completed(route)`. **Round 2 (PO WI-M2-06
+    ruling 1):** if no draft was emitted (no items, or every item skipped), `completed` also carries the input and the
+    plain-note offer (nil only for a blank input). With at least one draft, both are nil.
+  - A stop with no draft emitted gives `noModel(route, .stoppedBeforeFirstDraft(reason), input, plainNote)` (T-25,
+    AC-M2-23: "`noModel` before any draft").
+  - A stop after a draft gives `interrupted(route, reason, discardedItem, input)`. `discardedItem` is
+    `stoppedBeforeComplete` when an item was in progress, and nil between items.
+  - A thrown error that is not a `ModelStopReason` counts as `otherModelError`.
+  - Nothing is accepted after `finished`.
+- **Route `none`.** The only event is `finished(noModel(.none, .onDeviceUnavailable(reason), input, plainNote))`. No
+  model exists to ask.
+- **Order of drafts (binding, PO WI-M2-04 ruling 2 and WI-M2-05 D6).** `draftID`s are 1, 2, 3 … in emission order,
+  which is the model's output order. **Confirmed drafts go to commit in ascending `draftID`.** The API docs of
+  `DraftStreamEvent.swift` say this, and `DraftStreamSummary.drafts` is already in that order (test "D6 …").
+
+### Decisions the Reviewer should know
+- **D1, completion rule (a): the field set (WI-M2-05 follow-up).**
+  - The schema fields are the nine fields of `ItemSnapshot`: title, kind, roomName, effort, the three flags, time and
+    sourcePhrase.
+  - An unknown enum value counts as a value (T-03).
+  - `time` counts once its `anchor` is set. The other hint fields depend on the anchor and are absent for most
+    anchors, so requiring them would mean rule (a) almost never fires. Later hint fields arrive as `updated`.
+  - An item whose model leaves `roomName` or `sourcePhrase` out never meets (a). It completes by (b) or (c), which is
+    only later, never wrong.
+  - This sets a technical moment, not a product meaning. It affects TTFI (AC-M2-16), so it is listed under the open
+    questions for the PO to confirm.
+- **D2, where availability lives.** `IngestionModel` is unchanged. Routing (WI-M2-09) reads the on-device
+  availability and the cloud state and gives a `RoutedModel`. The pipeline holds **exactly one** model, or none. It
+  therefore has no way to re-route an on-device error to the cloud (AC-M2-10, AC-M2-19, P-3), and no way to retry or
+  queue (AC-M2-23). This is a type-level proof, not a promise. WI-M2-09 may add a protocol for reading availability.
+  The neutral reasons it needs are already here.
+- **D3, the neutral reason names (AC-M2-23 "none blames the user"; Reviewer inspection).** The mapping comment table
+  at the top of `DraftStreamOutcomeTests.swift` maps each brief case to its reason. For example, 401/403 is
+  `keyNotAccepted` (the provider did not accept the stored key), and 5xx is `serviceUnavailable`. No name refers to
+  the person. `calmNames` splits every outcome, reason and event description at camelCase and checks it against the
+  banned list. The AC-M2-12 vocabulary scan also covers the source (0 violations).
+- **D4, cancellation is cooperative (Swift structured concurrency).**
+  - At the top of every `next()`, a cancelled task gets `finished(.cancelled(route))` next. Any buffered events are
+    dropped (cancellation wins over an outcome that has not been delivered yet). The iterator then lets go of the
+    model's `AsyncThrowingStream`, which ends the model's work through its termination handler. After that, `next()`
+    returns `nil`. The model stream is released when `cancelled` is returned, not later when the consumer drops the
+    iterator (test "the cancelled event already releases the model stream …", which holds the iterator).
+  - If the task is cancelled while it waits for the model, `AsyncThrowingStream` returns early with a nil or a throw.
+    The pull buffers whatever that gives, but the top-of-loop check runs before any event is returned, so it is read
+    as cancellation, never as `completed` (tests "cancel while waiting" and "… finishing after cancellation …").
+    There is one cancellation check, at one place. An earlier second check inside the pull was redundant (an
+    equivalent mutant) and was removed.
+  - The cancellation tests run the consumer in its own task and pass the test's own cancellation on to it
+    (`consumeInOwnTask`). So a broken rule makes a test fail at its time limit instead of hanging. A first mutation
+    pass showed that hang, and it was fixed before the final run.
+  - There is no clock, timer, `DispatchQueue`, lock or `@unchecked Sendable` in the sources. The iterator is a plain
+    value type and runs in the caller's isolation through `next(isolation:)`.
+  - "No task is written" holds by construction: neither the pipeline nor the assembler has a repository. The
+    cancellation test also loads an in-memory repository before and after.
+- **D5, the plain note (brief Definitions).**
+  - The title is the whole input, **trimmed at both ends only**, so inner spacing and newlines are the user's. That is
+    the literal "(trimmed)" of the brief. Q5 step 1 also collapses whitespace, but that step is for model titles.
+  - The calm-words guard is not run, because every word is the user's own and AC-M2-12 keeps a user's words (test:
+    "I'm late paying the gas bill" is kept).
+  - The fields are the Q5 defaults (the T1 window from the resolver, default dayparts, all weekdays, one-off, normal,
+    no room, flags false, no interval). `sourcePhrase` is nil, `duplicate` is `none` and `draftID` is 1.
+  - The plain note is nil for a blank input, or when the M1 initialiser rejects it (only with a non-finite `now`).
+  - It is an **offer** inside `noModel`, never an `emitted` event. Only `commit(confirmed:)` (WI-M2-08) saves it.
+- **D6, `interrupted` never carries a plain note** (confirmed by PO WI-M2-06; the brief sentence is replaced). By the
+  AC-M2-23 / T-25 rule, a stop before any draft is `noModel`, so an `interrupted` outcome always
+  has at least one draft. Its case therefore has no `plainNote` field, and `plainNote` returns nil.
+- **D7, duplicate marking is injected, and the hook point fits WI-M2-07 (stays out of WI-M2-07).**
+  - **Hook point:** `DraftStreamAssembler.completeNext()`, the one place a draft is created. It calls
+    `DraftDuplicateCheck.duplicate(of:earlier:)` **exactly once per draft position, in output order, before that
+    draft's `emitted`**. `earlier` holds every draft with a lower `draftID` (latest versions, ascending). Skipped items
+    take no position.
+  - This matches the contract the Orchestrator relayed for WI-M2-07 (PR #21, not merged):
+    `DuplicateMarker.mark(_:position:claim:check:)`, "once per draft position, in output order, before `emitted`".
+    This branch does not depend on that file. Integration after both merge is a small conformance of the WI-M2-07
+    marker to `DraftDuplicateCheck`, or a rename of this one call.
+  - **Round 2 (PO WI-M2-06 ruling 5; review F2): the stream re-marks after updates.**
+    - A snapshot that changes any emitted draft's content re-runs the check, in ascending `draftID`, from the lowest
+      changed draft through every later emitted draft, each against the latest lower drafts. This covers `ofDraft`
+      cascades: a later draft whose content is unchanged still gets an `updated` if its marker changes.
+    - No content change means no call. Emission is unchanged.
+    - Invariant (tested): after `finished`, each marker equals one pass of the check over the final drafts in
+      `draftID` order.
+    - The round 1 trade-off (a stale marker after an update) is closed. The calling rule is stated once, in the
+      `DraftDuplicateCheck` doc (review F3).
+  - **For WI-M2-07 integration:** the relayed contract "once per draft position, before `emitted`" still holds at
+    emission. The WI-M2-07 marker must also accept being called again for a position after an update (ruling 5). Its
+    claim must come from the latest item (`DraftMapper` re-maps the latest snapshot).
+  - `DraftPipeline.init` requires the check. No default is given, so that M3 cannot forget the WI-M2-07 rules.
+- **D8, a skipped item stays skipped.** Completion is final. If a later snapshot gives a skipped item a title, there
+  is no late emission, because the brief says "at the moment of completion" (test "a skipped item stays skipped …").
+- **D9, the scan rules shaped the names.** The AC-M1-23 `Stream(` rule bans calling any identifier that ends in the
+  word "Stream", apart from `AsyncStream` and `AsyncThrowingStream`. So the public type is `DraftPipeline` and the
+  sequence is `DraftEventSequence`. `AsyncThrowingStream.makeStream` is used only in tests, which are out of scan
+  scope.
+
+### AC coverage
+| AC (Linux part) | Test(s) | Result |
+|---|---|---|
+| AC-M2-05 oracle | "AC-M2-05: the scripted snapshots give exactly the expected event list" (pure assembler, and `DraftPipeline` with a mock model): **16 scripted cases × 2**. They cover fields out of order, an item split across snapshots, rule (b), a no-title item (no `draftID` used), a normal finish mid-item (emitted, and skipped without a title), a throw mid-item (discarded, `interrupted`), a throw between items, a foreign error, model-output order versus `sourcePhrase` order, several completions in one snapshot, never withdrawn (blank re-map, shrinking snapshot), updates before emissions, a skipped item staying skipped, an empty output, and a calmed title | PASS (Linux) |
+| AC-M2-05 rules | "an item still in progress at a normal finish is completed and repaired by Q5" (whole draft, M1 initialiser); "emitted and updated drafts are whole replacements …; finished comes once, last"; "nothing follows finished"; "the duplicate marker is set once, before emitted, and an update keeps it"; "the duplicate hook is called exactly once per draft position, in output order, before emitted" (D7); "the model is asked once, with the capture text and the room names"; "lazy and repeatable"; "after finished, the iterator returns nil"; "every outcome carries the route" (on device and 3 providers); "the sequence never throws" is shown at compile time (`for await` with no `try`; `Failure == Never`) | PASS (Linux) |
+| AC-M2-05 property | "AC-M2-05: 6,000 seeded scripts give exactly the oracle's events, and the event rules hold". Seeds `0x0A11C0DE5EED0601…0603`, 2,000 scripts each, against an independent **timeline oracle** (completion steps first, then events; rule (a) written out again). It also checks the structural rules on every script. Coverage requires every event kind, every outcome, `discarded` and a duplicate marker on every seed | PASS (Linux): **0 oracle mismatches**. Per seed (0601 / 0602 / 0603): emitted 3,508 / 3,444 / 3,541; updated 519 / 547 / 526; itemSkipped 891 / 877 / 912; completed 1,185 / 1,199 / 1,225; interrupted 553 / 534 / 513 (discarded 356 / 359 / 331); noModel 262 / 267 / 262; marked duplicates 553 / 528 / 552 |
+| AC-M2-05 cancellation | Cancel while waiting for the model (earlier events stay, then `cancelled`; model stream ended `.cancelled`; repository unchanged); a consumer that cancels itself mid-buffer (the buffered events are dropped); the model stream already ended while the consumer still holds the iterator, and `next()` is nil after `finished`; cancelled before start (on device, cloud, none: only `cancelled`, model never asked); a late model finish after cancellation still gives `cancelled`; the assembler's `cancel` | PASS (Linux) |
+| AC-M2-10 | "cloud off and on-device unavailable (each reason)": 4 cases, route `none`, the input and a plain note returned, only the `finished` event. "on-device generation throws before the first draft (each reason, cloud on or off)": 9 reasons × 4 scripts (at once, after an empty snapshot, after a skipped item, with an item in progress); route `onDevice`; asked once. "a throw after the first draft is interrupted" (T-25): 9 cases. A foreign error gives `otherModelError` | PASS (Linux) |
+| AC-M2-23 (outcome, plain note) | "each cloud failure before any draft": 3 providers × 10 reasons × 4 scripts, `noModel` with route, input and plain note; asked once (no retry here, nothing queued). "each cloud failure after a draft": 30 cases, `interrupted`, no plain note, the input returned, the draft stays. "the same plain-note offer exists when the route is none" | PASS (Linux). The retry and deadline decisions are WI-M2-14 |
+| Plain note | 6 tests: the user's words trimmed at both ends only (3 inputs, compared to a hand-written draft); the user's banned word kept; blank gives nil (3); passes the M1 initialiser and becomes an `active` task; non-finite `now` gives nil (compared to a Bool first, because describing a NaN `Date` in a failure message traps on Linux, as in WI-M2-05 round 2); a blank input gives `noModel` with no note and the input still returned | PASS (Linux) |
+| AC-M2-10 / AC-M2-23 names (UX-3) | "no outcome, reason or event name contains a banned token" (camelCase split); "the neutral reason lists are complete". AC-M2-12 vocabulary scan: `18 files, 9 exempted (the list), 0 violations` | PASS (Linux) + Reviewer inspection (D3) |
+| AC-M2-09 (regression) | "AC-M2-09: Rules 1–6 hold …": `18 files in total, 0 violations` | PASS (Linux) |
+
+### Test runs
+| Command (in `swift:6.2-noble`, Swift 6.2.x, `-Xswiftc -warnings-as-errors`) | Summary line |
+|---|---|
+| `swift test --package-path Packages/TendIngestion` | `✔ Test run with 152 tests in 18 suites passed after 9.156 seconds.` (117 before this item + 35 new) |
+| `swift test --package-path Packages/TendCore` | `✔ Test run with 141 tests in 18 suites passed after 89.574 seconds.` (unchanged package) |
+| `swift test --package-path Packages/TendSourceScan` | `✔ Test run with 63 tests in 4 suites passed after 4.754 seconds.` (unchanged package) |
+
+### Mutation check
+Each mutant was applied alone by a script, run with `--filter "DraftStream|NoModel|CloudOutcome|PlainNote"` and
+`-warnings-as-errors` inside a 420 s timeout, and then restored. After the run, the sources were compared with a
+pristine copy (`diff -r`: identical). **27 of 27 are killed on the final code, with no hang and no crash.** The final
+clean run is the 152-test line above.
+
+| # | Mutant | Killed by (number of failing tests) |
+|---|---|---|
+| 0 | completion rule (a) off | property, scripted ×2, whole replacements, routes, nothing after finished, marker (7) |
+| 1 | rule (b) off | property, scripted ×2, self-cancel mid-buffer, release at once (5) |
+| 2 | rule (c) off (normal finish does not complete the rest) | property, scripted ×2, Q5 at finish, hook contract, lazy, iterator end, D6 summary (8) |
+| 3 | `draftID` counter advances on a skip | property, scripted ×2, hook contract (4) |
+| 4 | no `updated` events | property, scripted ×2, whole replacements, hook contract, marker, D6 summary (7) |
+| 5 | new emissions before updates in one snapshot | property (1) |
+| 6 | a blank re-map withdraws / emits the old draft again | property, scripted ×2 (3) |
+| 7 | marker not set at emission | property, hook contract, marker (3) |
+| 8 | marker checked again on update (the hook is called twice) | property, hook contract, marker (3) |
+| 9 | `noModel` even after a draft | property, scripted ×2, routes, T-25, AC-M2-23 after a draft (6) |
+| 10 | `interrupted` even before a draft | property, AC-M2-10 ×2, AC-M2-23 before any draft (4) |
+| 11 | discarded item never reported | property, scripted ×2, T-25, AC-M2-23 after a draft (5) |
+| 12 | a foreign error read as `refusal` | scripted ×2, AC-M2-10 foreign error (3) |
+| 13 | `noModel` without the plain note | property, AC-M2-10 ×2, AC-M2-23 (4) |
+| 14 | input not returned with `interrupted` | property, scripted ×2, routes, T-25, AC-M2-23 (6) |
+| 15 | events accepted after `finished` | nothing after finished (1) |
+| 16 | rule (a) ignores `sourcePhrase` | property (1) |
+| 17 | rule (a) counts a time hint with no anchor | property (1) |
+| 18 | no cancellation check in `next` | self-cancel, before start, while waiting, release at once, late finish (5) |
+| 19 | buffered events delivered before `cancelled` | self-cancel, while waiting (2) |
+| 20 | cancellation keeps the model stream until the iterator is dropped | release at once (1) |
+| 21 | cloud route reported as `onDevice` | before start, routes, AC-M2-23 ×2 (4) |
+| 22 | no room names in the model request | model asked once (1) |
+| 23 | plain note collapses inner whitespace | plain note user words (1) |
+| 24 | plain note not trimmed | plain note ×3 (3) |
+| 25 | plain note returned when the M1 initialiser rejects it | non-finite `now` (1) |
+| 26 | plain note `sourcePhrase` = title | AC-M2-10 ×3, AC-M2-23 ×2, plain note (6) |
+
+**What the earlier passes found (and what changed because of them):**
+- **Hang.** In the first pass, the "rule (b) off" and "no cancellation check" mutants **hung** instead of failing:
+  - the self-cancel test awaited an unstructured `Task.value`, which does not pass on the time-limit cancellation;
+  - and a cancelled wait looped on a finished iterator.
+
+  Fixes: the tests run the consumer in `consumeInOwnTask`, and the pull no longer has its own cancellation branch.
+- **Survivor.** The "keeps the model stream" mutant survived until the test "the cancelled event already releases the
+  model stream …" was added.
+- **Equivalent mutant.** A second cancellation check inside the pull was redundant with the top-of-loop check, so it
+  was removed.
+- **Crash.** The non-finite-`now` plain-note test crashed instead of failing under its mutant, because a NaN `Date`
+  in a failure message traps on Linux. It now compares to a Bool first.
+- **Spelling.** Three mutants needed spellings that compile under `-warnings-as-errors`.
+- **Hook change.** After the WI-M2-07 hook note, mutant 8 was turned into its reverse, and everything was run again
+  on the final code.
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendIngestion 152 tests: AC-M2-05, 10, 23 (Linux parts), plain note, AC-M2-09 and AC-M2-12 scans | ✔ container | — | — | — | Linux CI runs on the PR. |
+| TendCore 141, TendSourceScan 63 (unchanged) | ✔ container | — | — | — | — |
+| `next(isolation:)` and `AsyncThrowingStream` cancellation on Darwin | — | — | — | — | Not verified (no Mac). The plan B2 repeat of the `TendIngestion` suite on the owner-run Mac covers it. |
+| Adapter mappings (`PartiallyGenerated`, `Availability`, `GenerationError`, `URLError`/HTTP) to these neutral values | — | — | — | — | Not in this item: WI-M2-M2 and WI-M2-M4 on the owner-run Mac. |
+
+Device ACs: none in this item.
+
+### Things the reviewer should look at closely
+- The iterator in `DraftPipeline.swift`: the cancellation order (D4), `next(isolation:)` passing the caller's actor
+  to the model iterator, and the unreachable `.ended` branch, which ends calmly instead of trapping.
+- The update rule (re-map every emitted draft on each snapshot, keeping its emission marker). It costs
+  O(drafts) mappings per snapshot. Brain-dumps hold a handful of items, so this is fine. The cost of `DraftMapper.map`
+  is pure string work.
+- D1 (the rule (a) field set) and D5 (the plain note trimmed only, no guard).
+- The oracle's independence: the timeline oracle shares `DraftMapper.map` (AC-M2-01/02) and the test double for
+  duplicates. It computes completion and update moments itself, and it does not call `hasValueForEveryField`.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| Conform the WI-M2-07 marker (`DuplicateMarker.mark`, PR #21) to `DraftDuplicateCheck` after both merge. It is called at emission and again by the ruling 5 re-mark (D7) | — | Integration after WI-M2-06 and WI-M2-07 merge; before WI-M2-08 |
+| Rule (a) can fire while a title is still a prefix, when a model sends fields out of declaration order (cloud JSON). The draft is emitted as "Buy" and corrected by `updated`, with a re-mark. The calm-words guard can remove a partial token (for example "Late" of "Latex gloves"), which a later update restores. Within the Definitions (PO ruling 2) and self-correcting (review F5, watch) | watch | WI-M2-12/13: test a title that arrives last; dev-set eval |
+| Adapter contract (end with a `ModelStopReason`; do not keep the returned stream; cancel all work in `onTermination`) is now in the `IngestionModel` doc (review F4). Part (3) is tested on the Mac | — | WI-M2-M2, WI-M2-M4, WI-M2-09 |
+| Routing produces `RoutedModel`, and its matrix uses `OnDeviceUnavailableReason` and `CloudProvider` from here | — | WI-M2-09 |
+| Adapters throw `ModelStopReason`; the mapping table is in `DraftStreamOutcomeTests.swift` | — | WI-M2-M2, WI-M2-M4, WI-M2-13 |
+| Commit takes confirmed drafts in ascending `draftID` (D6) and saves a plain note only on confirm | — | WI-M2-08 |
+| Not verified on Darwin | — | Plan B2, MS-2 |
+
+### Open questions (PO; built to the most literal reading, work continues)
+1. ~~**`completed` with no draft.**~~ **Closed: PO WI-M2-06 ruling 1.** Offer the input and the plain note. Built in
+   round 2.
+2. ~~**Rule (a) field set (D1).**~~ **Closed: ruling 2 confirms it as built.** Watch: a single item whose model leaves
+   out `roomName` or `sourcePhrase` completes only at (c).
+3. ~~**Plain note title (D5).**~~ **Closed: ruling 3 confirms it as built.**
+4. ~~**`cancelled` returns no input.**~~ **Closed: ruling 4 confirms it as built.** For M3: an app-initiated cancel
+   keeps the input itself.
+5. ~~**A marker after an update (D7).**~~ **Closed: ruling 5.** The stream re-marks. Built in round 2 (D7).
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Every draft field is still inferred (Q5). The plain note is one free-text draft with defaults. Nothing asks the user for a field. |
+| UX-2 Rule of Three | pass | The stream is a capture review API, not a "what to do now" surface. It exposes no candidates or next-up list. Drafts reach Now only after commit, through `NowSelector`. |
+| UX-3 Zero-Guilt | pass | Every title passes the calm-words guard before any event (scripted case and property). Outcome and reason names are calm and do not blame the user (D3; test plus the vocabulary scan, 0 violations). There is no failure or late state, and an error before a draft is a calm `noModel` with the user's words kept. |
+| UX-4 Design craft | n.a. | No UI. Copy and motion for these outcomes are M3. |
+| P-1 On-device inference | pass | The pipeline holds one routed model and never re-routes an on-device error to the cloud (D2; route stays `onDevice` in the AC-M2-10 tests). |
+| P-2 No data leaves device (except user iCloud) | pass | There is no networking (AC-M2-09 scan, 0 violations). The model request holds only the capture text and room names (ADR-0005 Decision 3). |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | No consent or routing logic here (WI-M2-09). The neutral cloud reasons map to calm outcomes. There is no retry or queue in the stream. |
+| P-4 Media not persisted without consent | pass | No write or log API. The input text is returned only in memory, and the plain note is saved only by commit. Cancel writes nothing. |
+
+### Round 2 (review round 1: CHANGES REQUIRED; PO rulings `po-m2-wi06.md`)
+The review is committed with this fix: [review-WI-M2-06.md](review-WI-M2-06.md). The numbers in this section replace
+the round 1 test and mutant numbers above.
+
+| Finding | Change |
+|---|---|
+| **F1 Major** (PO ruling 1) | `completed(route:input:plainNote:)`. The two new payloads default to nil. They are filled only when no draft was emitted, and the note is nil only for a blank input. The `input` and `plainNote` accessors return them. Tests: scripted cases "no items at all" (flipped), "every item skipped" (three `itemSkipped`, then `completed` with input and note) and "one draft then a normal finish" (both nil); a blank input with an empty output (input "  ", note nil); zero-draft `completed` on all 4 routes; accessors. The property oracle builds the outcome from its own count of `emitted` events, and `checkRules` checks both branches (`completedNoDraft` about 255 per seed). The two ruling 1 mutants are killed (12, 13). |
+| **F2 Major** (PO ruling 5) | `DraftStreamAssembler.refreshEmitted` works in three steps: (1) re-map the content of every emitted draft whose item is present; (2) if any content changed, run the check in ascending `draftID` from the lowest changed draft through every later draft, each against the latest lower drafts; (3) give one `updated` per draft whose content or marker changed. With no change there is no call. Updates still come before new emissions. Tests: "markers are re-checked after an update" (the flipped "set once" test); 5 re-mark cases (none to duplicate, duplicate to none, cascade with content unchanged, re-mark before a new emission, only the higher draft re-marked), each through both the assembler and the pipeline; the hook call log (flipped: (1, []), (1, []), (2, [1]), (3, [1, 2])); "a repeated identical snapshot calls the hook no more"; the invariant test (final markers = one pass over the final drafts). The property oracle writes the rule as a fresh marking pass from the first changed draft and checks the invariant on every script (0 misses). Mutants killed: "marker kept on update" (the round 1 code), "no cascade", "re-mark after new emissions", plus "re-mark even when nothing changed" and "re-mark against stale lower drafts". D7, the follow-ups and open question 5 are updated. |
+| **F3 Minor** | The calling rule is stated once, in the `DraftDuplicateCheck` doc. `DraftPipeline.init` points to it. |
+| **F4 Minor** | The `IngestionModel` doc now states the adapter contract: (1) end with a `ModelStopReason`; (2) do not keep the returned stream; (3) cancel all work in `onTermination`. The stale "added by WI-M2-06" sentence is replaced. Part (3) is for WI-M2-M2/M4 on the Mac (follow-up table). |
+| **F5 Minor (watch)** | Recorded under "Known limitations". No code change. |
+| **F6 Minor** | The cancellation tests read through `collectBounded`: it stops at the first `finished`, calls `next()` once more (which must be nil) and caps at 64 events. `cancelBeforeStart` gains a time limit. Reviewer mutant **M7** ("`isDone` not set on the cancellation path") is now killed by 5 assertion failures, with no hang. |
+| Brief | The PO's amendments, applied word for word to `brief.md`: the Definitions `updated` and `completed` bullets, the replaced `interrupted` sentence, the AC-M2-05 `updated` bullet sentence and the new AC-M2-05 bullet. No protected path is touched. |
+| Nit | The long header line in `DraftStreamAssembler.swift` is wrapped. |
+
+**Round 2 test runs** (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, 0 warnings):
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 157 tests in 18 suites passed after 9.546 seconds.` (152 + 5 new: re-mark cases, no update no calls, invariant, blank input `completed`, zero-draft `completed` per route; others extended). AC-M2-09 `18 files in total, 0 violations`; AC-M2-12 vocabulary `18 files, 9 exempted (the list), 0 violations` |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 89.956 seconds.` (unchanged) |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 3.710 seconds.` (unchanged) |
+
+**Round 2 AC-M2-05 property:** seeds `0x0A11C0DE5EED0601…0603`, 2,000 scripts each, **0 oracle mismatches, 0 invariant
+misses**. Per seed (0601 / 0602 / 0603):
+
+| Count | 0601 | 0602 | 0603 |
+|---|---|---|---|
+| emitted | 3,508 | 3,444 | 3,541 |
+| updated | 533 | 557 | 545 |
+| scripts with a re-marked update | 31 | 32 | 39 |
+| completed (of which with no draft) | 1,185 (255) | 1,199 (254) | 1,225 (259) |
+| interrupted | 553 | 534 | 513 |
+| noModel | 262 | 267 | 262 |
+
+The coverage check now also requires `completedNoDraft` and `remarked` on every seed.
+
+**Round 2 mutation check: 33 of 33 killed on the final code**, with no hang and no crash. The sources were identical
+to the pristine copy afterwards. Each mutant was run with `--filter "DraftStream|NoModel|CloudOutcome|PlainNote"`
+under a 420 s timeout.
+
+| # | Mutant | Failing tests |
+|---|---|---|
+| 0 | rule (a) off | 9 |
+| 1 | rule (b) off | 5 |
+| 2 | rule (c) off | 10 |
+| 3 | `draftID` counter advances on a skip | 4 |
+| 4 | no `updated` events | 8 |
+| 5 | re-mark after new emissions (emissions before updates) | 4 |
+| 6 | `updated` for unchanged drafts too | 2 |
+| 7 | marker not set at emission | 6 |
+| 8 | **marker kept on update** (the round 1 behaviour, reverse of ruling 5) | 5 |
+| 9 | **no cascade to later drafts** | 4 |
+| 10 | re-mark even when nothing changed | 2 |
+| 11 | re-mark against stale lower drafts | 4 |
+| 12 | **no plain note on `completed` with 0 drafts** | 5 |
+| 13 | **plain note on `completed` with ≥ 1 draft** | 10 |
+| 14 | `noModel` even after a draft | 6 |
+| 15 | `interrupted` even before a draft | 4 |
+| 16 | discarded item never reported | 5 |
+| 17 | a foreign error read as `refusal` | 3 |
+| 18 | `noModel` without the plain note | 4 |
+| 19 | input not returned with `interrupted` | 6 |
+| 20 | events accepted after `finished` | 1 |
+| 21 | rule (a) ignores `sourcePhrase` | 1 |
+| 22 | rule (a) counts a time hint with no anchor | 1 |
+| 23 | no cancellation check | 5 |
+| 24 | buffered events before `cancelled` | 2 |
+| 25 | cancellation keeps the model stream | 1 |
+| 26 | **M7: `isDone` not set on the cancellation path** (reviewer) | 5 (assertions, no hang) |
+| 27 | cloud route reported as `onDevice` | 5 |
+| 28 | no room names in the model request | 1 |
+| 29 | plain note collapses inner whitespace | 1 |
+| 30 | plain note not trimmed | 4 |
+| 31 | plain note returned when the M1 initialiser rejects it | 1 |
+| 32 | plain note `sourcePhrase` = title | 9 |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-21 | Orchestrator | Developer | accepted (H2) | WI-M2-06 Ready: WI-M2-05 merged (`2f9f86f`). Binding: D6 commit order; Linux parts only; no cloud transport. |
+| 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 152 green, TendCore 141, TendSourceScan 63, 0 warnings, Linux. AC-M2-05 property 6,000 scripts, 0 oracle mismatches. 27/27 mutants killed (no hang, no crash). 5 PO open questions; D7 duplicate hook point fits the WI-M2-07 contract. Pushed; no PR opened. |
+| 2026-11-21 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: F1, F2 Major (PO rulings 1, 5 in `po-m2-wi06.md`); F3–F6 Minor (F6: M7 hangs the suite). |
+| 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1 and F2 built with tests, oracle and reverse mutants; F3, F4, F6 fixed; F5 recorded. Brief amended as the PO wrote. TendIngestion 157, TendCore 141, TendSourceScan 63 green, 0 warnings. 33/33 mutants killed, M7 by assertion. Review file committed with the fix. |

@@ -140,8 +140,16 @@ public struct IngestionRequest: Hashable, Sendable {
 /// A language model that reads one capture and streams snapshots of its structured output (FR-A1).
 ///
 /// The stream ends normally when the model finishes, or throws when it fails or is cut off. Stream assembly
-/// (WI-M2-06) turns this into the draft stream events, which never throw. The availability and failure reasons that
-/// lead to `noModel` (AC-M2-10) are added to this contract by WI-M2-06.
+/// (`DraftPipeline`, WI-M2-06) turns this into the draft stream events, which never throw. Availability is not part of
+/// this protocol: routing gives a `RoutedModel`, and `RoutedModel.none` carries the `OnDeviceUnavailableReason`.
+///
+/// **Adapter contract** (WI-M2-M2 on-device, WI-M2-M4 cloud; tested on the owner-run Mac):
+/// 1. End the stream by finishing normally, or by throwing a `ModelStopReason`. Any other error is read as
+///    `otherModelError`.
+/// 2. Do not keep a reference to the returned `AsyncThrowingStream`. The pipeline releases its iterator when the
+///    consumer cancels; a reference kept by the adapter would stop the termination handler from running.
+/// 3. Cancel all model and network work in the stream's `onTermination` (the `streamResponse` loop, the URL session
+///    bytes task), so nothing keeps running after the user cancels or turns cloud off (P-3, WI-M2-09).
 public protocol IngestionModel: Sendable {
     func snapshots(for request: IngestionRequest) -> AsyncThrowingStream<IngestionSnapshot, any Error>
 }
