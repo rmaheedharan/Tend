@@ -24,8 +24,10 @@ public struct DraftPipeline: Sendable {
     ///   - input: the finished text or final transcript (brief Definitions "Brain-dump input").
     ///   - rooms: the household's rooms, for linking (AC-M2-04); their names go to the model as written (Q19).
     ///   - now, calendar, timeZone: the injected time inputs (AC-M2-01).
-    ///   - duplicateCheck: the duplicate rules (WI-M2-07). When it is called is stated once, in the
-    ///     `DraftDuplicateCheck` documentation (at emission, and again after updates, PO WI-M2-06 ruling 5).
+    ///   - duplicateCheck: the duplicate rules for the route that will run: `DraftDuplicateRules.onDevice(household:)`
+    ///     or `DraftDuplicateRules.cloud(_:capture:household:)` with this `input` as the capture (WI-M2-07). When it
+    ///     is called is stated once, in the `DraftDuplicateCheck` documentation (at emission, and again after updates,
+    ///     PO WI-M2-06 ruling 5).
     public init(input: String, rooms: [Room], now: Date, calendar: Calendar, timeZone: TimeZone,
                 duplicateCheck: any DraftDuplicateCheck) {
         self.mapper = DraftMapper(input: input, rooms: rooms, now: now, calendar: calendar, timeZone: timeZone)

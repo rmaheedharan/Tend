@@ -464,6 +464,36 @@ struct DuplicateMarkingTests {
         #expect(marked.duplicate == .ofExisting(H.pods.id))
     }
 
+    @Test("R21-F6 (PO WI-M2-06 ruling 5): a repeat call for a position that claims itself never makes the draft a repeat of itself")
+    func reCallSelfClaim() {
+        var marker = DuplicateMarker()
+        let check = ExistingTaskCheck.localWordMatch(Household(tasks: [], rooms: []))
+        _ = marker.mark(F.draft(1, "buy bread"), position: 1, claim: DuplicateClaim(), check: check)
+        _ = marker.mark(F.draft(2, "get bread"), position: 2, claim: DuplicateClaim(sameAsItem: 1), check: check)
+        // Position 2 is marked again after an update; the latest item claims position 2 (itself). The entry kept
+        // from the first call must not be read: only lower positions count.
+        let again = marker.mark(F.draft(2, "get bread"), position: 2, claim: DuplicateClaim(sameAsItem: 2), check: check)
+        #expect(again.duplicate == .none)
+        // Position 1 re-marked with a claim to itself: still none, and never ofDraft(1).
+        let first = marker.mark(F.draft(1, "buy bread"), position: 1, claim: DuplicateClaim(sameAsItem: 1), check: check)
+        #expect(first.duplicate == .none)
+    }
+
+    @Test("R21-F6 (PO WI-M2-06 ruling 5): re-marking in ascending position from the lowest changed one recomputes the cascade from the latest entries")
+    func reMarkCascade() {
+        var marker = DuplicateMarker()
+        let check = ExistingTaskCheck.localWordMatch(Household(tasks: [], rooms: []))
+        let one = marker.mark(F.draft(1, "buy bread"), position: 1, claim: DuplicateClaim(), check: check)
+        let two = marker.mark(F.draft(2, "get bread"), position: 2, claim: DuplicateClaim(sameAsItem: 1), check: check)
+        let three = marker.mark(F.draft(3, "bread"), position: 3, claim: DuplicateClaim(sameAsItem: 2), check: check)
+        #expect([one, two, three].map(\.duplicate) == [.none, .ofDraft(1), .ofDraft(1)])
+        // Item 2 drops its claim: re-mark 2, then every later position.
+        let twoAgain = marker.mark(F.draft(2, "get bread"), position: 2, claim: DuplicateClaim(), check: check)
+        let threeAgain = marker.mark(F.draft(3, "bread"), position: 3, claim: DuplicateClaim(sameAsItem: 2), check: check)
+        #expect(twoAgain.duplicate == .none)
+        #expect(threeAgain.duplicate == .ofDraft(2))
+    }
+
     @Test("AC-M2-07: marking keeps every other draft field, and replaces a marker already set")
     func keepsFields() {
         var marker = DuplicateMarker()
