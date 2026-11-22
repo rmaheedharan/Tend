@@ -186,7 +186,7 @@ struct DraftStreamDuplicateTests {
         }
     }
 
-    @Test("R22-R2-F2: the hook gets the item position, the latest claim and the latest queries; grown queries re-mark every draft, equal queries none")
+    @Test("R22-R2-F2: the hook gets the item position, the latest claim and the latest queries; grown queries re-mark every draft, equal queries and a kept claim none")
     func hookInputs() {
         let check = RecordingCheck()
         let a = S.item("Buy bread"), b = S.item("Get bread"), b1 = S.item("Get bread", sameAsItem: 2)
@@ -195,6 +195,7 @@ struct DraftStreamDuplicateTests {
             S.snapshot([S.item("  "), a, b], queries: ["bread"]),             // queries grew: re-mark 1 and 2
             S.snapshot([S.item("  "), a, b], queries: ["bread"]),             // nothing changed: no call
             S.snapshot([S.item("  "), a, b1], queries: ["bread"]),            // claim of draft 2 changed: re-mark 2
+            S.snapshot([S.item("  "), a, b1], queries: ["bread"]),            // the new claim is kept: no call
         ], check: check)
         let calls = check.fullCalls
         #expect(calls.map(\.entry.position) == [2, 3, 2, 3, 3])

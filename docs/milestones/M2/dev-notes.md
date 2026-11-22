@@ -1699,7 +1699,7 @@ variable broke the build (L2, W7). They were rewritten so that they compile, and
 | W3 completed included / W4 tie to the highest ID / W5 fewest shared wins | 4 / 3 / 3 |
 | W6 any shared keyword / W7 rooms ignored | 5 / 3 |
 | M1 no collapse to the first draft | in-input collapse, AC-M2-08 property (2) |
-| **M2 `k <= position`** | **equivalent.** A position is recorded only after its own `mark` call, so `k == position` never finds a draft under the one-call-per-position contract |
+| **M2 `k <= position`** | **Was equivalent only under the old one-call-per-position contract** (a position was recorded only after its own `mark` call). PO WI-M2-06 ruling 5 allows repeat calls, so it is no longer equivalent (review R21-F6, P6). **Killed in the WI-M2-06/07 integration** by "R21-F6 …: a repeat call for a position that claims itself …" (see that section, mutant M1) |
 | M3 index 0 accepted / M4 index off by one | 2 / 4 |
 | M5 existing claim before in-input | in-input over existing (1) |
 | M6 on-device falls back to the word-match | unseen title, AC-M2-08 property (2) |
@@ -1825,3 +1825,225 @@ fail the new floor tests.
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 150, TendSourceScan 63, TendCore 141 green, 0 warnings, Linux. AC-M2-07 property: 8,400 queries and 8,400 word-match drafts, 0 mismatches. AC-M2-08 marking: 0 mismatches. 32 of 33 mutants killed, 1 equivalent. Three open questions. Pushed; no PR opened. |
 | 2026-11-21 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: R21-F1 Major (PO WI-M2-07 ruling 1, word-match floor on every path); R21-F2, F3 Minor; F4, F5 Nit. PO rulings `po-m2-wi07.md`: 1 floor plus brief text; 2 `ofDraft(k)` never created (WI-M2-08); 3 D1–D8 accepted except D4. |
 | 2026-11-21 | Developer | Reviewer (via Orchestrator) | sent (round 2) | R21-F1 fixed (floor, oracle, asserted property, three hand cases, reverse mutants killed); brief amended with the PO's exact text (rulings 1 and 2); F2–F5 fixed. TendIngestion 155, TendSourceScan 63, TendCore 141 green, 0 warnings. 38 of 39 mutants killed, 1 equivalent. Review file committed with the fix. |
+
+## WI-M2-06/07 integration
+
+- **Owner:** Developer  ·  **Branch:** `m2/stream-duplicates`, from `origin/main` at `00928fc` (WI-M2-06 PR #22 and
+  WI-M2-07 PR #21 merged)  ·  **PR:** not opened (the Orchestrator opens it)  ·  **ADRs:** none new. Follows
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md): no new file under `Sources`, Foundation and TendCore
+  only, no I/O, no logging.
+- **Requirements:** FR-A1. AC-M2-05 (the `updated` bullet: "After `finished`, each draft's duplicate marker equals what
+  the duplicate rules give for the final drafts in `draftID` order"), AC-M2-07 (word-match floor on every path),
+  AC-M2-08 (marking half: "every planted exact-title duplicate whose room is compatible is marked on every path").
+- **Binding inputs:** PO WI-M2-06 ruling 5 (re-mark after updates), PO WI-M2-07 rulings 1 and 2, the integration
+  ticket and "From PR #21" in `po-q21-q22.md`, review tickets R22-R2-F1, R22-R2-F2 and R21-F6. **Must merge before
+  WI-M2-08 starts.**
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED`, M2 `IN-BUILD`. This is M2 work.
+- **Parallel work:** WI-M2-09 (routing and consent) is built elsewhere. This item does not touch `ModelRoute.swift` or
+  any routing code. `DraftPipeline.swift` changes only in one doc comment (the `duplicateCheck` parameter).
+
+### What changed
+- `Model/IngestionModel.swift`:
+  - `ItemSnapshot.sameAsItem: Int?` (the in-input claim) and `ItemSnapshot.sameAsExisting: ExistingTaskClaim?` (the
+    existing-task claim: `.lookupTitle(String)` on device, `.shortlistIndex(Int)` for cloud with Q12 = yes). Both are
+    neutral values. The schemas map into them (WI-M2-M2 `@Generable`, WI-M2-10 cloud schema, WI-M2-12 reader).
+    `ItemSnapshot.duplicateClaim` turns them into the WI-M2-07 `DuplicateClaim`.
+  - **The claims are not completion fields.** Rule (a) is still the nine fields (PO WI-M2-06 ruling 2). A claim that
+    arrives after emission re-marks the draft (below), so it is never lost.
+  - `IngestionSnapshot.lookupQueries: [String]`: on device, every query the duplicate `Tool` received so far in this
+    parse, in call order. Empty for cloud models.
+  - The `IngestionModel` adapter contract gains item 4: carry the Tool queries in every snapshot, yield one more
+    snapshot after a Tool call that no snapshot has carried yet, and have the Tool read the same `Household` value the
+    rules were given.
+- `Stream/DraftStreamEvent.swift`: `DraftDuplicateCheck.duplicate(of:earlier:lookupQueries:)` now takes
+  `DuplicateCheckEntry` values (draft, 1-based item position with skipped items counted, and the claim from the latest
+  item). Earlier entries carry their latest markers. The doc states the calling rule, and it now states the
+  **purity requirement** (R22-R2-F2).
+- `Stream/DraftStreamAssembler.swift`: the re-mark starts at the lowest draft whose **content or claim** changed. When
+  the snapshot's lookup queries differ from the last ones, it starts at draft 1. Everything else is as built in
+  WI-M2-06: updates come before new emissions, there is one `updated` per draft whose content or marker changed, and
+  there is no call when nothing the check reads changed.
+- `Duplicates/DuplicateMarker.swift`:
+  - The rules are one static function, `DuplicateMarker.duplicate(for:position:claim:check:earlierAt:)`. The stateful
+    `mark` (WI-M2-07's API, unchanged) and the new conformance both use it.
+  - New `DraftDuplicateRules: DraftDuplicateCheck` with `.onDevice(household:)` and
+    `.cloud(_ sharing:capture:household:)`. On device, title claims resolve through the replayed queries. On a cloud
+    path the check is fixed for the capture (Q12 = yes: the shortlist sent; Q12 = no: the word-match only), and lookup
+    queries are ignored.
+  - New `ExistingTaskCheck.toolQueries([String], Household)` and `ExistingTaskClaim`.
+  - The "once per draft" comments are replaced (R21-F6 (c)). The `mark` doc says that a re-mark must run in ascending
+    position over the lowest changed position and every later one.
+- `Duplicates/DuplicateLookup.swift`: `DuplicateLookupLog.taskID(forTitle:replaying:in:)` gives the same resolution
+  as the log (first match in call order, then rank order), over replayed queries. Each shortlist is computed only
+  until the title is found.
+- Tests (written first; the first build failed with "cannot find type 'ExistingTaskClaim' in scope"):
+  - new `DraftStreamDuplicateTests.swift` (11 hand-written tests and the end-to-end property, 3 seeds);
+  - `DraftStreamTests.swift`: R22-R2-F1, and the test doubles moved to the new signature;
+  - `DuplicateRulesTests.swift`: R21-F6 (1) and (2);
+  - `DraftStreamPropertyTests.swift`: the oracle passes item positions (signature only).
+- Not changed: `TendCore`, `TendSourceScan`, `ModelRoute.swift`, `IngestionDraft`, every protected path, every
+  dependency.
+
+### Decisions the Reviewer should know
+- **I1, the growing Tool log (R22-R2-F2): option (b), re-mark every draft when the log changes.**
+  - The log is carried as **queries**, not results. The household is fixed for the parse (Q7; the household value is
+    captured when the rules are made), so the results are a pure function of the queries. The check is then pure in
+    (entry, earlier entries, lookup queries) plus fixed context. The stream re-marks from draft 1 whenever the
+    queries differ from the ones used for the last marking.
+  - **Why not (a), freeze the log?** Frozen at the start, it is empty, so no title claim would ever count on device.
+    Frozen at each draft's emission, a claim the model wrote before the Tool call reached a snapshot stays
+    unresolved. That draft then falls to the floor, which can give `none`, and a repeat would be created. Option (b)
+    never does that.
+  - **Why not (c), prove it cannot matter?** It can matter. A model may name a title before the call shows in a
+    snapshot (for example, the user said the exact title). The e2e property plants this case
+    (`onDevice.claimBeforeQuery`, 683 drafts).
+  - **(b) only ever adds marks.** The household is fixed and the first match in call order wins, so a resolved title
+    keeps its task as the log grows. A re-mark can only turn an unresolved claim (the floor's answer, or `none`) into
+    the model's claim. It never turns a mark into `none`. So it can never let a repeat be created that (a) would have
+    caught.
+  - **This is what the brief says.** "On device: a title the `Tool` returned in this parse" (Definitions, word-match
+    floor) means the whole parse.
+  - It changes what the user may see: a marker can change after emission, through `updated`. The brief already allows
+    that (`updated` includes the marker). I built the option that never lets a repeat be created. **Open PO question
+    1** asks the PO to confirm.
+- **I2, the evidence rule for the ruling 5 invariant.**
+  - **Linux:** after `finished`, each draft's marker equals one pass of the rules in ascending `draftID` over the final
+    drafts. Each draft is read with its item position, the claim from the **final snapshot's** version of its item and
+    the **final snapshot's** `lookupQueries`. The household and path are the ones the rules were made with. The
+    invariant tests and the e2e property check exactly this, and the oracle (`DupOracle.marks` with
+    `queriesSoFar = final queries`) is built the same way.
+  - **On device (WI-M2-M2 and the eval, owner-run Mac):** the same rule. The adapter test records the final snapshot's
+    items and `lookupQueries` and the final `DraftStreamSummary`. It runs `DraftDuplicateRules.onDevice(household:)`
+    once over them and compares. It must also check that the Tool's own log equals `lookupQueries` of the final
+    snapshot (adapter contract item 4). A difference is a defect in the adapter, not in the rules.
+- **I3, a claim change is a re-mark trigger.** Ruling 5 says to re-mark "on a snapshot that produces updates". A claim
+  that arrives after rule (a) fired changes no draft field, but it changes what the rules read. So the stream re-marks
+  from that draft. It sends an `updated` only if the marker changes (test "a claim that arrives after emission …").
+  Without this, a late `sameAsItem` would be ignored and a repeat created.
+- **I4, the claim fields stay out of rule (a).** Adding them would hold back emission for every item whose model says
+  nothing, which would cost TTFI (AC-M2-16). Suggestion for WI-M2-M2 (technical): declare the claim properties
+  **before** the nine fields in the `@Generable` type, so that they are usually present at emission. Correctness does
+  not depend on this (I3).
+- **I5, positions.** The entry position is the item's 1-based position in the output, skipped items included (WI-M2-07
+  D2). The stateful `mark` and the pure rules resolve `sameAsItem` the same way. In the pure rules the
+  `k < position` guard is redundant, because `earlier` holds only lower positions. In `mark` it is load-bearing for
+  repeat calls, and it is now pinned (R21-F6 test, mutant M1).
+- **I6, commit order.** Unchanged: confirmed drafts go to commit in ascending `draftID`. `DraftStreamSummary.drafts` is
+  in that order after re-marks (test "D6: confirmed drafts stay in ascending draftID after re-marks").
+- **I7, cost.** A re-mark costs one floor scan of the household per draft. A title claim on device adds at most one
+  shortlist per replayed query, and only until the title is found. A Tool-log change re-marks all drafts, but it
+  happens a handful of times per parse. Measure on device (AC-M2-16) in WI-M2-M2.
+
+### AC coverage
+| AC | Test(s) | Result |
+|---|---|---|
+| AC-M2-05 re-mark rule (ruling 5) with the real rules | `DraftStreamDuplicateTests`, each through the assembler **and** `DraftPipeline`: "on device, a title claim the Tool had not returned yet is resolved when the lookup queries grow; every draft is re-marked"; "a claim that arrives after emission re-marks the draft"; "cascade through the stream: draft 2 drops its claim, so draft 3 (content unchanged) collapses into draft 2"; "positions count skipped items; a claim pointing at a skipped item is ignored"; "cloud Q12 = yes: an index claim marks the shortlist entry; Tool queries and title claims do not apply on this path"; "the word-match floor marks an exact repeat on every path, with no claim" | PASS (Linux) |
+| AC-M2-05 hook contract (R22-R2-F1, R22-R2-F2) | "only the highest draft retitled gives exactly one re-mark call, (3, [1, 2])"; "the hook gets the item position, the latest claim and the latest queries; grown queries re-mark every draft, equal queries none" (positions [2, 3, 2, 3, 3], queries [[], [], [bread], [bread], [bread]], latest claim, and earlier entries with latest markers) | PASS (Linux) |
+| AC-M2-05 invariant (ruling 5, I2) | "invariant with the real rules: after finished, the markers equal one pass over the final drafts, claims and queries" (3 scripts); the e2e property (below); the WI-M2-06 invariant test and property (unchanged meaning, new signature) | PASS (Linux) |
+| AC-M2-07 marker re-calls (R21-F6) | "a repeat call for a position that claims itself never makes the draft a repeat of itself"; "re-marking in ascending position from the lowest changed one recomputes the cascade from the latest entries" (3 → `ofDraft(2)`); "DraftDuplicateRules gives the same markers as DuplicateMarker.mark called once per position with the same evidence" (3 paths, with a skipped position) | PASS (Linux) |
+| Snapshot claim fields | "ItemSnapshot carries the model's two claims as neutral values; they map to DuplicateClaim and are not completion fields" | PASS (Linux) |
+| **AC-M2-05 + AC-M2-08 e2e property** | "AC-M2-05 + AC-M2-08: 600 seeded households × 3 paths through DraftPipeline …". Seeds `0x0D0B1E5EED060701…0703`, 200 households each, generated by the WI-M2-07 `DupHouseholdGenerator`. There are 3–12 items per script, planted as fresh, exact title, synonym, in-input, completed repeat, bogus claim or skipped. They run on device (the mock calls the Tool and carries its queries), cloud Q12 = yes (openAI route) and cloud Q12 = no (gemini route), each through the real `DraftPipeline` and `DraftDuplicateRules`. The snapshots are progressive: titles grow by prefixes, fields arrive at random steps, claims arrive at random steps (often after emission), and Tool calls are made at random steps (often after the claim). Reads are capped at 5,000 events. **Asserted per parse:** (1) the final `DraftStreamSummary.drafts` equal the oracle exactly: content from the shared `DraftMapper` (AC-M2-01/02) and markers from `DupOracle.marks` (independent of production) over the final claims and final queries; (2) the ruling 5 invariant as stated (one pass of the production rules); (3) every planted exact-title duplicate whose final room is compatible is marked; (4) a visible exact, synonym or in-input plant is never `none`; (5) the outcome, `draftID`s 1, 2, 3 …, `updated` only after `emitted`, and ascending `draftID` order. Coverage is required per seed and path | PASS (Linux): **0 oracle mismatches, 0 invariant misses** on every seed |
+
+**E2E property counts** (sum of the three seeds):
+
+| Count | On device | Cloud Q12 = yes | Cloud Q12 = no |
+|---|---|---|---|
+| exact-title plants / in a compatible room / marked | 641 / 601 / **641** | 641 / 601 / **641** | 641 / 601 / **609** (every compatible one; the rest are rooms the floor does not match) |
+| synonym plants / marked | 665 / 665 | 665 / 272 (the rest are outside the 10 titles sent) | 665 / 0 (by design) |
+| in-input plants / marked | 570 / 570 | 570 / 570 | 570 / 570 |
+| completed repeats / marked (a live task with the same words, never the completed one) | 607 / 230 | 607 / 230 | 607 / 230 |
+| drafts whose final marker differs from their emitted marker | 1,200 | 886 | 759 |
+| `updated` events | 9,009 | 9,049 | 8,744 |
+| claim written before its Tool call reached a snapshot (I1) | 683 | — | — |
+
+### Test runs
+| Command (`swift:6.2-noble`, Swift 6.2.x, `-Xswiftc -warnings-as-errors`, 0 warnings) | Summary line |
+|---|---|
+| `swift test --package-path Packages/TendIngestion` | `✔ Test run with 210 tests in 27 suites passed after 41.686 seconds.` (195 on `main` + 15 new; final run after the M16 test addition). AC-M2-09 `22 files in total, 0 violations`; AC-M2-12 vocabulary `22 files, 9 exempted (the list), 0 violations` |
+| `swift test --package-path Packages/TendSourceScan` | `✔ Test run with 63 tests in 4 suites passed after 5.421 seconds.` (unchanged) |
+| `swift test --package-path Packages/TendCore` | `✔ Test run with 141 tests in 18 suites passed after 121.517 seconds.` (unchanged) |
+
+### Mutation check
+Each mutant was applied alone to a scratch copy of the sources (never the worktree), run with
+`--filter "DraftStream|Duplicate|PlainNote|NoModel|CloudOutcome"` and `-warnings-as-errors` under a 900 s timeout,
+and then restored from the worktree. The copy was compared with the worktree afterwards (identical). Every async read
+in the new tests is capped (`collectCapped`, 5,000 events), and no mutant hung. **17 of 17 killed.** M5 first failed
+to compile (a redeclared name). It was rewritten so that it compiles, and it is killed by failing tests. M16
+**survived the first run**: the hook-input test had no snapshot after the claim change. That snapshot was added
+("… equal queries and a kept claim none"), and M16 is now killed.
+
+| # | Mutant | Failing tests |
+|---|---|---|
+| M1 | `k <= position` in the rules (R21-F6 (a); the reviewer's P6, WI-M2-07 M2) | 1: R21-F6 repeat-call self-claim |
+| M2 | no re-mark when the lookup queries change (option (a), frozen per draft) | 4, incl. the e2e property, Tool-log growth, real-rules invariant |
+| M3 | a claim change does not trigger a re-mark | 4, incl. the e2e property, late claim, cascade |
+| M4 | claim read from the emitted item, not the latest | 6, incl. the e2e property |
+| M5 | **R3b**: re-mark from draft 1 whenever anything changed (R22-R2-F1) | 2: "(3, [1, 2])", hook inputs |
+| M6 | earlier entries' positions = `draftID` | 3, incl. the e2e property, skipped positions |
+| M7 | emission position = `draftID` | 3, incl. the e2e property, skipped positions |
+| M8 | emission ignores the lookup queries | 1: the e2e property |
+| M9 | on-device rules ignore the lookup queries | 4, incl. the e2e property, rules = marker |
+| M10 | cloud rules use the lookup queries | 2: cloud Q12 = yes, rules = marker |
+| M11 | a re-mark sees stale lower markers | 3, incl. the e2e property, cascade |
+| M12 | replayed lookups: last match in call order | 1: the e2e property |
+| M13 | no floor on the replayed on-device path | 3, incl. the e2e property, floor on every path |
+| M14 | `duplicateClaim` drops `sameAsItem` when there is a title claim | 1: snapshot claims |
+| M15 | `updated` for every re-marked draft, changed or not | 2, incl. the WI-M2-06 property |
+| M16 | claims not stored after a re-mark (calls on every later snapshot) | 1: hook inputs (after the fix above) |
+| M17 | lookup queries not stored | 4, incl. the e2e property |
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendIngestion 210 tests: the stream with the real rules, R22-R2-F1/F2, R21-F6, the e2e property, AC-M2-09 and AC-M2-12 scans | ✔ container | — | — | — | Linux CI runs on the PR |
+| TendCore 141, TendSourceScan 63 (unchanged) | ✔ container | — | — | — | — |
+| The on-device adapter fills `sameAsItem`, `sameAsExisting` and `lookupQueries` (contract item 4) and the I2 device evidence rule | — | — | — | — | WI-M2-M2 on the owner-run Mac |
+| Cloud schemas fill the claims (index under Q12 = yes) | — | — | — | — | WI-M2-10, WI-M2-12 |
+| Re-mark cost on device (I7) | — | — | — | — | AC-M2-16 latency runs |
+
+Device ACs: none in this item.
+
+### Things the reviewer should look at closely
+- I1, the choice of option (b), and its argument that re-marks only add marks. I2, the evidence rule.
+- `refreshEmitted`: the trigger (content, claim or queries), and the `earlier` list built incrementally with the newly
+  computed markers.
+- The protocol change: every conformance must be pure (stated in the doc). `RecordingCheck` is impure on purpose
+  (it logs), but its result depends only on its inputs.
+- The e2e oracle's independence. It shares only `DraftMapper.map` (for content) and the WI-M2-07 household
+  generator. Markers come from `DupOracle`, which calls no production code. The mock's claims, visibility and Tool
+  queries come from the oracle's shortlist.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| The adapters must fill the claim fields and `lookupQueries` (contract item 4), and the Tool must read the rules' household value | — | WI-M2-M2 (on device), WI-M2-10/12 (cloud) |
+| Device evidence for the ruling 5 invariant per I2 | — | WI-M2-M2, eval harness |
+| `@Generable` property order: claims first (I4, technical suggestion) | — | WI-M2-M2 |
+| Commit: `DuplicateRecheck.atCommit`, ascending `draftID`, a confirmed `ofDraft(k)` never created (PO WI-M2-07 ruling 2) | — | WI-M2-08 (now unblocked once this merges) |
+| PO watch item (unchanged): the floor does not catch a missed in-input repeat | watch | dev-set eval before the AC-M2-14 freeze |
+
+### Open questions
+1. **PO (confirm, not blocking; built to the option that never lets a repeat be created):** on device, when the Tool's
+   log grows during a parse, the stream re-marks every draft (I1, option (b)). A draft first shown as "not a
+   repeat" (the floor found nothing, and the model's title claim was not yet backed by a Tool result) can then change
+   to "repeat of an existing task" through `updated`. A mark never goes away this way. Is that the intended meaning
+   of "a title the `Tool` returned in this parse"? If the PO prefers option (a) (each draft is judged against the log
+   at its last re-mark), the change is one line in `refreshEmitted`, but repeats could then be created.
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Markers are inferred and kept current. The user is asked nothing, and the review shows what commit will do (PO WI-M2-05 ruling 1). |
+| UX-2 Rule of Three | n.a. | No selection surface. Drafts reach Now only via commit and `NowSelector`. |
+| UX-3 Zero-Guilt | pass | No repeat state or copy. New names (`sameAsItem`, `sameAsExisting`, `lookupTitle`, `shortlistIndex`, `lookupQueries`, `DraftDuplicateRules`) pass the AC-M2-12 scan (0 violations). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | The rules are local and deterministic. Lookup queries are replayed on the phone's own household. |
+| P-2 No data leaves device | pass | Nothing new is sent. No networking, I/O or logging (AC-M2-09: 0 violations). |
+| P-3 Cloud AI opt-in, minimised | pass | Cloud paths read only the shortlist that ADR-0005 allows (Q12 = yes) or nothing (Q12 = no). No request field is added. Lookup queries are never used on a cloud path. |
+| P-4 Media not persisted | pass | Nothing is stored. The household is never changed (Q7). |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-06/07 integration ticket. Binding: PO WI-M2-06 ruling 5; R22-R2-F1, R22-R2-F2, R21-F6; ascending `draftID` commit order; e2e property on three paths. Must merge before WI-M2-08. |
+| 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 210, TendSourceScan 63, TendCore 141 green, 0 warnings, Linux. E2E property: 600 households × 3 paths through `DraftPipeline`, 0 oracle mismatches, 0 invariant misses, every compatible exact plant marked. 17 of 17 mutants killed, no hang. R22-R2-F1, R22-R2-F2 (option (b)), R21-F6 done. One PO question (confirm option (b)). Pushed; no PR opened. |
