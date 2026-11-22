@@ -164,6 +164,11 @@ the Now canvas only through the Rule of Three.
     - the rooms are compatible: either side has no room, or both are the same existing room (a proposed room never
       equals an existing room).
     If several tasks qualify, the one with the most shared keywords wins, then the lowest `id.uuidString`.
+- **Word-match floor (every path; PO 2026-11-21, WI-M2-07 Q1):** a draft with no valid in-input claim and no valid
+  existing-task claim (on device: a title the `Tool` returned in this parse; cloud with Q12 = yes: a valid shortlist
+  index) is checked on the phone with the local word-match rule above against the whole household, and is marked
+  `ofExisting(t)` when it qualifies. Order per draft: in-input claim, then the model's existing-task claim, then this
+  floor. It sends nothing. With Q12 = no it is the only existing-task check, as before.
 - **Duplicate:** a draft that describes the same real-world chore as either (a) an existing task that is not
   `completed`, or (b) an earlier draft in the same input. The same chore means the same action on the same thing, in the
   same room when a room is known. It does not depend on wording ("buy dish pods" = "we're almost out of dishwasher
@@ -264,7 +269,8 @@ unless I say so, so that capture feels instant and safe.
 - **AC-M2-06** Given any parse, when it runs, then nothing is written to the `HouseholdRepository`. When
   `commit(confirmed:)` runs, then:
   - Exactly the confirmed drafts that are not duplicates are upserted, together with their proposed rooms. The
-    `ofExisting` targets are checked again at commit (Definitions).
+    `ofExisting` targets are checked again at commit (Definitions). A confirmed `ofDraft(k)` is never created; if
+    draft k is not committed, that chore is not created.
   - Dismissed drafts and drafts left unconfirmed are not saved.
   - Each new task and room gets its ID from an injected ID generator. No two tasks in the household ever share an ID
     (W3-F6). If the generator returns an ID already in use, commit takes the next one and never overwrites.
@@ -279,7 +285,8 @@ so that my list never doubles up.
 - **AC-M2-07** Given a household and drafts (mock model plus the duplicate-lookup `Tool`), when duplicates are checked,
   then a draft matching an existing non-completed task is marked `duplicateOf(existingID)` and commit creates nothing
   for it. The existing task is not changed in M2 (Q7). A repeat within one input collapses into its first draft. A
-  match against a completed one-off or restock task is not a duplicate.
+  match against a completed one-off or restock task is not a duplicate. A draft the model did not validly mark is then
+  checked with the **word-match floor** (Definitions) on every path.
   - The `Tool` returns exactly the **duplicate shortlist** for its query (Definitions): at most 10 entries, only from
     the local household, and only title, kind and room name for each.
   - The shortlist and the local word-match rule (Definitions) equal an independent oracle over ≥ 500 seeded households
@@ -295,7 +302,9 @@ so that my list never doubles up.
 - **AC-M2-08** Given ≥ 500 seeded households and draft sets, including planted duplicates by exact title, by synonym
   (scripted in the mock) and within one input, when commit runs, then no committed task is a duplicate of another
   non-completed task under the deterministic rule the mock scripts, and no ID is repeated. The same holds for cloud
-  drafts marked through the local re-check, for both Q12 = yes and Q12 = no.  *Verification:* unit (property)
+  drafts marked through the local re-check, for both Q12 = yes and Q12 = no. Every planted exact-title duplicate whose
+  room is compatible (word-match rule) is marked on every path, whether or not it was on the Q12 shortlist.
+  *Verification:* unit (property)
   *Environment:* Linux.  *Evidence expected:* test name, seeds and counts.
 
 ### S-M2-04 What I say stays on my phone unless I chose a cloud model  (FR-A1, P-1, P-2, P-3, P-4)
@@ -934,7 +943,7 @@ Tester's script and the result is recorded (CLAUDE.md §5). M2 cannot be `ACCEPT
 | Q9 | W2-F3: should non-finite dates become a model invariant? | Yes. Add a `TaskInvariantViolation` case for a non-finite date (Designer names it), so both M1 stores agree. This is carried as a clause of **AC-M2-02** (T-21). The accepted M1 AC-M1-25 is not edited; the M2 AC extends it. No AC is removed. The parser never emits one (Q5). (PO default; Designer to name it) | M2 |
 | Q10 | W3-F6: duplicate task IDs. | Forbidden. Commit takes IDs from an injected generator and the household never holds two tasks with one ID (AC-M2-06). Sync-time collisions are M5. (PO default) | M2; M5 for sync |
 | Q11 | Does a long dump break the Rule of Three? | No. The draft stream is a review of what was just captured, not a "what to do now" surface. Committed tasks reach Now only through `NowSelector` (≤ 3). How many drafts are shown at once is an M3 design question. (PO default) | M3 design |
-| Q12 | For cloud duplicate checks, may Tend send up to 10 existing task **titles** (pre-filtered on the phone, no IDs, no other fields)? Without them, the cloud can only catch duplicates inside one capture; duplicates of existing tasks are left to a local word-match check, which misses synonyms ("buy dish pods" vs "dishwasher pods"). | **Yes, at most 10 titles**, chosen by the deterministic **duplicate shortlist** (Definitions; T-06) and named on the consent screen. If the owner says no, room names only are sent, and AC-M2-26's duplicate threshold applies to the **local word-match** re-check (Definitions). The AC-M2-20 golden requests are then regenerated under a PO decision. **PO default, owner may change.** | Before M2 build |
+| Q12 | For cloud duplicate checks, may Tend send up to 10 existing task **titles** (pre-filtered on the phone, no IDs, no other fields)? Without them, the cloud can only catch duplicates inside one capture; duplicates of existing tasks are left to a local word-match check, which misses synonyms ("buy dish pods" vs "dishwasher pods"). | **Yes, at most 10 titles**, chosen by the deterministic **duplicate shortlist** (Definitions; T-06) and named on the consent screen. If the owner says no, room names only are sent, and AC-M2-26's duplicate threshold applies to the **local word-match** re-check (Definitions). The AC-M2-20 golden requests are then regenerated under a PO decision. **PO default, owner may change.** Titles outside the 10 are never sent; the word-match floor catches their exact and near-exact repeats on the phone (PO 2026-11-21). | Before M2 build |
 | Q13 | Support a custom endpoint (another "OpenAI-compatible" server, a self-hosted model)? | **No.** Fixed hosts only (ADR-0005). A custom endpoint would let household text go to any server and needs its own ADR. | Before M3 |
 | Q14 | May a raw photo or document go to a cloud model (M4 camera and Share Sheet)? | **No by default.** On-device Vision/VisionKit extracts text and only that text is sent. Raw images need an ADR-0005 addendum and a separate consent line in M4. | M4 |
 | Q15 | What are the cloud latency targets, and on what network? | TTFI < 3.0 s and total ≤ 10.0 s **per input**, on home Wi-Fi (the run record states the network and a speed-test result). One retry for 429/5xx must fit inside the total, under the AC-M2-22 deadline rule (Q22). (PO default; the owner may tighten it.) | Before AC-M2-14 is frozen |
