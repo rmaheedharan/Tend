@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-07, PR #21 (`m2/duplicate-rules`)
 
-- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 1 (head `8d463da`)
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE (round 2, head `5635f15`; round 1 at `8d463da` was CHANGES REQUIRED)  ·  **Round:** 2 (see [Round 2](#round-2--head-5635f15) at the end)
 - **Requirements:** FR-A1, Q7, Q12, T-06, UX-3. ACs: the **Linux half of AC-M2-07** (shortlist, neutral lookup,
   in-input collapse, cloud re-check under Q12 = yes, local word-match under Q12 = no) and the **marking half of
   AC-M2-08** (plan WI-M2-07, both ○). Related: AC-M2-06 (commit re-check, WI-M2-08), AC-M2-20 (Q12 = yes titles,
@@ -150,3 +150,98 @@ the worktree was never modified, `git status` clean):
 | 2026-11-21 | Orchestrator | Reviewer | accepted | PR #21 at `8d463da`; focus on D1, D2, D3, D5, the whole-capture shortlist, oracle independence and coverage claims. |
 | 2026-11-21 | Orchestrator | Reviewer | accepted | PO rulings `po-m2-wi07.md` relayed mid-review; ruling 1 recorded as R21-F1. |
 | 2026-11-21 | Reviewer | Developer (via Orchestrator) | returned | CHANGES REQUIRED: R21-F1 (Major, PO ruling 1 word-match floor). Minors R21-F2, F3 and Nits F4, F5 can be fixed in the same round. Re-review will be a new round in this file. |
+
+---
+
+## Round 2 — head `5635f15`
+
+- **Verdict:** **APPROVE.** No open Blocker or Major. R21-F1 to R21-F5 are closed, each checked in the new diff.
+  R21-F6 (new, Minor) and R21-F7 (new, Minor, for the PO) do not block.
+- **Commits reviewed:** `0343442` (code and tests, plus the round 1 review file), `a64c90c` (PO brief amendment),
+  `5635f15` (dev notes). Diff `8d463da..5635f15`. It touches only `Packages/TendIngestion/**` (the `Duplicates`
+  sources and four test files), `docs/milestones/M2/brief.md`, `dev-notes.md` and this file. No protected path, no
+  dependency, no change to `TendCore` or `TendSourceScan`.
+- **Milestone lock:** unchanged (M1 `ACCEPTED`, M2 `IN-BUILD`).
+- **Extra input:** PO WI-M2-06 ruling 5 (`po-m2-wi06.md`, the re-mark on update that PR #22 will add). The
+  Orchestrator asked me to say what in `DuplicateMarker` would break if it is called again for the same position.
+
+### Closure of round 1 findings
+| # | Was | Verified in round 2 | Status |
+|---|---|---|---|
+| R21-F1 | Major | **Code:** `DuplicateMarker.swift:99-114` now runs, per draft: (1) a valid in-input claim gives `ofDraft` (root); (2) the model's existing-task claim (device: a `sameAsTitle` the Tool returned; Q12 = yes: index 1…count) gives `ofExisting`; (3) the floor `LocalWordMatch.target(for: draft, in: check.household)` on **every** path; (4) `none`. `ExistingTaskCheck.sentShortlist(entries, household)` carries the household; `.toolLookups(log)` uses `log.household`; `CloudTitleSharing` builds both parts from one household, so the sent titles and the floor cannot drift apart. This is exactly the PO ruling 1 order. **Oracle:** `DuplicateOracle.swift:244-247` applies the floor after the per-path claim with its own brute-force `wordMatch`, still with no production calls. **Property:** `DuplicatePropertyTests.swift:388-394` now **asserts** that every exact-title plant whose room is compatible is marked, on all three paths. On every seed it also requires that compatible exact plants occur and that the floor did some work under Q12 = yes. **Hand cases** (ruling item 3): on device with no claim, the floor marks; an unseen Tool title gives way to the floor, and with no word match stays `none`; the model's claim beats the floor (device title and cloud index); an exact repeat ranked 11th under Q12 = yes is marked by the floor, also with a guessed index 11. **Dev notes** D3, D4, the marking table, open question 1 and the mutation table are updated. | Closed |
+| R21-F2 | Minor | New test `titleTrimmedOfNewlines` (`"\n\tBuy  dish pods \n"` → `"Buy  dish pods"`, shortlist and lookup). The generator wraps some repeated titles in `\n\t … \n`. My round 1 mutant G is killed (dev notes; I did not re-run G myself, but the new hand test fails it by construction). | Closed |
+| R21-F3 | Minor | The oracle now splits on the first scalar's general category (L* or Nd), which is the brief's "Unicode letter or decimal digit". New hand test with `½`, `²` and `Ⅷ`, plus `3` as a keyword. | Closed |
+| R21-F4 | Nit | `LocalWordMatch.swift:60-66`: a draft `existing(id)` with no such room now counts as no room; the oracle matches; there is a new hand case. | Closed |
+| R21-F5 | Nit | `for _ in`; the `_ = position` line is gone. | Closed |
+
+### Brief amendment (`a64c90c`) compared with `po-m2-wi07.md`
+I compared each inserted sentence with the ruling's quoted text. **All five are word for word:**
+- the Definitions bullet "Word-match floor (every path; PO 2026-11-21, WI-M2-07 Q1)", placed right after "Local
+  duplicate re-check for cloud drafts", as the ruling says;
+- the AC-M2-07 sentence appended to the first paragraph;
+- the AC-M2-08 sentence;
+- the Q12 answer sentence;
+- the AC-M2-06 first-bullet sentence (ruling 2).
+
+No AC text was removed or weakened (stricter only). One gap is in the PO's own artifact, not in the code: see R21-F7.
+
+### New findings
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| R21-F6 | Minor | `Sources/TendIngestion/Duplicates/DuplicateMarker.swift:5`, `:74`, `:92`, `:99`; `Tests/TendIngestionTests/DuplicateRulesTests.swift` (no re-call test) | **Being called again for the same position (PR #22, PO WI-M2-06 ruling 5).** Nothing in the logic breaks: `mark` overwrites `marked[position]`, and the `k < position` guard means a re-mark reads only lower positions. So re-marking from the lowest updated position up to the last one, in ascending order (the ruling's rule), recomputes every cascade from the latest entries. Three things are not covered, though. (a) **The guard is now load-bearing, and no test pins it.** My mutant P6 (`k <= position`) **survives** all tests. Under a re-call, `sameAsItem == position` would find the draft's own earlier entry and mark it `ofDraft` of itself or of its old root. The dev notes still list M2 as "equivalent", which held only under the old one-call contract. (b) **Correctness depends on the caller re-marking every later position.** If a lower position changes and a later one is not re-marked, the later one can keep `ofDraft(old root)`, which is no longer a root. That is the ruling's "every later emitted draft" rule, so it belongs to WI-M2-06, but nothing in this type says so. (c) The file comment (line 5) and the `mark` doc still say "once per draft". | In this PR or, at the latest, in the WI-M2-06/07 integration change: (1) add a hand test that calls `mark` again for an already-marked position with `sameAsItem == position` and expects no self-reference, and show P6 killed; (2) add a cascade test: mark positions 1–3 (3 is `ofDraft` of 2, 2 is `ofDraft` of 1), re-mark 2 with no claim and then 3, and expect 3 to become `ofDraft(2)`; (3) update the comment and the `mark` doc to say that a re-mark must run in ascending position over the lowest changed position and every later one; (4) correct the M2 "equivalent" line in the dev notes. | Open (ticket; does not block) |
+| R21-F7 | Minor (PO) | `docs/milestones/M2/brief.md` (no decision-log or change-record row) | PO ruling 1 lists "Decision log row in the brief + DECISIONS.md entry (governance PR, human merge)". The five text changes are in the brief, but the brief has no row recording them. The DECISIONS.md entry is correctly left for the human-merged governance PR. | PO: add the brief row (and the DECISIONS.md entry) in the next PO or governance docs PR. No code change. | Open (PO ticket) |
+
+**Note for WI-M2-06 / the integration ticket (not a finding on this PR).** Ruling 5's invariant says that after
+`finished`, each marker equals what the check gives "when run once over the final drafts in ascending `draftID`". On
+device, the `ExistingTaskCheck` evidence changes during a parse, because the Tool log grows. A draft below the
+re-marked range keeps the mark it got from an older log, while a single run at `finished` would use the final log, so
+an on-device title claim the Tool confirms only later could give a different answer. WI-M2-06 must say which evidence
+the invariant uses: the evidence at each draft's last check, or the final evidence with every draft re-marked. Its
+oracle must then use the same definition.
+
+### Tests (re-run by the Reviewer)
+`swift:6.2-noble`, the CI commands with `-Xswiftc -warnings-as-errors`, `--scratch-path /tmp/rev21-<pkg>`, worktree
+mounted read-only at `5635f15`:
+
+| Package | Result |
+|---|---|
+| TendCore | `Build complete!`; `✔ Test run with 141 tests in 18 suites passed after 103.686 seconds.` |
+| TendSourceScan | `Build complete!`; `✔ Test run with 63 tests in 4 suites passed after 1.583 seconds.` |
+| TendIngestion | `Build complete!`; `✔ Test run with 155 tests in 18 suites passed after 18.356 seconds.` 0 warnings |
+| Tools/TendTools | not present (the CI step exits 0) |
+
+The property logs reproduce the dev notes:
+- AC-M2-07: 2,800 queries per seed, 7,903 + 7,977 + 8,369 = 24,249 entries. 0 shortlist mismatches and 0 word-match
+  mismatches on all three seeds.
+- AC-M2-08: 0 oracle mismatches on all three seeds. Under Q12 = yes, every exact plant is compatible and every one is
+  marked: 292/292, 261/261 and 245/245. The floor alone marked 19, 26 and 21 of them, exactly the visible gap
+  (273, 235 and 224 visible).
+
+### My mutants on the floor (copy at `/tmp/rev21-mutsrc2`, `--filter "Duplicate|LocalWordMatch"`; the worktree was never modified)
+| Mutant | Result |
+|---|---|
+| P1 the floor runs only when there is no title claim (an unseen title blocks it) | killed (9) |
+| P2 under Q12 = yes the floor may only pick tasks that were sent | killed (70) |
+| P3 the floor runs before the in-input claim | killed (12) |
+| P4 the on-device floor reads an empty household | killed (12) |
+| P5 the floor ignores the draft's room | killed (5) |
+| P6 `k <= position` (a self-claim on a re-call) | **survived** → R21-F6 |
+| P7 an extra floor fallback on exact raw title, completed tasks included | killed (1,447) |
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | The floor marks repeats without asking the user anything. |
+| UX-2 Rule of Three | pass | No selection surface; the shortlist is still capped at 10 and never shown as "what to do now". |
+| UX-3 Zero-Guilt | pass | No repeat state or copy. The floor never targets a completed task (asserted; P7 killed). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | The floor is local and deterministic. |
+| P-2 No data leaves device (except user iCloud) | pass | No I/O, networking or logging. The household in `.sentShortlist` is used only on the phone, and the payload still takes only the titles (WI-M2-10). |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | Still ≤ 10 trimmed titles under Q12 = yes; the floor sends nothing (ADR-0005 Decision 3 unchanged). |
+| P-4 Media not persisted without consent | pass | Nothing persisted; household unchanged (Q7 test). |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-22 | Orchestrator | Reviewer | accepted | Round 2 at `5635f15`. Check R21-F1 to F5, the brief text against `po-m2-wi07.md`, floor mutants, and re-call safety for PR #22. |
+| 2026-11-22 | Reviewer | Orchestrator → Merge Gatekeeper, Tester; tickets to Developer (R21-F6, WI-M2-06/07 integration) and PO (R21-F7) | sent | APPROVE. F1 to F5 closed. Brief text matches the PO's word for word. 6 of 7 floor mutants killed; the survivor P6 is R21-F6 (Minor, re-call contract). |
