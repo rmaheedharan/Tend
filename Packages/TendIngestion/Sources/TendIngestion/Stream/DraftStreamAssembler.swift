@@ -12,8 +12,8 @@
 //   A Q5 skip gives `itemSkipped(reason)`.
 // - **The duplicate hook (WI-M2-07 contract; PO WI-M2-06 ruling 5).** At emission, the check is called once per draft
 //   position, in output order, before that draft's `emitted` (`completeNext`), with the latest lower drafts. It gets
-//   each draft's item position (skipped items included), the model's claim from the latest item, and the latest
-//   snapshot's lookup queries (`DuplicateCheckEntry`; WI-M2-06/07 integration).
+//   each draft's item position (skipped items included), the model's claim from the last version of its item that
+//   mapped to a draft (review R23-F1), and the latest snapshot's lookup queries (`DuplicateCheckEntry`; WI-M2-06/07 integration).
 // - **Updates and re-marking.** On each snapshot, every emitted draft whose item is still in the snapshot is mapped
 //   again with its `draftID`, and its claim is read again. If any draft's content or claim changed, the check runs
 //   again in ascending `draftID` for the lowest changed draft and every later emitted draft, each against the latest
@@ -57,7 +57,8 @@ struct DraftStreamAssembler: Sendable {
     private var drafts: [IngestionDraft] = []
     /// The item index of each emitted draft; index = `draftID` - 1.
     private var itemIndexOfDraft: [Int] = []
-    /// The model's claim of each emitted draft, from the latest version of its item; index = `draftID` - 1.
+    /// The model's claim of each emitted draft, from the last version of its item that mapped to a draft (a version
+    /// that Q5 skips, or an item missing from a shorter snapshot, keeps the last claim; R23-F1); index = `draftID` - 1.
     private var claims: [DuplicateClaim] = []
     /// The latest snapshot's lookup queries: the ones every current marker was computed with.
     private var lookupQueries: [String] = []

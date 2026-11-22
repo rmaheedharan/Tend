@@ -40,38 +40,21 @@ public enum RoomLinker {
     ///   created earlier in this plan for the same folded name, else a new room named `name` with an ID from `makeID`.
     ///   So names that fold the same create one room, and no room duplicates an existing one;
     /// - `none`: nil.
-    public static func commitPlan(
+    ///
+    /// **Precondition on `makeID` (review R19-F2):** it must return an ID that is not in use (no household task or
+    /// room has it) and was not returned before. This function does not check it. `DraftCommit` is the caller that
+    /// guarantees it: its ID source skips every ID in use or already issued (AC-M2-06, W3-F6).
+    public static func commitPlan<E: Error>(
         for confirmed: [DraftRoom],
         existing rooms: [Room],
-        makeID: () -> UUID
-    ) -> RoomCommitPlan {
-        let existingIDs = Set(rooms.map(\.id))
-        var created: [String: Room.ID] = [:]
-        var newRooms: [Room] = []
+        makeID: () throws(E) -> UUID
+    ) throws(E) -> RoomCommitPlan {
+        var resolver = CommitRoomResolver(existing: rooms)
         var roomIDs: [Room.ID?] = []
         for room in confirmed {
-            switch room {
-            case let .existing(id):
-                roomIDs.append(existingIDs.contains(id) ? id : nil)
-            case .none:
-                roomIDs.append(nil)
-            case let .proposed(name):
-                let folded = TextFolding.foldName(name)
-                if folded.isEmpty {
-                    roomIDs.append(nil)
-                } else if let match = lowestRoom(foldingTo: folded, in: rooms) {
-                    roomIDs.append(match.id)
-                } else if let id = created[folded] {
-                    roomIDs.append(id)
-                } else {
-                    let newRoom = Room(id: makeID(), name: name)
-                    created[folded] = newRoom.id
-                    newRooms.append(newRoom)
-                    roomIDs.append(newRoom.id)
-                }
-            }
+            roomIDs.append(try resolver.resolve(room, makeID: makeID))
         }
-        return RoomCommitPlan(newRooms: newRooms, roomIDs: roomIDs)
+        return RoomCommitPlan(newRooms: resolver.newRooms, roomIDs: roomIDs)
     }
 
     /// The room with the lowest `id.uuidString` among those whose folded name equals `folded`.
@@ -79,5 +62,57 @@ public enum RoomLinker {
         rooms
             .filter { TextFolding.foldName($0.name) == folded }
             .min { TextFolding.utf8Precedes($0.id.uuidString, $1.id.uuidString) }
+    }
+}
+
+/// Commit-time room resolution, one confirmed draft at a time (AC-M2-04; PO WI-M2-04 ruling 2). `commitPlan` and
+/// `DraftCommit` share it, so both apply the same rules in the same order.
+struct CommitRoomResolver {
+    /// The household's rooms at commit.
+    let existing: [Room]
+    private let existingIDs: Set<Room.ID>
+    /// Rooms created so far, in creation order.
+    private(set) var newRooms: [Room] = []
+    /// Folded name → the room created for it.
+    private var created: [String: Room.ID] = [:]
+
+    init(existing: [Room]) {
+        self.existing = existing
+        existingIDs = Set(existing.map(\.id))
+    }
+
+    /// The household's rooms followed by the ones created so far.
+    var allRooms: [Room] { existing + newRooms }
+
+    /// What `resolve` would give, without creating anything: the room, or `proposed(name)` when a new room would be
+    /// made. `existing(id)` of a room that is gone, and a name that folds to empty, give `none`.
+    func peek(_ room: DraftRoom) -> DraftRoom {
+        switch room {
+        case .none:
+            return .none
+        case let .existing(id):
+            return existingIDs.contains(id) ? .existing(id) : .none
+        case let .proposed(name):
+            let folded = TextFolding.foldName(name)
+            if folded.isEmpty { return .none }
+            if let match = RoomLinker.lowestRoom(foldingTo: folded, in: existing) { return .existing(match.id) }
+            if let id = created[folded] { return .existing(id) }
+            return .proposed(name)
+        }
+    }
+
+    /// The room ID a confirmed draft gets; creates a room (ID from `makeID`) when `peek` says a new one is needed.
+    mutating func resolve<E: Error>(_ room: DraftRoom, makeID: () throws(E) -> UUID) throws(E) -> Room.ID? {
+        switch peek(room) {
+        case .none:
+            return nil
+        case let .existing(id):
+            return id
+        case let .proposed(name):
+            let newRoom = Room(id: try makeID(), name: name)
+            created[TextFolding.foldName(name)] = newRoom.id
+            newRooms.append(newRoom)
+            return newRoom.id
+        }
     }
 }

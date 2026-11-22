@@ -140,6 +140,24 @@ struct DraftStreamDuplicateTests {
         ])
     }
 
+    @Test("R23-F1: an emitted draft whose item is later skipped by Q5, or missing from a shorter snapshot, keeps its last content and its last claim (no updated)")
+    func skippedItemKeepsLastClaim() async {
+        let first = S.snapshot([S.item("Buy bread"), S.item("Get bread", sameAsItem: 1)])
+        let expected: [Ev] = [
+            .emitted(1, "Buy bread"), .emitted(2, "Get bread", .ofDraft(1)), .finished(.completed(route: .onDevice)),
+        ]
+        // Item 2 re-maps to a Q5 skip (no title) and its claim is gone.
+        await S.expectBoth([first, S.snapshot([S.item("Buy bread"), S.item("   ")])], check: Self.device, expected)
+        // Item 2 is missing from the snapshot.
+        await S.expectBoth([first, S.snapshot([S.item("Buy bread")])], check: Self.device, expected)
+        // The summary (the commit input) keeps the claim's marker.
+        var summary = DraftStreamSummary()
+        for event in S.assemble([first, S.snapshot([S.item("Buy bread"), S.item("   ")])], check: Self.device) {
+            summary.apply(event)
+        }
+        #expect(summary.drafts.map(\.duplicate) == [.none, .ofDraft(1)])
+    }
+
     @Test("PO ruling 5 / R21-F6: cascade through the stream: draft 2 drops its claim, so draft 3 (content unchanged) collapses into draft 2")
     func cascade() async {
         await S.expectBoth([
