@@ -273,6 +273,31 @@ struct CommitRepositoryContractTests {
         }
     }
 
+    @Test("R25-F1 (AC-M2-06): a room ID an existing task still points to (its room is gone) and IDs removed since the parse are in use; a new room never takes them", arguments: CommitRepositoryKind.allCases)
+    func danglingAndRemovedIDsInUse(kind: CommitRepositoryKind) async throws {
+        let missingRoom = C.id("0000000000DD")
+        let dust = DupFixture.task(C.id("00000000000D"), "Dust the shelf", room: missingRoom)   // reviewer's probe P1
+        let plants = DupFixture.task(C.id("00000000000E"), "Water the plants")                 // removed since the parse
+        let parsed = Household(tasks: C.household.tasks + [dust, plants], rooms: C.household.rooms)
+        let atCommit = Household(tasks: C.household.tasks + [dust], rooms: C.household.rooms)
+        try await C.withRepository(kind, holding: atCommit) { repository, reopen in
+            // Room of draft 1: …DD (dangling), …0E (removed since the parse), then F…01. Its task: …DD again, F…02.
+            var ids = ScriptedIDs([missingRoom, plants.id, C.fresh(1), missingRoom, C.fresh(2)])
+            ids.freshCount = 2
+            let plan = try await DraftCommit.commit(
+                confirmed: [C.draft(1, "Mend the fence", room: .proposed("Porch"))], parsedWith: parsed,
+                to: repository, ids: &ids)
+            #expect(plan.newRooms == [Room(id: C.fresh(1), name: "Porch")])
+            #expect(plan.newTasks.map(\.id) == [C.fresh(2)])
+            #expect(ids.draws == 5)
+            for stored in [try await repository.load(), try await reopen().load()] {
+                #expect(stored.tasks.first { $0.id == dust.id } == dust)
+                #expect(!stored.rooms.contains { $0.id == missingRoom }, "the old task's room must stay missing")
+                #expect(!stored.tasks.contains { $0.id == plants.id })
+            }
+        }
+    }
+
     @Test("R19-F2: a generator that only returns IDs in use ends with idGeneratorExhausted before any write", arguments: CommitRepositoryKind.allCases)
     func stuckGenerator(kind: CommitRepositoryKind) async throws {
         try await C.withRepository(kind, holding: C.household) { repository, _ in
@@ -543,6 +568,23 @@ struct CommitRuleTests {
         }
         #expect(try await refusing.stored() == Household(tasks: C.household.tasks,
                                                          rooms: C.household.rooms + planned.newRooms))
+    }
+
+    @Test("R25-F2: a refused later task write reports the tasks already written (tasksWritten), and they are stored")
+    func refusedLaterTaskWrite() async throws {
+        let refusing = try await SpyRepository.make(C.household, refusedWrite: 2)
+        let drafts = [C.draft(1, "Mend the fence"), C.draft(2, "Call the plumber"), C.draft(3, "Paint the gate")]
+        var expectedIDs = ScriptedIDs()
+        let planned = try DraftCommit.plan(confirmed: drafts, parsedWith: C.household, household: C.household,
+                                           ids: &expectedIDs)
+        var ids = ScriptedIDs()
+        await #expect(throws: CommitError.writeStopped(.writeUnsuccessful, planned: planned, roomsWritten: 0,
+                                                       tasksWritten: 1)) {
+            try await DraftCommit.commit(confirmed: drafts, parsedWith: C.household, to: refusing, ids: &ids)
+        }
+        #expect(await refusing.calls == [.load, .upsertTask(C.fresh(1)), .upsertTask(C.fresh(2))])
+        #expect(try await refusing.stored() == Household(tasks: C.household.tasks + [planned.newTasks[0]],
+                                                         rooms: C.household.rooms))
     }
 
     @Test("AC-M2-06: a parse writes nothing to the HouseholdRepository; only commit writes")

@@ -81,6 +81,9 @@ public enum DraftCommit {
     ///   never stored before its room. Nothing else is written; no existing task or room is changed.
     /// - If nothing is confirmed, the repository is not called at all.
     ///
+    /// Cancellation does not interrupt a commit: once it has started, it runs to completion (or to a refused write)
+    /// even if its task is cancelled, so a cancel never leaves a commit half written by itself (review R25-N1).
+    ///
     /// Each repository call is atomic (AC-M1-04), but the commit as a whole is not: a refused write stops it, and
     /// `writeStopped` says exactly what was stored. Another writer that adds tasks between this commit's `load()` and
     /// its writes is not seen by the duplicate re-check (the app runs one commit at a time per household; M5 sync
@@ -127,10 +130,9 @@ public enum DraftCommit {
     ///      is the same chore as t, so the same chore as that draft);
     ///   2. else the word-match floor (`LocalWordMatch`, the Definitions rule) over the household's tasks: a match is
     ///      `alreadyOnList`;
-    ///   3. else the floor with **t's own title and room** (t as it was in `parsed`) over the household's tasks: a
-    ///      live task that repeats t is the same chore as this draft (two tasks with the same folded title are one
-    ///      chore, PO WI-M2-07 ruling 3, D1), so it is `alreadyOnList`. This catches a synonym draft whose claim named a
-    ///      twin of a task that is still live;
+    ///   3. else the word-match floor on **t's title and room** (t as it was in `parsed`) over the household's tasks:
+    ///      a live task that repeats t is the same chore as this draft, so it is `alreadyOnList`. This catches a
+    ///      synonym draft whose claim named a twin of a task that is still live (PO WI-M2-08 ruling 1);
     ///   4. else the floor with the draft's title over the tasks this commit has created so far: a match is
     ///      `sameChoreAsDraft`;
     ///   5. else it is created.
@@ -139,8 +141,9 @@ public enum DraftCommit {
     /// - **C5 rooms and IDs:** a created draft's room is resolved as `RoomLinker.commitPlan` does (AC-M2-04: a proposed
     ///   name that folds to an existing room's name uses that room, lowest `id.uuidString`; names that fold equal make
     ///   one room, named by the lowest `draftID`; a gone `existing` room gives no room). A new room's ID is drawn
-    ///   first, then the task's. Every ID skips the household's task and room IDs and the IDs already issued in this
-    ///   commit (W3-F6), so nothing is ever overwritten and no two tasks share an ID. A draft that is not created
+    ///   first, then the task's. Every ID skips the IDs in use (`CommitIDAllocator`: the household's
+    ///   task and room IDs, room IDs that existing tasks still point to, the IDs of `parsed`, R25-F1) and the IDs
+    ///   already issued in this commit (W3-F6), so nothing is ever overwritten and no two tasks share an ID. A draft that is not created
     ///   creates no room.
     public static func plan<G: CommitIDGenerator>(
         confirmed: [IngestionDraft],
@@ -149,7 +152,7 @@ public enum DraftCommit {
         ids: inout G
     ) throws(CommitError) -> CommitPlan {
         let ordered = try inDraftOrder(confirmed)
-        var allocator = CommitIDAllocator(household: household)
+        var allocator = CommitIDAllocator(household: household, parsed: parsed)
         var rooms = CommitRoomResolver(existing: household.rooms)
         var decisions: [CommittedDraft] = []
         var newTasks: [HouseholdTask] = []
@@ -236,8 +239,11 @@ public enum DraftCommit {
     }
 }
 
-/// Draws IDs that are not in use (W3-F6, AC-M2-06): not a task or room of the household, and not issued earlier in
-/// the same commit. An ID the generator returns that is taken is skipped, and the next one is drawn.
+/// Draws IDs that are not in use (W3-F6, AC-M2-06), and the next one when the generator returns one that is. In use
+/// means: a task or room ID of the household at commit; a room ID an existing task still points to although the room
+/// is gone (a dangling `roomID`, legal in M1), so a new room never silently becomes that task's room (review R25-F1);
+/// a task or room ID of the household the parse read (`parsedWith`), so nothing removed since the parse is reissued;
+/// and every ID issued earlier in the same commit.
 struct CommitIDAllocator {
     /// The draws allowed for one ID beyond the number of IDs in use. A generator that never repeats a value needs at
     /// most (number in use + 1) draws; the margin lets a generator repeat itself a little.
@@ -245,9 +251,15 @@ struct CommitIDAllocator {
 
     private var taken: Set<UUID>
 
-    init(household: Household) {
-        taken = Set(household.tasks.map(\.id))
-        for room in household.rooms { taken.insert(room.id) }
+    init(household: Household, parsed: Household) {
+        taken = []
+        for source in [household, parsed] {
+            for task in source.tasks {
+                taken.insert(task.id)
+                if let roomID = task.roomID { taken.insert(roomID) }
+            }
+            for room in source.rooms { taken.insert(room.id) }
+        }
     }
 
     mutating func fresh<G: CommitIDGenerator>(_ ids: inout G) throws(CommitError) -> UUID {

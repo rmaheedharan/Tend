@@ -80,11 +80,15 @@ enum CommitOracle {
         }
         var used = Set(household.tasks.map(\.id))
         for room in household.rooms { used.insert(room.id) }
+        let dangling = Set((household.tasks + parsed.tasks).compactMap(\.roomID))
+        let parsedIDs = Set(parsed.tasks.map(\.id) + parsed.rooms.map(\.id))
         func draw(_ what: String) -> UUID {
             while true {
                 let id = ids.next()
                 if household.tasks.contains(where: { $0.id == id }) { result.skips["\(what).taskIDInUse", default: 0] += 1; continue }
                 if household.rooms.contains(where: { $0.id == id }) { result.skips["\(what).roomIDInUse", default: 0] += 1; continue }
+                if dangling.contains(id) { result.skips["\(what).danglingRoomID", default: 0] += 1; continue }
+                if parsedIDs.contains(id) { result.skips["\(what).removedSinceParse", default: 0] += 1; continue }
                 if used.contains(id) { result.skips["\(what).issuedAgain", default: 0] += 1; continue }
                 used.insert(id)
                 return id
@@ -366,7 +370,10 @@ struct CommitPropertyTests {
                 var confirmed = summary.drafts.filter { _ in rnd.chance(80) }
                 for i in confirmed.indices.reversed() where i > 0 { confirmed.swapAt(i, rnd.int(0...i)) }
                 if !confirmed.isEmpty, rnd.chance(10) { confirmed.append(confirmed[0]) }   // the same draft twice
+                // In use (R25-F1): IDs at commit, room IDs tasks still point to (dangling included), and the IDs of
+                // the household the parse read (removed since the parse included).
                 let inUse = atCommit.tasks.map(\.id) + atCommit.rooms.map(\.id)
+                    + (atCommit.tasks + household.tasks).compactMap(\.roomID) + household.tasks.map(\.id)
                 var ids = CollidingIDs(rnd: DupRandom(seed: rnd.next()), inUse: inUse)
                 var oracleIDs = ids
                 let expected = CommitOracle.expected(confirmed: confirmed, marks: marks, parsed: household, household: atCommit,
@@ -404,7 +411,10 @@ struct CommitPropertyTests {
                         Issue.record("\(label): commit \(actualDecisions) rooms \(committed.plan.newRooms) != oracle \(expected.decisions) rooms \(expected.newRooms)")
                     }
                 }
-                for (key, value) in expected.skips { counts[key, default: 0] += value }
+                for (key, value) in expected.skips {
+                    counts[key, default: 0] += value
+                    for kind in ["danglingRoomID", "removedSinceParse"] where key.hasSuffix(kind) { counts[kind, default: 0] += value }
+                }
                 for (key, value) in expected.path { counts[key, default: 0] += value }
 
                 // Check 2: ground truth, from the plants and the stored household only.
@@ -420,6 +430,14 @@ struct CommitPropertyTests {
                 if Array(stored.tasks.prefix(atCommit.tasks.count)) != atCommit.tasks
                     || Array(stored.rooms.prefix(atCommit.rooms.count)) != atCommit.rooms {
                     miss("an existing task or room was overwritten")
+                }
+                let pointedTo = Set((atCommit.tasks + household.tasks).compactMap(\.roomID))
+                if committed.plan.newRooms.contains(where: { pointedTo.contains($0.id) }) {
+                    miss("a new room took an ID an existing task points to")
+                }
+                let removed = Set(household.tasks.map(\.id)).subtracting(atCommit.tasks.map(\.id))
+                if committed.plan.newTasks.contains(where: { removed.contains($0.id) }) {
+                    miss("a new task reused the ID of a task removed since the parse")
                 }
                 let allIDs = stored.tasks.map(\.id) + stored.rooms.map(\.id)
                 if Set(allIDs).count != allIDs.count { miss("an ID is repeated") }
@@ -489,7 +507,7 @@ struct CommitPropertyTests {
         #expect(truthMisses == 0, "seed 0x\(String(seed, radix: 16))")
         // Coverage on every seed.
         for key in ["room.taskIDInUse", "room.roomIDInUse", "room.issuedAgain", "task.taskIDInUse", "task.roomIDInUse",
-                    "task.issuedAgain", "targetCompletedCreated", "targetRemovedCreated", "goneTargetFloorAtCommit", "goneTargetLiveTwin",
+                    "task.issuedAgain", "danglingRoomID", "removedSinceParse", "targetCompletedCreated", "targetRemovedCreated", "goneTargetFloorAtCommit", "goneTargetLiveTwin",
                     "ofDraft.kConfirmed", "ofDraft.kNotConfirmed", "newRooms", "roomFoldShared",
                     "roomAddedSinceParseUsed", "jsonFileCommits"] {
             #expect(counts[key, default: 0] > 0, "seed 0x\(String(seed, radix: 16)): no \(key)")

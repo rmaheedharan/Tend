@@ -2114,7 +2114,7 @@ before any write.
 |---|---|---|
 | C1 | `ofDraft(k)` | `sameChoreAsDraft(k)`, never created, whether k is confirmed, dismissed or unconfirmed (PO WI-M2-07 ruling 2) |
 | C2 | `ofExisting(t)`, t not completed | `alreadyOnList(t)`. Nothing is created, and t is not changed (Q7) |
-| C3 | `ofExisting(t)`, t completed or gone | Not a duplicate **of t** (brief re-check), but never a second copy of a chore. In order: (1) an earlier draft in this commit with the same gone t → follow its decision; (2) word-match floor, draft's title, over the household → `alreadyOnList`; (3) word-match floor with **t's own title and room** (t as it was in `parsedWith`) → a live twin of t → `alreadyOnList`; (4) floor over the tasks created so far in this commit → `sameChoreAsDraft`; (5) created |
+| C3 | `ofExisting(t)`, t completed or gone | Not a duplicate **of t** (brief re-check), but never a second copy of a chore. In order: (1) an earlier draft in this commit with the same gone t → follow its decision; (2) word-match floor, draft's title, over the household → `alreadyOnList`; (3) word-match on **t's title and room** (t as it was in `parsedWith`) over the household → a live task that repeats t → `alreadyOnList`; (4) floor over the tasks created so far in this commit → `sameChoreAsDraft`; (5) created |
 | C4 | `none` | created. The parse already ran the floor on this household; there is no commit-time re-check |
 | C5 | rooms and IDs | A created draft's room follows AC-M2-04 / PO WI-M2-04 ruling 2: a proposal that folds to an existing room's name uses it (lowest `id.uuidString`); proposals that fold equal make one room, named by the lowest `draftID`; a gone `existing` room gives no room. A not-created draft creates no room. The ID draw order is the new room (if any), then the task, draft by draft. |
 
@@ -2125,8 +2125,8 @@ before any write.
   the person's item (the orchestrator's rule for unsettled meaning):
   - two drafts that marked the same gone t ("refill it", "dishwasher tablets") would both be created (C3.1);
   - another live task the floor finds would be repeated (C3.2);
-  - a twin of t (the same folded title, which PO WI-M2-07 D1 calls the same chore) that is still live would be
-    repeated by a synonym draft whose Tool claim named t (C3.3).
+  - a live task that repeats t itself (word-match on t's title and room) would be repeated by a synonym draft whose
+    claim named t (C3.3).
   C3.4 catches two gone twins whose drafts repeat each other. If none of these apply, the draft is created, as the
   brief says. Mutant M7 (the literal reading) shows what the tests catch.
 - **`parsedWith` (technical, needed by C3.3).** A target removed since the parse is no longer in the household, so
@@ -2271,17 +2271,21 @@ Device ACs: none in this item.
 | Darwin rerun of the file-store commit | — | MS-2 |
 
 ### Open questions
-1. **PO (AC-M2-06 re-check, product meaning; built to the reading that never creates a repeat and never loses the
-   person's item, so work continues):** when a draft's `ofExisting` target is completed or gone at commit, the brief
+1. ~~**PO (AC-M2-06 re-check, product meaning):**~~ **Closed: PO WI-M2-08 ruling 1 (`po-m2-wi08.md`): C3.1–C3.4
+   accepted as built.** "Not a duplicate" means not a duplicate of that target; a completed or gone t never blocks
+   creation on its own. The brief now has the **Commit re-check** bullet (inserted word for word in round 2).
+   Mutants M7–M10 and M21 stay defects. Original question: when a draft's `ofExisting` target is completed or gone at commit, the brief
    says "the draft is treated as not a duplicate". I built that as "not a duplicate **of that target**". The draft is
    still not created when:
    - (C3.1) an earlier confirmed draft had the same gone target (the later one is the same chore as that draft);
    - (C3.2) the word-match floor finds another live task;
-   - (C3.3) a live task repeats the target itself (a same-titled twin in a compatible room);
+   - (C3.3) a live task repeats the target itself (word-match on t's title and room);
    - (C3.4) it repeats a task this commit just created.
    Otherwise it is created. Please confirm, or choose the literal reading (mutant M7; 154 + 38 + 88 + 2 drafts in the
    property would then be created as repeats).
-2. **PO (confirm, small):** `none` drafts are not re-checked at commit (C4), so two unflagged same-words drafts are
+2. ~~**PO (confirm, small):**~~ **Closed: PO WI-M2-08 ruling 2 (`po-m2-wi08.md`): confirmed as built.** The review
+   showed each `none` row as new, so commit does what the screen showed. The watch item stays, and any fix would be
+   parse-time. The pinning test stays. Original question: `none` drafts are not re-checked at commit (C4), so two unflagged same-words drafts are
    both created. That is the existing watch item. Built literally; a commit-time in-input floor would be a new rule.
 
 ### Law check
@@ -2296,8 +2300,37 @@ Device ACs: none in this item.
 | P-3 Cloud AI opt-in, minimised | n.a. | Nothing is sent. |
 | P-4 Media not persisted | pass | Nothing is stored before commit, and a parse makes no repository call (spy test). Only confirmed drafts are written, and dismissed or unconfirmed ones never are. |
 
+### Round 2 (review round 1: APPROVE with 3 Minors and 1 Nit, `review-WI-M2-08.md`; PO rulings `po-m2-wi08.md`)
+| Finding | Change |
+|---|---|
+| **R25-F1 Minor** | `CommitIDAllocator` now treats as in use: every room ID that an existing task points to (a dangling `roomID` included), and every task and room ID of `parsedWith` (removed since the parse included), plus everything before. New test "R25-F1 (AC-M2-06): a room ID an existing task still points to … and IDs removed since the parse are in use …" (the reviewer's probe P1, "Dust the shelf" → `…DD`; both repositories). The property generator now also returns dangling room IDs and IDs from the parse household (skips over 3 seeds: dangling 84, removed since the parse 94). The property's ground truth asserts that no new room takes an ID a task points to, and that no new task reuses a removed task's ID. The oracle has its own skip rule for both. |
+| **R25-F2 Minor** | New test "R25-F2: a refused later task write reports the tasks already written (tasksWritten), and they are stored": write 2 of 3 refused → `writeStopped(…, roomsWritten: 0, tasksWritten: 1)`, exact calls, and the stored household. It kills the reviewer's R1 (M25). |
+| **R25-F3 Minor (docs)** | Open questions 1 and 2 are closed, citing `po-m2-wi08.md`. C3.3 is reworded to "word-match on t's title and room" here and in the `DraftCommit.plan` doc. `brief.md` gets the PO's text word for word: the two Q12 = yes commit sentences are deleted, the new **Commit re-check** Definitions bullet sits after the Word-match floor, AC-M2-06 now says "(**Commit re-check**, Definitions)", and there is a Handoff-log row for WI-M2-08 Q1/Q2 (DECISIONS.md entry in the governance PR). |
+| **R25-N1 Nit** | The `commit` doc now says that cancellation does not interrupt a commit once it has started. |
+
+**Round 2 test runs** (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, 0 warnings):
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 235 tests in 30 suites passed after 49.966 seconds.` (233 + 2). AC-M2-09 `23 files in total, 0 violations`; AC-M2-12 vocabulary `23 files, 9 exempted (the list), 0 violations`; property: 0 oracle mismatches, 0 ground-truth misses on all three seeds |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 3.520 seconds.` (unchanged) |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 115.617 seconds.` (unchanged) |
+
+**Round 2 mutants** (same script and scratch copy as round 1; the worktree was never touched, and the copy was
+identical afterwards). The three new mutants and the four existing allocator mutants were run on the new code.
+**7 of 7 killed.** M2's anchor moved with the allocator change; it was re-anchored and rerun. The other 18 round 1
+mutants touch code that round 2 did not change, and the round 2 change only adds tests, so they were not rerun.
+
+| # | Mutant | Killed by |
+|---|---|---|
+| M23 | dangling room IDs not in use (R25-F1) | R25-F1 test (both repositories), property |
+| M24 | IDs of the parse household not in use (R25-F1) | R25-F1 test (both repositories), property |
+| M25 | `tasksWritten += 0` (the reviewer's R1, R25-F2) | R25-F2 test |
+| M1, M2, M3, M19 | allocator mutants from round 1, on the new allocator | still killed (property, R19-F2, R25-F1, stuck generator) |
+
 ### Handoff log
 | Date | From | To | Result (accepted / returned) | Notes |
 |---|---|---|---|---|
 | 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-08 Ready: WI-M2-05, 06, 07 and the 06/07 integration merged (`9e640b6`). Tickets R19-F1, R19-F2, R23-F1, R23-N2, R23-F2 (note), the brief wording from `po-m2-wi0607.md`, and PO WI-M2-07 ruling 2. |
 | 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 233, TendSourceScan 63, TendCore 141 green, 0 warnings, Linux. Property: 600 households × 3 paths, 0 oracle mismatches, 0 ground-truth misses. 22 of 22 mutants killed (M22 after adding a test). R23-F2 left as a note (PR #24 not merged). Two PO questions. Pushed; no PR opened. |
+| 2026-11-22 | Reviewer (via Orchestrator) | Developer | returned (round 1) | APPROVE with R25-F1, F2, F3 Minor and R25-N1 Nit. PO `po-m2-wi08.md`: both questions accepted as built. |
+| 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (round 2) | R25-F1 to N1 fixed (see Round 2). TendIngestion 235, TendSourceScan 63, TendCore 141 green, 0 warnings. Brief text inserted word for word. Review file committed with the fix. |
