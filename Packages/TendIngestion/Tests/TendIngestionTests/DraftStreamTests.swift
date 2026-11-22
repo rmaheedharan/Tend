@@ -143,8 +143,9 @@ enum StreamFixtures {
 /// A scripted duplicate check for the tests: a draft whose title equals an earlier draft's title is `ofDraft` of the
 /// first such draft. (The real rules are WI-M2-07's; the stream only calls the injected check.)
 struct SameTitleCheck: DraftDuplicateCheck {
-    func duplicate(of draft: IngestionDraft, earlier: [IngestionDraft]) -> DraftDuplicate {
-        earlier.first { $0.title == draft.title }.map { .ofDraft($0.draftID) } ?? .none
+    func duplicate(of entry: DuplicateCheckEntry, earlier: [DuplicateCheckEntry],
+                   lookupQueries: [String]) -> DraftDuplicate {
+        earlier.first { $0.draft.title == entry.draft.title }.map { .ofDraft($0.draft.draftID) } ?? .none
     }
 }
 
@@ -154,14 +155,23 @@ struct Call: Equatable, Sendable {
     let earlier: [Int]
 }
 
+/// Everything one call of the duplicate hook was given (WI-M2-06/07 integration).
+struct FullCall: Equatable, Sendable {
+    let entry: DuplicateCheckEntry
+    let earlier: [DuplicateCheckEntry]
+    let lookupQueries: [String]
+}
+
 /// Records every call of the duplicate hook; marks each draft as a duplicate of the draft just before it.
 final class RecordingCheck: DraftDuplicateCheck {
-    private let log = Mutex<[Call]>([])
-    var calls: [Call] { log.withLock { $0 } }
+    private let log = Mutex<[FullCall]>([])
+    var calls: [Call] { log.withLock { $0 }.map { Call(draftID: $0.entry.draft.draftID, earlier: $0.earlier.map(\.draft.draftID)) } }
+    var fullCalls: [FullCall] { log.withLock { $0 } }
 
-    func duplicate(of draft: IngestionDraft, earlier: [IngestionDraft]) -> DraftDuplicate {
-        log.withLock { $0.append(Call(draftID: draft.draftID, earlier: earlier.map(\.draftID))) }
-        return earlier.last.map { .ofDraft($0.draftID) } ?? .none
+    func duplicate(of entry: DuplicateCheckEntry, earlier: [DuplicateCheckEntry],
+                   lookupQueries: [String]) -> DraftDuplicate {
+        log.withLock { $0.append(FullCall(entry: entry, earlier: earlier, lookupQueries: lookupQueries)) }
+        return earlier.last.map { .ofDraft($0.draft.draftID) } ?? .none
     }
 }
 
@@ -533,6 +543,20 @@ struct DraftStreamTests {
         #expect(check.calls == [Call(draftID: 1, earlier: []), Call(draftID: 2, earlier: [1])])
     }
 
+    @Test("AC-M2-05 / PO ruling 5 (review R22-R2-F1): only the highest draft retitled gives exactly one re-mark call, (3, [1, 2])")
+    func onlyHigherDraftReMarked() {
+        let check = RecordingCheck()
+        _ = F.assemble([
+            .snapshot([F.full(Self.mop), F.full(Self.pods), F.full(Self.service)]),
+            .snapshot([F.full(Self.mop), F.full(Self.pods), F.full(Self.pods)]),     // only draft 3 changes
+            .finish,
+        ], check: check)
+        // Three emission calls, then exactly one re-mark call: drafts 1 and 2 are below the lowest changed draft.
+        #expect(check.calls == [Call(draftID: 1, earlier: []), Call(draftID: 2, earlier: [1]),
+                                Call(draftID: 3, earlier: [1, 2]), Call(draftID: 3, earlier: [1, 2])])
+        #expect(Array(check.calls.dropFirst(3)) == [Call(draftID: 3, earlier: [1, 2])])
+    }
+
     @Test("AC-M2-05 / PO ruling 5 invariant: after finished, each marker equals one pass of the check over the final drafts")
     func markerInvariant() {
         let check = SameTitleCheck()
@@ -549,13 +573,23 @@ struct DraftStreamTests {
     }
 
     /// One pass of `check` over `drafts` in ascending `draftID` (the invariant's right-hand side).
+    /// These scripts have no claims and no lookups, so a draft's position is not read by `SameTitleCheck`; the
+    /// draftID stands in for it.
     static func onePass(_ drafts: [IngestionDraft], _ check: any DraftDuplicateCheck) -> [DraftDuplicate] {
-        var marked: [IngestionDraft] = []
-        for var draft in drafts.sorted(by: { $0.draftID < $1.draftID }) {
-            draft.duplicate = check.duplicate(of: draft, earlier: marked)
-            marked.append(draft)
+        onePass(drafts.map { DuplicateCheckEntry(draft: $0, position: $0.draftID, claim: DuplicateClaim()) },
+                check, lookupQueries: [])
+    }
+
+    /// One pass of `check` over `entries` in ascending `draftID`, with fixed lookup queries.
+    static func onePass(_ entries: [DuplicateCheckEntry], _ check: any DraftDuplicateCheck,
+                        lookupQueries: [String]) -> [DraftDuplicate] {
+        var marked: [DuplicateCheckEntry] = []
+        for entry in entries.sorted(by: { $0.draft.draftID < $1.draft.draftID }) {
+            var draft = entry.draft
+            draft.duplicate = check.duplicate(of: entry, earlier: marked, lookupQueries: lookupQueries)
+            marked.append(DuplicateCheckEntry(draft: draft, position: entry.position, claim: entry.claim))
         }
-        return marked.map(\.duplicate)
+        return marked.map(\.draft.duplicate)
     }
 
     @Test("AC-M2-05: the model is asked once, with the capture text and the household's room names")

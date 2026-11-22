@@ -51,10 +51,17 @@ enum StreamOracle {
         var events: [DraftStreamEvent] = []
         var current: [IngestionDraft] = []           // index = draftID - 1
         var itemOfDraft: [Int] = []                  // item index of each draft
+        // The scripts carry no claims and no lookup queries; the check gets each draft's item position.
+        func entries(_ drafts: [IngestionDraft]) -> [DuplicateCheckEntry] {
+            drafts.indices.map { DuplicateCheckEntry(draft: drafts[$0], position: itemOfDraft[$0] + 1,
+                                                     claim: DuplicateClaim()) }
+        }
         func complete(_ index: Int, from items: [ItemSnapshot]) {
             switch mapper.map(items[index], draftID: current.count + 1).outcome {
             case var .draft(draft):
-                draft.duplicate = check.duplicate(of: draft, earlier: current)
+                draft.duplicate = check.duplicate(
+                    of: DuplicateCheckEntry(draft: draft, position: index + 1, claim: DuplicateClaim()),
+                    earlier: entries(current), lookupQueries: [])
                 current.append(draft)
                 itemOfDraft.append(index)
                 events.append(.emitted(draft))
@@ -78,7 +85,9 @@ enum StreamOracle {
                 var next = Array(contents[..<first])
                 for k in first..<contents.count {
                     var draft = contents[k]
-                    draft.duplicate = check.duplicate(of: draft, earlier: next)
+                    draft.duplicate = check.duplicate(
+                        of: DuplicateCheckEntry(draft: draft, position: itemOfDraft[k] + 1, claim: DuplicateClaim()),
+                        earlier: entries(next), lookupQueries: [])
                     next.append(draft)
                 }
                 for (old, new) in zip(current, next) where old != new { events.append(.updated(new)) }

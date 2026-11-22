@@ -61,6 +61,19 @@ public struct DuplicateLookupLog: Hashable, Sendable {
     /// equal to `title` after the keyword fold (case, diacritics, width, quotes and whitespace; no article strip).
     /// Nil when no lookup returned such a title.
     public func taskID(forTitle title: String) -> HouseholdTask.ID? {
+        Self.taskID(forTitle: title, in: results)
+    }
+
+    /// The same resolution for queries replayed on `household` (the stream's on-device path,
+    /// `DraftDuplicateRules`). Each shortlist is computed only until the title is found. Because the household is fixed
+    /// for the parse and the first match in call order wins, a title once resolved keeps its task as the list grows.
+    public static func taskID(forTitle title: String, replaying queries: [String],
+                              in household: Household) -> HouseholdTask.ID? {
+        taskID(forTitle: title, in: queries.lazy.map { DuplicateShortlist.entries(for: $0, in: household) })
+    }
+
+    static func taskID<Results: Sequence>(forTitle title: String, in results: Results) -> HouseholdTask.ID?
+    where Results.Element == [ShortlistEntry] {
         let wanted = TextFolding.foldWithoutArticle(title)
         for entries in results {
             if let entry = entries.first(where: { TextFolding.foldWithoutArticle($0.title) == wanted }) {

@@ -155,8 +155,7 @@ the Now canvas only through the Rule of Three.
 - **Local duplicate re-check for cloud drafts:**
   - **When Q12 is yes:** a cloud draft that names shortlist index n becomes `ofExisting(shortlist[n].id)` only when
     1 ≤ n ≤ the shortlist count. Any other index is ignored, and the draft is not marked. A cloud draft that names an
-    earlier item k of the same response becomes `ofDraft(k)` only when k is lower than its own position. Commit checks
-    each `ofExisting` target again. If the target is missing or `completed`, the draft is treated as not a duplicate.
+    earlier item k of the same response becomes `ofDraft(k)` only when k is lower than its own position.
   - **When Q12 is no (local word-match):** a cloud draft is marked `ofExisting(t)` when all of these are true:
     - t is not `completed`;
     - both titles have keywords;
@@ -165,10 +164,20 @@ the Now canvas only through the Rule of Three.
       equals an existing room).
     If several tasks qualify, the one with the most shared keywords wins, then the lowest `id.uuidString`.
 - **Word-match floor (every path; PO 2026-11-21, WI-M2-07 Q1):** a draft with no valid in-input claim and no valid
-  existing-task claim (on device: a title the `Tool` returned in this parse; cloud with Q12 = yes: a valid shortlist
-  index) is checked on the phone with the local word-match rule above against the whole household, and is marked
-  `ofExisting(t)` when it qualifies. Order per draft: in-input claim, then the model's existing-task claim, then this
-  floor. It sends nothing. With Q12 = no it is the only existing-task check, as before.
+  existing-task claim (on device: a title the `Tool` returned in this parse (at any point in the parse; when the Tool's
+  results grow, every draft is checked again and a changed marker reaches the user as `updated`, PO 2026-11-22,
+  WI-M2-06/07 Q1); cloud with Q12 = yes: a valid shortlist index) is checked on the phone with the local word-match
+  rule above against the whole household, and is marked `ofExisting(t)` when it qualifies. Order per draft: in-input
+  claim, then the model's existing-task claim, then this floor. It sends nothing. With Q12 = no it is the only
+  existing-task check, as before.
+- **Commit re-check (every path; PO 2026-11-22, WI-M2-08 Q1):** commit checks each confirmed `ofExisting(t)` draft
+  again. If t is still not `completed`, nothing is created and t is not changed (Q7). If t is `completed` or gone, the
+  draft is no longer a duplicate of t: a completed or deleted task is never on its own a reason not to create, because
+  saying it again means it is needed again. The draft is still a duplicate, and is not created, when at commit (1) an
+  earlier confirmed draft in this commit had the same completed or gone t (it follows that draft's result); (2) the
+  word-match floor finds a live task for the draft's title; (3) the word-match floor finds a live task for t's own title
+  and room, as they were in the household the parse read; or (4) the word-match rule finds a task this commit has just
+  created. Otherwise it is created. A draft marked `none` is not checked again at commit.
 - **Duplicate:** a draft that describes the same real-world chore as either (a) an existing task that is not
   `completed`, or (b) an earlier draft in the same input. The same chore means the same action on the same thing, in the
   same room when a room is known. It does not depend on wording ("buy dish pods" = "we're almost out of dishwasher
@@ -269,8 +278,8 @@ unless I say so, so that capture feels instant and safe.
 - **AC-M2-06** Given any parse, when it runs, then nothing is written to the `HouseholdRepository`. When
   `commit(confirmed:)` runs, then:
   - Exactly the confirmed drafts that are not duplicates are upserted, together with their proposed rooms. The
-    `ofExisting` targets are checked again at commit (Definitions). A confirmed `ofDraft(k)` is never created; if
-    draft k is not committed, that chore is not created.
+    `ofExisting` targets are checked again at commit (**Commit re-check**, Definitions). A confirmed `ofDraft(k)` is
+    never created; if draft k is not committed, that chore is not created.
   - Dismissed drafts and drafts left unconfirmed are not saved.
   - Each new task and room gets its ID from an injected ID generator. No two tasks in the household ever share an ID
     (W3-F6). If the generator returns an ID already in use, commit takes the next one and never overwrites.
@@ -1412,3 +1421,4 @@ merge). No AC was removed, and the AC count stays 28.
 | 2026-11-21 | Product Owner | Work Planner → Developer, Reviewer | accepted | PO 2026-11-21, stricter only, from PR #15 review (R1-F1 point 4, R1-F5). Q23: one fixtures-loader exception for `Data(contentsOf:` in `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift`, bundle URLs only, with negative and positive tests (AC-M2-09 Rule 6; cross-reference in M1 AC-M1-23). Q24: session method calls added to the networking list; C file and print calls and `write(toFile:` added to the write and log list; Rule 3 allows only `bytes(for:delegate:)`; Rule 6 gets a closed import list; new negative tests (AC-M2-09). No AC removed; there are still 28 ACs. DECISIONS.md entries for M2 Q23 and Q24 go in the human-merged governance PR. Timing is in `plan.md`. |
 | 2026-11-21 | Acceptance Tester → Product Owner | Work Planner | accepted | Tester returned PR #16 (findings 1-9); PO accepted all, stricter only. AC-M2-09 v2 texts applied, replacing the v1 Q23/Q24 wording: separate write and log lists (new `AppStorage`, `SceneStorage`, `archiveRootObject(`, `mkstemp(`, `tmpfile(`, `creat(`, `vprintf(`, `vfprintf(`, `dprintf(`, `puts(`, `putc(`, `putchar(`, `perror(`, `syslog(`), `bytes(for:` added to the session-method calls, an exact call-pattern matching rule, `contentsOf:` bullets in Rules 2, 3 and 6, the Rule 3 session-method rule (`bytes(for:` only with `delegate:`), Rule 6 rewritten (import parsing, literal-only fixtures loader), and new plant and positive tests. Q23/Q24 rows updated; M1 AC-M1-23 cross-reference revised. No AC removed; there are still 28 ACs. |
 | 2026-11-21 | Acceptance Tester | PO -> Work Planner | accepted (testability ticked) | Re-review of PR #16 at 25ddc36; findings 1-9 closed; Minors 1-3 folded in (stricter only). |
+| 2026-11-22 | Product Owner | Developer, Reviewer, Tester | accepted | WI-M2-08 Q1/Q2 (`po-m2-wi08.md`): Q1 C3.1–C3.4 accepted; new Definitions bullet **Commit re-check**, the two Q12 = yes commit sentences removed, AC-M2-06 points to it. Q2: a `none` draft is not checked again at commit (watch item stays; a fix would be parse-time). Clarifying, no AC deleted or weakened. DECISIONS.md entry in the next human-merged governance PR. Inserted word for word by the Developer in PR #25. |

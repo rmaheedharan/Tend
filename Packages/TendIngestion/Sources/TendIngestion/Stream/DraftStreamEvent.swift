@@ -96,20 +96,46 @@ public struct DraftStreamSummary: Hashable, Sendable {
     }
 }
 
-/// The duplicate marker for a draft (brief Definitions "Duplicate", "Draft stream events"). The rules are WI-M2-07's.
-/// This is the one place the calling rule is stated (PO WI-M2-06 ruling 5):
+/// What the duplicate check reads for one draft (WI-M2-06/07 integration; review R22-R2-F2).
+public struct DuplicateCheckEntry: Hashable, Sendable {
+    /// The latest content of the draft. For an `earlier` entry, its marker is the latest one too.
+    public let draft: IngestionDraft
+    /// The 1-based position of the draft's item in the model's output, skipped items included.
+    public let position: Int
+    /// The model's claim, read from the last version of the item that mapped to a draft (PO WI-M2-06 ruling 5;
+    /// review R23-F1: a later version that Q5 skips, or a snapshot without the item, keeps the last claim).
+    public let claim: DuplicateClaim
+
+    public init(draft: IngestionDraft, position: Int, claim: DuplicateClaim) {
+        self.draft = draft
+        self.position = position
+        self.claim = claim
+    }
+}
+
+/// The duplicate marker for a draft (brief Definitions "Duplicate", "Draft stream events"). The rules are WI-M2-07's
+/// (`DraftDuplicateRules`). This is the one place the calling rule is stated (PO WI-M2-06 ruling 5):
 /// - **At emission:** once per draft position, in output order, before that draft's `emitted`, with every draft with a
-///   lower `draftID` (latest versions, ascending).
-/// - **After updates:** when a snapshot changes the content of any emitted draft, the check runs again in ascending
-///   `draftID` for the lowest changed draft and every later emitted draft, each with the latest lower drafts. Each
-///   draft whose content or marker changed gets one `updated`. If no content changed, it is not called.
-/// - So after `finished`, each marker equals one pass of the check over the final drafts in `draftID` order.
+///   lower `draftID` (latest versions and markers, ascending) and the latest snapshot's lookup queries.
+/// - **After updates:** when a snapshot changes the content or the model's claim of any emitted draft, the check runs
+///   again in ascending `draftID` for the lowest changed draft and every later emitted draft, each with the latest
+///   lower drafts. When the snapshot's lookup queries differ from the ones used for the last marking (on device, the
+///   Tool's log grew), it runs for **every** emitted draft. Each draft whose content or marker changed gets one
+///   `updated`. If nothing it reads changed, it is not called.
+/// - **Purity (required of every conformance):** the result is a function of `entry`, `earlier` and `lookupQueries`
+///   only, plus context fixed for the whole parse (the household and the path). The re-mark rule relies on it: a draft
+///   below the lowest changed one is not re-checked because nothing it reads changed.
+/// - So after `finished`, each marker equals one pass of the check over the final drafts in `draftID` order, with each
+///   draft's claim from the last version of its item that mapped to a draft (R23-F1), and the final snapshot's lookup
+///   queries.
 public protocol DraftDuplicateCheck: Sendable {
-    func duplicate(of draft: IngestionDraft, earlier: [IngestionDraft]) -> DraftDuplicate
+    func duplicate(of entry: DuplicateCheckEntry, earlier: [DuplicateCheckEntry],
+                   lookupQueries: [String]) -> DraftDuplicate
 }
 
 /// A check that marks nothing (for callers with no household tasks, and for tests).
 public struct NoDuplicateCheck: DraftDuplicateCheck {
     public init() {}
-    public func duplicate(of draft: IngestionDraft, earlier: [IngestionDraft]) -> DraftDuplicate { .none }
+    public func duplicate(of entry: DuplicateCheckEntry, earlier: [DuplicateCheckEntry],
+                          lookupQueries: [String]) -> DraftDuplicate { .none }
 }
