@@ -102,7 +102,8 @@ public struct DuplicateCheckEntry: Hashable, Sendable {
     public let draft: IngestionDraft
     /// The 1-based position of the draft's item in the model's output, skipped items included.
     public let position: Int
-    /// The model's claim, read from the latest version of the item (PO WI-M2-06 ruling 5).
+    /// The model's claim, read from the last version of the item that mapped to a draft (PO WI-M2-06 ruling 5;
+    /// review R23-F1: a later version that Q5 skips, or a snapshot without the item, keeps the last claim).
     public let claim: DuplicateClaim
 
     public init(draft: IngestionDraft, position: Int, claim: DuplicateClaim) {
@@ -124,8 +125,9 @@ public struct DuplicateCheckEntry: Hashable, Sendable {
 /// - **Purity (required of every conformance):** the result is a function of `entry`, `earlier` and `lookupQueries`
 ///   only, plus context fixed for the whole parse (the household and the path). The re-mark rule relies on it: a draft
 ///   below the lowest changed one is not re-checked because nothing it reads changed.
-/// - So after `finished`, each marker equals one pass of the check over the final drafts in `draftID` order, with the
-///   final claims and the final snapshot's lookup queries.
+/// - So after `finished`, each marker equals one pass of the check over the final drafts in `draftID` order, with each
+///   draft's claim from the last version of its item that mapped to a draft (R23-F1), and the final snapshot's lookup
+///   queries.
 public protocol DraftDuplicateCheck: Sendable {
     func duplicate(of entry: DuplicateCheckEntry, earlier: [DuplicateCheckEntry],
                    lookupQueries: [String]) -> DraftDuplicate

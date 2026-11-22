@@ -188,7 +188,8 @@ public struct DraftDuplicateRules: DraftDuplicateCheck {
 }
 
 /// The commit-time re-check (brief Definitions: "Commit checks each `ofExisting` target again. If the target is
-/// missing or `completed`, the draft is treated as not a duplicate"). Commit itself is WI-M2-08.
+/// missing or `completed`, the draft is treated as not a duplicate"). `DraftCommit` (WI-M2-08) applies it first and
+/// then its own rules for a gone target (C3).
 public enum DuplicateRecheck {
     public static func atCommit(_ duplicate: DraftDuplicate, in household: Household) -> DraftDuplicate {
         guard case let .ofExisting(id) = duplicate else { return duplicate }
