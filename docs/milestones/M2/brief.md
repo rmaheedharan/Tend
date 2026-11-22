@@ -106,13 +106,17 @@ the Now canvas only through the Rule of Three.
   - `emitted(draft)`: exactly once per `draftID`, at completion, in the order items appear in the **model's output**
     (not the order of `sourcePhrase` in the input). The duplicate marker is already set.
   - `updated(draft)`: zero or more per `draftID`, only after that draft's `emitted`. It is a full replacement with the
-    same `draftID`. A draft is never withdrawn.
+    same `draftID`, including its duplicate marker: when an update changes a draft, the duplicate marker of that draft
+    and of every later draft is computed again on the latest drafts, and every draft whose content or marker changes
+    gets an `updated` (PO 2026-11-21, WI-M2-06 Q5). A draft is never withdrawn.
   - `itemSkipped(reason)`: an item dropped by Q5. It has no `draftID`.
   - `finished(outcome)`: exactly once, and always last. The outcome is one of:
-    - **completed:** the stream finished normally.
+    - **completed:** the stream finished normally. If no draft was emitted (the output had no items, or every item was
+      skipped), the input text and a plain-note offer are also returned, as for `noModel` (PO 2026-11-21, WI-M2-06 Q1).
     - **interrupted:** the stream ended with an error or was truncated after it started. Drafts already emitted stay
       available for confirmation. The in-progress, not yet complete item is discarded with a typed reason. The input
-      text is returned in memory. A plain note is offered only if no draft was emitted.
+      text is returned in memory. No plain note is offered: a stop before any draft is `noModel` (T-25), so an
+      `interrupted` outcome always has at least one draft.
     - **noModel:** there was no usable model, or the model returned an error, a refusal or a guardrail before any
       draft. No draft is emitted. The input text and a plain-note offer are returned.
     - **cancelled:** nothing is written.
@@ -248,9 +252,12 @@ unless I say so, so that capture feels instant and safe.
   fields that arrive out of order, an item split across snapshots, an item with no title, a stream that finishes
   normally mid-item, a stream that throws mid-item, and cancellation.
   - There is exactly one `emitted` per `draftID`, at the moment of completion, in model-output order.
-  - `updated` events come only after `emitted`, with the same ID. A draft is never withdrawn.
+  - `updated` events come only after `emitted`, with the same ID. A draft is never withdrawn. After `finished`, each
+    draft's duplicate marker equals what the duplicate rules give for the final drafts in `draftID` order.
   - An item still in progress when the stream **finishes normally** is completed and repaired (Q5), then emitted if it
     has a title.
+  - A stream that finishes normally with no draft emitted (no items, or every item skipped) ends with `completed`, the
+    input text and a plain-note offer.
   - An item still in progress when the stream **throws** is discarded with a typed reason. Earlier drafts stay. The
     outcome is `interrupted`.
   - `finished` comes exactly once and last. The sequence never throws.
