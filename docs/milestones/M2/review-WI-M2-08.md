@@ -124,3 +124,66 @@ refused second task write → `writeStopped(…, 0, 1)`, store holds exactly one
 | 2026-11-22 | Orchestrator | Reviewer | accepted | PR #25 at `91a62b6`, WI-M2-08 (AC-M2-06, AC-M2-08, FR-A1). |
 | 2026-11-22 | Orchestrator | Reviewer | accepted | Mid-review: `po-m2-wi08.md`, C3.1–C3.4 and C4 accepted as built; treated as specified behaviour. |
 | 2026-11-22 | Reviewer | Orchestrator → Developer, Merge Gatekeeper | sent | **APPROVE.** No Blocker or Major. Three Minors (F1 dangling roomID reuse, F2 `tasksWritten` untested, F3 doc follow-ups from `po-m2-wi08.md`) and two Nits, all non-blocking. They can be fixed in this PR before merge or ticketed for WI-M2-08/09 wiring. |
+
+---
+
+## Round 2 — head `58a1a95` (one commit on `91a62b6`)
+
+- **Verdict:** APPROVE  ·  **Round:** 2
+- **Requirements:** FR-A1; AC-M2-06 (W3-F6 / Q10 IDs, Commit re-check), AC-M2-08 (commit property).
+- **Binding inputs:** round 1 findings above; PO `po-m2-wi08.md` (rulings 1 and 2, brief text).
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED`, M2 `IN-BUILD`. Allowed.
+
+### Summary
+Each finding is verified in the new diff (`git diff 91a62b6..58a1a95`). The only product code change is the
+`CommitIDAllocator` "in use" set plus two doc comments. The rest is tests and docs. Nothing else in the commit rules
+changed.
+
+### Findings (round 1 → round 2)
+| # | Severity | File:line | Verification | Status |
+|---|---|---|---|---|
+| R25-F1 | Minor | `Packages/TendIngestion/Sources/TendIngestion/Commit/DraftCommit.swift:254-263` | `init(household:parsed:)` puts into `taken` every task ID, every task `roomID` (dangling ones included) and every room ID of **both** the household at commit and `parsedWith`. That covers dangling room references and IDs removed since the parse. New contract test `danglingAndRemovedIDsInUse` (`CommitTests.swift:277`, both repositories, reopen) uses my P1 fixture. The property's `CollidingIDs` now draws dangling and parse-household IDs too (coverage keys `danglingRoomID`, `removedSinceParse` are required on every seed; my run shows a non-zero count for every seed). The ground truth adds "a new room took an ID an existing task points to" and "a new task reused the ID of a task removed since the parse". The oracle skip rule is an independent re-implementation. **My probe P1 now passes** (new room `F…01`, not `…DD`). My mutants R7 (dangling `roomID` not taken) and R8 (`parsed` not taken) are killed (34 and 36 issues). `stuckGenerator`'s exact draw count still holds, because the fixtures' task rooms are existing rooms. | **Closed** |
+| R25-F2 | Minor | `Packages/TendIngestion/Tests/TendIngestionTests/CommitTests.swift:573-588` | `refusedLaterTaskWrite`: write 2 of 3 is refused, giving `writeStopped(…, roomsWritten: 0, tasksWritten: 1)`, the exact call list, and the stored household is old + exactly the first planned task. **My mutant R1 (`tasksWritten += 0`) is now killed** by this test (1 issue). | **Closed** |
+| R25-F3 | Minor (docs) | `docs/milestones/M2/brief.md:155-158, 173-180, 281-282`; `dev-notes.md` WI-M2-08 | I checked the text against `po-m2-wi08.md` by script, comparing with whitespace normalised. The **Commit re-check** bullet matches word for word, directly after the Word-match floor bullet. The AC-M2-06 edit "(**Commit re-check**, Definitions)" matches. The two Q12 = yes sentences are deleted ("treated as not a duplicate" no longer appears in the brief). A decision-log row has been added; the DECISIONS.md entry is left to the governance PR, as the PO said. Dev-notes open questions 1 and 2 are closed, citing `po-m2-wi08.md`. C3.3 now reads "word-match on t's title and room" in the dev-notes and in the `DraftCommit.plan` doc. | **Closed** |
+| R25-N1 | Nit | `DraftCommit.swift:84-85` | The doc now states that cancellation does not interrupt a commit. | **Closed** |
+| R25-N2 | Nit (ticket) | — | R23-F2 is still on the WI-M2-08/09 wiring ticket (PR #24 not merged). | Carried |
+
+No new findings. No Blocker or Major.
+
+### Tests run (reviewer, round 2)
+Docker `swift:6.2-noble`, CI commands, `--scratch-path /tmp/rev25-<pkg>`, `-Xswiftc -warnings-as-errors`,
+`swift build` then `swift test`, source mounted read-only, 0 warnings in every log:
+
+| Package | Result |
+|---|---|
+| TendCore | build 0, `✔ Test run with 141 tests in 18 suites passed after 116.689 seconds.` |
+| TendSourceScan | build 0, `✔ Test run with 63 tests in 4 suites passed after 1.932 seconds.` |
+| TendIngestion | build 0, `✔ Test run with 235 tests in 30 suites passed after 54.375 seconds.` (233 + 2). `WI-M2-08 commit property: seed 0xC0A11CEED080801/…0802/…0803, 200 households × 3 paths, 0 oracle mismatches, 0 ground-truth misses` |
+
+**Mutants and probes** (on a fresh copy of `58a1a95` at `/tmp/rev25-mut`, never the worktree; filter `Commit|RoomLink`):
+
+| # | Mutant / probe | Result |
+|---|---|---|
+| P1 | dangling `roomID` offered first by the generator | pass: new room takes `F…01` |
+| P2 | refused second task write | pass: `(0, 1)` |
+| R1 | `tasksWritten += 0` | killed (R25-F2 test) |
+| R7 | dangling task `roomID` not in use | killed (34 issues) |
+| R8 | `parsedWith` IDs not in use | killed (36 issues) |
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Unchanged: commit infers rooms and IDs and asks nothing. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | The brief's Commit re-check says a completed task is never held against the person. No lateness state. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No inference. |
+| P-2 No data leaves device (except user iCloud) | pass | Repository calls only. AC-M2-09 scan green. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | n.a. | Nothing sent. |
+| P-4 Media not persisted without consent | pass | Only confirmed drafts are written. A parse writes nothing. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-22 | Orchestrator | Reviewer | accepted | Round 2 at `58a1a95`: R25-F1, F2, F3, N1 fixes; round 1 report committed. |
+| 2026-11-22 | Reviewer | Orchestrator → Merge Gatekeeper | sent | **APPROVE.** R25-F1, F2, F3, N1 closed and verified (P1 passes, R1/R7/R8 killed, brief text word for word). R25-N2 carried on the WI-M2-08/09 wiring ticket. No open Blocker or Major. |
