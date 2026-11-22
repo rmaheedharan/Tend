@@ -1898,8 +1898,10 @@ fail the new floor tests.
     snapshot (for example, the user said the exact title). The e2e property plants this case
     (`onDevice.claimBeforeQuery`, 683 drafts).
   - **(b) only ever adds marks.** The household is fixed and the first match in call order wins, so a resolved title
-    keeps its task as the log grows. A re-mark can only turn an unresolved claim (the floor's answer, or `none`) into
-    the model's claim. It never turns a mark into `none`. So it can never let a repeat be created that (a) would have
+    keeps its task as the log grows. Through Tool-log growth alone, a marker only goes from `none` to `ofExisting`, or
+    from the floor's target to the model's resolved target (the model's claim outranks the floor, PO WI-M2-07 ruling 1
+    precedence). Marks can still be removed or changed by content or claim updates; that is ruling 5 and is intended
+    (PO precision, `po-m2-wi0607.md`; review R23-N2). So it can never let a repeat be created that (a) would have
     caught.
   - **This is what the brief says.** "On device: a title the `Tool` returned in this parse" (Definitions, word-match
     floor) means the whole parse.
@@ -1908,12 +1910,14 @@ fail the new floor tests.
     1** asks the PO to confirm.
 - **I2, the evidence rule for the ruling 5 invariant.**
   - **Linux:** after `finished`, each draft's marker equals one pass of the rules in ascending `draftID` over the final
-    drafts. Each draft is read with its item position, the claim from the **final snapshot's** version of its item and
+    drafts. Each draft is read with its item position, the claim from **the last version of its item that mapped to a
+    draft** (a later version that Q5 skips, or a snapshot without the item, keeps the last claim; review R23-F1) and
     the **final snapshot's** `lookupQueries`. The household and path are the ones the rules were made with. The
     invariant tests and the e2e property check exactly this, and the oracle (`DupOracle.marks` with
     `queriesSoFar = final queries`) is built the same way.
-  - **On device (WI-M2-M2 and the eval, owner-run Mac):** the same rule. The adapter test records the final snapshot's
-    items and `lookupQueries` and the final `DraftStreamSummary`. It runs `DraftDuplicateRules.onDevice(household:)`
+  - **On device (WI-M2-M2 and the eval, owner-run Mac):** the same rule. The adapter test records, per draft, the last
+    version of its item that mapped to a draft (usually the final snapshot's), the final `lookupQueries` and the final
+    `DraftStreamSummary`. It runs `DraftDuplicateRules.onDevice(household:)`
     once over them and compares. It must also check that the Tool's own log equals `lookupQueries` of the final
     snapshot (adapter contract item 4). A difference is a defect in the adapter, not in the rules.
 - **I3, a claim change is a re-mark trigger.** Ruling 5 says to re-mark "on a snapshot that produces updates". A claim
@@ -2023,7 +2027,9 @@ Device ACs: none in this item.
 | PO watch item (unchanged): the floor does not catch a missed in-input repeat | watch | dev-set eval before the AC-M2-14 freeze |
 
 ### Open questions
-1. **PO (confirm, not blocking; built to the option that never lets a repeat be created):** on device, when the Tool's
+1. ~~**PO (confirm, not blocking; built to the option that never lets a repeat be created):**~~ **Closed: PO ruling
+   `po-m2-wi0607.md` (2026-11-22): option (b) CONFIRMED, no code change** (closed in WI-M2-08, review R23-N2). I1 now
+   carries the PO's precision. Original question: on device, when the Tool's
    log grows during a parse, the stream re-marks every draft (I1, option (b)). A draft first shown as "not a
    repeat" (the floor found nothing, and the model's title claim was not yet backed by a Tool result) can then change
    to "repeat of an existing task" through `updated`. A mark never goes away this way. Is that the intended meaning
@@ -2047,3 +2053,251 @@ Device ACs: none in this item.
 |---|---|---|---|---|
 | 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-06/07 integration ticket. Binding: PO WI-M2-06 ruling 5; R22-R2-F1, R22-R2-F2, R21-F6; ascending `draftID` commit order; e2e property on three paths. Must merge before WI-M2-08. |
 | 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 210, TendSourceScan 63, TendCore 141 green, 0 warnings, Linux. E2E property: 600 households × 3 paths through `DraftPipeline`, 0 oracle mismatches, 0 invariant misses, every compatible exact plant marked. 17 of 17 mutants killed, no hang. R22-R2-F1, R22-R2-F2 (option (b)), R21-F6 done. One PO question (confirm option (b)). Pushed; no PR opened. |
+
+## WI-M2-08 — `commit(confirmed:)`: injected IDs with collision skip, proposed rooms, the `ofExisting` re-check, contract over both M1 repositories, the AC-M2-08 property
+
+- **Owner:** Developer  ·  **Branch:** `m2/commit`, from `origin/main` at `9e640b6` (WI-M2-05, 06, 07 and the
+  WI-M2-06/07 integration merged)  ·  **PR:** not opened (the Orchestrator opens it)  ·  **ADRs:** none new. Follows
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md): one new file under `TendIngestion/Sources`
+  (`Commit/DraftCommit.swift`), Foundation and TendCore only, no I/O except the `HouseholdRepository` protocol, no
+  network, no logging.
+- **Requirements:** FR-A1, Q7, Q10 (W3-F6), UX-1, P-4. **Owns AC-M2-06 and AC-M2-08** ([plan.md](plan.md) WI-M2-08);
+  also the commit clauses of AC-M2-04 ("a proposed room is created only on commit … one room") and AC-M2-07 ("commit
+  creates nothing for it").
+- **Binding inputs:** PO WI-M2-04 ruling 2 (rooms at commit), PO WI-M2-07 ruling 2 (a confirmed `ofDraft(k)` is never
+  created), PO `po-m2-wi0607.md` (brief wording, closing integration question 1), the D6 commit order, and the tickets
+  R19-F1, R19-F2, R23-F1, R23-N2 and R23-F2 (`po-q21-q22.md`, "From PR #24").
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED` and M2 `IN-BUILD`. This is M2 work.
+- **Parallel work:** WI-M2-09 (routing, PR #24) is in review. This item does not touch `Routing/` or
+  `DraftPipeline.swift`.
+
+### What changed
+- `Sources/TendIngestion/Commit/DraftCommit.swift` (new):
+  - `protocol CommitIDGenerator { mutating func next() -> UUID }`: the injected ID source (Q10, T-29). The app passes
+    one that returns `UUID()`; tests and the eval harness pass seeded ones.
+  - `DraftCommit.commit(confirmed:parsedWith:to:ids:) async throws(CommitError) -> CommitPlan`: the only write path. It
+    loads the household once, plans every decision, and then writes the new rooms (`updateRoom`), then the new tasks
+    (`upsertTask`) in ascending `draftID`. If nothing is confirmed, the repository is not called.
+  - `DraftCommit.plan(confirmed:parsedWith:household:ids:) throws(CommitError) -> CommitPlan`: the pure decision step
+    (rules C1–C5 below).
+  - `CommitPlan` (`drafts: [CommittedDraft]`, `newRooms`, `newTasks`), `CommitDecision` (`created(id)`,
+    `alreadyOnList(id)`, `sameChoreAsDraft(k)`), and `CommitError`. `householdUnreadable`, `draftIDRepeated`,
+    `taskRejected` and `idGeneratorExhausted` mean nothing was written. `writeStopped(error, planned:, roomsWritten:,
+    tasksWritten:)` says exactly what was stored.
+  - `CommitIDAllocator`: every ID skips the household's task **and** room IDs and every ID already issued in this
+    commit (W3-F6, R19-F2). It is bounded: after (number in use + 1,024) draws for one ID it throws
+    `idGeneratorExhausted`, so it never hangs.
+- `Rooms/RoomLinker.swift`: `commitPlan` now runs on a shared `CommitRoomResolver` (`peek` and `resolve`, one draft at a
+  time), so `commitPlan` and `DraftCommit` apply the same AC-M2-04 rules. `commitPlan` is generic over a typed-throwing
+  `makeID`, which is source-compatible with non-throwing callers. Its doc states the R19-F2 precondition: `makeID` must
+  return unused IDs, and `DraftCommit` guarantees that.
+- `Stream/DraftStreamAssembler.swift`, `Stream/DraftStreamEvent.swift`: doc wording only (R23-F1). The claim is the one
+  from "the last version of its item that mapped to a draft".
+- `Duplicates/DuplicateMarker.swift`: the `DuplicateRecheck` doc now points to `DraftCommit`.
+- `docs/milestones/M2/brief.md`: the PO's Word-match floor clarification from `po-m2-wi0607.md`, inserted word for word
+  after "a title the `Tool` returned in this parse" (the line was re-wrapped).
+- This file: the WI-M2-06/07 integration section. Open question 1 is closed (citing `po-m2-wi0607.md`), I1 is
+  reworded with the PO's precision (R23-N2), and I2 and the device evidence rule use the R23-F1 wording.
+- Tests (written first; the first build failed with "cannot find 'DraftCommit' in scope"):
+  - new `CommitTests.swift`: the contract suite over both M1 repositories, the rule suite and the test doubles
+    (`ScriptedIDs`, `StuckIDs`, `SpyRepository`);
+  - new `CommitPropertyTests.swift`: the AC-M2-08 property and its independent `CommitOracle`;
+  - `DraftStreamDuplicateTests.swift`: the R23-F1 hand test.
+- Not changed: `TendCore`, `TendSourceScan`, `Routing/`, `DraftPipeline.swift`, every protected path, every dependency.
+
+### The commit rules as built (`DraftCommit.plan`; each is tested)
+Confirmed drafts are taken in **ascending `draftID`**, whatever order they are passed in (D6, PO WI-M2-04 ruling 2a;
+stated in the API docs). The same draft passed twice counts once. Two different drafts with one `draftID` are refused
+before any write.
+
+| Rule | Marker at commit | Result |
+|---|---|---|
+| C1 | `ofDraft(k)` | `sameChoreAsDraft(k)`, never created, whether k is confirmed, dismissed or unconfirmed (PO WI-M2-07 ruling 2) |
+| C2 | `ofExisting(t)`, t not completed | `alreadyOnList(t)`. Nothing is created, and t is not changed (Q7) |
+| C3 | `ofExisting(t)`, t completed or gone | Not a duplicate **of t** (brief re-check), but never a second copy of a chore. In order: (1) an earlier draft in this commit with the same gone t → follow its decision; (2) word-match floor, draft's title, over the household → `alreadyOnList`; (3) word-match floor with **t's own title and room** (t as it was in `parsedWith`) → a live twin of t → `alreadyOnList`; (4) floor over the tasks created so far in this commit → `sameChoreAsDraft`; (5) created |
+| C4 | `none` | created. The parse already ran the floor on this household; there is no commit-time re-check |
+| C5 | rooms and IDs | A created draft's room follows AC-M2-04 / PO WI-M2-04 ruling 2: a proposal that folds to an existing room's name uses it (lowest `id.uuidString`); proposals that fold equal make one room, named by the lowest `draftID`; a gone `existing` room gives no room. A not-created draft creates no room. The ID draw order is the new room (if any), then the task, draft by draft. |
+
+### Decisions the Reviewer should know
+- **C3, the re-check when the target is gone (product meaning; see open question 1).** The brief says: "If the target
+  is missing or `completed`, the draft is treated as not a duplicate". Read literally, the draft is always created.
+  The property found three ways that makes a repeat. I built the reading that never creates a repeat and never loses
+  the person's item (the orchestrator's rule for unsettled meaning):
+  - two drafts that marked the same gone t ("refill it", "dishwasher tablets") would both be created (C3.1);
+  - another live task the floor finds would be repeated (C3.2);
+  - a twin of t (the same folded title, which PO WI-M2-07 D1 calls the same chore) that is still live would be
+    repeated by a synonym draft whose Tool claim named t (C3.3).
+  C3.4 catches two gone twins whose drafts repeat each other. If none of these apply, the draft is created, as the
+  brief says. Mutant M7 (the literal reading) shows what the tests catch.
+- **`parsedWith` (technical, needed by C3.3).** A target removed since the parse is no longer in the household, so
+  commit cannot know its title. The caller passes the household value the parse's duplicate rules read (the one given
+  to `DraftDuplicateRules`). Commit uses it only to look up a gone target.
+- **C4, `none` drafts are not re-checked.** Two `none` drafts with the same words are both created ("bake bread",
+  "bake bread"). That is the PO WI-M2-07 watch item: the floor does not cover a missed in-input repeat, and adding a
+  local in-input floor is a later PO decision. The test "A none draft is not re-checked at commit" pins this so that a
+  change is a visible decision. The property counts these pairs (`unflaggedInInputPairCreated`, below).
+- **Twin in another room.** The Tool resolves a title claim by folded title only (D1), so on device a claim can name a
+  same-titled task in another room. By the brief's Duplicate definition ("in the same room when a room is known") that
+  is a different chore. So C3.3 uses the word-match room rule, and a twin in another room does not block creation.
+  The property's ground truth checks the task the mock's claim actually names. It first checked the planted target
+  and reported three false misses, all different-room twins.
+- **Writes are per item, not one `save`.** A whole-household `save` would be all-or-nothing. But it would replace
+  anything another writer stored between `load` and `save`, such as a completion from a widget in M4 ("completions must
+  never be lost"). Per-item `updateRoom` and `upsertTask` keep the M1 per-call atomicity, with rooms written before
+  tasks. A refused write stops the commit. `writeStopped` reports the counts and warns that committing the same drafts
+  again would add their chores twice (test "Errors …"). M3 should retry only the unwritten drafts.
+- **Concurrent writers.** A task another writer adds between this commit's `load()` and its writes is not seen by the
+  re-check. The app runs one commit at a time per household, and M5 sync handles concurrent writers. This is stated in
+  the API docs.
+- **IDs are unique across tasks and rooms.** A task never takes a room's ID either. This is stricter than W3-F6 and
+  costs nothing.
+- **Why the bound on draws.** A generator that never repeats a value needs at most (number in use + 1) draws. The
+  1,024 margin lets a generator repeat itself a little. Mutant M19 (no margin) shows that the test pins the margin.
+- **R23-F2 (wiring the rules to the route) is not done here.** WI-M2-09 (PR #24) is not merged on `origin/main`
+  (`9e640b6`), and this item must not touch `Routing/`. The ticket stays with the WI-M2-08/09 wiring, which comes
+  after PR #24 merges. Options: build `DraftDuplicateRules` inside the pipeline from `(route, sharing, household)`, or
+  add one wiring test per route that asserts the rule path. Commit does not depend on it. It reads only the markers
+  and `parsedWith`, which must be the same household the rules were built with (stated in the API docs).
+
+### AC coverage
+| AC | Test(s) | Result |
+|---|---|---|
+| AC-M2-06 "nothing is written" during a parse | "AC-M2-06: a parse writes nothing to the HouseholdRepository; only commit writes" (`SpyRepository`: the real `DraftPipeline` makes no repository call; the commit then makes exactly `load`, one `updateRoom`, two `upsertTask`) | PASS (Linux) |
+| AC-M2-06 exactly the confirmed non-duplicates, with their proposed rooms | contract suite, **each test on `InMemoryHouseholdRepository` and `JSONFileHouseholdRepository`** (the file store is also reopened as a restart): "exactly the confirmed drafts that are not duplicates are upserted …"; "dismissed drafts and drafts left unconfirmed are not saved …"; "proposed rooms …"; "an ofExisting target that is still not completed creates nothing and is not changed, whatever its other state" (4 states, Q7) | PASS (Linux) |
+| AC-M2-06 `ofExisting` re-checked at commit | "an ofExisting target completed or removed by commit time … is created" (both repositories); rule suite: "another live task the word-match floor finds"; "a live twin of the gone target …" (completed / removed); "a later draft with the same gone target …"; "… a task created in this commit …" | PASS (Linux) |
+| AC-M2-06 / PO WI-M2-07 ruling 2: a confirmed `ofDraft(k)` | "a confirmed ofDraft(k) is never created …" × k **confirmed / dismissed / unconfirmed** × both repositories (6 cases): 1 bread task, 0, 0 | PASS (Linux) |
+| AC-M2-06 IDs (W3-F6, R19-F2) | "R19-F2 (AC-M2-06, W3-F6): the generator's in-use task IDs, in-use room IDs and repeats are skipped …" (both repositories: a task ID in use, a room ID in use, an ID issued earlier in the commit, for a room and for tasks; every old task and room unchanged; IDs unique); "a generator that only returns IDs in use ends with idGeneratorExhausted before any write" (exactly 5 + 1,024 draws) | PASS (Linux) |
+| AC-M2-04 commit clauses, R19-F1 | "R19-F1 (PO WI-M2-04 ruling 2b): a proposal that folds equal to two existing rooms uses the lowest id.uuidString, in any array order" (3 rooms, 3 orders, both repositories); "R19-F1: RoomLinker.commitPlan picks the lowest …" (3 orders); "proposed rooms …" (fold-equal names → one room named by draft 1 though passed last; a room added since the parse; a gone room → none); "… a not-created draft's proposed room is not created" | PASS (Linux) |
+| Order, repeats, errors | "confirmed drafts are committed in ascending draftID …"; "writes: every new room first, then each new task in ascending draftID …"; "the same draft passed twice …"; "Errors: …" (unreadable household, rejected task, refused second write → `writeStopped(…, roomsWritten: 1, tasksWritten: 0)`) | PASS (Linux) |
+| **AC-M2-08 + AC-M2-06 property** | "AC-M2-08 + AC-M2-06: 600 seeded households × 3 paths …". Seeds `0x0C0A11CEED080801`, `…0802`, `…0803`, 200 households each (the WI-M2-07 `DupHouseholdGenerator`), 3–12 items each, planted as fresh, **exact title**, **synonym (scripted claim)**, **in-input**, completed repeat or skipped. Each is parsed by the real `DraftPipeline` and `DraftDuplicateRules` on device, cloud **Q12 = yes** (openAI route) and cloud **Q12 = no** (gemini route). Then the household changes (targets completed or removed, rooms added), about 20 % of drafts are left unconfirmed, the rest are shuffled (sometimes with one passed twice), and the commit runs with a colliding ID generator (25 % in-use IDs, 12 % repeats). It goes to `InMemoryHouseholdRepository`, or `JSONFileHouseholdRepository` for every 10th household. **Asserted:** (1) the parse markers equal `DupOracle`; (2) the commit equals `CommitOracle` exactly (decisions, new rooms, new tasks with IDs); (3) ground truth: the store holds exactly the old household plus the new rooms and tasks; nothing old is overwritten; no ID repeats; no committed task word-matches a task live at commit; no in-input repeat is committed; no repeat the mock scripted against a live task is committed; no two committed tasks are the same chore unless the later one was unflagged; no confirmed `ofDraft` is created; no new room folds equal to another room. Coverage is required per seed. | PASS (Linux): **0 oracle mismatches, 0 ground-truth misses** on every seed |
+| R23-F1 | "R23-F1: an emitted draft whose item is later skipped by Q5, or missing from a shorter snapshot, keeps its last content and its last claim (no updated)" (assembler and pipeline, plus the summary marker) | PASS (Linux) |
+| AC-M2-09, AC-M2-12 (regression) | AC-M2-09 scan `23 files in total, 0 violations`; AC-M2-12 vocabulary `23 files, 9 exempted (the list), 0 violations` (the new names pass) | PASS (Linux) |
+
+**Oracle independence.** `CommitOracle` (`CommitPropertyTests.swift`) calls no production rule code of
+`TendIngestion`. It has its own markers (`DupOracle.marks`, WI-M2-07), its own name fold (the `DupOracle` fold,
+whitespace collapse, article strip), word-matching by `DupOracle.wordMatch` (brute force), ordering by selection, and its
+own ID skip, replayed from a copy of the generator. The only shared production code is `IngestionDraft.task(id:roomID:)`
+(the M1 initialiser mapping, AC-M2-01/02) for the new tasks' field values, and `DraftMapper.map` for draft content. The
+ground-truth checks use the plants and the stored household only.
+
+**Property counts** (sum of the three seeds; per-seed lines are in the log; 600 households × 3 paths):
+
+| Count | Value |
+|---|---|
+| Commits to `JSONFileHouseholdRepository` (the rest went to `InMemoryHouseholdRepository`) | 180 |
+| ID skips: task ID in use / room ID in use / issued again, for **rooms** | 383 / 100 / 88 |
+| ID skips: task ID in use / room ID in use / issued again, for **tasks** | 1,621 / 343 / 447 |
+| New rooms / created drafts sharing a folded proposal / a room added since the parse used | 1,058 / 135 / 116 |
+| Target gone, created: completed / removed | 231 / 203 |
+| Target gone, not created: C3.1 follows the first / C3.2 floor / C3.3 live twin / C3.4 created in this commit | 88 / 154 / 38 / 2 |
+| Confirmed `ofDraft(k)`: k confirmed / k not confirmed (all 0 created) | 1,189 / 327 |
+| Created per path (on device / Q12 yes / Q12 no): fresh | 714 / 718 / 721 |
+| Created: exact-title plants (target gone, or its room was not compatible) | 76 / 99 / 101 |
+| Created: synonym plants, of which the mock scripted no claim (Q12 = no; outside the 10; the Tool did not return it) | 79 (1) / 344 (309) / 582 (582) |
+| Created: completed repeats (a completed task is not a target) | 351 / 371 / 354 |
+| Created on device although the claim named a twin in another room (a different chore by the room rule) | 5 |
+| Pairs created together where the later draft was unflagged at parse (PO watch item: missed in-input repeat) | 29 / 45 / 34 |
+
+A synonym that the mock scripted no claim for is created by design. That is the brief's accepted Q12 = no and
+outside-the-10 limit, measured on device by AC-M2-17/26. It is not a repeat "under the deterministic rule the mock
+scripts". Every **scripted** synonym that was created had its target completed or gone at commit.
+
+### Test runs
+| Command (`swift:6.2-noble`, Swift 6.2.x, `-Xswiftc -warnings-as-errors`, 0 warnings, `swift build` first) | Summary line |
+|---|---|
+| `swift test --package-path Packages/TendIngestion` | `✔ Test run with 233 tests in 30 suites passed after 51.368 seconds.` (210 on `main` + 23 new). AC-M2-09 `23 files in total, 0 violations`; AC-M2-12 vocabulary `23 files, 9 exempted (the list), 0 violations`. Property lines: `seed 0xC0A11CEED080801/…0802/…0803, 200 households × 3 paths, 0 oracle mismatches, 0 ground-truth misses` (the print drops the leading 0 of `0x0C0A…`) |
+| `swift test --package-path Packages/TendSourceScan` | `✔ Test run with 63 tests in 4 suites passed after 2.827 seconds.` (unchanged) |
+| `swift test --package-path Packages/TendCore` | `✔ Test run with 141 tests in 18 suites passed after 110.440 seconds.` (unchanged) |
+
+### Mutation check
+Each mutant was applied alone by a script to a scratch copy of the packages (`/tmp/b08-mut/src`, never the
+worktree). It was run with `--filter "Commit|DraftStream|RoomLinking"` and `-warnings-as-errors` under a 900 s
+timeout, and the copy was then reset from the worktree. After the run the copy was compared with the worktree:
+identical. Every async read is capped (`collectCapped`), and the ID allocator is bounded, so no mutant hung.
+**22 of 22 killed.** M16 first failed to compile, because an unmutated `var` breaks `-warnings-as-errors`. It was
+rewritten as `+= 0` and is killed. M22 **survived the first run**, because nothing checked that an empty commit
+makes no call. The test "nothing confirmed means no repository call at all" was added, and M22 is killed.
+
+| # | Mutant | Killed by |
+|---|---|---|
+| M1 | no collision skip | property, R19-F2 skip, stuck generator |
+| M2 | room IDs not in the in-use set | property, R19-F2 skip, stuck generator |
+| M3 | issued IDs not remembered | property, R19-F2 skip |
+| M4 | no ascending `draftID` order | ascending draftID, property, proposed rooms |
+| M5 | `ofDraft` created | exactly-confirmed, property, ruling 2 (6 cases) |
+| M6 | no re-check (an `ofExisting` is never created) | 5 re-check tests |
+| M7 | literal re-check only (a gone target is always created) | same gone target, property |
+| M8 | no C3.1 (follow the first draft with the same gone target) | same gone target, property |
+| M9 | no C3.3 (live twin) | live twin (2 cases), property |
+| M10 | no C3.4 (created in this commit) | created-in-this-commit, property |
+| M11 | a not-created draft still creates its room | live target unchanged, property |
+| M12 | R19-F1: tie takes the last room (`rooms.last(where:)`, the reviewer's surviving mutant) | AC-M2-04 link tie, both R19-F1 tests |
+| M13 | proposal not matched to existing rooms at commit | 5, incl. the property and R19-F1 |
+| M14 | no fold de-dup of new rooms | 5, incl. the property |
+| M15 | tasks written before rooms | write order, parse-writes-nothing, errors |
+| M16 | `roomsWritten` not counted (compiling variant) | errors (`writeStopped` counts) |
+| M17 | conflicting `draftID` silently dropped | repeated draftID |
+| M18 | **R23-F1 / reviewer R2**: claim read from a skipped re-map | R23-F1 kept claim (assembler and pipeline) |
+| M19 | no extra draws margin | stuck generator, property |
+| M20 | a gone `existing` room kept | AC-M2-04 gone room, proposed rooms |
+| M21 | twin check reads the target from the commit household, not `parsedWith` | live twin (removed case), property |
+| M22 | an empty commit still loads | nothing confirmed, no call (after the fix above) |
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendIngestion 233 tests: AC-M2-06 contract on both M1 repositories, AC-M2-08 property, R19-F1, R19-F2, R23-F1, AC-M2-09 and AC-M2-12 scans | ✔ container | — | — | — | Linux CI runs on the PR |
+| TendCore 141, TendSourceScan 63 (unchanged) | ✔ container | — | — | — | — |
+| `JSONFileHouseholdRepository` commit on Darwin Foundation | — | — | — | — | Mac repeat in MS-2 (plan: AC-M2-06 "Mac repeat in MS-2") |
+| Commit from the eval harness with its seeded generator (T-29) and the M3 review surface | — | — | — | — | WI-M2-M7 / M3 |
+
+Device ACs: none in this item.
+
+### Things the reviewer should look at closely
+- C3 (gone targets): whether rules C3.1–C3.4 are the right "never a second copy" reading (open question 1).
+- `parsedWith`: an extra required parameter. It must be the same household value the duplicate rules were built with.
+- Per-item writes instead of one `save`, and the `writeStopped` retry guidance.
+- The oracle's independence (above), and the ground-truth fix for different-room twins (Decisions).
+- `RoomLinker.commitPlan` became generic over typed throws. Existing callers compile unchanged.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| R23-F2: build the duplicate rules from the route (or add a wiring test per route) | Minor (ticket) | WI-M2-08/09 wiring, after PR #24 merges |
+| A missed in-input repeat (both drafts `none`) is committed twice | watch | PO WI-M2-07 watch item; dev-set eval before the AC-M2-14 freeze |
+| Concurrent writers between `load()` and the writes are not re-checked | — | M5 sync |
+| A partial commit (`writeStopped`) must be finished by committing only the unwritten drafts | — | M3 review surface |
+| R23-N1 (shortlist cache per query) | watch | AC-M2-16 |
+| Darwin rerun of the file-store commit | — | MS-2 |
+
+### Open questions
+1. **PO (AC-M2-06 re-check, product meaning; built to the reading that never creates a repeat and never loses the
+   person's item, so work continues):** when a draft's `ofExisting` target is completed or gone at commit, the brief
+   says "the draft is treated as not a duplicate". I built that as "not a duplicate **of that target**". The draft is
+   still not created when:
+   - (C3.1) an earlier confirmed draft had the same gone target (the later one is the same chore as that draft);
+   - (C3.2) the word-match floor finds another live task;
+   - (C3.3) a live task repeats the target itself (a same-titled twin in a compatible room);
+   - (C3.4) it repeats a task this commit just created.
+   Otherwise it is created. Please confirm, or choose the literal reading (mutant M7; 154 + 38 + 88 + 2 drafts in the
+   property would then be created as repeats).
+2. **PO (confirm, small):** `none` drafts are not re-checked at commit (C4), so two unflagged same-words drafts are
+   both created. That is the existing watch item. Built literally; a commit-time in-input floor would be a new rule.
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Confirming is the one act: commit takes the confirmed drafts and infers every room and ID. It asks nothing. |
+| UX-2 Rule of Three | n.a. | Commit only upserts into the repository that `NowSelector` reads. No M2 API returns "what to do now" items (T-21). |
+| UX-3 Zero-Guilt | pass | New tasks are `active`, with no overdue or lateness state. Decision and error names (`alreadyOnList`, `sameChoreAsDraft`, `writeStopped`, `idGeneratorExhausted` …) pass the AC-M2-12 vocabulary scan (0 violations). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No inference. The re-check is local and deterministic. |
+| P-2 No data leaves device | pass | Only `HouseholdRepository` calls. No network, I/O or logging (AC-M2-09: 0 violations). |
+| P-3 Cloud AI opt-in, minimised | n.a. | Nothing is sent. |
+| P-4 Media not persisted | pass | Nothing is stored before commit, and a parse makes no repository call (spy test). Only confirmed drafts are written, and dismissed or unconfirmed ones never are. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-08 Ready: WI-M2-05, 06, 07 and the 06/07 integration merged (`9e640b6`). Tickets R19-F1, R19-F2, R23-F1, R23-N2, R23-F2 (note), the brief wording from `po-m2-wi0607.md`, and PO WI-M2-07 ruling 2. |
+| 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 233, TendSourceScan 63, TendCore 141 green, 0 warnings, Linux. Property: 600 households × 3 paths, 0 oracle mismatches, 0 ground-truth misses. 22 of 22 mutants killed (M22 after adding a test). R23-F2 left as a note (PR #24 not merged). Two PO questions. Pushed; no PR opened. |

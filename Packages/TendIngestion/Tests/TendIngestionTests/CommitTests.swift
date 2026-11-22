@@ -487,6 +487,15 @@ struct CommitRuleTests {
         #expect(await spy.calls == [.load])
     }
 
+    @Test("AC-M2-06: nothing confirmed means no repository call at all (not even a read)")
+    func nothingConfirmedNoCall() async throws {
+        let spy = try await SpyRepository.make(C.household)
+        var ids = ScriptedIDs()
+        let plan = try await DraftCommit.commit(confirmed: [], parsedWith: C.household, to: spy, ids: &ids)
+        #expect(plan.drafts.isEmpty && plan.newRooms.isEmpty && plan.newTasks.isEmpty)
+        #expect(await spy.calls == [])
+    }
+
     @Test("Writes: every new room first, then each new task in ascending draftID; nothing else is written")
     func writeOrder() async throws {
         let spy = try await SpyRepository.make(C.household)

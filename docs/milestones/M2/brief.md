@@ -165,10 +165,12 @@ the Now canvas only through the Rule of Three.
       equals an existing room).
     If several tasks qualify, the one with the most shared keywords wins, then the lowest `id.uuidString`.
 - **Word-match floor (every path; PO 2026-11-21, WI-M2-07 Q1):** a draft with no valid in-input claim and no valid
-  existing-task claim (on device: a title the `Tool` returned in this parse; cloud with Q12 = yes: a valid shortlist
-  index) is checked on the phone with the local word-match rule above against the whole household, and is marked
-  `ofExisting(t)` when it qualifies. Order per draft: in-input claim, then the model's existing-task claim, then this
-  floor. It sends nothing. With Q12 = no it is the only existing-task check, as before.
+  existing-task claim (on device: a title the `Tool` returned in this parse (at any point in the parse; when the Tool's
+  results grow, every draft is checked again and a changed marker reaches the user as `updated`, PO 2026-11-22,
+  WI-M2-06/07 Q1); cloud with Q12 = yes: a valid shortlist index) is checked on the phone with the local word-match
+  rule above against the whole household, and is marked `ofExisting(t)` when it qualifies. Order per draft: in-input
+  claim, then the model's existing-task claim, then this floor. It sends nothing. With Q12 = no it is the only
+  existing-task check, as before.
 - **Duplicate:** a draft that describes the same real-world chore as either (a) an existing task that is not
   `completed`, or (b) an earlier draft in the same input. The same chore means the same action on the same thing, in the
   same room when a room is known. It does not depend on wording ("buy dish pods" = "we're almost out of dishwasher
