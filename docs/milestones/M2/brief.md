@@ -97,7 +97,9 @@ the Now canvas only through the Rule of Three.
   - `duplicate`: one of `none`, `ofExisting(taskID)` or `ofDraft(draftID)`.
   A draft is not in the household until it is **committed**.
 - **Item completion (T-03):** an item in the model's output is **complete** at the first of these moments:
-  - (a) every field of its output schema has a value, where an unknown enum value counts as a value;
+  - (a) every field of its output schema has a value, where an unknown enum value counts as a value. A field has a
+    value only once the model has finished writing it: a string or number still being written is not yet a value, and
+    a `null` or absent field is not a value (PO 2026-11-23, WI-M2-12 J2, J6);
   - (b) the model has started the next item;
   - (c) the stream finishes normally.
   On completion, the Q5 repairs fill any missing field. The only **required** field is `title`. An item with no
@@ -108,7 +110,7 @@ the Now canvas only through the Rule of Three.
   - `updated(draft)`: zero or more per `draftID`, only after that draft's `emitted`. It is a full replacement with the
     same `draftID`, including its duplicate marker: when an update changes a draft, the duplicate marker of that draft
     and of every later draft is computed again on the latest drafts, and every draft whose content or marker changes
-    gets an `updated` (PO 2026-11-21, WI-M2-06 Q5). A draft is never withdrawn.
+    gets an `updated` (PO 2026-11-21, WI-M2-06 Q5). A draft is never withdrawn. No `emitted` or `updated` draft ever holds part of a field the model is still writing (PO 2026-11-23, WI-M2-12 J2).
   - `itemSkipped(reason)`: an item dropped by Q5. It has no `draftID`.
   - `finished(outcome)`: exactly once, and always last. The outcome is one of:
     - **completed:** the stream finished normally. If no draft was emitted (the output had no items, or every item was
@@ -269,6 +271,9 @@ unless I say so, so that capture feels instant and safe.
   - There is exactly one `emitted` per `draftID`, at the moment of completion, in model-output order.
   - `updated` events come only after `emitted`, with the same ID. A draft is never withdrawn. After `finished`, each
     draft's duplicate marker equals what the duplicate rules give for the final drafts in `draftID` order.
+  - No draft holds part of a field the model is still writing. An item whose title arrives last, or whose title
+    starts with a banned token the user did not say ("Late" of "Later"), gives exactly one `emitted` with the whole
+    title and is never skipped for it. This holds for the on-device mapping and for every cloud provider parser.
   - An item still in progress when the stream **finishes normally** is completed and repaired (Q5), then emitted if it
     has a title.
   - A stream that finishes normally with no draft emitted (no items, or every item skipped) ends with `completed`, the
