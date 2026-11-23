@@ -112,12 +112,28 @@ struct TendToolsTests {
         #expect(EvalScoreCommand.allowedKeyPaths(Data(#"{"paths":[]}"#.utf8)) == nil)
     }
 
-    @Test("tend-payload-dump is a stub until WI-M2-10: valid arguments exit 3 with no body; bad ones exit 64")
-    func payloadDumpStub() {
+    @Test("tend-payload-dump (WI-M2-10): each provider's body equals the committed G1 golden body byte for byte; no key and no extra output on stdout; the path goes to stderr", arguments: [
+        ("openai", "api.openai.com/v1/chat/completions"),
+        ("anthropic", "api.anthropic.com/v1/messages"),
+        ("gemini", "generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse"),
+    ])
+    func payloadDump(provider: String, target: String) throws {
         let box = Captured()
-        #expect(PayloadDumpCommand.run(["--provider", "openai", "--outcome-sample"], io: Repo.io(box)) == 3)
-        #expect(box.out.isEmpty && box.err.contains("WI-M2-10"))
-        #expect(PayloadDumpCommand.run(["--provider", "mistral", "--outcome-sample"], io: Repo.io(box)) == 64)
-        #expect(PayloadDumpCommand.run(["--provider", "gemini"], io: Repo.io(box)) == 64)
+        #expect(PayloadDumpCommand.run(["--provider", provider, "--outcome-sample"], io: Repo.io(box)) == 0)
+        let golden = try #require(FileManager.default.contents(
+            atPath: Repo.path("Fixtures/M2/payload/golden/g1-outcome-empty-\(provider).body.json")))
+        #expect(Data(box.out.utf8) == golden)
+        #expect(box.out.contains(PayloadDumpCommand.outcomeSentence))
+        #expect(box.err.contains("POST " + target))
+    }
+
+    @Test("tend-payload-dump: usage errors exit 64 and print no body")
+    func payloadDumpUsage() {
+        for arguments in [["--provider", "mistral", "--outcome-sample"], ["--provider", "gemini"], ["--outcome-sample"],
+                          ["--provider", "openai", "--outcome-sample", "--key", "FAKE"]] {
+            let box = Captured()
+            #expect(PayloadDumpCommand.run(arguments, io: Repo.io(box)) == 64, "\(arguments)")
+            #expect(box.out.isEmpty)
+        }
     }
 }

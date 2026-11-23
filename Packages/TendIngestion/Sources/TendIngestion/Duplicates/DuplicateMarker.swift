@@ -174,6 +174,12 @@ public struct DraftDuplicateRules: DraftDuplicateCheck {
         DraftDuplicateRules(path: .cloud(sharing.existingTaskCheck(capture: capture, household: household)))
     }
 
+    /// Cloud with Q12 = yes: the titles of the shortlist this check accepts index claims against. Otherwise empty.
+    public var sentShortlistTitles: [String] {
+        if case let .cloud(.sentShortlist(entries, _)) = path { return entries.map(\.title) }
+        return []
+    }
+
     public func duplicate(of entry: DuplicateCheckEntry, earlier: [DuplicateCheckEntry],
                           lookupQueries: [String]) -> DraftDuplicate {
         let check: ExistingTaskCheck = switch path {
