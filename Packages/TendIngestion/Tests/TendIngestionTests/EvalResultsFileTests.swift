@@ -21,7 +21,7 @@ struct EvalResultsFileTests {
         #expect(file.run.provider == nil && file.run.routePreference == .onDeviceFirst && file.run.prewarm)
         #expect(file.run.network == .init(kind: "offline", downMbps: 0, upMbps: 0, latencyMs: 0))
         #expect(file.coldStart == .init(inputID: "in01", ttfiMs: 2100))
-        #expect(file.inputs.count == 8)
+        #expect(file.inputs.count == 9)
         let in01 = file.inputs[0]
         #expect(in01.drafts[0].duplicate == .ofExisting(taskKey: "t-ac"))
         #expect(in01.drafts[0].sourcePhrase == "The AC needs servicing")
@@ -129,7 +129,7 @@ struct EvalResultsFileTests {
         ("mode differs from the fixture", [("/inputs/0/mode", .string("voice"))],
          .modeDiffersFromFixture(inputID: "in01", attempt: 1)),
         ("attempts not consecutive", [("/inputs/2/attempt", .integer(3))], .attemptsNotConsecutive(inputID: "in02")),
-        ("second attempt of a text input", [("/inputs/8", .null)], .tooManyAttempts(inputID: "in01")),
+        ("second attempt of a text input", [("/inputs/9", .null)], .tooManyAttempts(inputID: "in01")),
         ("retake without a reason", [("/inputs/2/retakeReason", .null)],
          .retakeReasonMismatch(inputID: "in02", attempt: 2)),
         ("first attempt with a reason", [("/inputs/1/retakeReason", .string("x"))],
@@ -203,7 +203,7 @@ struct EvalResultsFileTests {
         let (name, edits, expected) = Self.consistencyCases[index]
         var root = try EvalSelfTest.resultsRoot()
         for (pointer, value) in edits {
-            if pointer == "/inputs/8" {
+            if pointer == "/inputs/9" {
                 // Append a second attempt of the text input in01.
                 let copy = try #require(root.value(at: "/inputs/0")).setting("/attempt", to: .integer(2))
                     .setting("/retakeReason", to: .string("again"))

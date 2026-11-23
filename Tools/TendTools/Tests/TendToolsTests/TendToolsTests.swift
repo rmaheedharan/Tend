@@ -2,14 +2,27 @@
 // the committed self-test files. Linux CI builds this package; these tests are run locally (dev-notes WI-M2-15).
 
 import Foundation
+import Synchronization
 import Testing
 @testable import TendToolsSupport
 
-final class Captured: @unchecked Sendable {
-    // Test-only capture box; each test owns its own instance and the commands run synchronously on one thread.
-    var out = ""
-    var err = ""
-    var written: [String: Data] = [:]
+/// Captures a command's output. A `Mutex` makes it checked `Sendable` (review R27-N1; no `@unchecked`).
+final class Captured: Sendable {
+    struct State {
+        var out = ""
+        var err = ""
+        var written: [String: Data] = [:]
+    }
+
+    private let state = Mutex(State())
+
+    var out: String { state.withLock { $0.out } }
+    var err: String { state.withLock { $0.err } }
+    var written: [String: Data] { state.withLock { $0.written } }
+
+    func appendOut(_ text: String) { state.withLock { $0.out += text } }
+    func appendErr(_ text: String) { state.withLock { $0.err += text } }
+    func record(_ path: String, _ data: Data) { state.withLock { $0.written[path] = data } }
 }
 
 enum Repo {
@@ -22,9 +35,9 @@ enum Repo {
     static func io(_ box: Captured, overrides: [String: Data] = [:]) -> ToolIO {
         ToolIO(
             read: { overrides[$0] ?? FileManager.default.contents(atPath: $0) },
-            write: { box.written[$0] = $1; return true },
-            standardOutput: { box.out += $0 },
-            standardError: { box.err += $0 }
+            write: { box.record($0, $1); return true },
+            standardOutput: { box.appendOut($0) },
+            standardError: { box.appendErr($0) }
         )
     }
 
@@ -53,7 +66,7 @@ struct TendToolsTests {
         let box = Captured()
         let code = EvalScoreCommand.run(Repo.scoreArguments(profile: "info"), io: Repo.io(box))
         #expect(code == 0, "\(box.err)")
-        #expect(box.out.contains("totals: N 16") && box.out.hasSuffix("profile info: INFO (no pass rule)\n"))
+        #expect(box.out.contains("totals: N 18") && box.out.hasSuffix("profile info: INFO (no pass rule)\n"))
         #expect(box.written["/tmp/x.log"] == Data(box.out.utf8))
     }
 

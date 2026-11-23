@@ -75,27 +75,29 @@ input in04: text, attempt 1 scored (1 in file), route onDevice, outcome complete
   introduced banned tokens: 0
   golden 2, found 2, extras 0
 
-input in05: text, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 1100
+input in05: text, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 1300
   draft 1 text [mop floor]
   draft 2 text [water plants]
   draft 3 text [sort garage shelves]
   draft 4 text [mop hallway floors floor]
+  draft 5 text [sort shelves]
   pairing: draft 4 <-> g05-mop (overlap 3)
   pairing: draft 3 <-> g05-garage (overlap 3)
   pairing: draft 2 <-> g05-plants (overlap 2)
   item g05-mop: found (draft 4); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
   item g05-plants: found (draft 2); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
   item g05-garage: found (draft 3); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
-  extra drafts: 1
+  extra drafts: 1, 5
   best target: draft 1 -> golden g05-mop (overlap 2)
   best target: draft 2 -> seeded t-plants-a (overlap 2)
   best target: draft 3 -> golden g05-garage (overlap 3)
   best target: draft 4 -> golden g05-mop (overlap 3)
-  committed: 4; c(x): golden g05-garage=1, golden g05-mop=2, seeded t-plants-a=1
+  best target: draft 5 -> none
+  committed: 5; c(x): golden g05-garage=1, golden g05-mop=2, seeded t-plants-a=1
   duplicates created: 2; false merges: 0
-  validity: 3 of 4 valid (draft 3 windowEndNotAfterStart)
+  validity: 4 of 5 valid (draft 3 windowEndNotAfterStart)
   introduced banned tokens: 0
-  golden 3, found 3, extras 1
+  golden 3, found 3, extras 2
 
 input in06: voice, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 900
   draft 1 text [pay late gas bill]
@@ -126,14 +128,30 @@ input in07: text, attempt 1 scored (1 in file), route onDevice, outcome noModel,
   introduced banned tokens: 0
   golden 1, found 0, extras 0
 
-totals: inputs scored 7, absent none
-totals: N 16, extras 3, drafts 18, valid 17, introduced banned tokens 2, duplicates created 6, false merges 1
-totals: segmentation 14 of 16 (required 16 at 95%)
-totals: kind 13 of 16 (required 16 at 95%)
-totals: room 11 of 16 (required 15 at 90%)
-totals: effort 13 of 16 (required 14 at 85%)
-totals: critical 13 of 16 (required 16 at 95%)
-totals: deepClean 13 of 16 (required 16 at 95%)
-totals: weatherDependent 13 of 16 (required 16 at 95%)
+input in08: voice, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 700
+  draft 1 text [sort post behind door shed]
+  draft 2 text [fix late gate]
+  pairing: draft 1 <-> g08-post (overlap 2)
+  pairing: draft 2 <-> g08-gate (overlap 2)
+  item g08-post: found (draft 1); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  item g08-gate: found (draft 2); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  extra drafts: none
+  best target: draft 1 -> golden g08-post (overlap 2)
+  best target: draft 2 -> golden g08-gate (overlap 2)
+  committed: 2; c(x): golden g08-gate=1, golden g08-post=1
+  duplicates created: 0; false merges: 0
+  validity: 2 of 2 valid
+  introduced banned tokens: 2 (draft 2 title late, draft 2 title late)
+  golden 2, found 2, extras 0
+
+totals: inputs scored 8, absent none
+totals: N 18, extras 4, drafts 21, valid 20, introduced banned tokens 4, duplicates created 6, false merges 1
+totals: segmentation 16 of 18 (required 18 at 95%)
+totals: kind 15 of 18 (required 18 at 95%)
+totals: room 13 of 18 (required 17 at 90%)
+totals: effort 15 of 18 (required 16 at 85%)
+totals: critical 15 of 18 (required 18 at 95%)
+totals: deepClean 15 of 18 (required 18 at 95%)
+totals: weatherDependent 15 of 18 (required 18 at 95%)
 
 profile info: INFO (no pass rule)

@@ -131,12 +131,18 @@ struct EvalScorerSelfTests {
             EvalPairing(draftID: 3, goldenKey: "g05-garage", overlap: 3),
             EvalPairing(draftID: 2, goldenKey: "g05-plants", overlap: 2),
         ])
-        #expect(s.extras == [1])
+        // d5 "Sort the shelves" → [sort, shelves] holds tokens of two of g05-garage's three groups but none of
+        // {garage}, so it does not satisfy the item (a token from **each** group, R27-F4): not paired, extra, and it
+        // has no best target. d1 is extra as above.
+        #expect(s.draftText[5] == ["sort", "shelves"])
+        #expect(s.extras == [1, 5])
         // Best targets: d1 and d4 tie between golden g05-mop and seeded t-mop → golden. d2 ties between seeded
         // t-plants-a and t-plants-b → the lower key t-plants-a. d3 → g05-garage.
         #expect(s.bestTargets.map(\.target) == [.golden("g05-mop"), .seeded("t-plants-a"), .golden("g05-garage"),
-                                                .golden("g05-mop")])
-        // c(g05-mop) = 2, c(t-plants-a) = 1, c(g05-garage) = 1 → duplicates = (2 − 1) + 1 = 2.
+                                                .golden("g05-mop"), nil])
+        // c(g05-mop) = 2, c(t-plants-a) = 1, c(g05-garage) = 1 (d5 is committed but has no best target)
+        // → duplicates = (2 − 1) + 1 = 2. (Were d5 to satisfy g05-garage, c(g05-garage) = 2 would add one.)
+        #expect(s.committedCounts == [.golden("g05-mop"): 2, .seeded("t-plants-a"): 1, .golden("g05-garage"): 1])
         #expect(s.duplicatesCreated == 2)
         // Validity: d3's window is empty (end = start) → windowEndNotAfterStart; the others pass.
         #expect(s.invalidDrafts == [3: .windowEndNotAfterStart])
@@ -172,6 +178,31 @@ struct EvalScorerSelfTests {
         #expect(s.committedCounts[.golden("g06-oven")] == 1)
     }
 
+    // MARK: - in08: calm words judged against the transcript, not the script (R27-F2); per occurrence (R27-F3)
+
+    @Test("AC-M2-14 (in08): for a voice input, 'introduced' is judged against the scored attempt's transcript, not the fixture script, both ways; each occurrence counts")
+    func in08TranscriptNotScript() throws {
+        let s = try Self.input("in08")
+        // Script (fixture text): "Sort the late post and fix the gate" — holds "late", not "behind".
+        // Transcript: "Sort the post, it's behind the door behind the shed, and fix the gate" — holds "behind", not
+        // "late". AC-M2-12 / PO po-m2-wi15.md ruling 3: for voice, the input is the transcript.
+        // d1 "Sort the post behind the door behind the shed": "behind" twice, said in the transcript → 0.
+        // d2 "Fix the late late gate": "late" twice, only in the script, not in the transcript → introduced, each
+        // occurrence once → 2.
+        // (Judged against the script instead, the answer would be d1 behind × 2 and d2 nothing.)
+        #expect(s.introducedTokens == [
+            EvalIntroducedToken(draftID: 2, field: .title, token: "late"),
+            EvalIntroducedToken(draftID: 2, field: .title, token: "late"),
+        ])
+        // Both items found and right: d1 [sort, post, behind, door, shed] pairs with g08-post (overlap 2); d2
+        // [fix, late, gate] with g08-gate (overlap 2). Each create item committed once → no duplicate.
+        #expect(s.pairings == [
+            EvalPairing(draftID: 1, goldenKey: "g08-post", overlap: 2),
+            EvalPairing(draftID: 2, goldenKey: "g08-gate", overlap: 2),
+        ])
+        #expect(s.duplicatesCreated == 0 && s.extras.isEmpty && s.notFound.isEmpty)
+    }
+
     @Test("AC-M2-14 (in07): noModel with no draft — the item is not found and counts as wrong in every field")
     func in07NoModel() throws {
         let s = try Self.input("in07")
@@ -184,17 +215,18 @@ struct EvalScorerSelfTests {
     @Test("AC-M2-14: totals over all inputs — denominators over golden items, not-found items wrong in every field")
     func totals() throws {
         let t = try Self.scored().totals
-        // N = 3 + 2 + 2 + 2 + 3 + 3 + 1 = 16. Found = 3 + 1 + 2 + 2 + 3 + 3 + 0 = 14.
-        #expect(t.goldenItems == 16 && t.inputsScored == 7 && t.inputsAbsent.isEmpty)
-        #expect(t.correct[.segmentation] == 14)
-        // kind: 14 found − g06-oven = 13. room: 14 − in04 (2) − g06-tiles = 11. effort: 14 − g06-oven = 13.
-        // critical: 14 − g06-oven = 13. deepClean: 14 − g06-tiles = 13. weather: 14 − g06-bill = 13.
-        #expect(t.correct[.kind] == 13 && t.correct[.room] == 11 && t.correct[.effort] == 13)
-        #expect(t.correct[.critical] == 13 && t.correct[.deepClean] == 13 && t.correct[.weatherDependent] == 13)
-        // Extras: in03 (2) + in05 (1) = 3. Drafts: 3 + 1 + 5 + 2 + 4 + 3 + 0 = 18, one not valid.
-        #expect(t.extras == 3 && t.drafts == 18 && t.validDrafts == 17)
-        // Introduced banned tokens 2; duplicates created 0 + 0 + 3 + 1 + 2 + 0 + 0 = 6; false merges 1 (g02-oven).
-        #expect(t.introducedTokens == 2 && t.duplicatesCreated == 6 && t.falseMerges == 1)
+        // N = 3 + 2 + 2 + 2 + 3 + 3 + 1 + 2 = 18. Found = 3 + 1 + 2 + 2 + 3 + 3 + 0 + 2 = 16.
+        #expect(t.goldenItems == 18 && t.inputsScored == 8 && t.inputsAbsent.isEmpty)
+        #expect(t.correct[.segmentation] == 16)
+        // kind: 16 found − g06-oven = 15. room: 16 − in04 (2) − g06-tiles = 13. effort: 16 − g06-oven = 15.
+        // critical: 16 − g06-oven = 15. deepClean: 16 − g06-tiles = 15. weather: 16 − g06-bill = 15.
+        #expect(t.correct[.kind] == 15 && t.correct[.room] == 13 && t.correct[.effort] == 15)
+        #expect(t.correct[.critical] == 15 && t.correct[.deepClean] == 15 && t.correct[.weatherDependent] == 15)
+        // Extras: in03 (2) + in05 (2: d1, d5) = 4. Drafts: 3 + 1 + 5 + 2 + 5 + 3 + 0 + 2 = 21, one not valid.
+        #expect(t.extras == 4 && t.drafts == 21 && t.validDrafts == 20)
+        // Introduced banned tokens: in06 (2) + in08 (2) = 4; duplicates created 0 + 0 + 3 + 1 + 2 + 0 + 0 + 0 = 6;
+        // false merges 1 (g02-oven).
+        #expect(t.introducedTokens == 4 && t.duplicatesCreated == 6 && t.falseMerges == 1)
     }
 
     // MARK: - Rule units (each rule on its own, hand-built values)
@@ -291,7 +323,7 @@ struct EvalScorerSelfTests {
         var root = try EvalSelfTest.resultsRoot()
         root = root.setting("/inputs/7", to: nil)
         let totals = try EvalSelfTest.readAndScore(root).1.totals
-        #expect(totals.inputsAbsent == ["in07"] && totals.inputsScored == 6 && totals.goldenItems == 15)
+        #expect(totals.inputsAbsent == ["in07"] && totals.inputsScored == 7 && totals.goldenItems == 17)
     }
 
     // MARK: - Log ("Output")
@@ -309,7 +341,8 @@ struct EvalScorerSelfTests {
         #expect(log.contains("item g02-mirror: not found"))
         #expect(log.contains("introduced banned tokens: 2 (draft 2 title overdue, draft 3 proposedRoomName missed)"))
         for metric in EvalMetric.allCases { #expect(log.contains("totals: \(metric.rawValue) ")) }
-        #expect(log.contains("totals: room 11 of 16 (required 15 at 90%)"))
+        #expect(log.contains("totals: room 13 of 18 (required 17 at 90%)"))
+        #expect(log.contains("introduced banned tokens: 2 (draft 2 title late, draft 2 title late)"))
         #expect(log.hasSuffix("profile info: INFO (no pass rule)\n"))
         // Deterministic: the same file gives the same bytes.
         let again = try EvalScorer.run(try EvalSelfTest.request(

@@ -12,7 +12,7 @@ struct EvalFixturesTests {
     @Test("the self-test fixtures read with every field; the household is an M1 household with the fixed IDs")
     func reads() throws {
         let f = try EvalSelfTest.fixtures()
-        #expect(f.inputs.map(\.id) == ["in01", "in02", "in03", "in04", "in05", "in06", "in07"])
+        #expect(f.inputs.map(\.id) == ["in01", "in02", "in03", "in04", "in05", "in06", "in07", "in08"])
         #expect(f.inputs[1].mode == .voice && f.inputNumber(of: "in05") == 5 && f.inputNumber(of: "x") == nil)
         #expect(f.rooms.map(\.key) == ["kitchen", "bathroom", "hallway"])
         let bins = try #require(f.tasks.first { $0.key == "t-bins" })
@@ -20,7 +20,7 @@ struct EvalFixturesTests {
         #expect(bins.task.completedAt == EvalInstant(text: "2026-11-20T09:00:00.000Z")?.date)
         let pods = try #require(f.tasks.first { $0.key == "t-pods" })
         #expect(pods.task.roomID == f.rooms[0].id && pods.matchGroups == [["dishwasher", "dish"], ["pods", "tablets"]])
-        #expect(f.golden.count == 16 && f.golden[2].room == .new(name: "Balcony", alternates: ["terrace", "deck"]))
+        #expect(f.golden.count == 18 && f.golden[2].room == .new(name: "Balcony", alternates: ["terrace", "deck"]))
         #expect(f.golden[0].expect == .existing(seededKey: "t-ac") && f.golden[2].expect == .create)
         #expect(f.household.tasks.count == 6 && f.household.rooms.count == 3)
         #expect(f.taskKeys[pods.task.id] == "t-pods" && f.roomKeys[f.rooms[1].id] == "bathroom")

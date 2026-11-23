@@ -428,6 +428,54 @@
       "expect": {
         "type": "create"
       }
+    },
+    {
+      "inputID": "in08",
+      "key": "g08-post",
+      "matchGroups": [
+        [
+          "post",
+          "mail"
+        ],
+        [
+          "sort"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in08",
+      "key": "g08-gate",
+      "matchGroups": [
+        [
+          "gate"
+        ],
+        [
+          "fix",
+          "repair"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
     }
   ]
 }

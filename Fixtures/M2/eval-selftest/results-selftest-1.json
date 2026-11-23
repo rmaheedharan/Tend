@@ -633,7 +633,7 @@
       "route": "onDevice",
       "outcome": "completed",
       "ttfiMs": 300,
-      "totalMs": 1100,
+      "totalMs": 1300,
       "events": [
         {
           "type": "emitted",
@@ -656,9 +656,14 @@
           "tMs": 900
         },
         {
+          "type": "emitted",
+          "draftID": 5,
+          "tMs": 1100
+        },
+        {
           "type": "finished",
           "draftID": null,
-          "tMs": 1100
+          "tMs": 1300
         }
       ],
       "drafts": [
@@ -796,13 +801,47 @@
           "duplicate": {
             "type": "none"
           }
+        },
+        {
+          "draftID": 5,
+          "title": "Sort the shelves",
+          "kind": "oneOff",
+          "room": {
+            "type": "none"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
         }
       ],
       "committed": [
         1,
         2,
         3,
-        4
+        4,
+        5
       ],
       "cloudRequests": []
     },
@@ -969,6 +1008,108 @@
       ],
       "drafts": [],
       "committed": [],
+      "cloudRequests": []
+    },
+    {
+      "inputID": "in08",
+      "mode": "voice",
+      "attempt": 1,
+      "retakeReason": null,
+      "transcript": "Sort the post, it's behind the door behind the shed, and fix the gate",
+      "transcriber": "SpeechTranscriber",
+      "route": "onDevice",
+      "outcome": "completed",
+      "ttfiMs": 300,
+      "totalMs": 700,
+      "events": [
+        {
+          "type": "emitted",
+          "draftID": 1,
+          "tMs": 300
+        },
+        {
+          "type": "emitted",
+          "draftID": 2,
+          "tMs": 500
+        },
+        {
+          "type": "finished",
+          "draftID": null,
+          "tMs": 700
+        }
+      ],
+      "drafts": [
+        {
+          "draftID": 1,
+          "title": "Sort the post behind the door behind the shed",
+          "kind": "oneOff",
+          "room": {
+            "type": "none"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 2,
+          "title": "Fix the late late gate",
+          "kind": "oneOff",
+          "room": {
+            "type": "none"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        }
+      ],
+      "committed": [
+        1,
+        2
+      ],
       "cloudRequests": []
     }
   ]

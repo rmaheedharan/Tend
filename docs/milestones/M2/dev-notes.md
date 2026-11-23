@@ -2826,16 +2826,16 @@ once and last, the drafts are exactly the emitted ones); non-decreasing times, `
   N ≥ 50 and every input present.
 - CI runs no TendTools tests (above). The scorer logic itself is all in TendIngestion and runs in CI.
 
-### Open questions (built to the most literal reading; work continues)
-1. **Q1 (Tester/PO, fixture guidance):** under the best-target rule, two `create` items **in one input** with identical
-   match groups (in04: "wipe the kitchen counter and wipe the bathroom counter") send both drafts to the lower key, so
-   committing both counts **1 duplicate created** even when both are right. The rules are built as written. Suggested
-   guidance for WI-M2-16: give such items a distinguishing group (for example the room word), or the PO clarifies the
-   rule before the freeze.
-2. **Q2 (WI-M2-10):** the key-path form in the results file is `$` + `.name` / `[]` (E3). The allowed key-path lists
-   from WI-M2-10 must use the same form, or the schema pattern changes before the freeze.
-3. **Q3 (Tester):** please confirm S1 (draft text as a distinct set) and S4 (introduced tokens counted per occurrence)
-   in the independent re-score of `results-selftest-1`.
+### Open questions — all closed (PO rulings `po-m2-wi15.md`, 2026-11-23)
+1. **Q1 (two `create` items with identical match groups): closed, ruling 1.** The scoring rule stays as written;
+   in04's 1 duplicate created is correct and stays as a self-test case. The eval fixtures must make every `create` item
+   distinguishable within its input (checked in WI-M2-16 with a `referencePhrase`; the scorer ignores the member). The
+   brief amendment ("Distinguishable targets") is inserted word for word in round 2.
+2. **Q2 (key-path form): closed, ruling 2.** E3 confirmed: `$`, then `.name` or `[]`, names `[A-Za-z0-9_-]+`;
+   WI-M2-10's lists use the same form (Planner adds it to the WI-M2-10 row).
+3. **Q3 (S1, S4): closed, ruling 3.** S1 accepted. S4 accepted as: introduced = not in the fixture text (text) or the
+   scored attempt's transcript (voice); each occurrence counts; a said token never counts. Round 2 pins both halves
+   with in08 (R27-F2, R27-F3).
 
 ### Law check
 | Law | Status | Note |
@@ -2886,3 +2886,44 @@ once and last, the drafts are exactly the emitted ones); non-decreasing times, `
 |---|---|---|---|---|
 | 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-15 Ready: WI-M2-01 and 05 merged (`3bac3ce`). Stay out of Routing/ (PR #24) and the SSE/JSON snapshot parsers. |
 | 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first. TendIngestion 297, TendSourceScan 63, TendCore 141, TendTools 7 green, 0 warnings, Linux. R-22: 214/214 constraints. 27/27 mutants killed (M27 after a new case). `tend-payload-dump` is a stub (WI-M2-10 not built). Three open questions (Q1 fixture guidance to Tester/PO, Q2 key-path form to WI-M2-10, Q3 re-score confirmation). origin/main unchanged at `3bac3ce`, so no merge commit. Pushed; no PR opened. Next: Reviewer; then the Tester's independent re-score in WI-M2-16. |
+
+### Round 2 (review round 1: CHANGES REQUIRED, `review-WI-M2-15.md`; PO rulings `po-m2-wi15.md`)
+Merged `origin/main` at `aa38472` (PR #24) into the branch as `ccce8c1`, with no rebase and no force-push. In the `dev-notes.md` conflict I took main's file and appended this section at the end.
+
+| Finding | Change |
+|---|---|
+| **R27-F1 Major** | `EvalSchemaCheck.compile` now gives `pattern` the ECMA-262 meaning. `icuPattern(fromECMA:)` rewrites every unescaped `$` outside a character class to ICU `\z` (end of input only). ICU `$` on Linux and on Darwin also matches before a final `\n`, `\r\n`, `\r`, U+0085, U+2028 or U+2029. The wrong comment ("the part ICU and ECMA-262 read the same way") is replaced. New tests: "R27-F1: the list covers every pattern in the committed schema (6)"; "R27-F1: each schema pattern refuses its valid value followed by …" (6 pattern locations × 6 terminators = 36 cases: `\n`, `\r\n`, U+2028, `\r`, U+0085, U+2029; each is rejected at its path with keyword `pattern`, and the valid value is still accepted); "R27-F1: a file with a trailing newline in a pattern field is rejected by the reader" (the review's probe P2); the ECMA-to-ICU spelling table (5 cases); and pattern semantics (an escaped `\$`, an unanchored pattern, U+2028). New mutant M28 (no rewrite) is killed by 4 tests. |
+| **R27-F2 Major** | New hand-built voice input `in08` in the self-test set. Its script says "late" and not "behind"; its transcript says "behind" and not "late". d1 "Sort the post behind the door behind the shed" counts 0, because the user said "behind". d2 "Fix the late late gate" counts 2, because "late" is only in the script. The hand derivation is in the test "AC-M2-14 (in08): …", and the pinned `results-selftest-1.score.log` is regenerated. The review's mutant M-R2 (always use the fixture text) is now **killed** by 2 tests (in08, log). |
+| **R27-F3 Minor** | in08 also pins S4: an introduced token twice in one title counts 2, and a said token twice counts 0. The review's mutant M-R1 (once per distinct token) is now **killed** by 3 tests. |
+| **R27-F4 Minor** | New draft in05 d5 "Sort the shelves". It holds tokens from 2 of `g05-garage`'s 3 groups and none from `{garage}`, so it does not satisfy the item: it is extra, with no best target. M15 (any group instead of each) is now killed in the hand-built file as well (4 tests, including in05: c(g05-garage) would become 2). |
+| **R27-F5 Minor (owner)** | **Owner ticket HM-1b:** add `swift test --package-path Tools/TendTools -Xswiftc -warnings-as-errors` to the CI "TendIngestion swift test (Linux)" job. `.github/**` is protected, so this needs a human merge. Until then, the 7 TendTools tests (the 0/1/2/64 exit-code contract and the stub's exit 3) run only locally and in review. |
+| R27-N1 Nit | Done. `TendToolsTests.Captured` holds a `Synchronization.Mutex`, is checked `Sendable`, and has no `@unchecked`. |
+| R27-N2 Nit | Not done. Caching would need `NSRegularExpression` values stored in a `Sendable` struct, and that type is not declared `Sendable` in swift-corelibs-foundation. At eval size the cost is trivial, as the review says. |
+| R27-N3 Nit | Recorded for the Tester. (a) The E4 one-liner is only for the hand-built ASCII self-test file. A device results file is committed byte for byte and never re-saved or re-formatted (DS-1, DS-2). (b) Whole Mbit/s stays as it is unless the PO asks for more precision. |
+| PO ruling 1 | The "Distinguishable targets" bullet is inserted into `brief.md` word for word, as the last sub-bullet of "Eval scoring rules" > **Fixtures**. Open questions 1–3 are closed above, citing rulings 1–3. |
+
+**Self-test set after round 2:** 8 inputs and 18 golden items. The hand-derived totals are: N 18, found 16, kind 15, room 13, effort 15, each flag 15, extras 4, drafts 21 (20 valid), 4 introduced tokens, 6 duplicates created and 1 false merge. The regenerated log matches these numbers.
+
+**Round 2 test runs** (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, 0 warnings in every package, on the merged tree):
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 352 tests in 44 suites passed after 82.799 seconds.` That is main's 284 (the WI-M2-09 routing tests are now included) plus 68 eval tests in 7 suites (62 + 6 new). AC-M2-09: `37 files in total, 0 violations`. The AC-M2-12 vocabulary scan passes. |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 6.452 seconds.` |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 124.097 seconds.` |
+| Tools/TendTools | `✔ Test run with 7 tests in 1 suite passed after 0.171 seconds.` |
+
+**Round 2 mutants.** I ran them on a fresh scratch copy of the merged tree with `--filter Eval`. The worktree was never edited, and afterwards the copy's `Packages` and `Fixtures` were identical to it. All 27 round 1 mutants were rerun, plus the review's M-R1 and M-R2 and the new M28: **30 of 30 killed**. M17 was again labelled "BUILD ERROR" by my script only because the test output contains the text `error:`; it built, and 3 tests failed.
+
+| # | Mutant | Killed by |
+|---|---|---|
+| M1–M14, M16–M27 | as in round 1 | the same tests as round 1 (M2 now 7 tests, M7 18, M12 4) |
+| M15 | satisfies with any group | now 4 tests, including in05 (R27-F4) |
+| M-R1 | calm words once per distinct token per title | in08, totals, log (R27-F3) |
+| M-R2 | voice judged against the fixture text | in08, log (R27-F2) |
+| M28 | `$` not rewritten to `\z` (ICU end of line) | the 4 R27-F1 tests |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-23 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: R27-F1 and F2 Major; F3–F5 Minor; N1–N3. PO `po-m2-wi15.md` answered Q1–Q3. |
+| 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1–F4 fixed, F5 is owner ticket HM-1b, N1 done, N2 declined with a reason, N3 recorded. The brief amendment is inserted word for word, and Q1–Q3 are closed. origin/main `aa38472` is merged. All four packages are green with 0 warnings. 30/30 mutants killed. The review file is committed with the fix. |

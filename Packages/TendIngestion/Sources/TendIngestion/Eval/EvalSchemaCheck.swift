@@ -207,6 +207,7 @@ public struct EvalSchemaCheck: Sendable {
             }
             if case let .string(pattern)? = schema["pattern"] {
                 // The pattern compiled when the schema was checked; a nil here is treated as no match (fail closed).
+                // `$` means the end of the input, as in ECMA-262 (`compile`).
                 let range = NSRange(text.startIndex..<text.endIndex, in: text)
                 if Self.compile(pattern)?.firstMatch(in: text, options: [], range: range) == nil {
                     issue("pattern", "does not match \(pattern)")
@@ -226,9 +227,45 @@ public struct EvalSchemaCheck: Sendable {
         }
     }
 
-    /// Compiles a `pattern` value (ICU syntax; the schema keeps to the part ICU and ECMA-262 read the same way).
+    /// Compiles a `pattern` value with ECMA-262 meaning (JSON Schema 2020-12 §6.3.3 says patterns are ECMA-262).
+    ///
+    /// ICU (`NSRegularExpression`, on Linux and Darwin) and ECMA-262 differ on `$`: without the multiline flag, ECMA
+    /// `$` matches only at the very end of the input, while ICU `$` also matches before a final line terminator
+    /// (`\n`, `\r\n`, `\r`, U+0085, U+2028, U+2029). So every unescaped `$` outside a character class is rewritten
+    /// to ICU `\z` (end of input only) before compiling (review R27-F1). `^` (start of input without multiline), `.`,
+    /// classes, `{n}` and the other constructs the schema uses read the same in both.
     static func compile(_ pattern: String) -> NSRegularExpression? {
-        try? NSRegularExpression(pattern: pattern, options: [])
+        try? NSRegularExpression(pattern: icuPattern(fromECMA: pattern), options: [])
+    }
+
+    /// The ICU spelling of an ECMA-262 pattern: unescaped `$` outside `[...]` becomes `\z`; everything else is kept.
+    static func icuPattern(fromECMA pattern: String) -> String {
+        var result = ""
+        var escaped = false
+        var inClass = false
+        for character in pattern {
+            if escaped {
+                result.append(character)
+                escaped = false
+                continue
+            }
+            switch character {
+            case "\\":
+                escaped = true
+                result.append(character)
+            case "[":
+                inClass = true
+                result.append(character)
+            case "]":
+                inClass = false
+                result.append(character)
+            case "$" where !inClass:
+                result += "\\z"
+            default:
+                result.append(character)
+            }
+        }
+        return result
     }
 
     /// RFC 6901 escaping of one pointer segment.

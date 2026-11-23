@@ -255,6 +255,76 @@ struct EvalSchemaCheckTests {
         #expect(all.count >= 150, "the walk found the schema's constraints (\(all.count))")
     }
 
+    // MARK: - R27-F1: `$` is the end of the input (ECMA-262), not "before a final line terminator" (ICU)
+
+    /// Where each `pattern` of the committed schema has a value in the maximal instance.
+    static let patternLocations = [
+        "/run/startedAtUTC", "/run/appCommitSHA", "/run/fixturesSHA256", "/inputs/0/drafts/0/windowStart",
+        "/inputs/0/drafts/0/windowEnd", "/inputs/0/cloudRequests/0/keyPaths/0",
+    ]
+
+    static func patternCount(_ schema: EvalJSON) -> Int {
+        switch schema {
+        case let .object(members):
+            return members.reduce(0) { $0 + ($1.key == "pattern" ? 1 : patternCount($1.value)) }
+        case let .array(items): return items.reduce(0) { $0 + patternCount($1) }
+        default: return 0
+        }
+    }
+
+    @Test("R27-F1: the list covers every pattern in the committed schema (6)")
+    func patternListComplete() throws {
+        let schemaJSON = try EvalJSONReader.parse(try EvalSelfTest.data(EvalSelfTest.schemaPath))
+        #expect(Self.patternCount(schemaJSON) == Self.patternLocations.count)
+    }
+
+    @Test("R27-F1: each schema pattern refuses its valid value followed by \\n, \\r\\n or U+2028, and still accepts the value",
+          arguments: patternLocations, ["\n", "\r\n", "\u{2028}", "\r", "\u{85}", "\u{2029}"])
+    func patternEndOfInput(pointer: String, terminator: String) throws {
+        let check = try EvalSelfTest.schema()
+        let instance = try Self.maximalInstance()
+        #expect(check.issues(in: instance).isEmpty)
+        guard case let .string(valid)? = instance.value(at: pointer) else {
+            Issue.record("no string at \(pointer)")
+            return
+        }
+        let broken = instance.setting(pointer, to: .string(valid + terminator))
+        let issues = check.issues(in: broken)
+        #expect(issues == [EvalSchemaIssue(path: pointer, keyword: "pattern", detail: issues.first?.detail ?? "")],
+                "\(issues)")
+        #expect(issues.first?.keyword == "pattern")
+    }
+
+    @Test("R27-F1: a file with a trailing newline in a pattern field is rejected by the reader (the review's probe P2)")
+    func readerRejectsTrailingNewline() throws {
+        let sha = "0123456789abcdef0123456789abcdef01234567"
+        let root = try EvalSelfTest.resultsRoot().setting("/run/appCommitSHA", to: .string(sha + "\n"))
+        do {
+            _ = try EvalResultsFileV1.read(try EvalSelfTest.canonical(root), schema: try EvalSelfTest.schema(),
+                                           fixtures: try EvalSelfTest.fixtures(),
+                                           expectedFixturesSHA256: EvalSelfTest.selfTestHash)
+            Issue.record("accepted a trailing newline")
+        } catch let EvalRejection.schemaIssues(issues) {
+            #expect(issues.map(\.path) == ["/run/appCommitSHA"])
+        }
+    }
+
+    @Test("R27-F1: the ECMA-to-ICU spelling rewrites only unescaped $ outside a class", arguments: [
+        ("^a$", "^a\\z"), ("^\\$(\\.[a-z]+|\\[\\])*$", "^\\$(\\.[a-z]+|\\[\\])*\\z"), ("[$]$", "[$]\\z"),
+        ("a\\\\$", "a\\\\\\z"), ("^ab", "^ab"),
+    ])
+    func icuSpelling(ecma: String, icu: String) {
+        #expect(EvalSchemaCheck.icuPattern(fromECMA: ecma) == icu)
+    }
+
+    @Test("R27-F1: $ inside the string still matches literally where the pattern escapes it; unanchored patterns stay unanchored")
+    func patternSemantics() throws {
+        #expect(try Self.issues(#"{"pattern":"^\\$x$"}"#, #""$x""#).isEmpty)
+        #expect(!(try Self.issues(#"{"pattern":"^\\$x$"}"#, #""$x\n""#)).isEmpty)
+        #expect(try Self.issues(#"{"pattern":"b"}"#, #""ab\n""#).isEmpty)
+        #expect(!(try Self.issues(#"{"pattern":"a$"}"#, #""a\u2028""#)).isEmpty)
+    }
+
     @Test("the committed schema uses only the supported subset, and it holds the v1 top level exactly")
     func committedSchemaShape() throws {
         let check = try EvalSelfTest.schema()

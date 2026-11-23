@@ -35,6 +35,11 @@
       "id": "in07",
       "mode": "text",
       "text": "Book the chimney sweep"
+    },
+    {
+      "id": "in08",
+      "mode": "voice",
+      "text": "Sort the late post and fix the gate"
     }
   ]
 }

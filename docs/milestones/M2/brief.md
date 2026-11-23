@@ -599,6 +599,12 @@ As someone who already feels behind, I want Tend never to add a guilt word, so t
     - `existing(roomKey)`;
     - `new(name, alternates)`;
     - `none`.
+  - **Distinguishable targets.** Within one input, a draft that is right for a `create` golden item must have that
+    item as its best target. For each `create` item, the Tester records a `referencePhrase`: the words of the input
+    that the item comes from. The fixture-composition check (Linux) treats the keywords of that phrase as a draft
+    text and refuses the fixtures unless its best target, under the rule below, is that item. When two items of one
+    input share their chore words, the Tester adds a distinguishing match group, preferably the room word the user
+    said. The scorer ignores `referencePhrase`. The hand-built scorer self-test set is exempt.
 - **Household state.** Every input starts from a fresh copy of the seeded household. The 20 inputs never build on each
   other, so retakes and input order cannot change a score.
 - **Draft text.** The draft text is the keywords of the draft's final `title`, joined with the keywords of its
