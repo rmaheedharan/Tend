@@ -52,27 +52,103 @@ struct UnreadableConsentStore: CloudConsentStore {
     func clearConsent(for provider: CloudProvider) async throws(CloudStoreError) { throw .storeUnavailable }
 }
 
-/// A key store whose `key(for:)` waits until the test releases it (the request is "being prepared").
+/// A key store whose reads can be held until the test releases them. `key(for:)` waits on every call when
+/// `holdKeyRead` is true (the request is "being prepared"); the first `hasKey` waits when `holdFirstHasKey` is true (a
+/// route choice is reading the stores). `deleteKey` throws when `deleteFails` is true.
 final class SuspendingKeyStore: APIKeyStore {
-    private let waiting = Mutex<[CheckedContinuation<Void, Never>]>([])
-    private let calls = Mutex(0)
+    /// After `release()` the store is open: later reads do not wait, so a rule that reads again cannot hang a test.
+    private let waiting = Mutex<(open: Bool, list: [CheckedContinuation<Void, Never>])>((false, []))
+    private let keyReads = Mutex(0)
+    private let heldHasKey = Mutex(0)
+    private let armedHasKey: Mutex<Bool>
     let stored: [CloudProvider: APIKey]
-    init(keys: [CloudProvider: APIKey]) { self.stored = keys }
-    var keyCalls: Int { calls.withLock { $0 } }
+    let holdKeyRead: Bool
+    let deleteFails: Bool
+
+    init(keys: [CloudProvider: APIKey], holdKeyRead: Bool = true, holdFirstHasKey: Bool = false,
+         deleteFails: Bool = false) {
+        self.stored = keys
+        self.holdKeyRead = holdKeyRead
+        self.armedHasKey = Mutex(holdFirstHasKey)
+        self.deleteFails = deleteFails
+    }
+
+    /// How many `key(for:)` calls are waiting or have waited.
+    var keyCalls: Int { keyReads.withLock { $0 } }
+    /// How many `hasKey` calls are waiting or have waited.
+    var heldHasKeyCalls: Int { heldHasKey.withLock { $0 } }
+
     func release() {
-        let all = waiting.withLock { list in defer { list = [] }; return list }
+        let all = waiting.withLock { state in
+            defer { state = (true, []) }
+            return state.list
+        }
         for continuation in all { continuation.resume() }
     }
-    func hasKey(for provider: CloudProvider) async throws(CloudStoreError) -> Bool { stored[provider] != nil }
-    func key(for provider: CloudProvider) async throws(CloudStoreError) -> APIKey? {
+
+    private func hold(counting counter: borrowing Mutex<Int>) async {
+        counter.withLock { $0 += 1 }
         await withCheckedContinuation { continuation in
-            waiting.withLock { $0.append(continuation) }
-            calls.withLock { $0 += 1 }
+            let resumeNow = waiting.withLock { state in
+                if state.open { return true }
+                state.list.append(continuation)
+                return false
+            }
+            if resumeNow { continuation.resume() }
         }
+    }
+
+    func hasKey(for provider: CloudProvider) async throws(CloudStoreError) -> Bool {
+        let hold = armedHasKey.withLock { armed in defer { armed = false }; return armed }
+        if hold { await self.hold(counting: heldHasKey) }
+        return stored[provider] != nil
+    }
+    func key(for provider: CloudProvider) async throws(CloudStoreError) -> APIKey? {
+        if holdKeyRead { await hold(counting: keyReads) }
         return stored[provider]
     }
     func save(_ key: APIKey, for provider: CloudProvider) async throws(CloudStoreError) {}
-    func deleteKey(for provider: CloudProvider) async throws(CloudStoreError) {}
+    func deleteKey(for provider: CloudProvider) async throws(CloudStoreError) {
+        if deleteFails { throw .notAccessibleNow }
+    }
+}
+
+/// A consent store with in-memory behaviour whose first `recordConsent` waits until the test releases it.
+final class SuspendingConsentStore: CloudConsentStore {
+    private struct State {
+        var selected: CloudProvider?
+        var consents: Set<CloudProvider> = []
+        var armed = true
+        var waiting: [CheckedContinuation<Void, Never>] = []
+        var held = 0
+    }
+    private let state = Mutex(State())
+
+    var heldCalls: Int { state.withLock { $0.held } }
+    var consentsNow: Set<CloudProvider> { state.withLock { $0.consents } }
+
+    func release() {
+        let all = state.withLock { s in defer { s.waiting = [] }; return s.waiting }
+        for continuation in all { continuation.resume() }
+    }
+
+    func selectedProvider() async throws(CloudStoreError) -> CloudProvider? { state.withLock { $0.selected } }
+    func select(_ provider: CloudProvider?) async throws(CloudStoreError) { state.withLock { $0.selected = provider } }
+    func hasConsent(for provider: CloudProvider) async throws(CloudStoreError) -> Bool {
+        state.withLock { $0.consents.contains(provider) }
+    }
+    func recordConsent(for provider: CloudProvider) async throws(CloudStoreError) {
+        let hold = state.withLock { s in defer { s.armed = false }; return s.armed }
+        if hold {
+            await withCheckedContinuation { continuation in
+                state.withLock { $0.waiting.append(continuation); $0.held += 1 }
+            }
+        }
+        state.withLock { _ = $0.consents.insert(provider) }
+    }
+    func clearConsent(for provider: CloudProvider) async throws(CloudStoreError) {
+        state.withLock { _ = $0.consents.remove(provider) }
+    }
 }
 
 @Suite("AC-M2-18 off by default, consent, restored state (P-3)")

@@ -2568,18 +2568,17 @@ Device ACs: none in this item.
 | Not verified on Darwin | — | Plan B2, MS-2 |
 
 ### Open questions (PO; built to the most literal and most private reading, work continues)
-1. **Does selecting another provider cancel the previous provider's capture in flight?** The brief says what turning
-   cloud off and removing the key do, but not what switching provider does. Built: yes (D5). The user has moved away
-   from X, so nothing more goes to X. Consent records and keys are kept, because switching is not turning off. If the
-   PO rules no, it is a one-line change (drop `endCaptures` in `select`) and the test "selecting another provider
-   cancels …" flips.
-2. **Does turning cloud off clear the selection?** Built: no. The selection holds no secret, and cloud stays off
-   because every consent and key is gone and every provider is blocked. M3 may want to show the last provider when
-   the user turns cloud on again. If the PO prefers a clean slate, add `select(nil)` to `turnCloudOff`.
-3. **Outcome when a turn-off meets a capture whose request had not started yet.** Built: `cancelled` with route
-   `cloud(X)` and 0 requests (AC-M2-18 (c) with (d)'s outcome). The alternative, `noModel` with a plain note, would
-   give the user a way to keep the words; with `cancelled`, M3 keeps the input itself (PO WI-M2-06 ruling 4: an
-   app-initiated cancel keeps the input). Confirm.
+All three are closed by the PO rulings in `po-m2-wi09.md` (2026-11-22). Each is accepted as built, with no code change.
+The brief amendments are applied word for word in round 2.
+1. ~~**Selecting another provider while a capture is in flight.**~~ **Closed: ruling 1.** It ends the previous provider's
+   in-flight captures as a turn-off does. Its consent and key are kept. Selecting the provider already in use
+   cancels nothing.
+2. ~~**Does turning cloud off clear the selection?**~~ **Closed: ruling 2.** The selection is kept. The ruling's
+   conditions are binding: the selection alone never turns cloud on, it is never sent, and M3 never uses it to skip
+   the consent screen or to nag.
+3. ~~**Outcome when a turn-off meets a capture whose request had not started.**~~ **Closed: ruling 3.** It is
+   `cancelled`, with 0 requests, for every cloud-access end the user caused in Settings. The binding M3 rule: when
+   the user did not cancel the capture itself, M3 keeps the input and offers the plain note locally.
 
 ### Law check
 | Law | Status (pass / n.a. / concern) | Note |
@@ -2593,8 +2592,55 @@ Device ACs: none in this item.
 | P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | Off by default. Cloud is on only with consent **and** a key for the selected provider. Orphan keys are deleted. Restored fixtures (i)–(iii) never route to the cloud. A store error means off. Turn-off and remove key cancel in-flight work at once and block new requests, even when a store fails. Consent is checked again at request start. |
 | P-4 Media not persisted without consent | pass | Nothing is written: no file, log or `UserDefaults` API (AC-M2-09). `APIKey` cannot reach a log through formatting. A cancelled capture writes no task (repository unchanged). |
 
+### Round 2 (review round 1: CHANGES REQUIRED; PO rulings `po-m2-wi09.md`)
+The review is committed with this fix: [review-WI-M2-09.md](review-WI-M2-09.md). `origin/main` at `3bac3ce` (PRs #23
+and #25) is merged in, with no rebase and no force-push. The dev-notes conflict was resolved by keeping main's
+sections first, then this section. In `IngestionModel.swift`, main's new adapter-contract item 4 and the R24-F7
+sentence are both kept. The numbers in this section replace the round 1 test and mutant numbers above.
+
+| Finding | Change |
+|---|---|
+| **R24-F1 Major** | New tests in `CloudConsentRaceTests.swift`:<br>- "R24-F1, R24-F2: a Settings action while the key is being read …" runs end to end for turn-off, remove-key and select-another-provider. `SuspendingKeyStore` holds the key read. Expected: only `finished(cancelled(cloud(openAI)))`, `afterFinished == nil`, 0 requests.<br>- "R24-F1: beginRequest reads the capture again after the key read …" calls `beginRequest` directly for the same three actions and expects nil.<br>- A control without an action expects one allowed start, and a second start is refused.<br>All waits are bounded (`eventually`, `awaitConsumer`, a 1-minute time limit). After `release()` the store stays open, so a mutant that reads again cannot hang.<br>The reviewer's **mutant A is killed in 0.3 s by 3 assertion failures**, one per action, with no hang. So is A with M28 also removed (both request-start guards gone). |
+| **R24-F2 Minor (fixed)** | `ModelRouter.attach(_:continuation:)` stores the capture's stream as soon as the forwarding task starts, before `beginRequest` reads any store. `endCaptures` therefore finishes it at once, even during the key read, and the consumer ends with `cancelled` before the key read returns. That is asserted in the end-to-end F1 test ("the consumer did not end before the key read returned"). The `started` flag keeps one request per capture. Mutant F2m2 ("late attach", the round 1 behaviour) is killed by that assertion. |
+| **R24-F3 Minor (fixed)** | Settings actions now carry numbers (`nextActionNumber`). Each turn-off or remove-key records its number per provider (`lastEnded`). When `turnCloudOn` finishes, it checks whether a turn-off or remove-key for its provider started after it did. If so, the later action wins: the turn-on clears the consent and deletes the key it wrote, leaves the block in place, and returns `.off`. `turnCloudOn` now returns the resulting `CloudStatus` (`@discardableResult`). Numbers are strictly increasing, so there are no ties. Tests: "a turn-off that overlaps a turn-on wins …"; "a remove-key for the same provider that overlaps a turn-on wins; for another provider it does not"; and the control "a turn-on that starts after a turn-off has returned turns cloud on". `SuspendingConsentStore` holds `recordConsent`. Mutants F3m, F3m2, F3m3 and F3m4 are killed. |
+| **R24-F4 Minor (fixed)** | "a turn-off while cloudStatus is reading the stores gives off, even when the stores cannot clear or delete": the first `hasKey` is held, the consent store cannot clear, and the key store cannot delete. The reviewer's mutant D is killed. |
+| **R24-F5 Minor (fixed)** | "when the key cannot be stored, turn-on throws the store error, clears the consent again, and cloud stays off". The reviewer's mutant K is killed. |
+| **R24-F6 Nit (done)** | Internal `trackedCaptureCount`, and the test "the router tracks a cloud capture while it runs and forgets it once its events were read to the end" (on-device captures are never tracked). The reviewer's mutant I is killed. Mutant H (unknown counts as not ended) stays equivalent: it is reachable only after `isDone`. |
+| **R24-F7 Nit (done)** | `IngestionModel` adapter contract, part 3: a stream created inside an already cancelled task cancels its transport at once and sends nothing (WI-M2-M6). |
+| **R23-F2 (ticket from the WI-M2-06/07 integration review)** | The public capture API is now `ModelRouter.events(input:household:now:calendar:timeZone:titleSharing:preference:)`. It chooses the route first, then builds the `DraftPipeline` with that route's rules: `DraftDuplicateRules.onDevice(household:)` on device or for `none`, and `DraftDuplicateRules.cloud(titleSharing, capture: input, household:)` on the cloud. The rooms come from `household.rooms`. The pipeline-taking `events(for:preference:)` is now internal and used by tests only, so the public API cannot pair the rules of one route or capture with another. Tests in `RouteWiringTests.swift`:<br>- 680 cells (34 plan states × 5 availabilities × 2 preferences × 2 Q12 answers): the pipeline's rules path equals the route's, with this capture's text and rooms.<br>- Under Q12 = yes the rules hold this capture's shortlist; the fixture makes the shortlist depend on the capture. Under Q12 = no, only the word-match.<br>- On-device rules are used when cloud is on but the route is on device.<br>Mutants killed: W1 (cloud gets on-device rules), W2 (cloud rules for another capture; it survived until the fixture was made capture-sensitive) and W3 (the Q12 answer ignored). |
+| PO rulings | Open questions 1–3 are closed above. The brief amendments from `po-m2-wi09.md` are applied word for word to `brief.md`: the Cloud model bullet, the `cancelled` bullet, and the AC-M2-18 lead-in and (d). Main's own brief amendments (PRs #23 and #25) are kept. No protected path is touched. |
+
+**Round 2 test runs** (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, 0 warnings, merged tree):
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 284 tests in 37 suites passed after 92.546 seconds.` That is 272 on the merge commit (main plus round 1), plus 12 new: 9 race tests and 3 wiring tests. AC-M2-09: `27 files in total, 0 violations`. AC-M2-12 vocabulary: `27 files, 9 exempted (the list), 0 violations` |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 146.823 seconds.` (unchanged) |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 4.288 seconds.` (unchanged) |
+
+**Round 2 mutation check: 43 mutants, 41 killed, 2 equivalent.**
+- How they were run: each mutant was applied alone to a scratch copy (never the worktree), with `--filter
+  "Route|Consent|CloudTurnOff|CloudStore|RouterNoModel|R24|Wiring"` and a 600 s timeout.
+- What was run: M1–M28 were re-run on the round 2 code. The reviewer's A, D, K and I, the fix mutants (F2m, F2m2,
+  F3m–F3m4, S1) and W1–W3 are new. A, A+M28, D, F2m2, F3m and W1–W3 were run again on the merged tree.
+- Run interruption: Docker stopped once, during the run. The remaining mutants, the baseline and the three mutants
+  that are killed at the time limit (M6, M13, M17) were run again after the restart.
+
+| Mutant | Result |
+|---|---|
+| M1–M27 (round 1) | all killed again. M6, M13 and M17 fail partly at the 1-minute time limit (a held request that never ends); the rest fail on assertions |
+| M28 no `!Task.isCancelled` check | **equivalent**, as in round 1: the capture's own re-check refuses first |
+| A, A + M28 | killed (3 assertions each, 0.3 s) |
+| D, K, I | killed (1 assertion each) |
+| F2m (a turn-off skips streams whose request has not started) | **equivalent**: `started` is set before the key read, so the stream is always finished during preparation. F2m2 is the real "late attach" mutant |
+| F2m2 late attach | killed ("the consumer did not end before the key read returned", 12 issues) |
+| F3m, F3m2, F3m3, F3m4 | killed |
+| S1 a second request per capture | killed (the control test) |
+| W1, W2, W3 | killed (164, 82 and 82 issues) |
+
 ### Handoff log
 | Date | From | To | Result (accepted / returned) | Notes |
 |---|---|---|---|---|
 | 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-09 Ready: WI-M2-06 merged (`00928fc`). Binding: P-1 (one model), P-2/P-3 (own key and consent; turn-off cancels in flight, no new request), the `APIKeyStore` protocol with an in-memory implementation, a neutral mock transport only, and no edits to `Duplicates/` or the assembler's marking. |
 | 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 232, TendCore 141, TendSourceScan 63 green, 0 warnings, Linux. AC-M2-19: 340 plan cells + 2,560 exhaustive cells, 0 mismatches. 28 mutants: 27 killed, 1 equivalent (M28). 3 PO open questions. No existing source file changed. Pushed; no PR opened. |
+| 2026-11-22 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: R24-F1 Major (test the `beginRequest` re-check after the key read; kill mutant A); R24-F2…F5 Minor; F6, F7 Nit. PO `po-m2-wi09.md`: Q1–Q3 accepted as built, brief amendments. |
+| 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1 tests (mutant A killed by assertion, no hang). F2, F3, F4, F5 fixed with tests; F6 and F7 done. R23-F2 wired (rules built from the route). PO brief amendments applied; open questions closed. Merged `origin/main` `3bac3ce`. TendIngestion 284, TendCore 141, TendSourceScan 63 green, 0 warnings. 43 mutants: 41 killed, 2 equivalent. Review file committed with the fix. |
