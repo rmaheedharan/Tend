@@ -231,6 +231,39 @@ struct StructuredOutputReaderTests {
         #expect(events == StreamFixtures.assemble([.snapshot(final.items), .finish], route: .cloud(.anthropic)))
     }
 
+    /// R26-F1; brief AC-M2-05 bullet "No draft holds part of a field the model is still writing" (PO 2026-11-23,
+    /// `po-m2-wi12.md` ruling 1). The prefix `"Late"` of `"Later: call the plumber"` is a banned token the user did not
+    /// say (the input says "later"), so a prefix shown as a value would be guarded to nothing and skipped for good.
+    @Test("AC-M2-05 / AC-M2-24: a title whose prefix is a banned token (\"Late\" of \"Later: call the plumber\"), arriving last in 1–3-byte chunks on each cloud route, gives exactly one emitted with the whole title and nothing skipped",
+          arguments: CloudProvider.allCases, [1, 2, 3])
+    func bannedTokenPrefixTitleArrivesLast(provider: CloudProvider, chunk: Int) async throws {
+        let input = "later: call the plumber about the kitchen sink"
+        let title = "Later: call the plumber"
+        var members = R.fullItemMembers.filter { $0.0 != "title" && $0.0 != "sameAsItem" && $0.0 != "sameAsExisting" }
+        members.append(("title", "\"\(title)\""))
+        let bytes = Array(R.output([R.object(members)]).utf8)
+        let read = R.read(bytes, cuts: Array(stride(from: 0, to: bytes.count, by: chunk)))
+        let final = try read.final.get()
+        #expect(read.steps.allSatisfy { $0.items.allSatisfy { $0.title == nil || $0.title == title } })
+
+        // The case is real: a snapshot that showed the prefix as a value would lose the item.
+        var prefixItem = try #require(final.items.first)
+        prefixItem.title = "Late"
+        let prefixEvents = StreamFixtures.assemble([.snapshot([prefixItem]), .finish], route: .cloud(provider),
+                                                   input: input)
+        #expect(prefixEvents.contains { if case .itemSkipped = $0 { true } else { false } })
+
+        let steps = read.steps.map { ScriptStep.snapshot($0.items) } + [.finish]
+        let events = await StreamFixtures.pipelineEvents(steps, cloud: provider, input: input)
+        let emitted = events.compactMap { event -> IngestionDraft? in
+            if case let .emitted(draft) = event { return draft } else { return nil }
+        }
+        #expect(emitted.map(\.title) == [title])
+        #expect(!events.contains { if case .itemSkipped = $0 { true } else { false } })
+        #expect(!events.contains { if case .updated = $0 { true } else { false } })
+        #expect(events.last == .finished(.completed(route: .cloud(provider), input: nil, plainNote: nil)))
+    }
+
     @Test("AC-M2-24: a text cut off after the first draft ends interrupted (outputCutShort); the draft stays")
     func truncatedAfterDraft() async throws {
         let text = R.output([R.fullItemJSON, #"{"title":"Mop the floor","kind":"oneOff""#])

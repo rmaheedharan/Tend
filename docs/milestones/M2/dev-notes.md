@@ -2701,7 +2701,8 @@ All new files are in `Packages/TendIngestion`. No existing source or test file w
   containers and strings may be open; an open string holds only whole characters (never half a UTF-8 sequence, half
   an escape, or half a surrogate pair); a number, `true`, `false` or `null` appears only once it is finished; an object
   member appears once its key is finished and its value has started. Invalid JSON is `invalid(issue, byteOffset:)`
-  at the first byte that cannot be read, and the same offset whatever the chunking; never a crash. A text that ends
+  at the first byte that cannot be read (for a malformed number, the byte that ends it; R26-N1), and the same offset
+  whatever the chunking; never a crash. A text that ends
   before its root value is finished is `cutShort`. The first error closes the parser.
 - **Snapshots.** The reader maps the value read so far, after every chunk, to an `IngestionSnapshot`:
   - root object → `items` array → one `ItemSnapshot` per element, in output order;
@@ -2728,11 +2729,11 @@ All new files are in `Packages/TendIngestion`. No existing source or test file w
     banned token the user did not say (they said "later"), the guard removes it, the title is empty and the item is
     skipped for good.
   So the reader shows a string, a number or a literal only once it is finished. A field never changes once it is in a
-  snapshot (the property checks this on every step). Rule (a) fires when the last field closes, a few tokens later
+  snapshot (the time hint gains sub-fields, each finished; R26-N2) (the property checks this on every step). Rule (a) fires when the last field closes, a few tokens later
   than on a prefix, and no draft is ever emitted with a part title. The ticket's test is built (`titleArrivesLast`:
   3-byte chunks, the title last; exactly one `emitted`, with the whole title, and no `updated`). This is the literal
   reading of "every field … has a value" (a half-written string is not yet the model's value). It touches TTFI
-  (AC-M2-16) only by those few tokens. **Open question 1** asks the PO to confirm. The on-device `PartiallyGenerated`
+  (AC-M2-27 for the cloud) only by those few tokens. **Open question 1** (closed: PO WI-M2-12 ruling 1) asked the PO to confirm. The on-device `PartiallyGenerated`
   shows strings while they grow, so WI-M2-M2 meets the same blank-title case (note for WI-M2-M2 below).
 - **J3, numbers are read exactly from their text, not through `Double`.** `wholeNumber(jsonText:)` splits the text by
   the JSON grammar and works in decimal digits: a whole number that fits `Int` (`2.0`, `0.3e1`, `100000e-5`, `1E+2`,
@@ -2855,17 +2856,52 @@ Device ACs: none in this item.
 | The provider dialects (event types, the text pieces, end events, refusal) on top of this | — | WI-M2-13 |
 | WI-M2-10 writes the schema from `StructuredOutputKey` (J1) | — | WI-M2-10 |
 | On device, `PartiallyGenerated` shows strings while they grow: a `""` title at rule (a) is skipped for good (J2) | watch | WI-M2-M2: map an open string to nil, or require a non-blank title for rule (a) on device; Mac test |
-| A `null` `room` or `sourcePhrase` delays completion to (b) or (c) (J6) | watch | AC-M2-16 dev-set eval; WI-M2-10 schema shape |
+| A `null` `room` or `sourcePhrase` delays completion to (b) or (c) (J6) | watch | WI-M2-10 schema shape without `null` for rule-(a) fields (PO WI-M2-12 ruling 2); AC-M2-27 cloud TTFI watch in the DS-2 dev-set run |
+| R26-F2: no response-size cap. A stream with no line end grows the framer's `line` without limit (also `dataBuffer` and the string scanner's bytes); the 10.0 s deadline bounds time, not bytes | Minor (ticket) | WI-M2-13 or WI-M2-14: end with `unreadableOutput` once the body passes a fixed byte limit, with a test |
+| Finished-values rule on device (`PartiallyGenerated` shows growing strings) | ticket | WI-M2-M2 (PO WI-M2-12 ruling 1): Mac evidence with a late title and a "Late" prefix, plus the mutant "open string counted as a value" |
+| Per-provider fixtures: a no-room item completes by (a) before the next item; title arrives last | ticket | WI-M2-13 (PO WI-M2-12 tickets) |
 | The Darwin rerun of these tests | — | MS-2 |
 
 ### Open questions
-1. **PO (confirm, J2):** the cloud reader shows only finished values, so rule (a) never fires on part of a title and
-   a draft never shows part of one. Without it, the blank first step of a late title (`""`) or a guarded prefix
-   (`"Late"` of `"Later"`) is skipped for good under WI-M2-06 D8. Built this way (the literal reading of "has a
-   value"); please confirm. The alternative is to show growing strings and change D8, which is a product change.
-2. **PO / Planner (watch, J6):** `null` is missing for rule (a), so an OpenAI strict-mode item with `"room": null`
-   completes only at (b) or (c). Built literally; the schema shape is WI-M2-10's technical choice if the eval shows
-   TTFI misses.
+1. ~~**PO (confirm, J2):**~~ **Closed: PO WI-M2-12 ruling 1 (`po-m2-wi12.md`): accepted as built.** A field has a
+   value only once the model has finished writing it; no `emitted` or `updated` draft ever holds part of a field the
+   model is still writing. WI-M2-06 D8 stays. The PR #22 ticket is closed with the new expected result
+   (`titleArrivesLast`). The same rule binds WI-M2-M2. The brief amendments 1–3 are in `brief.md` (round 2).
+   Original question: the cloud reader shows only finished values, so rule (a) never fires on part of a title, and a
+   draft never shows part of one. Without that, the blank first step of a late title (`""`), or a guarded prefix
+   (`"Late"` of `"Later"`), is skipped for good under D8.
+2. ~~**PO / Planner (watch, J6):**~~ **Closed: PO WI-M2-12 ruling 2 (`po-m2-wi12.md`): accepted as built.** `null` is
+   not a value under rule (a). Correction: the cloud latency gate is **AC-M2-27**, not AC-M2-16. The schema
+   direction (no `null` for rule-(a) fields; a blank `room` gives room `none`, a blank `sourcePhrase` gives nil) is
+   for WI-M2-10. Original question: an OpenAI strict-mode item with `"room": null` completes only at (b) or (c).
+
+### Round 2 (review round 1: APPROVE with 2 Minors and 3 Nits, `review-WI-M2-12.md`; PO rulings `po-m2-wi12.md`)
+- **Merge:** `origin/main` at `aa38472` (PR #24, WI-M2-09) merged in, with no rebase. In the dev-notes conflict I kept
+  main's file and appended this section at the end. No source conflict.
+- **Brief:** I put PO WI-M2-12 amendments 1–3 into `brief.md` word for word: Item completion (a), the end of the
+  `updated(draft)` bullet, and the new AC-M2-05 bullet.
+- **R26-F1 (fixed):** new test "AC-M2-05 / AC-M2-24: a title whose prefix is a banned token ("Late" of "Later: call
+  the plumber") …", parameterised over the 3 cloud routes and 1-, 2- and 3-byte chunks (9 cases). The input says
+  "later", and the title arrives last. No step shows a part title. Through `DraftPipeline` there is exactly one
+  `emitted` with the whole title, no `itemSkipped`, no `updated`, and the outcome is `completed`. A control assertion
+  in the same test shows that the case is real: the same item with the prefix `"Late"` shown as a value gives
+  `itemSkipped`.
+- **R26-F2 (ticket):** the response-size cap is recorded in "Known limitations / follow-ups" for WI-M2-13 or WI-M2-14.
+  This PR has no code change for it, as the review asks.
+- **R26-N1 (fixed):** the parser header and the `byteOffset` doc now say "for a malformed number, the byte that ends
+  it". So does the rules list above.
+- **R26-N2 (fixed):** (a) the `value` doc now says "a root number or literal" (an open root string is shown); (b) the
+  reader header and J2 now note that the time hint gains sub-fields.
+- **R26-N3 (optional, not taken):** whole-value equality for values under unknown keys. The reader ignores those keys,
+  so no AC depends on it. `everyCut` and `completeValues` keep the value-level oracle for fixed texts.
+- **Mutant:** M18 ("the reader shows open strings") was run again and is killed by the new test too (and by
+  `titleArrivesLast` and the reader property).
+- **Tests** (Linux, `swift:6.2-noble`, `-warnings-as-errors`, 0 warnings):
+  - TendIngestion: `✔ Test run with 333 tests in 42 suites passed after 47.441 seconds.` That is 284 on `main` at
+    `aa38472`, plus 48 from round 1, plus 1 new test with 9 cases.
+  - TendCore: `✔ Test run with 141 tests in 18 suites passed after 95.366 seconds.`
+  - TendSourceScan: `✔ Test run with 63 tests in 4 suites passed after 1.498 seconds.`
+  - AC-M2-09 scan: 30 files in total, 0 violations. AC-M2-12 vocabulary scan: 30 files, 0 violations.
 
 ### Law check
 | Law | Status (pass / n.a. / concern) | Note |
@@ -2884,3 +2920,5 @@ Device ACs: none in this item.
 |---|---|---|---|---|
 | 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-12 Ready (WI-M2-06 merged; `main` at `3bac3ce`). PO ticket "title that arrives last"; claim-field mapping. |
 | 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 283, TendCore 141, TendSourceScan 63 green, 0 warnings, Linux. 25 of 25 mutants killed. Two PO questions (J2, J6). Pushed; no PR opened. |
+| 2026-11-23 | Reviewer (via Orchestrator) | Developer | returned (round 1) | APPROVE with R26-F1, F2 (Minor) and R26-N1…N3 (Nits), `review-WI-M2-12.md`. PO `po-m2-wi12.md`: J2 and J6 accepted; brief amendments 1–3. |
+| 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (round 2) | Merged `origin/main` `aa38472`. Brief amendments 1–3 inserted word for word. R26-F1 test added (9 cases; M18 kills it). R26-N1 and N2 reworded. R26-F2 recorded as a ticket. N3 not taken. TendIngestion 333, TendCore 141, TendSourceScan 63 green, 0 warnings. Review file committed with the fix. |

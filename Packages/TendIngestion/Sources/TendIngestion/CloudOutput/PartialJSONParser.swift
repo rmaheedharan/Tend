@@ -8,8 +8,9 @@
 // - a number, `true`, `false` or `null` appears only once it is finished (a number ends at the next byte that cannot
 //   be part of it, or at `finish()` for a root number);
 // - an object member appears once its key is finished and its value has started (or finished, for a scalar).
-// Invalid JSON is a typed error with the offset of the first byte that cannot be read, never a crash. A text that ends
-// before its root value is finished is `cutShort`. The first error closes the parser: later calls give it again.
+// Invalid JSON is a typed error with the offset of the first byte that cannot be read (for a malformed number, the
+// byte that ends it), never a crash. A text that ends before its root value is finished is `cutShort`. The first
+// error closes the parser: later calls give it again.
 //
 // Strict where RFC 8259 leaves a choice (dev-notes WI-M2-12, J4): a duplicate object key and a leading BOM are
 // errors. Nesting is capped at `maximumDepth`. Pure value type: no I/O, no clock, no logging.
@@ -77,7 +78,8 @@ public enum JSONSyntaxIssue: Error, CaseIterable, Hashable, Sendable {
 
 /// The typed error of the parser and the structured-output reader.
 public enum PartialJSONError: Error, Hashable, Sendable {
-    /// The text is not valid JSON; `byteOffset` is the 0-based offset of the first byte that cannot be read.
+    /// The text is not valid JSON; `byteOffset` is the 0-based offset of the first byte that cannot be read (for a
+    /// malformed number, the byte that ends it, or the text length for a root number at `finish()`).
     case invalid(JSONSyntaxIssue, byteOffset: Int)
     /// The text ended before its root value was finished.
     case cutShort
@@ -123,7 +125,8 @@ public struct PartialJSONParser: Sendable {
 
     public init() {}
 
-    /// The value read so far (nil before the root value has started, or while a root scalar is open).
+    /// The value read so far (nil before the root value has started, or while a root number or literal is open; an
+    /// open root string is shown as `.string(_, isComplete: false)`).
     public var value: PartialJSONValue? {
         if let root { return root }
         var child: PartialJSONValue?

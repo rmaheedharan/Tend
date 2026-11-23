@@ -16,7 +16,8 @@
 // - `null`, a missing key and a wrong-typed value are all "missing" (nil). `lookupQueries` is always empty: a cloud
 //   model has no duplicate `Tool` (AC-M2-24).
 // - **Only finished values are shown.** A string, number or literal that is still being written is missing until it
-//   ends. So a field never changes once it is in a snapshot, completion rule (a) never fires on half a title, and no
+//   ends. So a field never changes once it is in a snapshot (the time hint gains sub-fields, each finished, PO
+//   WI-M2-06 ruling 2), completion rule (a) never fires on half a title, and no
 //   draft is ever mapped from a prefix (PO WI-M2-06 ticket "title that arrives last"; dev-notes WI-M2-12, J2).
 // Pure value type: no I/O, no clock, no logging.
 
