@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-12 cloud stream framing and partial structured-output reader (PR #26, `m2/stream-json-snapshots`, head `b92a92e`)
 
-- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 2 (round 1 APPROVE at `b92a92e`; round 2 APPROVE at `e3932db`)
 - **Requirements:** FR-A1, P-3; ○ AC-M2-24 (Linux part: SSE framing, incremental JSON, mapping to neutral snapshots,
   truncation and invalid JSON, unknown enum values, non-integer numbers to nil); through the same draft stream,
   AC-M2-05; regression AC-M2-09 (scan) and AC-M2-12 (vocabulary).
@@ -156,3 +156,67 @@ the filter `ServerSentEvent|PartialJSON|StructuredOutput`. None of them repeats 
 | 2026-11-23 | Orchestrator | Reviewer | accepted | PR #26 at `b92a92e` (base `3bac3ce`), fresh context. |
 | 2026-11-23 | Orchestrator | Reviewer | accepted (mid-review) | `po-m2-wi12.md`: J2 and J6 ACCEPTED. The latency AC is AC-M2-27. The brief amendment follows after the review and is not a finding. Checked the note on the mount. |
 | 2026-11-23 | Reviewer | Orchestrator → Merge Gatekeeper; Developer | sent | **APPROVE.** No Blocker or Major. R26-F1 (Minor, guard-case test, by WI-M2-13 at the latest), R26-F2 (Minor, response-size cap ticket for WI-M2-13/14), R26-N1…N3 (Nits). Tests re-run: 283 / 141 / 63 green, 0 warnings. 7 of 7 reviewer mutants killed. |
+
+## Round 2 — head `e3932db` (merge `8867259` of `main` `aa38472`, then fix commit `e3932db`)
+
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 2
+- **Requirements:** AC-M2-05 (new PO bullet), AC-M2-24 (Linux part), FR-A1; PO `po-m2-wi12.md` rulings 1 and 2.
+- **Milestone lock:** `STATUS.md` still shows M1 `ACCEPTED`, M2 `IN-BUILD`. Allowed.
+
+### Summary
+This was a short check of the round 1 findings, the merge and the PO brief amendments.
+
+- **Merge `8867259`:** it adds nothing of its own to the code. `git diff aa38472 8867259 -- Packages` is
+  byte-identical to the round 1 diff `git diff 3bac3ce b92a92e -- Packages`. The only changes against `main` are the
+  WI-M2-12 files, `brief.md`, `dev-notes.md` and this review file.
+- **Fix commit `e3932db`:**
+  - adds one test (`bannedTokenPrefixTitleArrivesLast`);
+  - changes doc comments in `PartialJSONParser.swift` and `StructuredOutputReader.swift`;
+  - edits `brief.md` and `dev-notes.md`.
+  No product logic changed.
+- **Brief amendments:** I compared all three with `/mnt/project-files/notes/po-m2-wi12.md` and they match word for
+  word. Amendment 2 is joined onto the existing line rather than wrapped at the file's width; the text is the same.
+  - Amendment 1: Item completion (a).
+  - Amendment 2: the end of the `updated(draft)` bullet.
+  - Amendment 3: the new AC-M2-05 bullet after the `updated` bullet. The note's `\"Late\"` escaping is correctly
+    written as plain quotes.
+
+### Findings (round 1 → round 2)
+| # | Severity | Round 2 evidence | Status |
+|---|---|---|---|
+| R26-F1 | Minor | **Fixed.** `StructuredOutputReaderTests.swift` `bannedTokenPrefixTitleArrivesLast` runs 9 cases (`CloudProvider.allCases` × chunks of 1, 2 and 3 bytes). The input says "later" and the title `"Later: call the plumber"` arrives last. It checks that no step shows a part title, and that through `DraftPipeline` there is exactly one `emitted` with the whole title, no `itemSkipped`, no `updated`, and `completed`. A control assertion shows the case is real: the same item with the title `"Late"` gives `itemSkipped`, because the guard empties it and the fixture `sourcePhrase` is not in the input. **My M18 mutant** (the reader's `text()` accepts open strings, on a scratch copy made with `git archive`) is **killed** by this test alone: `--filter bannedTokenPrefixTitleArrivesLast`, 1 test failed with 33 issues. | Closed |
+| R26-F2 | Minor (ticket) | **Recorded.** It is in the dev-notes "Known limitations / follow-ups" table, for WI-M2-13 or WI-M2-14: end with `unreadableOutput` once the body passes a fixed byte limit, with a test. There is no code change, as round 1 asked. | Closed (ticket open in WI-M2-13/14) |
+| R26-N1 | Nit | **Fixed.** The parser header and the `byteOffset` doc now say "for a malformed number, the byte that ends it" (and "the text length for a root number at `finish()`"). | Closed |
+| R26-N2 | Nit | **Fixed.** (a) The `value` doc now says "a root number or literal" and notes that an open root string is shown. (b) The reader header and dev-notes J2 note that the time hint gains sub-fields (PO WI-M2-06 ruling 2). | Closed |
+| R26-N3 | Nit (optional) | Not taken. The developer's reason holds: the reader ignores unknown keys, so no AC depends on it. | Closed (won't fix, accepted) |
+
+There are no open Blocker, Major or Minor findings in this PR. The R26-F2 ticket now lives with WI-M2-13/14.
+
+### Tests run (reviewer, round 2)
+I ran this on the worktree at `e3932db`, in `swift:6.2-noble` with `-warnings-as-errors`.
+
+| Command | Result |
+|---|---|
+| `swift test --scratch-path /tmp/rev26-TendIngestion --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `✔ Test run with 333 tests in 42 suites passed after 100.600 seconds.` 0 warnings. The new test passed 9 of 9 cases. AC-M2-09 scan: TendIngestion 30 files scanned, 0 violations. AC-M2-12 vocabulary scan: 30 files. |
+
+The count matches the dev-notes (333 = 284 on `main` at `aa38472` + 48 from round 1 + 1 new parameterised test).
+TendCore and TendSourceScan are unchanged by this round (the Packages diff against `main` touches only TendIngestion),
+so I did not re-run them. In round 1 they passed with 141 and 63 tests.
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | The new test proves that a banned-token prefix the user did not say can never cut down a title and lose the item (AC-M2-05 amendment, AC-M2-12 intent). The vocabulary scan is clean. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No routing change. |
+| P-2 No data leaves device (except user iCloud) | pass | No I/O, network or logging (AC-M2-09 green, 30 files). |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | Response reading only; no `Tool` for the cloud; claims stay shortlist indices for the local re-check. |
+| P-4 Media not persisted without consent | n.a. | Text in memory only. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-23 | Orchestrator | Reviewer | accepted | Round 2 at `e3932db` (merge `8867259` of `main` `aa38472`). |
+| 2026-11-23 | Reviewer | Orchestrator → Merge Gatekeeper | sent | **APPROVE.** R26-F1, N1 and N2 closed with evidence. R26-F2 recorded as a WI-M2-13/14 ticket. N3 accepted as not taken. The brief amendments match `po-m2-wi12.md` word for word. TendIngestion 333 green, 0 warnings. My M18 mutant is killed by the new test (33 issues). |
