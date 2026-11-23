@@ -58,6 +58,7 @@ note, because AC-M2-09 scans these paths.
 | Fixtures loader (the only TendEval file allowed `Data(contentsOf:`, bundle resources named by string literals only; M2 Q23) | `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift` | Rule 6 |
 | Harness transport wrapper (N-2) | `Apps/TendEval/Sources/Run/RecordingTransport.swift`. It wraps the neutral `CloudTransport` protocol (plain request value in, byte-chunk stream out) and records only the byte count and key paths. It uses no `URL*` type. | Rule 6 |
 | Scoring tool | `Tools/TendTools/Sources/tend-eval-score/` (see "Scoring tool and command") | Outside Rule 1 |
+| Payload builder provider table (the only file where the three bare hosts may appear; review R1-F6, named by WI-M2-10) | `Packages/TendIngestion/Sources/TendIngestion/Payload/CloudProviderTable.swift` | AC-M2-09 Rule 4 (`IngestionScanConfiguration.providerTableFile`) |
 
 ## Work items
 
