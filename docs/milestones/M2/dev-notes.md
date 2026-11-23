@@ -3200,8 +3200,16 @@ Merged `origin/main` at `aa38472` (PR #24) into the branch as `ccce8c1`, with no
 | M-R2 | voice judged against the fixture text | in08, log (R27-F2) |
 | M28 | `$` not rewritten to `\z` (ICU end of line) | the 4 R27-F1 tests |
 
+**Second merge (round 2).** main moved again (PR #26, WI-M2-12). I merged `origin/main` at `03e98c6` as `0e03a66`, again with no rebase and no force-push. In the `dev-notes.md` conflict I took main's file and appended this section at the end. I re-ran all four packages on the merged tree (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, 0 warnings):
+- TendIngestion: `✔ Test run with 401 tests in 49 suites passed after 93.359 seconds.` AC-M2-09: `40 files in total, 0 violations`.
+- TendSourceScan: 63 tests.
+- TendCore: 141 tests.
+- Tools/TendTools: 7 tests.
+
+The merge changes no file under `Eval/`, no eval test and no self-test fixture, so the 30 of 30 mutant result above still applies.
+
 ### Handoff log (round 2)
 | Date | From | To | Result (accepted / returned) | Notes |
 |---|---|---|---|---|
 | 2026-11-23 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: R27-F1 and F2 Major; F3–F5 Minor; N1–N3. PO `po-m2-wi15.md` answered Q1–Q3. |
-| 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1–F4 fixed, F5 is owner ticket HM-1b, N1 done, N2 declined with a reason, N3 recorded. The brief amendment is inserted word for word, and Q1–Q3 are closed. origin/main `aa38472` is merged. All four packages are green with 0 warnings. 30/30 mutants killed. The review file is committed with the fix. |
+| 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1–F4 fixed, F5 is owner ticket HM-1b, N1 done, N2 declined with a reason, N3 recorded. The brief amendment is inserted word for word, and Q1–Q3 are closed. origin/main `aa38472` and then `03e98c6` are merged. All four packages are green with 0 warnings on the merged tree (TendIngestion 401). 30/30 mutants killed. The review file is committed with the fix. |
