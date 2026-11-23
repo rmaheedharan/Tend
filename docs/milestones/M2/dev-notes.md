@@ -2334,3 +2334,245 @@ mutants touch code that round 2 did not change, and the round 2 change only adds
 | 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 233, TendSourceScan 63, TendCore 141 green, 0 warnings, Linux. Property: 600 households × 3 paths, 0 oracle mismatches, 0 ground-truth misses. 22 of 22 mutants killed (M22 after adding a test). R23-F2 left as a note (PR #24 not merged). Two PO questions. Pushed; no PR opened. |
 | 2026-11-22 | Reviewer (via Orchestrator) | Developer | returned (round 1) | APPROVE with R25-F1, F2, F3 Minor and R25-N1 Nit. PO `po-m2-wi08.md`: both questions accepted as built. |
 | 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (round 2) | R25-F1 to N1 fixed (see Round 2). TendIngestion 235, TendSourceScan 63, TendCore 141 green, 0 warnings. Brief text inserted word for word. Review file committed with the fix. |
+
+---
+
+## WI-M2-15 — eval scorer: `EvalResultsFileV1`, `results-v1.schema.json` and its Foundation-only check, the scorer, self-tests, `EvalIDGenerator`, `Tools/TendTools`
+
+- **Owner:** Developer  ·  **Branch:** `m2/eval-scorer`, from `main` at `3bac3ce` (origin/main is still `3bac3ce`, so the
+  requested merge of origin/main is a no-op; nothing was rebased or force-pushed)  ·  **PR:** not opened (Orchestrator)  ·
+  **ADRs:** [ADR-0006](../../architecture/adr/0006-m2-module-layout.md) (scoring tool outside Rule 1; canonical JSON).
+  No new ADR: no dependency, no new module (`Tools/TendTools` is named in the plan and ADR-0006).
+- **Requirements:** ○ **AC-M2-14** (scorer self-tests; the owner item is WI-M2-16). It also delivers the Linux halves
+  that AC-M2-11, 15, 16, 17, 25, 26 and 27 score with, and the AC-M2-28 results-file schema validation and rejection
+  test. FR-A1, UX-3 (calm-words count), P-4 (the file format has no place for audio, bodies, header values or keys).
+- **Inputs:** brief Definitions (Keywords, Name folding, Banned tokens, Draft, Duplicate, False merge), **Eval scoring
+  rules**, Device-run rules, AC-M2-11, 14–17, 25–28; plan WI-M2-15 row and scope note, "Module and file layout",
+  "Named files", "Scoring tool and command", "Eval harness ID generator", R-22; ADR-0006; PO notes `po-m2-wi07.md`
+  (watch item on in-input repeats), `po-m2-wi08.md` (commit re-check), `po-q21-q22.md` (GK-2, Q23 loader exception).
+- **Milestone lock:** M1 `ACCEPTED`, M2 `IN-BUILD` (`STATUS.md`); WI-M2-15's dependencies WI-M2-01 and WI-M2-05 are
+  merged. No protected path is touched (`.github/**` unchanged; CI's existing "Build tools" step now finds the package).
+
+### What changed
+- **`Packages/TendIngestion/Sources/TendIngestion/Eval/`** (Foundation + TendCore only, no I/O; scanned by AC-M2-09
+  Rule 1 and the AC-M2-12 vocabulary scan):
+  - `EvalJSON.swift`: a strict RFC 8259 reader (`EvalJSONReader`) into `EvalJSON`: integers only, duplicate keys
+    refused by UTF-8 bytes, Boolean/number kept apart, depth limit 64, typed `EvalJSONError`.
+  - `EvalSchemaCheck.swift`: the Foundation-only conformance check. It **interprets the committed schema** over a
+    closed subset (`type`, `enum`, `const`, `properties`, `required`, `additionalProperties: false`, `items`,
+    `minItems`, `uniqueItems: true`, `minimum`, `maximum`, `minLength`, `pattern`, `oneOf`, plus annotations) and fails
+    closed on any other keyword or form. No JSON Schema library.
+  - `EvalInstant.swift`: UTC millisecond instants by civil-calendar arithmetic (no formatter, calendar or locale).
+  - `EvalResultsFileV1.swift`: the results-file type (plan "Named files"), its enums, `DraftRecord` (with
+    `init(draft:roomKeys:taskKeys:)` for the harness and `invariantViolation` = the M1 initialiser), and
+    `canonicalJSON` for the harness writer.
+  - `EvalResultsReading.swift`: `EvalResultsFileV1.read(_:schema:fixtures:expectedFixturesSHA256:)` with typed
+    `EvalRejection` and `EvalInconsistency` (order of checks below).
+  - `EvalFixtures.swift`: the fixture formats for `inputs.json`, `household.json`, `golden.json` (below), strict
+    readers with typed `EvalFixtureError`, `household` (a fresh M1 `Household`), key maps, `inputNumber(of:)`.
+  - `EvalScorer.swift`: the scoring rules. `EvalProfile.swift`: the six profiles and `EvalScorer.run(_:)`, the one
+    entry point. `EvalScoreLog.swift`: the scorer log. `EvalIDGenerator.swift`: the plan's ID generator.
+- **`Fixtures/M2/eval/results-v1.schema.json`**: the v1 schema (214 constraints). WI-M2-16 adds the eval fixtures and
+  `MANIFEST.sha256` next to it.
+- **`Fixtures/M2/eval-selftest/`**: the hand-built self-test set (not the eval): `inputs.json` (7 inputs),
+  `household.json` (3 rooms, 6 tasks, one completed, two identical), `golden.json` (16 items),
+  `results-selftest-1.json` (readable), `results-selftest-1.canonical.json` (the same, canonical, scored by the tool),
+  `results-selftest-1.score.log` (the expected scorer log, pinned by a test).
+- **`Tools/TendTools/`** (new local package; may read files and print, outside Rule 1): library `TendToolsSupport`
+  (hand-written argv parsing, `EvalScoreCommand`, `PayloadDumpCommand`, injected `ToolIO`), executables
+  `tend-eval-score` and `tend-payload-dump`, tests `TendToolsTests`. It depends only on `../../Packages/TendIngestion`.
+  - **`tend-payload-dump` is a stub.** The payload builder (WI-M2-10) is not built. The stub checks
+    `--provider <openai|anthropic|gemini> --outcome-sample`, prints no body and exits **3** with "the payload builder
+    is not built yet (WI-M2-10)". WI-M2-10 replaces the body of `PayloadDumpCommand.run`.
+- **Not changed:** every other TendIngestion file, TendCore, TendSourceScan, all protected paths, every dependency.
+
+### The scoring rules as built (brief "Eval scoring rules"; each has a hand-built self-test)
+| Rule (brief heading) | Code | Self-test |
+|---|---|---|
+| Household state: a fresh copy per input | `scoreInput` uses only the input's golden items and the seeded tasks | in06 (oven item also in in02; c = 1, no duplicate) |
+| Draft text = keywords(title) joined with keywords(sourcePhrase) | `draftText(of:)` | in01 d1, in05 d3 (item satisfied only through the phrase); unit test |
+| Satisfies (a token from **each** group); Overlap | `satisfies`, `overlap` | unit test; M15 |
+| Primary = not `ofDraft` | `isPrimary` | in03 d5 (neither paired nor extra) |
+| Segmentation: pairs sorted overlap ↓, golden order ↑, draftID ↑, greedy | `segmentationPairs` | in05 (overlap 3 beats lower draftID), in04 (**tie in matching**), in03 |
+| Not found / extra | `notFound`, `extras` | in02 (`g02-mirror`), in03 (2 extras), in05 (1), in07 (noModel) |
+| Denominators: only found items score; ⌈p × N⌉ | `EvalMetric.requiredCount` | totals test (N = 16); 48/45/43 at N = 50; 49 at N = 51 |
+| Room scoring: existing / new(name, alternates) / none | `roomIsCorrect` | in01 (**proposed-room match** via alternate "the Terrace"), in04, in06; 12-case table |
+| Validity: all emitted drafts, the M1 invariants | `DraftRecord.invariantViolation` | in05 d3 (`windowEndNotAfterStart`) |
+| Calm words: titles and proposed room names; a token the user said is kept | `scoreInput` with `BannedTokens` | in06 ("late" said and kept; "overdue" in a title, "missed" in a room name) |
+| Best target: highest overlap; ties golden before seeded, then lower key; completed tasks are not targets | `bestTarget`, `precedes`, `targets` | in05 (golden over seeded; `t-plants-a` over `t-plants-b`), in04, completed `t-bins` test |
+| Duplicates created: Σ max(0, c(g) − 1) + Σ c(t) | `scoreInput` | in03 (**duplicate created**: 3), in04 (1), in05 (2) |
+| False merge: a marked draft with best target g and c(g) = 0, each g once | `scoreInput` | in02 (**false merge** `g02-oven`); in03 d5 is marked but c(g03-towels) = 2 |
+| Last attempt scored (device-run rules) | `score` | in02 (attempt 2 of 2) |
+| Output: per-input and total counts, each pairing, each best target | `EvalScoreLog.render` | log test + the committed `results-selftest-1.score.log` |
+
+### Results-file checks, in order (all exit 2 in the tool)
+1. JSON (`EvalJSONReader`). 2. `schemaVersion` = 1 (`notVersion1`). 3. Schema conformance (`schemaIssues`, with JSON
+Pointer paths). 4. Canonical bytes: writing the parsed value with `CanonicalJSONWriter` gives the same bytes
+(`notCanonical`; a trailing newline is refused). 5. `run.fixturesSHA256` = `--expected-fixtures-sha256`
+(`fixturesHashMismatch`). 6. Cross-field rules (`EvalInconsistency`): known input and matching mode; attempts 1, 2, …
+in file order; text 1 attempt, voice ≤ 2 (one retake); retake reason exactly on attempts ≥ 2; transcript and
+transcriber exactly on voice; unique draft IDs; known room and task keys, `ofDraft(k)` only to an earlier draft; real
+window dates; events (emitted once per draft, `updated` after it, `itemSkipped`/`finished` with no draft, `finished`
+once and last, the drafts are exactly the emitted ones); non-decreasing times, `ttfiMs` = first `emitted`, `totalMs` =
+`finished`; `noModel` has no draft, `interrupted` has ≥ 1; `committed` = exactly the unmarked drafts (none for
+`cancelled`); cloud requests only on a cloud route, numbered 1, 2, …, key paths sorted by UTF-8; a real
+`startedAtUTC`; a known cold-start input.
+
+### Fixture formats (for the Tester, WI-M2-16; unused members are ignored, so notes and composition tags may be added)
+- `inputs.json`: `{"schemaVersion":1,"inputs":[{"id","mode":"text|voice","text"}]}`. Order = input number for
+  `EvalIDGenerator`.
+- `household.json`: `{"schemaVersion":1,"rooms":[{"key","id":"<UUID>","name","lastTendedAt"?}],"tasks":[{"key","id",
+  "title","kind","roomKey":null|"<room key>","effort","isCritical","isDeepClean","isWeatherDependent",
+  "allowedDayparts":[…],"allowedWeekdays":[…],"windowStart","windowEnd","recurrenceIntervalDays":null|n,
+  "state":"active|maintenance|resurfaced|completed|deferred","deferredUntil"? ,"completedAt"?,"matchGroups":[[…]]}]}`.
+  Every task must pass the M1 initialiser. Dates are `yyyy-MM-ddTHH:mm:ss.SSSZ`.
+- `golden.json`: `{"schemaVersion":1,"items":[{"inputID","key","matchGroups":[[…]],"kind","room":{"type":"existing",
+  "roomKey"}|{"type":"new","name","alternates":[…]}|{"type":"none"},"effort","isCritical","isDeepClean",
+  "isWeatherDependent","expect":{"type":"create"}|{"type":"existing","seededKey"}}]}`. File order is the "golden
+  order".
+- Checked: keys unique (golden and seeded keys share one namespace), IDs unique, references resolve, every match-group
+  token is exactly one keyword (`Keywords.of(t) == [t]`; a capital, a stop word or two words can never match and are
+  refused), no empty group. The v4-UUID check and the composition check are WI-M2-16.
+
+### Decisions the Reviewer and Tester should know (technical readings; none changes a rule)
+- **S1 Draft text is a set.** "joined" is read as the distinct union (title keywords, then new phrase keywords), as
+  "Keywords of a text" keeps distinct tokens. A phrase that repeats the title does not double the overlap.
+- **S2 Committed means confirmed.** `committed[]` is the draft IDs handed to commit. Under AC-M2-17 the harness commits
+  every unmarked draft, and a `none` draft is never re-checked at commit (`po-m2-wi08.md` ruling 2), so this equals the
+  created set; the reader refuses a file where it does not.
+- **S3 "Lower key"** is ascending UTF-8 byte order (as every other tie-break in M2).
+- **S4 Introduced tokens are counted per occurrence** in titles and proposed room names, against the fixture text
+  (text) or the attempt's transcript (voice).
+- **S5 Profiles add sanity checks** beyond the literal threshold list, each tied to the AC's Given: ds1 runs have no
+  provider and every route is `onDevice`; ds2 runs route to `run.provider`; gated profiles need every fixture input and
+  N ≥ 50; a missing TTFI (no draft) does not meet AC-M2-16/27; ds1-offline needs exactly 3 inputs (2 voice), ds2-offline
+  and ds2-online exactly 2 voice inputs. `ds2-offline` cannot see the plain-note offer (not in the v1 file); DS-2 records
+  it by eye.
+- **E1 Integers only.** Times are whole ms; network speeds are whole Mbit/s (the canonical writer has no floats).
+- **E2 Tagged objects** for `room` (`existing`/`proposed`/`none`) and `duplicate` (`none`/`ofExisting`/`ofDraft`),
+  checked with `oneOf`.
+- **E3 Key-path form** (`pattern`): `$` then `.name` or `[]` segments, names `[A-Za-z0-9_-]+`, e.g.
+  `$.messages[].content`. WI-M2-10 must write its allowed lists in the same form (open question Q2).
+- **E4 Strict canonical bytes.** A hand-edited or re-saved file is refused; the self-test keeps a readable copy and a
+  canonical copy (a test checks they agree). For an ASCII-only file, `python3 -c 'import json,sys;
+  sys.stdout.write(json.dumps(json.load(open(sys.argv[1])),sort_keys=True,separators=(",",":")))' f.json` gives the
+  canonical form (keys sort the same in UTF-8 and code points for ASCII).
+- **E5 Dates are recorded to the millisecond, rounded down.** The conversion works from `timeIntervalSinceReferenceDate`
+  with an exact integer offset and corrects the floor, so `EvalInstant(i.date) == i` (20,000-sample property). The
+  first version went through `timeIntervalSince1970` and was off by 1 ms for some values; the property test found it.
+  Two window ends less than 1 ms apart would read as equal.
+- **E6 The fixtures hash is compared, not computed.** The tool compares `--expected-fixtures-sha256` (the
+  `sha256sum` of `MANIFEST.sha256`, plan command) with the file's `run.fixturesSHA256`; `sha256sum -c` checks the files
+  first. No crypto code in either package.
+- **T1 Tool exit codes:** 0 pass, 1 not pass, 2 rejected (also unreadable files, unusable schema or fixtures, an
+  unwritable log), 64 usage (also `ds2-gated` without `--allowed-key-paths`), 3 for the `tend-payload-dump` stub.
+  `--schema` defaults to `<fixtures>/results-v1.schema.json`. `--allowed-key-paths` takes a JSON array of strings, or
+  `{"keyPaths":[…]}` of strings or `{"path": …}` objects (WI-M2-10's format with roles fits).
+
+### AC coverage
+| AC | Test(s) (suite › test) | Environment | Result |
+|---|---|---|---|
+| AC-M2-14 scorer self-tests (every rule; false merge, duplicate created, proposed-room match, tie in matching) | `AC-M2-14 scorer self-tests over hand-built results files` › in01 … in07, totals, rule units (draft text, satisfies, room table, ⌈p×N⌉, best target, completed not a target, absent inputs), log + committed log | Linux | PASS (18 tests) |
+| AC-M2-14 Tester re-score | `Fixtures/M2/eval-selftest/results-selftest-1.*` + `results-selftest-1.score.log` | Tester | **For the Tester** (WI-M2-16) |
+| AC-M2-28 schema validation and rejection (Linux half) | `WI-M2-15 results-v1 schema conformance check` (R-22 walk: 214 of 214 constraints mutated and rejected at their path; 18 keyword cases; 20 refused schemas); `WI-M2-15 results file v1: read, write, reject` (headline rejections incl. a request body refused, 32 cross-field cases, writer round trip byte for byte, harness draft record) | Linux | PASS |
+| AC-M2-28 deterministic ID generator (T-29) | `WI-M2-15 EvalIDGenerator` (plan's byte table, determinism, never version 4 over 5 × 15 × 20, ranges, through `DraftCommit.plan`) | Linux | PASS |
+| AC-M2-11, 15, 16, 17, 25, 26, 27 scoring (Linux half; the ACs stay AWAITING-DEVICE) | `WI-M2-15 scoring profiles at their thresholds` (each threshold at its boundary: 57/56 of 60, 2/3 extras, 1/2 false merges, 1 duplicate, TTFI 1499/1500 and total 5000/5001, cloud 2999/3000 and 10000/10001, key paths, routes, N < 50, absent input) | Linux | PASS (13 tests) |
+| Fixture formats (AC-M2-14 "Fixtures") | `WI-M2-15 eval fixture formats` (reads; 13 typed golden errors; household and inputs errors) | Linux | PASS |
+| Tool exit codes (plan "Scoring tool and command") | `TendToolsTests` (7) + an end-to-end run of both built executables | Linux (local; CI builds only) | PASS |
+| AC-M2-09 / AC-M2-12 scans over the new files | `AC-M2-09: Rules 1–6 …` (33 files, 0 violations); `AC-M2-12: no banned token …` | Linux | PASS |
+
+### Test runs (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, 0 warnings in every package)
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 297 tests in 37 suites passed after 104.586 seconds.` (235 + 62 in 7 new suites; the cross-field test now has 32 cases). AC-M2-09 `33 files in total, 0 violations` |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 7.568 seconds.` (unchanged) |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 159.892 seconds.` (unchanged) |
+| Tools/TendTools | `✔ Test run with 7 tests in 1 suite passed after 0.234 seconds.` |
+
+### Verification environment
+| What | Where | Status |
+|---|---|---|
+| TendIngestion, TendSourceScan, TendCore suites, `-warnings-as-errors` | Linux (`swift:6.2-noble` container) | PASS, 0 warnings |
+| Tools/TendTools build and its 7 tests; both executables run end to end on the self-test files (exit 0, 1, 2; stub 3) | Linux (container) | PASS. **CI only builds this package** (the "Build tools" step); its tests are not run in CI. HM-1b (owner) could add `swift test --package-path Tools/TendTools`. |
+| AC-M2-09 / AC-M2-12 scans over the new `Eval/` files | Linux | PASS (33 files, 0 violations) |
+| TendIngestion and TendTools on Darwin Foundation | owner-run Mac (B2) | **Not verified.** The reader is hand-written to avoid Linux/Darwin differences (no `JSONSerialization`, no formatter); `NSRegularExpression` (schema `pattern`) is the one Foundation engine used, with ASCII-only patterns. |
+| Scoring a real device file | Device run + Linux scoring | **Not applicable yet** (no eval fixtures until WI-M2-16; no device run). The device ACs stay AWAITING-DEVICE. |
+
+### Things the reviewer should look at closely
+- `EvalScorer.scoreInput` against the brief's rules word by word (table above), especially the two different tie-breaks:
+  segmentation uses **golden order**, best target uses **key**.
+- `EvalSchemaCheck`: the fail-closed keyword list, `oneOf` counting, type-specific keywords, and the R-22 walk in the test
+  (mutations are generated from the schema, not hand-listed).
+- `EvalResultsReading.checkConsistency`: every cross-field rule is a rejection (exit 2), not a score. Check none is
+  stricter than the device-run rules need (`committed` = unmarked drafts; events and timing equalities).
+- `EvalInstant(_ date:)` floor correction (E5).
+- `TendToolsTests.Captured` is a test-only `@unchecked Sendable` box with a comment (Reviewer sign-off asked by the
+  skill); the commands run synchronously.
+
+### Known limitations / follow-ups
+- `tend-payload-dump` is a stub until WI-M2-10.
+- The eval fixtures, `MANIFEST.sha256`, the composition check and the freeze are WI-M2-16 (Tester + Developer).
+- The real-fixture composition check (v4 UUIDs, Q3 composition, ≥ 50 items) is not here; the gated profiles do check
+  N ≥ 50 and every input present.
+- CI runs no TendTools tests (above). The scorer logic itself is all in TendIngestion and runs in CI.
+
+### Open questions (built to the most literal reading; work continues)
+1. **Q1 (Tester/PO, fixture guidance):** under the best-target rule, two `create` items **in one input** with identical
+   match groups (in04: "wipe the kitchen counter and wipe the bathroom counter") send both drafts to the lower key, so
+   committing both counts **1 duplicate created** even when both are right. The rules are built as written. Suggested
+   guidance for WI-M2-16: give such items a distinguishing group (for example the room word), or the PO clarifies the
+   rule before the freeze.
+2. **Q2 (WI-M2-10):** the key-path form in the results file is `$` + `.name` / `[]` (E3). The allowed key-path lists
+   from WI-M2-10 must use the same form, or the schema pattern changes before the freeze.
+3. **Q3 (Tester):** please confirm S1 (draft text as a distinct set) and S4 (introduced tokens counted per occurrence)
+   in the independent re-score of `results-selftest-1`.
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 Zero-form entry | n.a. | No entry surface; eval tooling only. |
+| UX-2 Rule of Three | n.a. | No selection surface; nothing returns "what to do now" items. |
+| UX-3 Zero-guilt | pass | The scorer counts introduced banned tokens (Q3 calm words). No new identifier or literal in the module Sources holds a banned token (AC-M2-12 scan). Tool and log wording use PASS / FAIL / "does not pass", never a banned word. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No inference. |
+| P-2 No data leaves device | pass | No networking anywhere (AC-M2-09 Rule 1 over `Eval/`; TendTools reads and writes local files only and has no network code). No dependency added. |
+| P-3 Cloud AI opt-in, minimised | pass | The file records only request byte counts and key paths (pattern-checked, no values); `additionalProperties: false` refuses a body, header or key member (tested). The `ds2-gated` profile checks sent key paths against the allowed list (AC-M2-26). |
+| P-4 Media not persisted | pass | The v1 format has no field for audio, request or response bodies, header values or keys. The shipped modules gain no write or log API (Rule 1). |
+
+### Mutation check (scratch copy `/tmp/claude-0/mut`, one mutant at a time, `--filter Eval`; the worktree was never touched and the copy's `Packages` was identical to it afterwards)
+**27 of 27 killed** (M27 after adding a test).
+| # | Mutant | Killed by |
+|---|---|---|
+| M1 | segmentation tie: draftID descending | in03, in04 (tie in matching), log |
+| M2 | segmentation tie: golden order descending | in01, in03, in04, in05, totals, log |
+| M3 | segmentation: overlap ascending | in01, in05, log |
+| M4 | best target: seeded before golden | in05, ds1-gated duplicate checks, log |
+| M5 | best target: higher key wins | in04, in05, log |
+| M6 | `ofDraft` drafts are primary | in03, totals, log |
+| M7 | create duplicates: c(g) instead of max(0, c(g) − 1) | 17 tests (self-tests and every profile) |
+| M8 | completed seeded tasks are targets | "Best target counts completed seeded tasks out" |
+| M9 | false merge without c(g) = 0 | in03, totals, log |
+| M10 | draft text without the sourcePhrase | in01, in05, totals, draft-text unit, log |
+| M11 | new room compared without name folding | in01, room table, totals, log |
+| M12 | calm words: the user's own tokens not kept | in06, totals, log |
+| M13 | first attempt scored instead of the last | in02, totals, log |
+| M14 | required count rounded down | ⌈p×N⌉ test, log |
+| M15 | satisfies with any group instead of each | satisfies unit test only (no in-file case differs; the unit test is the guard) |
+| M16 | canonical-bytes check removed | headline rejections |
+| M17 | `additionalProperties: false` ignored | headline rejections (request body), keyword table, R-22 walk (the script labelled it "BUILD ERROR" because test output holds the text `error:`; it built and 3 tests failed) |
+| M18 | committed = unmarked check removed | cross-field cases |
+| M19 | ID generator version nibble 4 | byte table, never-version-4, commit plug-in |
+| M20 | instant floor not corrected upward | 20,000-sample round-trip property |
+| M21 | TTFI boundary inclusive (1500 passes) | ds1 timing, ds2 timing |
+| M22 | validity not checked | in05, totals, ds1 checks, log |
+| M23 | fixtures hash not compared | headline rejections |
+| M24 | extras threshold `<` 2 | extras boundary |
+| M25 | `oneOf` accepts several branches | keyword table |
+| M26 | duplicate JSON key accepted | reader rejections |
+| M27 | `updated` accepted before its draft's `emitted` | **survived** at first: the case "updated before emitted" also removed draft 2's `emitted`, so another rule caught it. New case "updated before its draft's emitted, every draft still emitted" kills it (rerun: 1 issue at that case; clean copy green). |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-15 Ready: WI-M2-01 and 05 merged (`3bac3ce`). Stay out of Routing/ (PR #24) and the SSE/JSON snapshot parsers. |
+| 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first. TendIngestion 297, TendSourceScan 63, TendCore 141, TendTools 7 green, 0 warnings, Linux. R-22: 214/214 constraints. 27/27 mutants killed (M27 after a new case). `tend-payload-dump` is a stub (WI-M2-10 not built). Three open questions (Q1 fixture guidance to Tester/PO, Q2 key-path form to WI-M2-10, Q3 re-score confirmation). origin/main unchanged at `3bac3ce`, so no merge commit. Pushed; no PR opened. Next: Reviewer; then the Tester's independent re-score in WI-M2-16. |

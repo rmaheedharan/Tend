@@ -142,7 +142,15 @@ struct EvalResultsFileTests {
          .draftIDRepeated(inputID: "in04", attempt: 1, draftID: 1)),
         ("updated before emitted", [("/inputs/4/events/1/type", .string("updated"))],
          .eventsInconsistent(inputID: "in04", attempt: 1)),
-        ("finished not last", [("/inputs/4/events/2/type", .string("itemSkipped"))],
+        // Every draft is still emitted once; only the order is wrong (isolates "updated only after its emitted").
+        ("updated before its draft's emitted, every draft still emitted", [("/inputs/4/events", .array([
+            .object([.init("type", .string("emitted")), .init("draftID", .integer(1)), .init("tMs", .integer(300))]),
+            .object([.init("type", .string("updated")), .init("draftID", .integer(2)), .init("tMs", .integer(400))]),
+            .object([.init("type", .string("emitted")), .init("draftID", .integer(2)), .init("tMs", .integer(500))]),
+            .object([.init("type", .string("finished")), .init("draftID", .null), .init("tMs", .integer(700))]),
+        ]))],
+         .eventsInconsistent(inputID: "in04", attempt: 1)),
+        ("finished not last",[("/inputs/4/events/2/type", .string("itemSkipped"))],
          .eventsInconsistent(inputID: "in04", attempt: 1)),
         ("emitted without a draft ID", [("/inputs/4/events/0/draftID", .null)],
          .eventsInconsistent(inputID: "in04", attempt: 1)),
