@@ -1,0 +1,86 @@
+data: {"candidates":[{"content":{"parts":[{"text":"{\"items"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\":["}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"{\"title\":\"S"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"ervic"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"e the AC\",\"ki"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"nd"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\":\"oneOff"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\",\"room"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\":\""}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\",\"effort\":"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\"norm"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"al\",\"isCritic"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"al"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\":false,\""}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"isDeepC"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"lea"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"n\":false,\"i"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"sWeat"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"herDependent\""}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":":f"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"alse,\"tim"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"e\":{\"an"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"cho"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"r\":\"beforeS"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"eason"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\",\"season\":\"s"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"um"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"mer\"},\"so"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"urcePhr"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"ase"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\":\"The AC n"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"eeds "}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"servicing bef"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"or"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"e summer\""}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"}"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":",{\""}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"title\":\"Buy"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":" dish"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"washer pods\","}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\"k"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"ind\":\"res"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"t"}],"role":"model"},"index":0,"finishReason":"MAX_TOKENS"}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":125},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+

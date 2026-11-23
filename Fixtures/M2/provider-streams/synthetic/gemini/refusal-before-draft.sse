@@ -1,0 +1,2 @@
+data: {"promptFeedback":{"blockReason":"SAFETY","safetyRatings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","probability":"HIGH"}]},"usageMetadata":{"promptTokenCount":120,"totalTokenCount":120},"modelVersion":"synthetic-model","responseId":"synthetic-0001"}
+
