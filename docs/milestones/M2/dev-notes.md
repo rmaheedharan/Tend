@@ -2337,6 +2337,316 @@ mutants touch code that round 2 did not change, and the round 2 change only adds
 
 ---
 
+## WI-M2-09 — routing and consent: `RouteRules`, `ModelRouter`, consent and key stores, orphan-key deletion, turn-off semantics, restored-state fixtures (i)–(iii)
+
+- **Owner:** Developer  ·  **Branch:** `m2/routing-and-consent`, from `origin/main` at `00928fc` (WI-M2-06 and WI-M2-07
+  merged)  ·  **PR:** not opened (the Orchestrator opens it)  ·  **ADRs:** none new. It follows
+  [ADR-0005](../../architecture/adr/0005-cloud-ai-providers.md) Decisions 1, 2, 5 and 7 and
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md): new files under `TendIngestion/Sources/TendIngestion/Routing/`,
+  Foundation only.
+- **Requirements:** FR-A1, P-1, P-2, P-3, P-4, UX-3. The item delivers ● **AC-M2-19** (full), and the Linux parts of
+  ○ **AC-M2-18** (consent, route, cancel and the in-memory key store) and ○ **AC-M2-10** (route level)
+  ([plan.md](plan.md) WI-M2-09; the plan's "Route matrix").
+- **Not in this item:** the real Keychain delete for AC-M2-18 (a) and all of AC-M2-21 (WI-M2-M5, owner-run Mac), the
+  neutral `CloudTransport` protocol, deadline and retry (WI-M2-14), the `URLSession` transport (WI-M2-M4), the
+  provider adapters (WI-M2-M6), the `SystemLanguageModel.Availability` mapping (WI-M2-M2) and the durable consent
+  store (M3, Q21).
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED` and M2 `IN-BUILD`. The DoR "deps merged" is met (WI-M2-06 is on
+  `main`).
+- **Parallel work:** the stream/duplicate integration is being built at the same time. This item changes **no**
+  existing source file: nothing in `Stream/`, `Duplicates/` or the assembler. It uses `DraftPipeline.events(from:)`,
+  `RoutedModel`, `Route`, `CloudProvider` and `OnDeviceUnavailableReason` as they are on `main`.
+
+### What changed
+All new files are in `Packages/TendIngestion`.
+- `Sources/TendIngestion/Routing/RouteRules.swift`:
+  - `OnDeviceAvailability` (`available`, `unavailable(OnDeviceUnavailableReason)`);
+  - `RoutePreference` (`onDeviceFirst`, `alwaysCloud`);
+  - `CloudStatus` (`off`, `on(CloudProvider)`);
+  - `RouteRules.route(availability:preference:cloud:)`, ADR-0005 Decision 1 as one pure function.
+- `Sources/TendIngestion/Routing/CloudStores.swift`:
+  - `APIKey`. Its text is hidden from `description`, `debugDescription` and reflection, and is read only through
+    `withSecret`.
+  - `CloudStoreError` (`notAccessibleNow`, `storeUnavailable`).
+  - The protocols `APIKeyStore` (`hasKey`, `key`, `save`, `deleteKey`) and `CloudConsentStore` (`selectedProvider`,
+    `select`, `hasConsent`, `recordConsent`, `clearConsent`), all `async throws(CloudStoreError)`.
+  - The in-memory actors `InMemoryAPIKeyStore` and `InMemoryCloudConsentStore`, which start empty (a fresh install).
+- `Sources/TendIngestion/Routing/ModelRouter.swift`:
+  - `OnDeviceModelSource` (availability and model) and `CloudModelSource` (`model(for:key:)`), for the `TendAI`
+    adapters.
+  - The `ModelRouter` actor: `cloudStatus()`, `route(preference:)`, `events(for:preference:)`, `turnCloudOn(_:key:)`,
+    `turnCloudOff()`, `removeKey(for:)` and `select(_:)`.
+  - The internal `ConsentCheckedCloudModel`, which asks the router at the moment its request would start, and
+    `CloudAccessEnded`.
+- `Sources/TendIngestion/Routing/RoutedDraftEvents.swift`: `RoutedDraftEvents`, an `AsyncSequence` with
+  `Failure == Never`. It carries the chosen `route` and turns a turned-off cloud capture into
+  `finished(.cancelled(route:))`.
+- Tests (new, written first; the first build failed with "cannot find type 'CloudStoreError' in scope"):
+  - `RoutingSupport.swift`: the neutral `RecordingTransport` mock, `MockCloudModel`, `RecordingCloudModels`,
+    `FixedOnDevice`, the stored-state fixtures (`StoredState.planRows` = the plan's S0…S8; `StoredState.everyState` =
+    all 256 states), and bounded helpers (`collectBounded`, `eventually`, `awaitConsumer`).
+  - `RouteMatrixTests.swift`: AC-M2-19 and route-level AC-M2-10.
+  - `CloudConsentTests.swift`: AC-M2-18, the stores, and `APIKey` formatting.
+
+### The rules as built (each one is tested)
+- **Cloud on** (brief Definitions "Cloud model"): `cloudStatus()` is `.on(X)` only when X is selected, X has a
+  consent record, X has a stored key, and X was not blocked in this session. Everything else, including a store
+  error, is `.off`.
+- **Route** (ADR-0005 Decision 1): `RouteRules.route`.
+
+  | availability | cloud off | cloud on (X), on device first | cloud on (X), always cloud |
+  |---|---|---|---|
+  | available | `onDevice` | `onDevice` | `cloud(X)` |
+  | each unavailable reason | `none` | `cloud(X)` | `cloud(X)` |
+
+  "Always cloud" with cloud off is ignored (T-12).
+- **Orphan keys** (T-14): every `cloudStatus()`, and so every route choice, first deletes each stored key whose
+  provider has no consent record. A key whose provider has consent is kept, even when that provider is not selected
+  (plan S5, S7).
+- **One model per capture.** `events(for:preference:)` chooses the route once and gives the pipeline one
+  `RoutedModel`. An on-device stop ends `noModel` or `interrupted` on route `onDevice`, and the cloud is never asked
+  (AC-M2-10, P-1).
+- **Consent is checked again when the request starts.** The cloud capture's model calls `beginRequest`, which reads
+  the stores again (`cloudStatus()`), reads the key only now, and builds the provider model with it. If cloud is no
+  longer on for that provider, no model is built and the capture is ended.
+- **Turn-off** (AC-M2-18 (a)–(d)): `turnCloudOff()` blocks every provider for the session, ends every in-flight cloud
+  capture, clears every consent record and deletes every key. Every step is tried; the first store error is thrown at
+  the end. `removeKey(for: X)` does the same for X only. Ending a capture finishes its snapshot stream, which cancels
+  the forwarding task, which ends the provider model's stream (the `IngestionModel` adapter contract, part 3). Its
+  `RoutedDraftEvents` then gives `finished(.cancelled(route: .cloud(X)))` next, and nothing after it. No event decided
+  after the turn-off reaches the consumer, because the check runs after every event the pipeline gives.
+- **Turn-on:** `turnCloudOn(X, key:)` records consent, stores the key (if that fails, it clears the consent again),
+  selects X and lifts X's block. Lifting a block needs a new consent and a new key.
+
+### Decisions the Reviewer should know
+- **D1, where routing lives.** Routing is a new `Routing/` folder, not part of `Stream/`, so the parallel stream work
+  is not touched. `RoutedModel` stays as WI-M2-06 built it: the router builds it, and the pipeline holds one model.
+- **D2, fail closed.** Any store error while reading means cloud off. An orphan key that cannot be deleted never turns
+  cloud on, because `cloudStatus` still needs a consent record. This is tested with a key store and with a consent
+  store whose reads fail.
+- **D3, the session block** (AC-M2-18 (c) when the Keychain cannot delete). If a store cannot clear the consent or
+  delete the key, `turnCloudOff` and `removeKey` still cancel in-flight work, keep the provider off for the rest of
+  the session, and throw the store error so M3 can tell the user calmly. After a relaunch, the restore rule applies
+  again: a key with no consent is deleted, and a consent with no key is off. Only the case where **both** stores
+  failed to change would turn cloud on again after a relaunch. M3 must show that error (follow-up).
+- **D4, why `RoutedDraftEvents` wraps the pipeline.** The pipeline gives `cancelled` only when the consuming task is
+  cancelled, and a turn-off cannot cancel the consumer's task. When the turn-off ends the request stream, the pipeline
+  sees a throw and would give `noModel` or `interrupted`. The wrapper replaces that, and anything decided after the
+  turn-off, with `cancelled`, as AC-M2-18 (d) requires. This needs no change to `DraftPipeline` or the assembler.
+  - The cost is one actor hop per event on cloud captures. On-device and `none` captures have no watch, and their
+    events pass straight through.
+- **D5, `select(_:)` cancels the previous provider's in-flight captures.** This is a product-meaning reading (open
+  question 1), and it is the most private one. Selecting the provider already in use cancels nothing. Switching
+  clears no consent and deletes no key.
+- **D6, the key is read only at request start,** and only for the routed provider. Route choice uses `hasKey`, which
+  never reads the key's text.
+- **D7, `APIKey` hides its text.** It conforms to `CustomStringConvertible`, `CustomDebugStringConvertible` and
+  `CustomReflectable` (with no children). So `print`, interpolation, `dump`, `String(reflecting:)` and a containing
+  value's description all show `APIKey(hidden)`. It is `Equatable` (so a test can check that a key reads back), but
+  not `Hashable` or `Codable`. The masked display form (`••••` plus the last 4) is WI-M2-M5's (AC-M2-21), and is not
+  built here.
+- **D8, unstructured task.** `ConsentCheckedCloudModel` forwards through one `Task`, because `snapshots(for:)` is
+  synchronous and the consent check is an actor call. The task is cancelled from the stream's `onTermination`, so the
+  consumer cancelling, the pipeline dropping its iterator, and a turn-off all end it. There is no clock, timer,
+  `DispatchQueue`, lock or `@unchecked Sendable`.
+- **D9, the mock transport is neutral and test-only.** `RecordingTransport` records the neutral request values and
+  how each request stream ended. It stands in for WI-M2-14's `CloudTransport`, which does not exist yet. When that
+  protocol lands, the real adapters (WI-M2-M6) put it between `CloudModelSource` and the network. The routing tests do
+  not depend on it.
+- **D10, capture bookkeeping.** A cloud capture is forgotten when its `RoutedDraftEvents` returns `finished`. A
+  sequence that is abandoned without being read to the end keeps one small entry (a provider, a flag, and a finished
+  continuation) until the router is released. Unknown captures count as ended (fail closed).
+
+### AC coverage
+| AC (part) | Test(s) | Result |
+|---|---|---|
+| AC-M2-19, pure rule | "AC-M2-19: the pure route rule equals the plan matrix …" (5 availabilities × 2 preferences × 4 cloud statuses = 40 cells against `planRoute`, which is written from the plan table); "… the named rules …" (on device first never goes to the cloud; always cloud with cloud off is ignored) | PASS (Linux) |
+| AC-M2-19, full matrix | "AC-M2-19: the full matrix through the router …": all **340 cells** (34 stored states S0…S8 over every provider and every X/Y pair × 5 × 2), checking the route, the orphan side effect, that consents are unchanged, and that `cloud(Y)` occurs only for the selected Y. The matrix is printed to the log, one line per cell | PASS (Linux) |
+| AC-M2-19, through a capture | "… submitting a capture in every cell …": 340 cells. The outcome carries the route. Only `cloud(X)` cells send exactly one request, to X, with X's key and the capture text. `onDevice` cells ask only the on-device model. `none` cells give `noModel(.onDeviceUnavailable(reason))` with the input and a plain note, and 0 requests. "the route is part of the outcome and of the routed sequence" | PASS (Linux) |
+| AC-M2-19 + AC-M2-18, exhaustive | "every stored state (256) × availability × preference": **2,560 cells** against an independent oracle written from the brief Definitions (48 cloud-on states × 9 cloud cells = 432 cloud cells). Orphan keys are deleted, consents and the selection are unchanged | PASS (Linux) |
+| AC-M2-10, route level | "cloud off, each on-device reason unavailable" (4 reasons × every cloud-off plan row × 2 preferences): `noModel` on route `none`, the input and a plain note, 0 requests. "on-device generation stops before the first draft, cloud on or off" (16 `ModelStopReason`s × S0, S4, S7): `noModel(.stoppedBeforeFirstDraft)` on route `onDevice`, 0 cloud requests, the cloud source never asked. "a stop after the first draft is interrupted …, still zero cloud requests" | PASS (Linux). The adapter mapping of `Availability` and `GenerationError` is WI-M2-M2 (Mac) |
+| AC-M2-18, fresh install | "a fresh install … never routes to the cloud and sends nothing" (the in-memory stores start empty; 10 cells) | PASS (Linux) |
+| AC-M2-18, no consent | "every stored state with no consent record for the selected provider …": all 160 such states × 10 cells, never cloud, 0 requests | PASS (Linux) |
+| AC-M2-18, restored (i) | "restored (i): a key for X with no consent record …" (per provider): never cloud, 0 requests, and the key is deleted at the first route choice | PASS (Linux) |
+| AC-M2-18, restored (ii) | "restored (ii): a consent record for X and no key …" (per provider) | PASS (Linux) |
+| AC-M2-18, restored (iii) | "restored (iii): a consent record and a key for Y while X is selected …" (every X/Y pair): never cloud, 0 requests, Y's key kept | PASS (Linux) |
+| AC-M2-18, only `cloud(X)` | "given consent and a key for the selected X, the route is only ever cloud(X) …" (consent and keys for all three) | PASS (Linux) |
+| AC-M2-18 (a)–(d), turn-off | "turning cloud off deletes every key, clears every consent, cancels the in-flight request with outcome cancelled, writes no task, and no request starts afterwards" (per provider). The request is held open with one draft emitted. After the turn-off: the events are `emitted(1)` then `finished(cancelled(cloud(X)))` then nil; the transport stream ended `cancelled`; the repository is unchanged; data sent after the turn-off reaches nobody; and a new capture under both preferences gives route `none` with the request count still 1 | PASS (Linux). (a) with the real Keychain is WI-M2-M5 (Mac) |
+| AC-M2-18 (c) | "a capture routed to the cloud before turn-off but started after it sends no request and ends cancelled" | PASS (Linux) |
+| AC-M2-18 (a)–(d), remove key | "removing the key of the provider in use …" (per provider; other providers' keys and consents kept); "removing the key of a provider that is not in use leaves the in-flight request … running" | PASS (Linux) |
+| AC-M2-18 (c), behind the router | "consent cleared in the store after the route was chosen (not through the router) …" and "the selection changed in the store after the route was chosen …": the request is refused when it would start, 0 requests, the outcome is `cancelled`. "a capture the user cancels while its request is being prepared (key being read) sends nothing" | PASS (Linux) |
+| AC-M2-18, restored (i), D2 | "a key with no consent record that cannot be deleted still never turns cloud on" (per provider) | PASS (Linux) |
+| AC-M2-18, failing stores | "when the stores cannot delete or clear, turn-off still cancels …, reports the store error, and no request starts afterwards in this session" (and only turn-on lifts the block); "removing a key that cannot be deleted still blocks …"; "a key store / consent store that cannot be read keeps cloud off" | PASS (Linux) |
+| AC-M2-18, other | "turning cloud on records consent, stores the key and selects …"; "selecting another provider cancels the in-flight request of the previous one" (D5); "selecting the provider already in use … does not cancel"; "the user cancelling a cloud capture …" (consent and keys untouched); "an on-device capture is not affected by turning cloud off"; "turning cloud off when nothing is stored is calm" | PASS (Linux) |
+| Stores, `APIKey` | in-memory key store (save, read, replace, idempotent delete); in-memory consent store; "an APIKey never shows its text in description, debug description, reflection, dump or interpolation" (10 forms, including a containing struct and an array); calm names (UX-3) | PASS (Linux). Not evidence for AC-M2-21 (Mac) |
+| AC-M2-09, AC-M2-12 (regression) | the AC-M2-09 scan: `26 files in total, 0 violations`; the AC-M2-12 vocabulary scan: `26 files, 9 exempted (the list), 0 violations` | PASS (Linux) |
+
+### Test runs
+| Command (in `swift:6.2-noble`, `--scratch-path /tmp/b09-<pkg>`, `-Xswiftc -warnings-as-errors`) | Summary line |
+|---|---|
+| `swift test --package-path Packages/TendIngestion` | `✔ Test run with 232 tests in 30 suites passed after 22.130 seconds.` (195 on `main` + 37 new), 0 warnings |
+| `swift test --package-path Packages/TendCore` | `✔ Test run with 141 tests in 18 suites passed after 93.464 seconds.` (unchanged package) |
+| `swift test --package-path Packages/TendSourceScan` | `✔ Test run with 63 tests in 4 suites passed after 2.877 seconds.` (unchanged package) |
+
+The first full run found one error in my own test: the expected count of cloud cells in the exhaustive test was 48 × 6,
+and the right number is 48 × 9 (each cloud-on state has 1 available/always-cloud cell plus 4 reasons × 2 preferences).
+The constant and its comment were corrected. No assertion was relaxed.
+
+### Mutation check
+Each mutant was applied alone by a script to a **scratch copy** of the worktree (never the worktree), and run with
+`--filter "Route|Consent|CloudTurnOff|CloudStore|RouterNoModel"` and `-warnings-as-errors` inside a 600 s timeout. The
+held-request tests have a 1-minute time limit, and every wait is bounded (`eventually`, `awaitConsumer`,
+`collectBounded`), so a broken rule fails and never hangs. The script's baseline run on the unmutated copy passed (39
+tests). **28 mutants: 27 killed, 1 equivalent.**
+
+| # | Mutant | Killed by (failing tests / issues) |
+|---|---|---|
+| M1 | on device first goes to the cloud when cloud is on | pure rule, named rules, matrix ×3, … (158 issues) |
+| M2 | "always cloud" ignored when cloud is on | matrix, named rules, … (150 failing lines) |
+| M3 | unavailable + cloud on gives `none` | matrix, restored, turn-off … (1,115 issues) |
+| M4 | cloud on without the consent check | undeletable orphan key (D2), … (12 issues). **Survived the first pass** (orphan deletion hid it); killed after the D2 test was added |
+| M5 | cloud on without the key check | 1,395 issues |
+| M6 | the session block ignored | failing-store turn-off and remove key (4 issues; one at the time limit) |
+| M7 | no orphan-key deletion | restored (i), matrix, exhaustive (1,576 issues) |
+| M8 | the orphan rule deletes keys that have consent | restored (iii), matrix (1,681 issues) |
+| M9 | nothing selected: a provider with consent and key is on | S6 cells (433 issues) |
+| M10 | turn-off does not cancel in-flight captures | turn-off (a)–(d), failing stores (4 issues, by `awaitConsumer`) |
+| M11 | turn-off keeps the keys | 3 issues |
+| M12 | turn-off keeps the consent records | 3 issues |
+| M13 | turn-off does not block | failing stores (4 issues) |
+| M14 | remove key cancels every provider | remove another key (3 issues) |
+| M15 | remove key does not cancel | remove key in flight (3 issues) |
+| M16 | select does not cancel the previous provider | switch provider (1 issue) |
+| M17 | request start does not re-check cloud status | selection changed behind the router (2 issues, one at the time limit). **Survived the first pass**; killed after that test was added |
+| M18 | a refused start does not end the capture (outcome becomes `noModel`) | consent cleared behind the router (1 issue). **Survived the first pass**; killed after that test was added |
+| M19 | `RoutedDraftEvents` ignores the turn-off | 10 issues |
+| M20 | ending the stream does not cancel the forwarding task | the transport stream ends `cancelled` (7 issues) |
+| M21 | turn-off does not finish the request stream | 8 issues |
+| M22 | turn-on does not lift the block | 1 issue |
+| M23 | turn-on records no consent | 4 issues |
+| M24 | `APIKey.description` shows the key | formatting (6 issues) |
+| M25 | the mirror shows the key | formatting, `dump` (5 issues) |
+| M26 | the key is read for another provider | the request carries X's key (27 issues) |
+| M27 | route `none` uses the on-device model | 1,520 issues |
+| M28 | no `!Task.isCancelled` check after `beginRequest` | **equivalent in the tests.** When the user cancels, `RoutedDraftEvents` releases the capture before the suspended preparation resumes, so `beginRequest`'s own re-check refuses it first (test "… cancels while its request is being prepared …"). The check guards only a scheduling race between those two actor calls, which cannot be ordered from a test. It is kept as defence in depth |
+
+Two mutants (M2, M17) first failed to compile under `-warnings-as-errors` (an unused binding). That was not counted as
+a kill. They were respelled (`_ = provider`, `status == status`) and both were then run.
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendIngestion 232 tests: AC-M2-19, the Linux parts of AC-M2-18 and AC-M2-10, the stores, `APIKey` formatting, the AC-M2-09 and AC-M2-12 scans | ✔ container (`swift:6.2-noble`) | — | — | — | Linux CI runs on the PR |
+| TendCore 141, TendSourceScan 63 (unchanged) | ✔ container | — | — | — | — |
+| Actor reentrancy and `AsyncThrowingStream` termination on Darwin | — | — | — | — | Not verified (no Mac). Plan B2 (the `TendIngestion` suite on the owner-run Mac) covers it |
+| AC-M2-18 (a) with the real Keychain; AC-M2-21 | — | — | — | — | WI-M2-M5, owner-run Mac (Simulator host). The in-memory store is not evidence |
+| `Availability` / `supportsLocale` mapped to `OnDeviceAvailability` | — | — | — | — | WI-M2-M2, owner-run Mac |
+
+Device ACs: none in this item.
+
+### Things the reviewer should look at closely
+- **The concurrency in `ModelRouter`.** Every check that matters is read again after its last `await` (actor
+  reentrancy): in `cloudStatus` (the block) and in `beginRequest` (ended, and one request per capture).
+  `endCaptures` finishes the request stream synchronously on the actor.
+- **`ConsentCheckedCloudModel`'s forwarding `Task`** (D8), and how `onTermination` cancels it in all three end paths
+  (the consumer cancels, the pipeline drops its iterator, a turn-off).
+- **`RoutedDraftEvents`** (D4): one check after every inner event. When it replaces an inner `noModel` or
+  `interrupted` with `cancelled`, is that the right reading of AC-M2-18 (d)?
+- **The failing-store semantics** (D2, D3). Turn-off throws the first store error, after trying every step.
+- **`APIKey`** (D7): `Equatable` compares the text, so a failing `#expect(a == b)` on two keys prints
+  `APIKey(hidden)`, never the key.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| The Keychain adapter conforms to `APIKeyStore` (`hasKey` must not read the key's data); AC-M2-18 (a) proven with the real Keychain; turn-off and remove key delete the item | — | WI-M2-M5 |
+| The on-device adapter conforms to `OnDeviceModelSource` (exhaustive `Availability` switch, `supportsLocale` → `unsupportedLocale`) | — | WI-M2-M2 |
+| The cloud adapters conform to `CloudModelSource` over WI-M2-14's `CloudTransport`; they read the key text only in `withSecret` for the auth header | — | WI-M2-14, WI-M2-M6 |
+| A durable consent store that a restore cannot bring back (Q21). Settings screens call `turnCloudOn`, `turnCloudOff`, `removeKey` and `select`, not the stores directly. M3 shows a calm message when turn-off throws a `CloudStoreError` (D3: if **both** stores fail to change, a relaunch could turn cloud on again) | — | M3 brief (PO, Q21); Designer for copy |
+| An abandoned `RoutedDraftEvents` (never read to `finished`) keeps one small entry in the router (D10) | Nit | Revisit if M3 keeps routers alive for long |
+| M28 is an equivalent mutant (a race only) | Nit | — |
+| Not verified on Darwin | — | Plan B2, MS-2 |
+
+### Open questions (PO; built to the most literal and most private reading, work continues)
+All three are closed by the PO rulings in `po-m2-wi09.md` (2026-11-22). Each is accepted as built, with no code change.
+The brief amendments are applied word for word in round 2.
+1. ~~**Selecting another provider while a capture is in flight.**~~ **Closed: ruling 1.** It ends the previous provider's
+   in-flight captures as a turn-off does. Its consent and key are kept. Selecting the provider already in use
+   cancels nothing.
+2. ~~**Does turning cloud off clear the selection?**~~ **Closed: ruling 2.** The selection is kept. The ruling's
+   conditions are binding: the selection alone never turns cloud on, it is never sent, and M3 never uses it to skip
+   the consent screen or to nag.
+3. ~~**Outcome when a turn-off meets a capture whose request had not started.**~~ **Closed: ruling 3.** It is
+   `cancelled`, with 0 requests, for every cloud-access end the user caused in Settings. The binding M3 rule: when
+   the user did not cancel the capture itself, M3 keeps the input and offers the plain note locally.
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. Turning cloud on is a Settings step (M3), not capture. |
+| UX-2 Rule of Three | n.a. | No selection surface. Drafts still reach Now only through commit and `NowSelector`. |
+| UX-3 Zero-Guilt | pass | The new names (`notAccessibleNow`, `storeUnavailable`, `onDeviceFirst`, `alwaysCloud`, `off`, `on`) are calm and describe the store or the setting, never the person (test "store and route names are calm"; AC-M2-12 vocabulary scan, 0 violations). Turn-off ends with `cancelled`, not a failure. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | On device first is the rule (340 + 2,560 cells). An on-device stop never asks the cloud (16 reasons × 3 states, 0 requests). The pipeline holds one model. |
+| P-2 No data leaves device (except user iCloud) | pass | There is no networking in `TendIngestion` (AC-M2-09, 0 violations). Requests exist only as a test recorder. The key is read only at request start, and only for the routed provider. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | Off by default. Cloud is on only with consent **and** a key for the selected provider. Orphan keys are deleted. Restored fixtures (i)–(iii) never route to the cloud. A store error means off. Turn-off and remove key cancel in-flight work at once and block new requests, even when a store fails. Consent is checked again at request start. |
+| P-4 Media not persisted without consent | pass | Nothing is written: no file, log or `UserDefaults` API (AC-M2-09). `APIKey` cannot reach a log through formatting. A cancelled capture writes no task (repository unchanged). |
+
+### Round 2 (review round 1: CHANGES REQUIRED; PO rulings `po-m2-wi09.md`)
+The review is committed with this fix: [review-WI-M2-09.md](review-WI-M2-09.md). `origin/main` at `3bac3ce` (PRs #23
+and #25) is merged in, with no rebase and no force-push. The dev-notes conflict was resolved by keeping main's
+sections first, then this section. In `IngestionModel.swift`, main's new adapter-contract item 4 and the R24-F7
+sentence are both kept. The numbers in this section replace the round 1 test and mutant numbers above.
+
+| Finding | Change |
+|---|---|
+| **R24-F1 Major** | New tests in `CloudConsentRaceTests.swift`:<br>- "R24-F1, R24-F2: a Settings action while the key is being read …" runs end to end for turn-off, remove-key and select-another-provider. `SuspendingKeyStore` holds the key read. Expected: only `finished(cancelled(cloud(openAI)))`, `afterFinished == nil`, 0 requests.<br>- "R24-F1: beginRequest reads the capture again after the key read …" calls `beginRequest` directly for the same three actions and expects nil.<br>- A control without an action expects one allowed start, and a second start is refused.<br>All waits are bounded (`eventually`, `awaitConsumer`, a 1-minute time limit). After `release()` the store stays open, so a mutant that reads again cannot hang.<br>The reviewer's **mutant A is killed in 0.3 s by 3 assertion failures**, one per action, with no hang. So is A with M28 also removed (both request-start guards gone). |
+| **R24-F2 Minor (fixed)** | `ModelRouter.attach(_:continuation:)` stores the capture's stream as soon as the forwarding task starts, before `beginRequest` reads any store. `endCaptures` therefore finishes it at once, even during the key read, and the consumer ends with `cancelled` before the key read returns. That is asserted in the end-to-end F1 test ("the consumer did not end before the key read returned"). The `started` flag keeps one request per capture. Mutant F2m2 ("late attach", the round 1 behaviour) is killed by that assertion. |
+| **R24-F3 Minor (fixed)** | Settings actions now carry numbers (`nextActionNumber`). Each turn-off or remove-key records its number per provider (`lastEnded`). When `turnCloudOn` finishes, it checks whether a turn-off or remove-key for its provider started after it did. If so, the later action wins: the turn-on clears the consent and deletes the key it wrote, leaves the block in place, and returns `.off`. `turnCloudOn` now returns the resulting `CloudStatus` (`@discardableResult`). Numbers are strictly increasing, so there are no ties. Tests: "a turn-off that overlaps a turn-on wins …"; "a remove-key for the same provider that overlaps a turn-on wins; for another provider it does not"; and the control "a turn-on that starts after a turn-off has returned turns cloud on". `SuspendingConsentStore` holds `recordConsent`. Mutants F3m, F3m2, F3m3 and F3m4 are killed. |
+| **R24-F4 Minor (fixed)** | "a turn-off while cloudStatus is reading the stores gives off, even when the stores cannot clear or delete": the first `hasKey` is held, the consent store cannot clear, and the key store cannot delete. The reviewer's mutant D is killed. |
+| **R24-F5 Minor (fixed)** | "when the key cannot be stored, turn-on throws the store error, clears the consent again, and cloud stays off". The reviewer's mutant K is killed. |
+| **R24-F6 Nit (done)** | Internal `trackedCaptureCount`, and the test "the router tracks a cloud capture while it runs and forgets it once its events were read to the end" (on-device captures are never tracked). The reviewer's mutant I is killed. Mutant H (unknown counts as not ended) stays equivalent: it is reachable only after `isDone`. |
+| **R24-F7 Nit (done)** | `IngestionModel` adapter contract, part 3: a stream created inside an already cancelled task cancels its transport at once and sends nothing (WI-M2-M6). |
+| **R23-F2 (ticket from the WI-M2-06/07 integration review)** | The public capture API is now `ModelRouter.events(input:household:now:calendar:timeZone:titleSharing:preference:)`. It chooses the route first, then builds the `DraftPipeline` with that route's rules: `DraftDuplicateRules.onDevice(household:)` on device or for `none`, and `DraftDuplicateRules.cloud(titleSharing, capture: input, household:)` on the cloud. The rooms come from `household.rooms`. The pipeline-taking `events(for:preference:)` is now internal and used by tests only, so the public API cannot pair the rules of one route or capture with another. Tests in `RouteWiringTests.swift`:<br>- 680 cells (34 plan states × 5 availabilities × 2 preferences × 2 Q12 answers): the pipeline's rules path equals the route's, with this capture's text and rooms.<br>- Under Q12 = yes the rules hold this capture's shortlist; the fixture makes the shortlist depend on the capture. Under Q12 = no, only the word-match.<br>- On-device rules are used when cloud is on but the route is on device.<br>Mutants killed: W1 (cloud gets on-device rules), W2 (cloud rules for another capture; it survived until the fixture was made capture-sensitive) and W3 (the Q12 answer ignored). |
+| PO rulings | Open questions 1–3 are closed above. The brief amendments from `po-m2-wi09.md` are applied word for word to `brief.md`: the Cloud model bullet, the `cancelled` bullet, and the AC-M2-18 lead-in and (d). Main's own brief amendments (PRs #23 and #25) are kept. No protected path is touched. |
+
+**Round 2 test runs** (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, 0 warnings, merged tree):
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 284 tests in 37 suites passed after 92.546 seconds.` That is 272 on the merge commit (main plus round 1), plus 12 new: 9 race tests and 3 wiring tests. AC-M2-09: `27 files in total, 0 violations`. AC-M2-12 vocabulary: `27 files, 9 exempted (the list), 0 violations` |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 146.823 seconds.` (unchanged) |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 4.288 seconds.` (unchanged) |
+
+**Round 2 mutation check: 43 mutants, 41 killed, 2 equivalent.**
+- How they were run: each mutant was applied alone to a scratch copy (never the worktree), with `--filter
+  "Route|Consent|CloudTurnOff|CloudStore|RouterNoModel|R24|Wiring"` and a 600 s timeout.
+- What was run: M1–M28 were re-run on the round 2 code. The reviewer's A, D, K and I, the fix mutants (F2m, F2m2,
+  F3m–F3m4, S1) and W1–W3 are new. A, A+M28, D, F2m2, F3m and W1–W3 were run again on the merged tree.
+- Run interruption: Docker stopped once, during the run. The remaining mutants, the baseline and the three mutants
+  that are killed at the time limit (M6, M13, M17) were run again after the restart.
+
+| Mutant | Result |
+|---|---|
+| M1–M27 (round 1) | all killed again. M6, M13 and M17 fail partly at the 1-minute time limit (a held request that never ends); the rest fail on assertions |
+| M28 no `!Task.isCancelled` check | **equivalent**, as in round 1: the capture's own re-check refuses first |
+| A, A + M28 | killed (3 assertions each, 0.3 s) |
+| D, K, I | killed (1 assertion each) |
+| F2m (a turn-off skips streams whose request has not started) | **equivalent**: `started` is set before the key read, so the stream is always finished during preparation. F2m2 is the real "late attach" mutant |
+| F2m2 late attach | killed ("the consumer did not end before the key read returned", 12 issues) |
+| F3m, F3m2, F3m3, F3m4 | killed |
+| S1 a second request per capture | killed (the control test) |
+| W1, W2, W3 | killed (164, 82 and 82 issues) |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-09 Ready: WI-M2-06 merged (`00928fc`). Binding: P-1 (one model), P-2/P-3 (own key and consent; turn-off cancels in flight, no new request), the `APIKeyStore` protocol with an in-memory implementation, a neutral mock transport only, and no edits to `Duplicates/` or the assembler's marking. |
+| 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 232, TendCore 141, TendSourceScan 63 green, 0 warnings, Linux. AC-M2-19: 340 plan cells + 2,560 exhaustive cells, 0 mismatches. 28 mutants: 27 killed, 1 equivalent (M28). 3 PO open questions. No existing source file changed. Pushed; no PR opened. |
+| 2026-11-22 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: R24-F1 Major (test the `beginRequest` re-check after the key read; kill mutant A); R24-F2…F5 Minor; F6, F7 Nit. PO `po-m2-wi09.md`: Q1–Q3 accepted as built, brief amendments. |
+| 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1 tests (mutant A killed by assertion, no hang). F2, F3, F4, F5 fixed with tests; F6 and F7 done. R23-F2 wired (rules built from the route). PO brief amendments applied; open questions closed. Merged `origin/main` `3bac3ce`. TendIngestion 284, TendCore 141, TendSourceScan 63 green, 0 warnings. 43 mutants: 41 killed, 2 equivalent. Review file committed with the fix. |
+
+---
+
 ## WI-M2-15 — eval scorer: `EvalResultsFileV1`, `results-v1.schema.json` and its Foundation-only check, the scorer, self-tests, `EvalIDGenerator`, `Tools/TendTools`
 
 - **Owner:** Developer  ·  **Branch:** `m2/eval-scorer`, from `main` at `3bac3ce` (origin/main is still `3bac3ce`, so the
