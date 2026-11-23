@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-09, PR #24 (`m2/routing-and-consent`)
 
-- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 1 (head `40ac5b4`)
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE (round 2, head `88c5717`; round 1 at `40ac5b4` was CHANGES REQUIRED)  ·  **Round:** 2 (see [Round 2](#round-2--head-88c5717) at the end)
 - **Requirements:** FR-A1, P-1, P-2, P-3, P-4, UX-3. ACs: ● **AC-M2-19** (full), ○ **AC-M2-18** (Linux part: consent,
   route, cancel, in-memory key store), ○ **AC-M2-10** (route level) (plan WI-M2-09; plan "Route matrix").
   Related: AC-M2-21 (`APIKey` formatting clause only; the rest is WI-M2-M5), AC-M2-22/23 (WI-M2-14, not here),
@@ -129,3 +129,102 @@ Keychain (WI-M2-M5).
 | 2026-11-22 | Orchestrator | Reviewer | accepted (H4) | PR #24 head `40ac5b4`, worktree `/home/user/wt-rev24`. |
 | 2026-11-22 | Product Owner (via Orchestrator) | Reviewer | noted | `po-m2-wi09.md`: Q1–Q3 accepted as built, no code change; brief amendments and dev-notes closure as doc-only follow-up. Checked: code matches the rulings. |
 | 2026-11-22 | Reviewer | Developer (via Orchestrator) | returned (round 1) | CHANGES REQUIRED: R24-F1 Major (test for the turn-off-during-key-read re-check; must kill mutant A). Minor R24-F2…F5 to fix or ticket; Nits F6, F7 optional / WI-M2-M6. Tests green on Linux: TendIngestion 232, TendSourceScan 63, TendCore 141. |
+
+---
+
+## Round 2 — head `88c5717`
+
+- **Verdict: APPROVE.** No open Blocker or Major.
+- **Commits reviewed:** `c38c8f0` (merge of `origin/main` `3bac3ce`, PRs #23 and #25) and `88c5717` (round 2 fixes).
+  Diff `c38c8f0..88c5717`. It touches `Routing/ModelRouter.swift`, `Model/IngestionModel.swift` (one doc comment), the
+  tests (`CloudConsentRaceTests.swift` new, `RouteWiringTests.swift` new, `CloudConsentTests.swift` helpers), `brief.md`
+  (the PO amendments), `dev-notes.md` and this file (my round 1 text, committed unchanged; I checked it byte for byte).
+  The merge did not change the round 1 routing files. No protected path, no dependency, Foundation + TendCore only
+  (ADR-0006).
+- **Milestone lock:** `STATUS.md`: M1 `ACCEPTED`, M2 `IN-BUILD`. Still M2 work.
+
+### Round 1 findings, verified in the new diff
+| # | Round 1 | Round 2 status | Evidence |
+|---|---|---|---|
+| R24-F1 | Major | **Closed** | `CloudConsentRaceTests.actionDuringKeyRead` (end to end) and `beginRequestRecheck` (direct) run turn-off, remove-key and switch provider while `SuspendingKeyStore` holds the key read. They expect only `finished(cancelled(cloud(openAI)))`, 0 requests, and `beginRequest` returning nil. A control expects one allowed start and refuses a second. All waits are bounded, and the store stays open after `release()`, so nothing can hang. **My mutant A, re-applied to the new guard at `ModelRouter.swift:249` (`guard let key else`), is killed in 0.37 s by 3 assertion failures** (`beginRequestRecheck`, one per action), with no hang. |
+| R24-F2 | Minor | **Closed (fixed)** | `attach(_:continuation:)` (`ModelRouter.swift:232-237`) stores the stream before any store read. `endCaptures` finishes it at once. `actionDuringKeyRead` asserts that the consumer ends **before** the key read is released. The `started` flag keeps one request per capture. |
+| R24-F3 | Minor | **Closed (fixed)** | Settings actions are numbered (`nextActionNumber`, `lastEnded`). `turnCloudOn` checks after its last await (`ModelRouter.swift:176-180`): if a turn-off or remove-key for its provider started later, it removes its consent and key, keeps the block, and returns `.off`. Tests: turn-off overlaps turn-on; remove-key for the same provider vs another provider; the control (turn-on after turn-off returned gives on). My mutant L (the check never fires) is killed: the turn-on returns `on`, the consent and key stay (4+ assertion failures). |
+| R24-F4 | Minor | **Closed (fixed)** | `turnOffDuringStatusRead`: the first `hasKey` is held, the stores cannot clear or delete, and the turn-off runs in between. Expect `.off`. My mutant D is killed (`CloudConsentRaceTests.swift:167`). |
+| R24-F5 | Minor | **Closed (fixed)** | `turnOnRollsBackConsent`: the key store cannot save, so turn-on throws `storeUnavailable` and no consent or selection is left. My mutant K is killed (`CloudConsentRaceTests.swift:179`). |
+| R24-F6 | Nit | **Closed** | Internal `trackedCaptureCount` and `captureIsForgotten`. My mutant I is killed (`CloudConsentRaceTests.swift:197`). H stays equivalent (reachable only after `isDone`), agreed. |
+| R24-F7 | Nit | **Closed** | `IngestionModel.swift` adapter contract, part 3: a stream created inside an already cancelled task cancels its transport at once and sends nothing (for WI-M2-M6). |
+
+### R23-F2 (ticket from the WI-M2-06/07 integration review): **closed**
+- **The new public API:** `ModelRouter.events(input:household:now:calendar:timeZone:titleSharing:preference:)` at
+  `ModelRouter.swift:109-120`. It chooses the route first, then builds the `DraftPipeline` with that route's rules:
+  - cloud: `.cloud(titleSharing, capture: input, household:)`;
+  - on device and `none`: `.onDevice(household:)`.
+  - The rooms come from `household.rooms`.
+- **The pipeline-taking overload** is now `internal` (tests only). So the public API cannot pair one route's or one
+  capture's rules with another. `makePipeline` runs on the actor right after the route is chosen, with no suspension in
+  between.
+- **`RouteWiringTests`:**
+  - 680 cells check the rules path against the route.
+  - `cloudRulesUseThisCapture` checks a concrete shortlist value that depends on the capture's words (it includes the
+    AC task, and differs from the shortlist of another text), and the Q12 = no path.
+  - `onDeviceRulesWithCloudOn` checks the on-device rules when cloud is on but the route is on device.
+  - The 680-cell expectation mirrors the production switch (N2 below), but the two concrete-value tests do not.
+
+### PO brief amendments (`po-m2-wi09.md`): **applied word for word**
+I compared each one with the note.
+- The Cloud model bullet after T-12 matches.
+- The `cancelled` bullet in Draft stream events matches.
+- The AC-M2-18 lead-in ("…or another provider is selected (for the previous provider; its consent and key are then
+  kept, so (a) and (b) do not apply)") matches.
+- AC-M2-18 (d) matches.
+- No AC is deleted or weakened. The dev-notes open questions 1–3 are closed with the ruling numbers.
+
+### Reviewer mutants, round 2 (scratch copy of `88c5717`; `--filter "Route|Consent|CloudTurnOff|CloudStore|RouterNoModel"`, 51 tests, `-warnings-as-errors`, 900 s timeout each)
+| Mutant | Result |
+|---|---|
+| A: `beginRequest` drops the re-check after the key read | killed (3 issues, 0.37 s, `beginRequestRecheck`). The end-to-end test does not fail on A because R24-F2 now ends the stream first and the forwarding task is cancelled (defence in depth); the direct test covers the guard itself |
+| D: `cloudStatus` reads `blocked` before the awaits | killed (1 issue) |
+| K: `turnCloudOn` without the consent rollback | killed (1 issue) |
+| I: no `release` on `finished` | killed (1 issue) |
+| L: the R24-F3 overlap check never fires | killed (several assertion failures; one held test also reached the 1-minute limit) |
+
+### New observations (non-blocking)
+| # | Severity | File:line | Finding | Suggested change | Status |
+|---|---|---|---|---|---|
+| R24-R2-N1 | Nit | `ModelRouter.swift:176-180` | Three overlapping actions: turn-on #1, then turn-off #2, then turn-on #3 for the same provider, before #1 finishes. #1's rollback can delete the consent and key that #3 already wrote. #3 then finishes, unblocks and returns `cloudStatus()`, which is `.off`. The result fails closed and #3 reports `.off` truthfully, so M3 can show it. It only needs three Settings actions inside one store round trip. | Optional: roll back only when no later turn-on for the provider started (keep a `lastTurnOn[p]` number). Or let M3 Settings serialise its actions. | Open (optional) |
+| R24-R2-N2 | Nit | `RouteWiringTests.swift:40-43` | The 680-cell expectation is written with the same switch as production, so on its own it would follow a mutant in that switch. The concrete-value tests (`cloudRulesUseThisCapture`, `onDeviceRulesWithCloudOn`) and the developer's W1–W3 kills cover it. | Optional: state the expected path per route as literal values in the test. | Open (optional) |
+
+### Tests run (Reviewer, head `88c5717`, Linux, `swift:6.2-noble`, Swift 6.2, `-Xswiftc -warnings-as-errors`)
+| Command | Result |
+|---|---|
+| `swift test --package-path Packages/TendIngestion --scratch-path /tmp/rev24r2-ing` | `✔ Test run with 284 tests in 37 suites passed after 70.005 seconds.` 0 warnings. `AC-M2-09 scan: 27 files in total, 0 violations`; `AC-M2-12 vocabulary scan: 27 files, 9 exempted (the list), 0 violations` |
+| `swift test --package-path Packages/TendSourceScan --scratch-path /tmp/rev24r2-scan` | `✔ Test run with 63 tests in 4 suites passed after 2.053 seconds.` |
+| `swift test --package-path Packages/TendCore --scratch-path /tmp/rev24r2-core` | `✔ Test run with 141 tests in 18 suites passed after 135.081 seconds.` |
+
+Not verified, as in round 1: Darwin scheduling (plan B2, owner-run Mac) and the real Keychain (WI-M2-M5).
+
+### Checklist (round 2)
+- [x] Correctness vs ACs (AC-M2-19 full; AC-M2-18 and AC-M2-10 Linux parts, with the amended AC-M2-18 text)
+- [x] Tests meaningful (my mutants A, D, K, I and L are all killed on assertions)
+- [x] Swift 6 concurrency safe (every post-await check is re-read and tested; no `@unchecked Sendable` or
+  `nonisolated(unsafe)`)
+- [x] No force unwraps / try! in product code paths  - [x] Privacy (P-1…P-4)  - [x] UX-2/UX-3 enforced in engine
+- [x] Accessibility (UI): n.a.  - [x] Performance: n.a. beyond one actor hop per cloud event  - [x] No new dependency
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | New names (`attach`, `started`, `lastEnded`, `trackedCaptureCount`) are neutral. A turn-on overlapped by a turn-off returns `.off`, not an error. Scan: 0 violations. PO ruling 3 (M3 keeps the words) is in the brief. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | The route rule is unchanged and matrix-tested. On-device rules on the on-device route (R23-F2). |
+| P-2 No data leaves device (except user iCloud) | pass | No networking (AC-M2-09, 27 files, 0 violations). |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | The round 1 concern is cleared. A Settings action during the key read sends 0 requests and ends the consumer at once (tested). A turn-off or remove-key overlapping a turn-on wins. Cloud rules use this capture's shortlist only. |
+| P-4 Media not persisted without consent | pass | Nothing written; `APIKey` formatting unchanged. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-23 | Developer (via Orchestrator) | Reviewer | accepted (round 2) | Head `88c5717` (merges main `3bac3ce` at `c38c8f0`). |
+| 2026-11-23 | Reviewer | Orchestrator → Merge Gatekeeper; Tester next | sent (H5) | **APPROVE.** R24-F1 Major closed (mutant A killed by assertion). F2–F5 fixed and tested, F6 and F7 done. R23-F2 closed. PO amendments applied word for word. 284/63/141 green, 0 warnings. Reviewer mutants A, D, K, I, L all killed. Two optional Nits (R24-R2-N1, N2). |
