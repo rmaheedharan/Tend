@@ -1,0 +1,481 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "inputID": "in01",
+      "key": "g01-ac",
+      "matchGroups": [
+        [
+          "ac",
+          "aircon",
+          "air",
+          "conditioner",
+          "hvac"
+        ],
+        [
+          "service",
+          "servicing",
+          "serviced",
+          "check"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-ac"
+      }
+    },
+    {
+      "inputID": "in01",
+      "key": "g01-pods",
+      "matchGroups": [
+        [
+          "dishwasher",
+          "dish"
+        ],
+        [
+          "pods",
+          "tablets"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "existing",
+        "roomKey": "kitchen"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-pods"
+      }
+    },
+    {
+      "inputID": "in01",
+      "key": "g01-balcony",
+      "matchGroups": [
+        [
+          "balcony",
+          "terrace",
+          "deck"
+        ],
+        [
+          "clean",
+          "wash",
+          "scrub"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "new",
+        "name": "Balcony",
+        "alternates": [
+          "terrace",
+          "deck"
+        ]
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": true,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in02",
+      "key": "g02-oven",
+      "matchGroups": [
+        [
+          "oven"
+        ],
+        [
+          "clean",
+          "wipe",
+          "scrub"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "kitchen"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in02",
+      "key": "g02-mirror",
+      "matchGroups": [
+        [
+          "mirror"
+        ],
+        [
+          "wipe",
+          "clean"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "bathroom"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in03",
+      "key": "g03-pods",
+      "matchGroups": [
+        [
+          "dishwasher",
+          "dish"
+        ],
+        [
+          "pods",
+          "tablets"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "existing",
+        "roomKey": "kitchen"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-pods"
+      }
+    },
+    {
+      "inputID": "in03",
+      "key": "g03-towels",
+      "matchGroups": [
+        [
+          "towels",
+          "towel"
+        ],
+        [
+          "wash",
+          "launder"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "bathroom"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in04",
+      "key": "g04-kitchen",
+      "matchGroups": [
+        [
+          "wipe",
+          "clean"
+        ],
+        [
+          "counter",
+          "counters"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "kitchen"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in04",
+      "key": "g04-bathroom",
+      "matchGroups": [
+        [
+          "wipe",
+          "clean"
+        ],
+        [
+          "counter",
+          "counters"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "bathroom"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in05",
+      "key": "g05-mop",
+      "matchGroups": [
+        [
+          "mop"
+        ],
+        [
+          "floor",
+          "floors"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "hallway"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in05",
+      "key": "g05-plants",
+      "matchGroups": [
+        [
+          "water"
+        ],
+        [
+          "plants",
+          "plant"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-plants-a"
+      }
+    },
+    {
+      "inputID": "in05",
+      "key": "g05-garage",
+      "matchGroups": [
+        [
+          "garage"
+        ],
+        [
+          "shelves",
+          "shelf"
+        ],
+        [
+          "sort",
+          "tidy"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "new",
+        "name": "Garage",
+        "alternates": []
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in06",
+      "key": "g06-bill",
+      "matchGroups": [
+        [
+          "bill",
+          "bills"
+        ],
+        [
+          "gas"
+        ],
+        [
+          "pay"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in06",
+      "key": "g06-oven",
+      "matchGroups": [
+        [
+          "oven"
+        ],
+        [
+          "clean",
+          "wipe",
+          "scrub"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "kitchen"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in06",
+      "key": "g06-tiles",
+      "matchGroups": [
+        [
+          "tiles",
+          "tile"
+        ],
+        [
+          "scrub",
+          "clean"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "bathroom"
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": true,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in07",
+      "key": "g07-sweep",
+      "matchGroups": [
+        [
+          "chimney"
+        ],
+        [
+          "sweep"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in08",
+      "key": "g08-post",
+      "matchGroups": [
+        [
+          "post",
+          "mail"
+        ],
+        [
+          "sort"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in08",
+      "key": "g08-gate",
+      "matchGroups": [
+        [
+          "gate"
+        ],
+        [
+          "fix",
+          "repair"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    }
+  ]
+}

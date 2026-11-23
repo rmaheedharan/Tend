@@ -1,0 +1,157 @@
+Tend M2 eval scorer log (results file v1; brief Eval scoring rules)
+profile: info
+run: device iPhone16,1, iOS 23A000, provider none, model apple-on-device, sampling greedy, started 2026-11-22T10:00:00Z
+run: app 0123456789abcdef0123456789abcdef01234567, fixtures aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+cold start (information only): in01 ttfiMs 2100
+
+input in01: text, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 900
+  draft 1 text [service ac servicing]
+  draft 2 text [buy dishwasher pods]
+  draft 3 text [deep clean balcony]
+  pairing: draft 1 <-> g01-ac (overlap 3)
+  pairing: draft 2 <-> g01-pods (overlap 2)
+  pairing: draft 3 <-> g01-balcony (overlap 2)
+  item g01-ac: found (draft 1); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  item g01-pods: found (draft 2); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  item g01-balcony: found (draft 3); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  extra drafts: none
+  best target: draft 1 -> seeded t-ac (overlap 3)
+  best target: draft 2 -> seeded t-pods (overlap 2)
+  best target: draft 3 -> golden g01-balcony (overlap 2)
+  committed: 1; c(x): golden g01-balcony=1
+  duplicates created: 0; false merges: 0
+  validity: 3 of 3 valid
+  introduced banned tokens: 0
+  golden 3, found 3, extras 0
+
+input in02: voice, attempt 2 scored (2 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 500
+  draft 1 text [clean oven]
+  pairing: draft 1 <-> g02-oven (overlap 2)
+  item g02-oven: found (draft 1); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  item g02-mirror: not found
+  extra drafts: none
+  best target: draft 1 -> golden g02-oven (overlap 2)
+  committed: 0; c(x): none
+  duplicates created: 0; false merges: 1 (g02-oven)
+  validity: 1 of 1 valid
+  introduced banned tokens: 0
+  golden 2, found 1, extras 0
+
+input in03: text, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 1300
+  draft 1 text [buy dish pods]
+  draft 2 text [buy dishwasher tablets]
+  draft 3 text [wash towels]
+  draft 4 text [wash bath towels]
+  draft 5 text [wash towels]
+  pairing: draft 1 <-> g03-pods (overlap 2)
+  pairing: draft 3 <-> g03-towels (overlap 2)
+  item g03-pods: found (draft 1); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  item g03-towels: found (draft 3); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  extra drafts: 2, 4
+  best target: draft 1 -> seeded t-pods (overlap 2)
+  best target: draft 2 -> seeded t-pods (overlap 2)
+  best target: draft 3 -> golden g03-towels (overlap 2)
+  best target: draft 4 -> golden g03-towels (overlap 2)
+  best target: draft 5 -> golden g03-towels (overlap 2)
+  committed: 4; c(x): golden g03-towels=2, seeded t-pods=2
+  duplicates created: 3; false merges: 0
+  validity: 5 of 5 valid
+  introduced banned tokens: 0
+  golden 2, found 2, extras 2
+
+input in04: text, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 700
+  draft 1 text [wipe counter]
+  draft 2 text [wipe counters]
+  pairing: draft 1 <-> g04-kitchen (overlap 2)
+  pairing: draft 2 <-> g04-bathroom (overlap 2)
+  item g04-kitchen: found (draft 1); kind ok, room wrong, effort ok, critical ok, deepClean ok, weather ok
+  item g04-bathroom: found (draft 2); kind ok, room wrong, effort ok, critical ok, deepClean ok, weather ok
+  extra drafts: none
+  best target: draft 1 -> golden g04-bathroom (overlap 2)
+  best target: draft 2 -> golden g04-bathroom (overlap 2)
+  committed: 2; c(x): golden g04-bathroom=2
+  duplicates created: 1; false merges: 0
+  validity: 2 of 2 valid
+  introduced banned tokens: 0
+  golden 2, found 2, extras 0
+
+input in05: text, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 1300
+  draft 1 text [mop floor]
+  draft 2 text [water plants]
+  draft 3 text [sort garage shelves]
+  draft 4 text [mop hallway floors floor]
+  draft 5 text [sort shelves]
+  pairing: draft 4 <-> g05-mop (overlap 3)
+  pairing: draft 3 <-> g05-garage (overlap 3)
+  pairing: draft 2 <-> g05-plants (overlap 2)
+  item g05-mop: found (draft 4); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  item g05-plants: found (draft 2); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  item g05-garage: found (draft 3); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  extra drafts: 1, 5
+  best target: draft 1 -> golden g05-mop (overlap 2)
+  best target: draft 2 -> seeded t-plants-a (overlap 2)
+  best target: draft 3 -> golden g05-garage (overlap 3)
+  best target: draft 4 -> golden g05-mop (overlap 3)
+  best target: draft 5 -> none
+  committed: 5; c(x): golden g05-garage=1, golden g05-mop=2, seeded t-plants-a=1
+  duplicates created: 2; false merges: 0
+  validity: 4 of 5 valid (draft 3 windowEndNotAfterStart)
+  introduced banned tokens: 0
+  golden 3, found 3, extras 2
+
+input in06: voice, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 900
+  draft 1 text [pay late gas bill]
+  draft 2 text [clean overdue oven]
+  draft 3 text [scrub tiles]
+  pairing: draft 1 <-> g06-bill (overlap 3)
+  pairing: draft 2 <-> g06-oven (overlap 2)
+  pairing: draft 3 <-> g06-tiles (overlap 2)
+  item g06-bill: found (draft 1); kind ok, room ok, effort ok, critical ok, deepClean ok, weather wrong
+  item g06-oven: found (draft 2); kind wrong, room ok, effort wrong, critical wrong, deepClean ok, weather ok
+  item g06-tiles: found (draft 3); kind ok, room wrong, effort ok, critical ok, deepClean wrong, weather ok
+  extra drafts: none
+  best target: draft 1 -> golden g06-bill (overlap 3)
+  best target: draft 2 -> golden g06-oven (overlap 2)
+  best target: draft 3 -> golden g06-tiles (overlap 2)
+  committed: 3; c(x): golden g06-bill=1, golden g06-oven=1, golden g06-tiles=1
+  duplicates created: 0; false merges: 0
+  validity: 3 of 3 valid
+  introduced banned tokens: 2 (draft 2 title overdue, draft 3 proposedRoomName missed)
+  golden 3, found 3, extras 0
+
+input in07: text, attempt 1 scored (1 in file), route onDevice, outcome noModel, ttfiMs none, totalMs 300
+  item g07-sweep: not found
+  extra drafts: none
+  committed: 0; c(x): none
+  duplicates created: 0; false merges: 0
+  validity: 0 of 0 valid
+  introduced banned tokens: 0
+  golden 1, found 0, extras 0
+
+input in08: voice, attempt 1 scored (1 in file), route onDevice, outcome completed, ttfiMs 300, totalMs 700
+  draft 1 text [sort post behind door shed]
+  draft 2 text [fix late gate]
+  pairing: draft 1 <-> g08-post (overlap 2)
+  pairing: draft 2 <-> g08-gate (overlap 2)
+  item g08-post: found (draft 1); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  item g08-gate: found (draft 2); kind ok, room ok, effort ok, critical ok, deepClean ok, weather ok
+  extra drafts: none
+  best target: draft 1 -> golden g08-post (overlap 2)
+  best target: draft 2 -> golden g08-gate (overlap 2)
+  committed: 2; c(x): golden g08-gate=1, golden g08-post=1
+  duplicates created: 0; false merges: 0
+  validity: 2 of 2 valid
+  introduced banned tokens: 2 (draft 2 title late, draft 2 title late)
+  golden 2, found 2, extras 0
+
+totals: inputs scored 8, absent none
+totals: N 18, extras 4, drafts 21, valid 20, introduced banned tokens 4, duplicates created 6, false merges 1
+totals: segmentation 16 of 18 (required 18 at 95%)
+totals: kind 15 of 18 (required 18 at 95%)
+totals: room 13 of 18 (required 17 at 90%)
+totals: effort 15 of 18 (required 16 at 85%)
+totals: critical 15 of 18 (required 18 at 95%)
+totals: deepClean 15 of 18 (required 18 at 95%)
+totals: weatherDependent 15 of 18 (required 18 at 95%)
+
+profile info: INFO (no pass rule)
