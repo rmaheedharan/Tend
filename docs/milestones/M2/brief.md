@@ -119,7 +119,10 @@ the Now canvas only through the Rule of Three.
       `interrupted` outcome always has at least one draft.
     - **noModel:** there was no usable model, or the model returned an error, a refusal or a guardrail before any
       draft. No draft is emitted. The input text and a plain-note offer are returned.
-    - **cancelled:** nothing is written.
+    - **cancelled:** nothing is written. It is the outcome when the caller cancels the capture, and when cloud access
+      for the capture's provider ends while it runs (cloud turned off, key removed, provider switched), whether or not
+      its request had started. When the user did not cancel the capture itself, M3 keeps the input and offers the
+      plain note locally (PO 2026-11-21, WI-M2-06 Q4; PO 2026-11-22, WI-M2-09 Q3).
     Every outcome carries the route.
   The Developer picks the Swift case names. Each must pass the banned-token rule (AC-M2-10, AC-M2-12).
   - **TTFI** ends at the first `emitted` event. **Total time** ends at `finished`.
@@ -195,6 +198,9 @@ the Now canvas only through the Rule of Three.
   - **Cloud on** means the selected provider has a consent record and a stored key. Anything else is **cloud off**,
     which is the default.
   - A consent record or key for a provider that is not selected never makes cloud on (T-12).
+  - Selecting another provider ends cloud for the previous one: its in-flight captures end as for a turn-off
+    (AC-M2-18 (c), (d)); its consent record and key are kept. Turning cloud off keeps the selection, which alone never
+    turns cloud on (PO 2026-11-22, WI-M2-09 Q1, Q2).
   - A stored key with no consent record for its provider is deleted the first time a route is chosen (T-14).
 - **Route:** which model handles a capture: `onDevice`, `cloud(provider)` or `none`. ADR-0005 Decision 1 sets the
   route (AC-M2-19).
@@ -676,11 +682,13 @@ I've said yes, so that I'm not left out and nothing goes anywhere without me kno
   device.
 
   Given consent and a key for the selected provider X, the route can only be `cloud(X)`, never another provider. When
-  cloud is turned off, or the key is removed, then:
+  cloud is turned off, the key is removed, or another provider is selected (for the previous provider; its consent and
+  key are then kept, so (a) and (b) do not apply), then:
   - (a) the Keychain item is deleted;
   - (b) the consent record is cleared;
   - (c) no request starts afterwards;
-  - (d) an in-flight cloud request is cancelled, the outcome is `cancelled`, and no task is written.
+  - (d) an in-flight cloud capture, including one routed to the cloud whose request has not started, is cancelled:
+    the outcome is `cancelled`, zero further requests are sent, and no task is written.
   *Verification:* unit (mock transport, in-memory key store)  *Environment:* Linux for consent, route and cancel with
   the in-memory key store (`TendIngestion`). Owner-run Mac (iOS Simulator host app) for (a) with the real Keychain.
   *Evidence expected:* test names + logs from both.

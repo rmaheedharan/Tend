@@ -175,6 +175,8 @@ public struct IngestionRequest: Hashable, Sendable {
 ///    consumer cancels; a reference kept by the adapter would stop the termination handler from running.
 /// 3. Cancel all model and network work in the stream's `onTermination` (the `streamResponse` loop, the URL session
 ///    bytes task), so nothing keeps running after the user cancels or turns cloud off (P-3, WI-M2-09).
+///    A stream that is created inside an already cancelled task (a turn-off can land just before `snapshots(for:)` is
+///    called) cancels its transport at once and sends nothing (review R24-F7; WI-M2-M6).
 /// 4. On device, put every duplicate-`Tool` query of this parse into `IngestionSnapshot.lookupQueries` (cumulative, in
 ///    call order), and yield one more snapshot after a Tool call that no snapshot has carried yet, before finishing.
 ///    The Tool must read the same `Household` value that `DraftDuplicateRules.onDevice(household:)` was given, so that
