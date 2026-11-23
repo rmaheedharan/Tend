@@ -2334,3 +2334,243 @@ mutants touch code that round 2 did not change, and the round 2 change only adds
 | 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 233, TendSourceScan 63, TendCore 141 green, 0 warnings, Linux. Property: 600 households × 3 paths, 0 oracle mismatches, 0 ground-truth misses. 22 of 22 mutants killed (M22 after adding a test). R23-F2 left as a note (PR #24 not merged). Two PO questions. Pushed; no PR opened. |
 | 2026-11-22 | Reviewer (via Orchestrator) | Developer | returned (round 1) | APPROVE with R25-F1, F2, F3 Minor and R25-N1 Nit. PO `po-m2-wi08.md`: both questions accepted as built. |
 | 2026-11-22 | Developer | Reviewer (via Orchestrator) | sent (round 2) | R25-F1 to N1 fixed (see Round 2). TendIngestion 235, TendSourceScan 63, TendCore 141 green, 0 warnings. Brief text inserted word for word. Review file committed with the fix. |
+
+## WI-M2-12 — server-sent-event framing and an incremental JSON reader that turns a growing JSON text into neutral item snapshots
+
+- **Owner:** Developer  ·  **Branch:** `m2/stream-json-snapshots`, from `origin/main` at `3bac3ce` (WI-M2-06 and
+  everything up to WI-M2-08 merged; `origin/main` merged again before the push, no change)  ·  **PR:** not opened (the
+  Orchestrator opens it)  ·  **ADRs:** none new. Follows [ADR-0006](../../architecture/adr/0006-m2-module-layout.md):
+  three new files under `TendIngestion/Sources/TendIngestion/CloudOutput/`, Foundation and TendCore only, no I/O, no
+  network, no logging, no new dependency.
+- **Requirements:** FR-A1, P-3. This item delivers the **first Linux part of AC-M2-24** ([plan.md](plan.md)
+  WI-M2-12, ○): the framing and the reader the three provider parsers stand on. The provider dialects, their
+  synthetic fixtures and the refusal case are WI-M2-13. The adapters end to end are WI-M2-M6 (Mac). It also feeds
+  AC-M2-05 (the snapshots go into the same draft stream as on device) and the plan's "Numbers" rule
+  ("How the hint meets Q5": the provider parsers turn any non-integer, non-finite or out-of-range JSON number into nil).
+- **Binding inputs:** the brief's Definitions ("Item completion", "Draft stream events"), AC-M2-24, T-03, T-19, T-25;
+  PO WI-M2-06 ruling 2 (rule (a) field set); the ticket in `po-q21-q22.md` "From PR #22": *WI-M2-12/13: test a title
+  that arrives last (rule (a) can fire on a title prefix; `updated` fixes it)*; the WI-M2-06/07 integration fields
+  (`ItemSnapshot.sameAsItem`, `sameAsExisting`, `IngestionSnapshot.lookupQueries`); `ModelNumber.wholeNumber`; the
+  `.unrecognized` enum rule.
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED` and M2 `IN-BUILD`. This is M2 work. DoR "deps merged" is met
+  (WI-M2-06 is on `main`).
+- **Parallel work:** WI-M2-09 routing (`Routing/`, PR #24) and the eval scorer (`Tools/TendTools`, `Eval`) are built
+  elsewhere. This item touches neither, nor any existing source file.
+
+### What changed
+All new files are in `Packages/TendIngestion`. No existing source or test file was changed.
+- `Sources/TendIngestion/CloudOutput/ServerSentEventFramer.swift`: `ServerSentEvent` (`type`, `data`,
+  `lastEventID`), `ServerSentEventEnd` (`complete`, `cutShort`) and `ServerSentEventFramer` (`append(_:)` gives the
+  events each byte chunk completes; `finish()`). It follows the WHATWG HTML "Server-sent events" parsing rules (the
+  file header lists them).
+- `Sources/TendIngestion/CloudOutput/PartialJSONParser.swift`:
+  - `PartialJSONValue` (`null`, `bool`, `number(text)`, `string(_, isComplete:)`, `array(_, isComplete:)`,
+    `object(_, isComplete:)`), `PartialJSONMember`;
+  - `JSONSyntaxIssue` (9 cases) and the typed `PartialJSONError` (`invalid(issue, byteOffset:)`, `cutShort`), with
+    `stopReason` (invalid → `unreadableOutput`, cut short → `outputCutShort`);
+  - `PartialJSONParser`: a byte-at-a-time push-down parser with a stack of open containers (each byte is read once).
+    `value` is the JSON read so far; `finish()` gives the root value or `cutShort`;
+  - `ModelNumber.wholeNumber(jsonText:)`: the exact whole-number reading of a JSON number's text.
+- `Sources/TendIngestion/CloudOutput/StructuredOutputReader.swift`:
+  - `StructuredOutputKey`: the cloud output schema's key names (`items`; the item's 11 keys; the hint's 8 keys);
+  - `StructuredOutputReader`: `append(_ text:)` and `append(bytes:)` give the latest `IngestionSnapshot` after each
+    chunk; `finish()`; `parse(_:)` (one shot); `snapshot(of:)` (the field-by-field mapping in the file header).
+- Tests (new, written first; the first build failed with "cannot find 'PartialJSONError' in scope" and 150+ similar
+  errors): `ServerSentEventFramerTests.swift`, `PartialJSONParserTests.swift`, `StructuredOutputReaderTests.swift`.
+
+### The rules as built (each one is tested)
+- **SSE framing.** CRLF, LF and CR line ends, also when a CR ends one chunk and its LF starts the next; `:` comments;
+  the field name up to the first `:`, one leading space removed from the value, a line with no colon is a field with an
+  empty value; `event`, `data` (lines joined with LF, one trailing LF removed), `id` (persists; ignored if it holds
+  NUL); `retry` and unknown fields ignored; a blank line dispatches only when the data buffer is not empty, with type
+  `message` by default, then clears the type and data; one BOM is dropped only at the very start; invalid UTF-8
+  becomes U+FFFD (the event-stream decoding rule). Splitting is on bytes, so a cut inside a UTF-8 sequence changes
+  nothing. `finish()` reports `cutShort` when a line or an undispatched event is left over (the event is dropped, as
+  the rules say). After `finish()` the framer is closed.
+- **Incremental JSON.** RFC 8259 over UTF-8 bytes, cut anywhere. After any chunk the value read so far is available:
+  containers and strings may be open; an open string holds only whole characters (never half a UTF-8 sequence, half
+  an escape, or half a surrogate pair); a number, `true`, `false` or `null` appears only once it is finished; an object
+  member appears once its key is finished and its value has started. Invalid JSON is `invalid(issue, byteOffset:)`
+  at the first byte that cannot be read, and the same offset whatever the chunking; never a crash. A text that ends
+  before its root value is finished is `cutShort`. The first error closes the parser.
+- **Snapshots.** The reader maps the value read so far, after every chunk, to an `IngestionSnapshot`:
+  - root object → `items` array → one `ItemSnapshot` per element, in output order;
+  - `title`, `room` (→ `roomName`), `sourcePhrase`: strings; `kind`, `effort` and the hint's `anchor`, `daypart`,
+    `weekday`, `season`, `repeatUnit`: `ModelChoice(raw:)`, so an unknown value is `.unrecognized` (exact match:
+    `"High"` and `" day"` are unrecognized); the three flags: booleans; `time`: an object;
+  - `month`, `count`, `repeatEvery`, `sameAsItem`: `ModelNumber.wholeNumber(jsonText:)`; `sameAsExisting`: the same
+    reading, as `.shortlistIndex(n)` (the cloud claim with Q12 = yes; the WI-M2-07 local re-check decides validity);
+  - `lookupQueries` is always empty (a cloud model has no `Tool`, AC-M2-24);
+  - **only finished values are shown** (J2).
+
+### Decisions the Reviewer should know
+- **J1, the schema key names are fixed here (`StructuredOutputKey`).** WI-M2-10 (payload builder, not built yet)
+  writes the schema it sends from these names, so the reader and the schema cannot drift. The names are the
+  `ItemSnapshot` / `TimeHintSnapshot` field names, except `room` for `roomName` (the model is asked for a room, not a
+  name field). A Mirror test checks that the key lists cover every snapshot field in order. The root is
+  `{"items": [ … ]}`. This is a technical choice; WI-M2-10 may rename a key here in the same PR as the schema.
+- **J2, only finished values are shown: no field is ever a prefix.** The PO ticket expected rule (a) to fire on a
+  title prefix and `updated` to fix it. With WI-M2-06 D8 ("a skipped item stays skipped"), a prefix is not always
+  fixable:
+  - the snapshot right after `"title":"` has title `""`, so all nine fields have a value, rule (a) fires, Q5 skips
+    the item (no title), and it stays skipped although the full title follows;
+  - a prefix can also meet the calm-words guard wrongly: the prefix `"Late"` of `"Later: call the plumber"` is a
+    banned token the user did not say (they said "later"), the guard removes it, the title is empty and the item is
+    skipped for good.
+  So the reader shows a string, a number or a literal only once it is finished. A field never changes once it is in a
+  snapshot (the property checks this on every step). Rule (a) fires when the last field closes, a few tokens later
+  than on a prefix, and no draft is ever emitted with a part title. The ticket's test is built (`titleArrivesLast`:
+  3-byte chunks, the title last; exactly one `emitted`, with the whole title, and no `updated`). This is the literal
+  reading of "every field … has a value" (a half-written string is not yet the model's value). It touches TTFI
+  (AC-M2-16) only by those few tokens. **Open question 1** asks the PO to confirm. The on-device `PartiallyGenerated`
+  shows strings while they grow, so WI-M2-M2 meets the same blank-title case (note for WI-M2-M2 below).
+- **J3, numbers are read exactly from their text, not through `Double`.** `wholeNumber(jsonText:)` splits the text by
+  the JSON grammar and works in decimal digits: a whole number that fits `Int` (`2.0`, `0.3e1`, `100000e-5`, `1E+2`,
+  `Int.max`, `Int.min`) is kept; a fraction, anything out of range (`9223372036854775808`, `1e19`, `1e400`, a
+  24-digit exponent) and a malformed text are nil. It equals `wholeNumber(_: Double)` wherever a `Double` holds the
+  value exactly (5,000 seeded cases), and is right where `Double` rounds: `9007199254740993` stays itself (the
+  `Double` route gives `…992`) and `1.00000000000000001` is a fraction (the `Double` route gives 1). There is no
+  floating point in the reader.
+- **J4, strict where RFC 8259 leaves a choice, and the oracle's differences.** The parser rejects a duplicate object
+  key (`duplicateKey`; which value would count is otherwise unclear) and a leading BOM (models do not send one). It
+  caps nesting at 64 open containers (`nestingTooDeep`; the schema needs 4). Foundation's `JSONDecoder` (the test
+  oracle) differs from RFC 8259 in two ways the tests found: it **accepts a trailing comma** (`[1,]`, `{"a":1,}`), and
+  it **rejects a number beyond `Double`'s range** (`92233e72036854775808`), which RFC 8259 allows. This parser
+  follows the RFC in both. The mutant property allows exactly these differences (plus duplicate names), checks each
+  one, and counts them: 0, 0 and 1 over 1,200 mutants.
+- **J5, schema-violating output is read calmly, never as an error.** `null`, a missing key and a wrong-typed value are
+  all missing (nil), so Q5 repairs them. An `items` element that is not an object is an empty item (no title, so Q5
+  skips it), so the positions that `sameAsItem` counts stay right (WI-M2-07 D2). A root that is not an object, or
+  `items` that is not an array, gives no items (a normal finish is then `completed` with the plain-note offer, PO
+  WI-M2-06 ruling 1). Unknown keys are ignored at every level, including an unknown key that holds `items` or `title`.
+  Only invalid JSON and a cut-off text end the stream.
+- **J6, `null` counts as missing for rule (a) (literal reading; TTFI watch).** OpenAI's strict structured output
+  requires every key and uses `null` for "none". A `null` `room` or `sourcePhrase` is not a value, so such an item
+  meets rule (a) only if every field is non-null; otherwise it completes by (b) or (c). That is the PO WI-M2-06
+  ruling 2 watch item. If the dev-set eval shows TTFI misses from it, the schema shape (for example a required string
+  with `""` for "no room") is a technical choice for WI-M2-10. **Open question 2.**
+- **J7, the error mapping.** `PartialJSONError.stopReason`: invalid JSON → `unreadableOutput`, a cut-off text →
+  `outputCutShort`. With WI-M2-06, after the first draft both give `interrupted`; before any draft, `noModel` (T-25).
+  Both are tested through `DraftPipeline` with a cloud route. When a provider stream counts as cut off (its end
+  event missing) is WI-M2-13's rule; `ServerSentEventEnd.cutShort` and the reader's `cutShort` are the inputs.
+- **J8, the parser is public.** WI-M2-13 also has to read each event's own JSON payload (for example Anthropic's
+  `{"type":"content_block_delta","delta":{"partial_json":…}}`). It can use `PartialJSONParser` one shot, so every JSON
+  in the cloud path is read by one parser with the same rules on Linux and Darwin (R-10).
+- **J9, cost.** Each byte is read once. Building the snapshot after a chunk walks the open containers and maps the
+  items, so it costs the size of the output so far: fine for a few kilobytes of output, which is what one capture gives.
+  The test file notes one test-side lesson: long synchronous property loops held all 4 cooperative-pool threads in the
+  container and made the time-limited cancellation tests of WI-M2-06 run out of time. The property loops now
+  `await Task.yield()` once per case; the WI-M2-06 tests are unchanged.
+
+### AC coverage
+| AC (Linux part) | Test(s) | Result |
+|---|---|---|
+| AC-M2-24 SSE framing | `ServerSentEventFramerTests` (15 tests): one event; event type and reset; data lines joined; CRLF/CR/LF mixed; CR at a chunk end with LF in the next (every CR position); comments, unknown fields, `retry`; no-colon fields and one-space removal; blank line without data; `id` persistence and NUL; BOM at the start only (every cut), BOM-only stream; every 1- and 2-cut split of a UTF-8-heavy event; invalid UTF-8 → U+FFFD; truncation (`cutShort`, 16 cases); closed after `finish`; events at the chunk that completes them | PASS (Linux) |
+| AC-M2-24 SSE property | "3 seeds × 600 streams …": seeds `0x55E12001…03`; each random stream (random line ends, comments, ids, `retry`, BOM, spacing) framed one shot, byte by byte and at 3 random cut sets, against the events the generator meant | PASS (Linux): 0 mismatches; 1,804 / 1,850 / 1,838 events |
+| AC-M2-24 JSON: split chunks, truncation, invalid JSON | `PartialJSONParserTests` (15 tests; the invalid-JSON table has 29 rows, the UTF-8 tables 11 + 9): every value kind; root scalars; open values while they grow; scalars only when finished; an open string never shows half a character (byte by byte through UTF-8, `\n`, `é` and a surrogate pair); every 1-cut and every 2-cut split (first cut every 3rd byte) give the one-shot value, and every byte-by-byte step is a prefix of it; each invalid text gives its issue at the same byte offset for every cut point, and the oracle rejects it too (J4 exceptions named); invalid UTF-8 (overlong, surrogate, above U+10FFFF, bad continuation) at the bad byte; every proper prefix gives `cutShort`; depth cap with 100,000 `[`; closed after an error; the stop-reason mapping | PASS (Linux) |
+| AC-M2-24 non-integer numbers → nil | "whole numbers are read exactly …" (33 rows); "the exact rule agrees with `wholeNumber(Double)` …" (5,000 seeded); the reader's `numbers` test (12 rows × 5 number fields) | PASS (Linux) |
+| AC-M2-24 field order, unknown enums, claims, schema-violating fields | `StructuredOutputReaderTests`: full item; key list ↔ snapshot fields (Mirror); 200 seeded member orders (item and hint, also wrapped with extra root keys); unknown enum values → `.unrecognized`; claims → `sameAsItem` and `sameAsExisting(.shortlistIndex)`, and `duplicateClaim`; null and wrong types → missing, unknown keys ignored; non-object items keep positions; wrong root → no items; only finished values appear (13 steps) | PASS (Linux) |
+| AC-M2-24 + AC-M2-05, title arrives last (PO ticket) | "a title that arrives last (3-byte chunks) …": no step shows a part title; rule (a) is first met exactly when the title closes, before the end; through `DraftPipeline` (route `cloud(.anthropic)`): exactly one `emitted` with the whole title, no `updated`, `completed`; the events equal the one-shot script's | PASS (Linux) |
+| AC-M2-24 truncation / invalid JSON outcomes | "a text cut off after the first draft ends interrupted (outputCutShort); the draft stays" (`cloud(.openAI)`, 7-byte chunks; the open item is discarded `stoppedBeforeComplete`); "invalid JSON before any draft ends noModel (unreadableOutput) with the plain-note offer" (`cloud(.gemini)`, offset 37) | PASS (Linux) |
+| AC-M2-24 property (incremental = one-shot = independent oracle) | "3 seeds × 500 outputs …": seeds `0x0A11C0DE1211…13`. A seeded writer makes valid outputs with random fields, nulls, wrong types, unknown enums, unknown nested keys, non-object items, number spellings, escapes (`\uXXXX` upper and lower case, surrogate pairs, `\/`), raw Unicode and combining marks, whitespace and member order. Each is read one shot, at 3 random cut sets (1–12 cuts) and, every 25th, byte by byte. The final snapshot equals the one-shot parse and the **oracle** (`JSONDecoder` into `OracleJSON`, numbers through `Decimal`, mapped again by `ReaderOracle` from the schema table). Every step only grows (items never fewer; each field, once there, equals its final value). For the first cut set, the draft stream over the incremental snapshots ends with the same drafts as over the one-shot snapshot | PASS (Linux): 0 mismatches. Per seed (1211 / 1212 / 1213): items 1,269 / 1,182 / 1,210; with a title 935 / 862 / 921; unrecognized kind or anchor 415 / 404 / 416; with a claim 979 / 928 / 939; cut sets 1,550 each |
+| AC-M2-24 invalid JSON never crashes (fuzz) | "3 seeds × 400 mutated outputs …": seeds `0x0A11C0DE1221…23`, 1–3 byte deletions, insertions or replacements from a JSON-ish alphabet (incl. NUL, LF, `C3 A9`, `FF`, `ED A0`). Chunked equals one shot; the reader accepts exactly when the oracle does (J4 differences checked and counted) and then agrees with it | PASS (Linux): accepted 97 / 109 / 114, rejected 303 / 291 / 285, oracle differences 0 / 0 / 1 |
+| AC-M2-09 (regression) | "AC-M2-09: Rules 1–6 hold …": TendIngestion 26 files scanned, 0 violations | PASS (Linux) |
+| AC-M2-12 vocabulary (regression) | the AC-M1-02 vocabulary scan over the module roots: 0 violations | PASS (Linux) |
+
+### Test runs
+| Command (in `swift:6.2-noble`, Swift 6.2.x, `-Xswiftc -warnings-as-errors`; the scratch path on a mounted cache volume) | Summary line |
+|---|---|
+| `swift test --package-path Packages/TendIngestion` | `✔ Test run with 283 tests in 35 suites passed after 68.430 seconds.` (235 before this item + 48 new) |
+| `swift test --package-path Packages/TendCore` | `✔ Test run with 141 tests in 18 suites passed after 104.249 seconds.` (unchanged package) |
+| `swift test --package-path Packages/TendSourceScan` | `✔ Test run with 63 tests in 4 suites passed after 6.109 seconds.` (unchanged package) |
+
+### Mutation check
+Each mutant was applied alone by a script to a scratch copy of the worktree (never to this branch), built with
+`-warnings-as-errors`, run with `--filter "ServerSentEvent|PartialJSON|StructuredOutput"` inside a 600 s timeout, and
+then restored. **25 of 25 killed.** One script lesson: three mutants first "died" because they did not compile under
+`-warnings-as-errors` (an unused or never-mutated variable). They were rewritten so that they compile cleanly, and the
+table shows the second run. M10 traps on its own arithmetic (a UInt32 underflow in the surrogate formula), so M10b
+was added as a non-trapping variant, together with the test row `"\ud83e\ue000"`.
+
+| # | Mutant | Killed by |
+|---|---|---|
+| M1 | framer keeps the leading space after the colon | CRLF/CR/LF test, CR-split test, SSE property |
+| M2 | framer counts a CR then an LF as two line ends | CR-split test, SSE property |
+| M3 | framer keeps the leading BOM | BOM test, SSE property |
+| M4 | framer keeps the trailing LF of the data | line-ends test, CR-split test, SSE property |
+| M5 | `finish()` always says `complete` | truncation test, closed-after-finish test |
+| M6 | an `id` holding NUL is accepted | `id` test |
+| M7 | a UTF-8 lead byte is committed before its continuation bytes | "never shows half a UTF-8 sequence", every-cut test |
+| M8 | no duplicate-key check | invalid-JSON table |
+| M9 | no number-grammar check | invalid-JSON table, mutant property |
+| M10 | no low-surrogate range check | trap (the mutant's own underflow) |
+| M10b | the low-surrogate upper bound dropped | invalid-JSON table (new row) |
+| M11 | nesting cap off by one | nesting test |
+| M12 | no data-after-value check | invalid-JSON table, sticky test, mutant property |
+| M13 | `ED` lead byte allows surrogate code points | invalid-UTF-8 table |
+| M14 | no trailing-zero strip in the exact number rule | number tables, reader property, mutant property |
+| M15 | 18-digit limit instead of 19 | number tables (`Int.max`, `Int.min`) |
+| M16 | no control-character check in strings | invalid-JSON table, mutant property |
+| M17 | the in-progress child is never shown | partial-string test, only-finished test, truncation outcome |
+| M18 | the reader shows open strings | title-last test, only-finished test, reader property |
+| M19 | `sameAsExisting` read from the `sameAsItem` key | claims, non-object items, both properties |
+| M20 | non-object items are dropped (positions shift) | non-object-items test, both properties |
+| M21 | enum values case-folded | field order, unknown enums, both properties |
+| M22 | room read from a `roomName` key | title-last test, both properties |
+| M23 | a wrong-typed `time` read as an empty hint | wrong-types test, both properties |
+| M24 | the two stop reasons swapped | stop-reason test, truncation and invalid outcome tests |
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendIngestion 283 tests (SSE framing, JSON parser, reader, the two properties, the draft-stream end-to-end tests, AC-M2-09 and AC-M2-12 scans) | ✔ container | — | — | — | Linux CI runs on the PR |
+| TendCore 141, TendSourceScan 63 (unchanged) | ✔ container | — | — | — | — |
+| The same reader on Darwin Foundation (`String(decoding:)`, `JSONDecoder` oracle) | — | — | — | — | Mac repeat in MS-2 (B2/B4) |
+| Real provider streams (OpenAI, Anthropic, Gemini) | — | — | — | — | WI-M2-13 (synthetic dialect fixtures) and WI-M2-M6 (owner recordings) |
+
+Device ACs: none in this item.
+
+### Things the reviewer should look at closely
+- J2 (only finished values) against the PO ticket's wording, and whether a part title could still reach a draft.
+- The parser's state machine in `structure(_:)` and `valueFinished(_:)`: each byte is read exactly once, and the
+  number case reads its delimiter as structure after the number is finished.
+- The oracle's independence: `JSONDecoder` is a different parser; `ReaderOracle` maps from the schema table again and
+  reads numbers through `Decimal`; the corpus writer builds texts without the parser under test.
+- The J4 allowances in the mutant property: each is checked (trailing comma at the failing byte, a number beyond
+  `Double` present, a duplicate key), and counted.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| The provider dialects (event types, the text pieces, end events, refusal) on top of this | — | WI-M2-13 |
+| WI-M2-10 writes the schema from `StructuredOutputKey` (J1) | — | WI-M2-10 |
+| On device, `PartiallyGenerated` shows strings while they grow: a `""` title at rule (a) is skipped for good (J2) | watch | WI-M2-M2: map an open string to nil, or require a non-blank title for rule (a) on device; Mac test |
+| A `null` `room` or `sourcePhrase` delays completion to (b) or (c) (J6) | watch | AC-M2-16 dev-set eval; WI-M2-10 schema shape |
+| The Darwin rerun of these tests | — | MS-2 |
+
+### Open questions
+1. **PO (confirm, J2):** the cloud reader shows only finished values, so rule (a) never fires on part of a title and
+   a draft never shows part of one. Without it, the blank first step of a late title (`""`) or a guarded prefix
+   (`"Late"` of `"Later"`) is skipped for good under WI-M2-06 D8. Built this way (the literal reading of "has a
+   value"); please confirm. The alternative is to show growing strings and change D8, which is a product change.
+2. **PO / Planner (watch, J6):** `null` is missing for rule (a), so an OpenAI strict-mode item with `"room": null`
+   completes only at (b) or (c). Built literally; the schema shape is WI-M2-10's technical choice if the eval shows
+   TTFI misses.
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. The reader only turns model output into snapshots. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | J2 keeps a part title from being cut by the guard and a capture item from being lost. Every new name (`cutShort`, `unexpectedByte`, `dataAfterValue` …) passes the AC-M2-12 vocabulary scan (0 violations). The outcomes are the WI-M2-06 ones. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | n.a. | Parsing only. Nothing here chooses a model. |
+| P-2 No data leaves the device | pass | Pure parsing over bytes and strings: no network, file I/O or logging (AC-M2-09 Rule 1: 0 violations). No dependency. |
+| P-3 Cloud AI opt-in, minimised | pass | The reader reads the response only. The cloud model gets no `Tool` (`lookupQueries` is always empty), and a cloud claim stays a shortlist index for the local re-check. |
+| P-4 Media not persisted | n.a. | Text only, held in memory. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-22 | Orchestrator | Developer | accepted (H2) | WI-M2-12 Ready (WI-M2-06 merged; `main` at `3bac3ce`). PO ticket "title that arrives last"; claim-field mapping. |
+| 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 283, TendCore 141, TendSourceScan 63 green, 0 warnings, Linux. 25 of 25 mutants killed. Two PO questions (J2, J6). Pushed; no PR opened. |

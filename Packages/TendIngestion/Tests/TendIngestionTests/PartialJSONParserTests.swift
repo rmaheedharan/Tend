@@ -230,6 +230,7 @@ struct PartialJSONParserTests {
             ("[\"\\ud83ex\"]", .unpairedSurrogate, 8),
             ("[\"\\ud83e\\n\"]", .unpairedSurrogate, 9),
             ("[\"\\ud83e\\u0041\"]", .unpairedSurrogate, 13),
+            ("[\"\\ud83e\\ue000\"]", .unpairedSurrogate, 13),
             ("[\"\\udc00\"]", .unpairedSurrogate, 7),
             ("[\"a\tb\"]", .controlCharacterInString, 3),
             ("{\"a\":1,\"a\":2}", .duplicateKey, 9),
