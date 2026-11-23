@@ -1,0 +1,526 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tend:m2-eval-results-v1",
+  "title": "Tend M2 eval results file, format v1",
+  "description": "AC-M2-28 results file v1 (plan WI-M2-15). Canonical JSON (sorted keys, integers only). The scorer (TendIngestion EvalScorer) checks it with the Foundation-only EvalSchemaCheck, which supports only the keywords used here, then applies the cross-field rules listed in dev-notes WI-M2-15. Never holds audio, a request or response body, header values or a key.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "run",
+    "coldStart",
+    "inputs"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator",
+        "startedAtUTC",
+        "deviceModel",
+        "iOSBuild",
+        "appCommitSHA",
+        "fixturesSHA256",
+        "locale",
+        "routePreference",
+        "provider",
+        "modelID",
+        "sampling",
+        "prewarm",
+        "network"
+      ],
+      "properties": {
+        "operator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "startedAtUTC": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "deviceModel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "iOSBuild": {
+          "type": "string",
+          "minLength": 1
+        },
+        "appCommitSHA": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "fixturesSHA256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "locale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "routePreference": {
+          "type": "string",
+          "enum": [
+            "onDeviceFirst",
+            "alwaysCloud"
+          ]
+        },
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "openai",
+            "anthropic",
+            "gemini",
+            null
+          ]
+        },
+        "modelID": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sampling": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prewarm": {
+          "type": "boolean"
+        },
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "downMbps",
+            "upMbps",
+            "latencyMs"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "minLength": 1
+            },
+            "downMbps": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "upMbps": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "latencyMs": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "coldStart": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "inputID",
+        "ttfiMs"
+      ],
+      "properties": {
+        "inputID": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ttfiMs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "description": "One attempt of one eval input (AC-M2-28 inputs[]).",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "inputID",
+          "mode",
+          "attempt",
+          "retakeReason",
+          "transcript",
+          "transcriber",
+          "route",
+          "outcome",
+          "ttfiMs",
+          "totalMs",
+          "events",
+          "drafts",
+          "committed",
+          "cloudRequests"
+        ],
+        "properties": {
+          "inputID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "text",
+              "voice"
+            ]
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "retakeReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "transcript": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transcriber": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "SpeechTranscriber",
+              "DictationTranscriber",
+              null
+            ]
+          },
+          "route": {
+            "type": "string",
+            "enum": [
+              "onDevice",
+              "openai",
+              "anthropic",
+              "gemini",
+              "none"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "interrupted",
+              "noModel",
+              "cancelled"
+            ]
+          },
+          "ttfiMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "totalMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "draftID",
+                "tMs"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "emitted",
+                    "updated",
+                    "itemSkipped",
+                    "finished"
+                  ]
+                },
+                "draftID": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "tMs": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "minItems": 1
+          },
+          "drafts": {
+            "type": "array",
+            "items": {
+              "description": "A draft's final state: every field of the draft field set (brief Definitions), IDs as fixture keys.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "draftID",
+                "title",
+                "kind",
+                "room",
+                "effort",
+                "isCritical",
+                "isDeepClean",
+                "isWeatherDependent",
+                "allowedDayparts",
+                "allowedWeekdays",
+                "windowStart",
+                "windowEnd",
+                "recurrenceIntervalDays",
+                "sourcePhrase",
+                "duplicate"
+              ],
+              "properties": {
+                "draftID": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "title": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "oneOff",
+                    "recurring",
+                    "restock"
+                  ]
+                },
+                "room": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "roomKey"
+                      ],
+                      "properties": {
+                        "type": {
+                          "const": "existing"
+                        },
+                        "roomKey": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "name"
+                      ],
+                      "properties": {
+                        "type": {
+                          "const": "proposed"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "const": "none"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effort": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "normal",
+                    "high"
+                  ]
+                },
+                "isCritical": {
+                  "type": "boolean"
+                },
+                "isDeepClean": {
+                  "type": "boolean"
+                },
+                "isWeatherDependent": {
+                  "type": "boolean"
+                },
+                "allowedDayparts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "morning",
+                      "afternoon",
+                      "evening",
+                      "night"
+                    ]
+                  },
+                  "uniqueItems": true
+                },
+                "allowedWeekdays": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "sunday",
+                      "monday",
+                      "tuesday",
+                      "wednesday",
+                      "thursday",
+                      "friday",
+                      "saturday"
+                    ]
+                  },
+                  "uniqueItems": true
+                },
+                "windowStart": {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+                },
+                "windowEnd": {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+                },
+                "recurrenceIntervalDays": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "sourcePhrase": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "duplicate": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "const": "none"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "taskKey"
+                      ],
+                      "properties": {
+                        "type": {
+                          "const": "ofExisting"
+                        },
+                        "taskKey": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "draftID"
+                      ],
+                      "properties": {
+                        "type": {
+                          "const": "ofDraft"
+                        },
+                        "draftID": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "committed": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "uniqueItems": true
+          },
+          "cloudRequests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "attempt",
+                "bytes",
+                "keyPaths"
+              ],
+              "properties": {
+                "attempt": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "bytes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "keyPaths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^\\$(\\.[A-Za-z0-9_-]+|\\[\\])*$"
+                  },
+                  "uniqueItems": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "minItems": 1
+    }
+  }
+}

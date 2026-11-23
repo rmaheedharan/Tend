@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "inputs": [
+    {
+      "id": "in01",
+      "mode": "text",
+      "text": "The AC needs servicing before summer, we're almost out of dishwasher pods, and let's deep clean the balcony this weekend if it doesn't rain"
+    },
+    {
+      "id": "in02",
+      "mode": "voice",
+      "text": "Clean the oven, and um, wipe the bathroom mirror"
+    },
+    {
+      "id": "in03",
+      "mode": "text",
+      "text": "We're out of dish pods again, buy dishwasher tablets, and wash the towels, wash the bath towels"
+    },
+    {
+      "id": "in04",
+      "mode": "text",
+      "text": "Wipe the kitchen counter and wipe the bathroom counter"
+    },
+    {
+      "id": "in05",
+      "mode": "text",
+      "text": "Mop the hallway floor, water the plants, and sort it out, the garage shelves I mean"
+    },
+    {
+      "id": "in06",
+      "mode": "voice",
+      "text": "Pay the late gas bill, clean the oven, and scrub the bathroom tiles"
+    },
+    {
+      "id": "in07",
+      "mode": "text",
+      "text": "Book the chimney sweep"
+    }
+  ]
+}

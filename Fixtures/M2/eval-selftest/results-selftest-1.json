@@ -1,0 +1,975 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "operator": "self-test (hand-built, WI-M2-15)",
+    "startedAtUTC": "2026-11-22T10:00:00Z",
+    "deviceModel": "iPhone16,1",
+    "iOSBuild": "23A000",
+    "appCommitSHA": "0123456789abcdef0123456789abcdef01234567",
+    "fixturesSHA256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "locale": "en_US",
+    "routePreference": "onDeviceFirst",
+    "provider": null,
+    "modelID": "apple-on-device",
+    "sampling": "greedy",
+    "prewarm": true,
+    "network": {
+      "kind": "offline",
+      "downMbps": 0,
+      "upMbps": 0,
+      "latencyMs": 0
+    }
+  },
+  "coldStart": {
+    "inputID": "in01",
+    "ttfiMs": 2100
+  },
+  "inputs": [
+    {
+      "inputID": "in01",
+      "mode": "text",
+      "attempt": 1,
+      "retakeReason": null,
+      "transcript": null,
+      "transcriber": null,
+      "route": "onDevice",
+      "outcome": "completed",
+      "ttfiMs": 300,
+      "totalMs": 900,
+      "events": [
+        {
+          "type": "emitted",
+          "draftID": 1,
+          "tMs": 300
+        },
+        {
+          "type": "emitted",
+          "draftID": 2,
+          "tMs": 500
+        },
+        {
+          "type": "emitted",
+          "draftID": 3,
+          "tMs": 700
+        },
+        {
+          "type": "finished",
+          "draftID": null,
+          "tMs": 900
+        }
+      ],
+      "drafts": [
+        {
+          "draftID": 1,
+          "title": "Service the AC",
+          "kind": "oneOff",
+          "room": {
+            "type": "none"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": "The AC needs servicing",
+          "duplicate": {
+            "type": "ofExisting",
+            "taskKey": "t-ac"
+          }
+        },
+        {
+          "draftID": 2,
+          "title": "Buy dishwasher pods",
+          "kind": "restock",
+          "room": {
+            "type": "existing",
+            "roomKey": "kitchen"
+          },
+          "effort": "low",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "ofExisting",
+            "taskKey": "t-pods"
+          }
+        },
+        {
+          "draftID": 3,
+          "title": "Deep clean the balcony",
+          "kind": "oneOff",
+          "room": {
+            "type": "proposed",
+            "name": "the Terrace"
+          },
+          "effort": "high",
+          "isCritical": false,
+          "isDeepClean": true,
+          "isWeatherDependent": true,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        }
+      ],
+      "committed": [
+        3
+      ],
+      "cloudRequests": []
+    },
+    {
+      "inputID": "in02",
+      "mode": "voice",
+      "attempt": 1,
+      "retakeReason": null,
+      "transcript": "Clean the over and um wipe the bathroom mirror",
+      "transcriber": "SpeechTranscriber",
+      "route": "onDevice",
+      "outcome": "completed",
+      "ttfiMs": 300,
+      "totalMs": 500,
+      "events": [
+        {
+          "type": "emitted",
+          "draftID": 1,
+          "tMs": 300
+        },
+        {
+          "type": "finished",
+          "draftID": null,
+          "tMs": 500
+        }
+      ],
+      "drafts": [
+        {
+          "draftID": 1,
+          "title": "Clean the over",
+          "kind": "oneOff",
+          "room": {
+            "type": "existing",
+            "roomKey": "kitchen"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        }
+      ],
+      "committed": [
+        1
+      ],
+      "cloudRequests": []
+    },
+    {
+      "inputID": "in02",
+      "mode": "voice",
+      "attempt": 2,
+      "retakeReason": "speaker misread the script",
+      "transcript": "Clean the oven and um wipe the bathroom mirror",
+      "transcriber": "SpeechTranscriber",
+      "route": "onDevice",
+      "outcome": "completed",
+      "ttfiMs": 300,
+      "totalMs": 500,
+      "events": [
+        {
+          "type": "emitted",
+          "draftID": 1,
+          "tMs": 300
+        },
+        {
+          "type": "finished",
+          "draftID": null,
+          "tMs": 500
+        }
+      ],
+      "drafts": [
+        {
+          "draftID": 1,
+          "title": "Clean the oven",
+          "kind": "oneOff",
+          "room": {
+            "type": "existing",
+            "roomKey": "kitchen"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "ofExisting",
+            "taskKey": "t-mop"
+          }
+        }
+      ],
+      "committed": [],
+      "cloudRequests": []
+    },
+    {
+      "inputID": "in03",
+      "mode": "text",
+      "attempt": 1,
+      "retakeReason": null,
+      "transcript": null,
+      "transcriber": null,
+      "route": "onDevice",
+      "outcome": "completed",
+      "ttfiMs": 300,
+      "totalMs": 1300,
+      "events": [
+        {
+          "type": "emitted",
+          "draftID": 1,
+          "tMs": 300
+        },
+        {
+          "type": "emitted",
+          "draftID": 2,
+          "tMs": 500
+        },
+        {
+          "type": "emitted",
+          "draftID": 3,
+          "tMs": 700
+        },
+        {
+          "type": "emitted",
+          "draftID": 4,
+          "tMs": 900
+        },
+        {
+          "type": "emitted",
+          "draftID": 5,
+          "tMs": 1100
+        },
+        {
+          "type": "finished",
+          "draftID": null,
+          "tMs": 1300
+        }
+      ],
+      "drafts": [
+        {
+          "draftID": 1,
+          "title": "Buy dish pods",
+          "kind": "restock",
+          "room": {
+            "type": "existing",
+            "roomKey": "kitchen"
+          },
+          "effort": "low",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 2,
+          "title": "Buy dishwasher tablets",
+          "kind": "restock",
+          "room": {
+            "type": "existing",
+            "roomKey": "kitchen"
+          },
+          "effort": "low",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 3,
+          "title": "Wash the towels",
+          "kind": "oneOff",
+          "room": {
+            "type": "existing",
+            "roomKey": "bathroom"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 4,
+          "title": "Wash the bath towels",
+          "kind": "oneOff",
+          "room": {
+            "type": "existing",
+            "roomKey": "bathroom"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 5,
+          "title": "Wash towels",
+          "kind": "oneOff",
+          "room": {
+            "type": "existing",
+            "roomKey": "bathroom"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "ofDraft",
+            "draftID": 3
+          }
+        }
+      ],
+      "committed": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "cloudRequests": []
+    },
+    {
+      "inputID": "in04",
+      "mode": "text",
+      "attempt": 1,
+      "retakeReason": null,
+      "transcript": null,
+      "transcriber": null,
+      "route": "onDevice",
+      "outcome": "completed",
+      "ttfiMs": 300,
+      "totalMs": 700,
+      "events": [
+        {
+          "type": "emitted",
+          "draftID": 1,
+          "tMs": 300
+        },
+        {
+          "type": "emitted",
+          "draftID": 2,
+          "tMs": 500
+        },
+        {
+          "type": "finished",
+          "draftID": null,
+          "tMs": 700
+        }
+      ],
+      "drafts": [
+        {
+          "draftID": 1,
+          "title": "Wipe the counter",
+          "kind": "oneOff",
+          "room": {
+            "type": "existing",
+            "roomKey": "bathroom"
+          },
+          "effort": "low",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 2,
+          "title": "Wipe the counters",
+          "kind": "oneOff",
+          "room": {
+            "type": "existing",
+            "roomKey": "kitchen"
+          },
+          "effort": "low",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        }
+      ],
+      "committed": [
+        1,
+        2
+      ],
+      "cloudRequests": []
+    },
+    {
+      "inputID": "in05",
+      "mode": "text",
+      "attempt": 1,
+      "retakeReason": null,
+      "transcript": null,
+      "transcriber": null,
+      "route": "onDevice",
+      "outcome": "completed",
+      "ttfiMs": 300,
+      "totalMs": 1100,
+      "events": [
+        {
+          "type": "emitted",
+          "draftID": 1,
+          "tMs": 300
+        },
+        {
+          "type": "emitted",
+          "draftID": 2,
+          "tMs": 500
+        },
+        {
+          "type": "emitted",
+          "draftID": 3,
+          "tMs": 700
+        },
+        {
+          "type": "emitted",
+          "draftID": 4,
+          "tMs": 900
+        },
+        {
+          "type": "finished",
+          "draftID": null,
+          "tMs": 1100
+        }
+      ],
+      "drafts": [
+        {
+          "draftID": 1,
+          "title": "Mop the floor",
+          "kind": "oneOff",
+          "room": {
+            "type": "existing",
+            "roomKey": "hallway"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 2,
+          "title": "Water the plants",
+          "kind": "recurring",
+          "room": {
+            "type": "none"
+          },
+          "effort": "low",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": 3,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 3,
+          "title": "Sort it",
+          "kind": "oneOff",
+          "room": {
+            "type": "proposed",
+            "name": "Garage"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-23T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": "sort it out, the garage shelves",
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 4,
+          "title": "Mop the hallway floors, mop the floor",
+          "kind": "oneOff",
+          "room": {
+            "type": "existing",
+            "roomKey": "hallway"
+          },
+          "effort": "normal",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        }
+      ],
+      "committed": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "cloudRequests": []
+    },
+    {
+      "inputID": "in06",
+      "mode": "voice",
+      "attempt": 1,
+      "retakeReason": null,
+      "transcript": "Pay the late gas bill, clean the oven, and scrub the bathroom tiles",
+      "transcriber": "SpeechTranscriber",
+      "route": "onDevice",
+      "outcome": "completed",
+      "ttfiMs": 300,
+      "totalMs": 900,
+      "events": [
+        {
+          "type": "emitted",
+          "draftID": 1,
+          "tMs": 300
+        },
+        {
+          "type": "emitted",
+          "draftID": 2,
+          "tMs": 500
+        },
+        {
+          "type": "emitted",
+          "draftID": 3,
+          "tMs": 700
+        },
+        {
+          "type": "finished",
+          "draftID": null,
+          "tMs": 900
+        }
+      ],
+      "drafts": [
+        {
+          "draftID": 1,
+          "title": "Pay the late gas bill",
+          "kind": "oneOff",
+          "room": {
+            "type": "none"
+          },
+          "effort": "normal",
+          "isCritical": true,
+          "isDeepClean": false,
+          "isWeatherDependent": true,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 2,
+          "title": "Clean the overdue oven",
+          "kind": "restock",
+          "room": {
+            "type": "existing",
+            "roomKey": "kitchen"
+          },
+          "effort": "high",
+          "isCritical": true,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        },
+        {
+          "draftID": 3,
+          "title": "Scrub the tiles",
+          "kind": "oneOff",
+          "room": {
+            "type": "proposed",
+            "name": "Missed bathroom"
+          },
+          "effort": "high",
+          "isCritical": false,
+          "isDeepClean": false,
+          "isWeatherDependent": false,
+          "allowedDayparts": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "allowedWeekdays": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+          ],
+          "windowStart": "2026-11-23T14:00:00.000Z",
+          "windowEnd": "2026-11-24T14:00:00.000Z",
+          "recurrenceIntervalDays": null,
+          "sourcePhrase": null,
+          "duplicate": {
+            "type": "none"
+          }
+        }
+      ],
+      "committed": [
+        1,
+        2,
+        3
+      ],
+      "cloudRequests": []
+    },
+    {
+      "inputID": "in07",
+      "mode": "text",
+      "attempt": 1,
+      "retakeReason": null,
+      "transcript": null,
+      "transcriber": null,
+      "route": "onDevice",
+      "outcome": "noModel",
+      "ttfiMs": null,
+      "totalMs": 300,
+      "events": [
+        {
+          "type": "finished",
+          "draftID": null,
+          "tMs": 300
+        }
+      ],
+      "drafts": [],
+      "committed": [],
+      "cloudRequests": []
+    }
+  ]
+}
