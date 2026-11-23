@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-15 eval scorer, results file v1, self-test set, Tools/TendTools (PR #27, `m2/eval-scorer`, head `2af0afe`)
 
-- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE (round 2, head `9974339`; round 1 was CHANGES REQUIRED)  ·  **Round:** 2
 - **Requirements:** FR-A1, UX-3; ○ AC-M2-14 (scorer self-tests; the freeze is WI-M2-16); AC-M2-28 (results-file
   schema, the scorer's rejection, deterministic ID generator, Linux half); the Linux scoring halves of AC-M2-11, 15,
   16, 17, 25, 26, 27 (all stay AWAITING-DEVICE); regression AC-M2-09 (Rule 1, T-26) and AC-M2-12.
@@ -150,3 +150,76 @@ dependency is added.
 | 2026-11-23 | Orchestrator | Reviewer | accepted | PR #27, `m2/eval-scorer` at `2af0afe` (base `3bac3ce`), fresh context. |
 | 2026-11-23 | Orchestrator | Reviewer | accepted | Mid-review: PO rulings `po-m2-wi15.md` on Q1–Q3. The code was checked against S1/S4; the `referencePhrase` amendment is not counted as missing. |
 | 2026-11-23 | Reviewer | Developer (via Orchestrator) | returned | CHANGES REQUIRED: R27-F1 (Major, ICU `$` accepts trailing line terminators, so AC-M2-28 rejection and R-22 fail) and R27-F2 (Major, the transcript-vs-text calm-words branch is untested, mutant survives). F3–F5 Minor (ticket), N1–N3 optional. `@unchecked Sendable` in TendToolsTests is signed off. Re-review: round 2 in this file. |
+
+---
+
+## Round 2 — head `99743390b4776bd1e0b6b3ba77a9b129eb8d2728` (fix `cc7d90e`, notes `9974339`; merges of main `ccce8c1`, `0e03a66`)
+
+- **Verdict: APPROVE.** No open Blocker or Major. Both Majors are closed and verified in the new diff. F3 and F4 are fixed
+  instead of ticketed. F5 is an owner ticket (protected path). N1 is done, the N2 decline is accepted, and N3 is recorded.
+- **Milestone lock:** `STATUS.md` still shows M1 `ACCEPTED`, M2 `IN-BUILD`. This is M2 work. Allowed. No protected path
+  is touched by `cc7d90e`/`9974339`. Main's own changes (routing, cloud-output parsers) come in through the merges.
+  They were reviewed in their own PRs and are not re-reviewed here, apart from the full TendIngestion suite run below.
+- **Scope checked:** `git show cc7d90e` (EvalSchemaCheck, the four Eval test files, TendToolsTests, the self-test
+  fixtures, results file, canonical copy and pinned log, brief, dev-notes) and the round-2 dev-notes section.
+
+### Findings, round 2
+| # | Severity | Round-2 change | Verification | Status |
+|---|---|---|---|---|
+| R27-F1 | Major | `EvalSchemaCheck.swift` `compile` now compiles `icuPattern(fromECMA:)`: every unescaped `$` outside `[...]` becomes ICU `\z` (end of input). The comment now states the ICU/ECMA-262 difference correctly. New tests: `patternListComplete` (the schema has exactly 6 patterns, all listed), `patternEndOfInput` (6 patterns × 6 terminators: `\n`, `\r\n`, U+2028, `\r`, U+0085, U+2029, each rejected at its own path while the valid value passes), `readerRejectsTrailingNewline` (my probe P2), `icuSpelling` (escaped `\$`, `[$]`, `\\$`), `patternSemantics`. | I read the rewrite. Escapes and classes are handled, and the key-path pattern's `\$` is kept. Mutant **M-F1** (compile the raw pattern again) is **killed** with 75 issues in the schema-check suite. AC-M2-28 rejection and R-22 now hold for line terminators. | **Closed** |
+| R27-F2 | Major | New hand-built voice input `in08`. Script: "Sort the late post and fix the gate". Transcript: "Sort the post, it's behind the door behind the shed, and fix the gate". d1 title has "behind" ×2 (said only in the transcript: 0); d2 "Fix the late late gate" has "late" ×2 (only in the script: introduced, 2). There are 2 golden items (`g08-post`, `g08-gate`), and the test `in08TranscriptNotScript` has the derivation written out. Log re-pinned. | My mutant **M-R2** (always judge against the fixture text) is **killed** (3 issues). My Python re-scorer, unchanged since round 1, gives in08 introduced = [(2, title, late), (2, title, late)], pairings d1→`g08-post` and d2→`g08-gate` (overlap 2 each), 0 duplicates and 0 extras, the same as the pinned log. | **Closed** |
+| R27-F3 | Minor | in08 counts each occurrence (late ×2 = 2; a said token ×2 = 0), as PO `po-m2-wi15.md` ruling 3 says. | Mutant **M-R1** (count each token once per title) is **killed** (4 issues). | **Closed** |
+| R27-F4 | Minor | in05 gains d5 "Sort the shelves", which gives the draft text [sort, shelves]: two of `g05-garage`'s three groups but no `{garage}`. So it is not paired, is extra, and has no best target. It is committed and adds nothing to c(x). | My re-scorer agrees (extras [1, 5], best target none). Dev mutant **M15** (`allSatisfy` → `contains`) is **killed** (6 issues in the self-test suite). Now the Tester's re-score of this file also exercises the "each group" rule. | **Closed** |
+| R27-F5 | Minor | Owner ticket HM-1b recorded (dev-notes round 2, R27-F5 row): add `swift test --package-path Tools/TendTools -Xswiftc -warnings-as-errors` to the Linux CI job. This needs a human merge (`.github/**`). | The ticket text is exact and the owner is named. It cannot be fixed in this PR. | Open (ticket, owner; not blocking) |
+| R27-N1 | Nit | `Captured` holds `Mutex(State)` from `Synchronization` and is checked `Sendable`. No `@unchecked` remains in TendTools or `Eval/` (grep). | TendTools builds and tests with `-warnings-as-errors`. | **Closed** |
+| R27-N2 | Nit | Declined: caching would mean storing `NSRegularExpression` in a `Sendable` struct, and that type is not `Sendable` in swift-corelibs-foundation. The cost is trivial at eval size. | The reason is sound. Accepted. | Closed (declined) |
+| R27-N3 | Nit | Recorded for the Tester's DS-1/DS-2 (commit the device file byte for byte; whole Mbit/s). | — | Closed (noted) |
+
+### Other round-2 checks
+- **PO ruling 1 brief bullet.** `brief.md:607-612` adds "**Distinguishable targets.**" as the last sub-bullet of "Eval
+  scoring rules" > **Fixtures**. I compared it with the quoted block in `/mnt/project-files/notes/po-m2-wi15.md` after
+  normalising whitespace: **identical, word for word**. The brief diff only adds lines; no AC text is removed or
+  weakened.
+- **New hand-derived self-test totals.** I re-ran my independent Python re-scorer (written from the brief only in round
+  1, not changed). It gives N 18, found 16, kind 15, room 13, effort 15, critical/deepClean/weather 15 each, extras 4,
+  drafts 21, introduced 4, duplicates created 6, false merges 1. That equals the new `results-selftest-1.score.log`
+  totals and the literal expectations in `EvalScorerSelfTests.totals` (validity 20 of 21 as before: in05 d3). The
+  required counts in the log (18/17/16 at N = 18) are ⌈p × N⌉. `results-selftest-1.canonical.json` is exactly the
+  sorted-key, no-whitespace form of the readable file (checked in Python).
+- **Developer's open questions Q1–Q3:** closed in dev-notes, citing `po-m2-wi15.md`. The code matches S1 and S4.
+- **AC-M2-09 / AC-M2-12:** the scan on the merged tree logs `40 files in total, 0 violations`. The round-2 source change
+  (`EvalSchemaCheck.swift`) adds no I/O, log or banned token. The new banned words in `in08` ("late", "behind") are
+  deliberate calm-words test data in Fixtures.
+- **No new dependency.** `Synchronization` is a standard-library module, used in a test target only.
+
+### Test runs, round 2 (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, worktree detached at `9974339`)
+| Package | Result |
+|---|---|
+| Packages/TendIngestion | `✔ Test run with 401 tests in 49 suites passed after 90.161 seconds.` 0 warnings, 0 skipped; AC-M2-09 `40 files in total, 0 violations` |
+| Tools/TendTools | `✔ Test run with 7 tests in 1 suite passed after 0.096 seconds.` 0 warnings |
+
+### Mutants, round 2 (scratch copy only, `--filter Eval`, one mutant at a time; the copy's `Packages/` was diffed equal to the worktree afterwards)
+| # | Mutant | Result |
+|---|---|---|
+| M-R1 | Calm words counted once per distinct token per title | killed: 68 Eval tests, 4 issues |
+| M-R2 | Voice inputs judged against the fixture text, not the transcript | killed: 3 issues |
+| M15 | Satisfies with any group instead of each | killed: 6 issues |
+| M-F1 | Schema patterns compiled raw (ICU `$`) again | killed: 75 issues |
+
+### Law check, round 2
+| Law | Status | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Eval tooling only. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | The calm-words count is now pinned on both transcript-vs-script branches and per occurrence (AC-M2-12, PO ruling 3). No banned token in Sources or tool output; the banned words in Fixtures are test data. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No inference. |
+| P-2 No data leaves device (except user iCloud) | pass | No networking (AC-M2-09, 0 violations). No dependency added. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | Key paths now strictly match the schema pattern to the end of input. The file holds byte counts and value-free key paths only. |
+| P-4 Media not persisted without consent | pass | The v1 format is unchanged: no field for audio, bodies, header values or keys. |
+
+### Handoff log, round 2
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-23 | Orchestrator | Reviewer | accepted | Round 2: head `9974339` on `m2/eval-scorer` (fix `cc7d90e`, notes `9974339`). |
+| 2026-11-23 | Reviewer | Orchestrator → Merge Gatekeeper; Acceptance Tester | accepted | **APPROVE.** R27-F1 and R27-F2 (Major) closed with tests and killed mutants. F3, F4 and N1 closed; N2 declined with a sound reason; N3 noted. F5 is open as owner ticket HM-1b (protected CI file, Minor, not blocking). Next: the Merge Gatekeeper decides on PR #27. The Tester does the independent re-score of `results-selftest-1` in WI-M2-16 (AC-M2-14). A merge does not accept AC-M2-14 or any device AC. |
