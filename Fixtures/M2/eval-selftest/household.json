@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 1,
+  "note": "WI-M2-15 scorer self-test household (hand-built, not the eval).",
+  "rooms": [
+    {
+      "key": "kitchen",
+      "id": "5E1F0000-0000-4000-8000-000000000001",
+      "name": "Kitchen"
+    },
+    {
+      "key": "bathroom",
+      "id": "5E1F0000-0000-4000-8000-000000000002",
+      "name": "Bathroom"
+    },
+    {
+      "key": "hallway",
+      "id": "5E1F0000-0000-4000-8000-000000000003",
+      "name": "Hallway"
+    }
+  ],
+  "tasks": [
+    {
+      "key": "t-ac",
+      "id": "5E1F0000-0000-4000-8000-000000000011",
+      "title": "Service the AC",
+      "kind": "oneOff",
+      "roomKey": null,
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-23T14:00:00.000Z",
+      "windowEnd": "2026-11-24T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "ac",
+          "aircon",
+          "air",
+          "conditioner",
+          "hvac"
+        ],
+        [
+          "service",
+          "servicing",
+          "serviced",
+          "check"
+        ]
+      ]
+    },
+    {
+      "key": "t-pods",
+      "id": "5E1F0000-0000-4000-8000-000000000012",
+      "title": "Buy dishwasher pods",
+      "kind": "restock",
+      "roomKey": "kitchen",
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-23T14:00:00.000Z",
+      "windowEnd": "2026-11-24T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "dishwasher",
+          "dish"
+        ],
+        [
+          "pods",
+          "tablets"
+        ]
+      ]
+    },
+    {
+      "key": "t-bins",
+      "id": "5E1F0000-0000-4000-8000-000000000013",
+      "title": "Take out the bins",
+      "kind": "recurring",
+      "roomKey": null,
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-23T14:00:00.000Z",
+      "windowEnd": "2026-11-24T14:00:00.000Z",
+      "recurrenceIntervalDays": 7,
+      "state": "completed",
+      "completedAt": "2026-11-20T09:00:00.000Z",
+      "matchGroups": [
+        [
+          "bins",
+          "bin",
+          "trash"
+        ],
+        [
+          "take",
+          "empty"
+        ]
+      ]
+    },
+    {
+      "key": "t-mop",
+      "id": "5E1F0000-0000-4000-8000-000000000014",
+      "title": "Mop the kitchen floor",
+      "kind": "oneOff",
+      "roomKey": "kitchen",
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-23T14:00:00.000Z",
+      "windowEnd": "2026-11-24T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "mop"
+        ],
+        [
+          "floor",
+          "floors"
+        ]
+      ]
+    },
+    {
+      "key": "t-plants-a",
+      "id": "5E1F0000-0000-4000-8000-000000000015",
+      "title": "Water the plants",
+      "kind": "recurring",
+      "roomKey": null,
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-23T14:00:00.000Z",
+      "windowEnd": "2026-11-24T14:00:00.000Z",
+      "recurrenceIntervalDays": 3,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "water"
+        ],
+        [
+          "plants",
+          "plant"
+        ]
+      ]
+    },
+    {
+      "key": "t-plants-b",
+      "id": "5E1F0000-0000-4000-8000-000000000016",
+      "title": "Water the plants",
+      "kind": "recurring",
+      "roomKey": "hallway",
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-23T14:00:00.000Z",
+      "windowEnd": "2026-11-24T14:00:00.000Z",
+      "recurrenceIntervalDays": 3,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "water"
+        ],
+        [
+          "plants",
+          "plant"
+        ]
+      ]
+    }
+  ]
+}
