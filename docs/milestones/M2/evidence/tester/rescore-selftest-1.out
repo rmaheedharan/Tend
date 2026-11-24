@@ -1,0 +1,22 @@
+in01 att 1 g01-ac<-d1 g01-pods<-d2 g01-balcony<-d3 extras [] best {1: (1, 't-ac'), 2: (1, 't-pods'), 3: (0, 'g01-balcony')} dup 0 fm 0
+  in02 false merge g02-oven
+in02 att 2 g02-oven<-d1 g02-mirror:notfound extras [] best {1: (0, 'g02-oven')} dup 0 fm 1
+in03 att 1 g03-pods<-d1 g03-towels<-d3 extras [2, 4] best {1: (1, 't-pods'), 2: (1, 't-pods'), 3: (0, 'g03-towels'), 4: (0, 'g03-towels'), 5: (0, 'g03-towels')} dup 3 fm 0
+in04 att 1 g04-kitchen<-d1 wrong:room g04-bathroom<-d2 wrong:room extras [] best {1: (0, 'g04-bathroom'), 2: (0, 'g04-bathroom')} dup 1 fm 0
+  in05 d3 invalid windowEndNotAfterStart
+in05 att 1 g05-mop<-d4 g05-plants<-d2 g05-garage<-d3 extras [1, 5] best {1: (0, 'g05-mop'), 2: (1, 't-plants-a'), 3: (0, 'g05-garage'), 4: (0, 'g05-mop'), 5: None} dup 2 fm 0
+  in06 d2 introduced title overdue
+  in06 d3 introduced room missed
+in06 att 1 g06-bill<-d1 wrong:isWeatherDependent g06-oven<-d2 wrong:kind,effort,isCritical g06-tiles<-d3 wrong:isDeepClean,room extras [] best {1: (0, 'g06-bill'), 2: (0, 'g06-oven'), 3: (0, 'g06-tiles')} dup 0 fm 0
+in07 att 1 g07-sweep:notfound extras [] best {} dup 0 fm 0
+  in08 d2 introduced title late
+  in08 d2 introduced title late
+in08 att 1 g08-post<-d1 g08-gate<-d2 extras [] best {1: (0, 'g08-post'), 2: (0, 'g08-gate')} dup 0 fm 0
+TOTAL N 18 extras 4 drafts 21 valid 20 introduced 4 duplicates 6 falseMerges 1
+  segmentation 16 of 18 (required 18)
+  kind 15 of 18 (required 18)
+  room 13 of 18 (required 17)
+  effort 15 of 18 (required 16)
+  isCritical 15 of 18 (required 18)
+  isDeepClean 15 of 18 (required 18)
+  isWeatherDependent 15 of 18 (required 18)

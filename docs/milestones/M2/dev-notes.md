@@ -4966,3 +4966,159 @@ Mutation check: with the `run` guard disabled (`|| true`), 18 issues in `EvalPro
 |---|---|---|---|---|
 | 2026-11-24 | Reviewer (via Orchestrator) | Developer | accepted (round 1: APPROVE) | F1 Minor, N1, N2. |
 | 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1, N1, N2 fixed; M4, M7–M9 now killed in TendIngestion; merged `main` `368bb9e`; 546 + 11 green. |
+
+## WI-M2-16 (Developer part 2) — Linux composition check on the real eval fixtures; freeze state and MANIFEST.sha256 verifier (no manifest yet)
+
+- **Owner:** Developer  ·  **Branch:** `m2/eval-fixtures-freeze` (merged `origin/main` at `368bb9e`, PR #32, with
+  `--no-ff`; no conflict)  ·  **PR:** not opened (the Orchestrator opens it)  ·  **ADRs:** none (tests only; no
+  dependency; the SHA-256 helper is test code, `TendIngestion` stays Foundation-only).
+- **Requirements:** **AC-M2-14** (fixture-composition check on Linux; "committed, with a SHA-256 manifest, and
+  frozen"), brief rubric Q3 "Composition", brief "Eval scoring rules" (Fixed IDs, Distinguishable targets), plan "Eval
+  harness ID generator" (version-4 fixture UUIDs; AC-M2-28), N-3 (AC-M2-20), UX-3 (AC-M2-12), FR-A1.
+- **Binding inputs:** PO `po-m2-wi16.md` ruling 1 (approved hashes; condition (e) "the Developer's Linux composition
+  check passes"; condition (d) L2a), rulings 2, 5, 7, 8, 9 and follow-up F3 (subsets); the Tester's C1–C12 table and
+  "Fixture rules I applied" 1–9 in `eval-composition.md` (v3); plan WI-M2-16 row and "Fixtures hash".
+- **Not changed:** `Fixtures/M2/eval/inputs.json`, `household.json`, `golden.json`, `eval-composition.md`,
+  `acceptance.md` (Tester-owned). No source file. No `MANIFEST.sha256` (the freeze waits for L2a).
+
+### What changed (tests only, `Packages/TendIngestion/Tests/TendIngestionTests/`)
+- **`EvalCompositionSupport.swift`** — `EvalCompositionCheck.violations(_:)`: a pure function of the three files'
+  bytes returning every violation with a rule ID and a kind (`rule` = the Q3/brief threshold, `pin` = the exact value
+  the Tester tabled for PO approval, `tag` = a composition tag that disagrees with the data). It uses the real code:
+  `EvalFixtures` (the WI-M2-15 reader), `DuplicateShortlist.entries`, `LocalWordMatch.target`, `EvalScorer.bestTarget`
+  / `targets` / `draftText` / `satisfies`, `Keywords`, `BannedTokens`, `TextFolding`. Also a test-only SHA-256 (FIPS
+  180-4 vectors) and `EvalManifest` (render, verify, the documented command).
+- **`EvalCompositionTests.swift`** — real fixtures pass; each of 25 rule IDs passes on its own; 63 negative controls
+  (each a mutated in-memory copy, re-written canonically; nothing touches disk); every rule has ≥ 1 control; an identity
+  round trip passes (the mutation writer adds nothing); the digit-run and whole-token readings; no `EvalIDGenerator` ID
+  equals a fixture ID.
+- **`EvalFreezeTests.swift`** — PO-approved SHA-256 pins of the three files; freeze state; manifest verifier with 8
+  negative controls; the documented command equals the in-memory render (runs `sha256sum`, stdout only); the committed
+  manifest verifies (skipped, with its reason, until it exists).
+
+### What the composition check covers (rule → what is checked; threshold and tabled value both)
+| Rule | Check (on `Fixtures/M2/eval` as committed) | Negative controls |
+|---|---|---|
+| C1 | 20 inputs; IDs in01…in20 in order | in20 removed; in01 renamed |
+| C2 / C3 | ≥ 8 voice / ≥ 8 text; pinned 10 / 10 lists | 3 voice→text (7); 1 voice→text (pin); same for text |
+| C4 | 10–80 whitespace words each; pinned per-input counts (21–35) | 9 words; 81 words; +1 word (pin) |
+| C5 | ≥ 1 oneOff, recurring, restock, weather-dependent item; pinned 36 / 12 / 10, 12 weather items | no restock; no weather; one recurring→oneOff (pin) |
+| C6 | ≥ 5 weather inputs; pinned 9 inputs, 12 items; `weather` tag = data | 3 inputs; one item cleared (pin); tag removed |
+| C7 | ≥ 3 critical inputs; pinned the 8 critical keys (bills, insurance, expiring food, smoke alarms; PO ruling 3) and 5 inputs; tag = data | 2 inputs; g18-soup cleared (pin); tag added |
+| C8 | ≥ 3 deep-clean inputs; pinned 5 inputs, 6 items; tag = data | 2 inputs; g05-grout cleared (pin); tag removed |
+| C9 | ≥ 5 existing-task inputs; pinned 15 inputs, 17 existing / 41 create; tag = data | none existing; g17-pods→create (pin); tag removed |
+| C10 | ≥ 3 repeat inputs; pinned in03, 06, 12, 18; each says the same word of every match group of one of its golden items twice (PO ruling 8) | 2 inputs; 3 (pin); in03's second "milk" changed |
+| C11 | ≥ 4 filler/self-correction inputs; pinned 10; the tag = inputs saying "um"/"uh"; self-corrections ("no wait", ", no,") pinned in02, 08, 14, 16, 20 | 3 inputs; 9 (pin); in04 loses "uh"; in20 loses its correction |
+| C12 | N ≥ 50, ≥ 1 per input; pinned N = 58, 2–3 per input | in05 empty; N = 49; N = 57 (pin) |
+| TAG | only known tags; `newRoom` ⇒ a new-room item; `completedTaskSaidAgain` ⇒ a create item whose phrase satisfies a completed task | unknown tag; two wrong tags |
+| HH | 9 rooms, 19 tasks, states 13 active / 1 maintenance / 1 resurfaced / 1 deferred / 3 completed | t-oven made active |
+| SUB | PO F3 subsets exist with their modes: in01 text, in02, in10, in08, in16 voice | in10 made text |
+| F1 | every room and task UUID is version 4 with the RFC variant (so the version-8 `EvalIDGenerator` never yields one) | version 8; non-RFC variant |
+| F2 | no ASCII digit run in the raw bytes of any of the three files has a substring of value 600…729 (N-3), ignored members included | "1650"; "0700" |
+| F3 | no banned whole token (`BannedTokens.all`) in the raw bytes of any file | "late"; "Overdue" title |
+| F4 | match-group tokens are single keywords (the reader's `tokenNotKeyword`) | stop word; unfolded token |
+| F5 | every golden item has a `referencePhrase` that is words of its input; as a draft text, its best target under the scorer's own rule is the item (create) or its seeded task (existing) | phrase not in input; missing; create and existing phrases pointed elsewhere |
+| F6 | for each input the real duplicate shortlist of its text has < 10 entries (pinned ≤ 6); each `existing` item's task is not completed and is on its input's shortlist; no create item's phrase is merged by the local word-match floor (with its golden room) | task retitled off every shortlist; existing→completed task; floor merge; shortlist at cap |
+| F7 | an existing item's kind, room, effort and three flags equal its seeded task | effort changed |
+| F8 | `existing(room)` only when the input says the room's name (PO ruling 2); a new room is named in the input, is not an existing room, and the four new rooms are pinned | unnamed room; new = existing; renamed (pin) |
+| F9 | deep clean ⇒ high effort (ruling 5); weather-dependent ⇔ the phrase says rain/raining/dry/sun/sunny (ruling 9); deep clean ⇔ the phrase says "deep" | each broken |
+| READ | the WI-M2-15 reader accepts the files | unknown seeded key |
+| (pin) | SHA-256 of `inputs.json`, `household.json`, `golden.json` = the PO ruling 1 values `b32e45af…`, `089a22bd…`, `882c2906…` (full hashes in the test) | one byte flipped |
+
+Not machine-checked (Tester judgement, recorded so the Reviewer does not assume it): en-US phrasing (rule 10), the
+meaning of each critical item (pinned by key, not derived), the "natural title" half of the Tester's rule 5 (no natural
+titles are in the fixtures; I use the `referencePhrase`, which is what the brief names), effort beyond the deep-clean
+case.
+
+### Freeze design (AC-M2-14; the manifest is not written)
+- **Documented command** (no manifest subcommand exists in `Tools/TendTools`; the scorer already takes the hash from
+  `sha256sum`, plan "Scoring tool and command"), from the repo root:
+  `cd Fixtures/M2/eval && LC_ALL=C sha256sum golden.json household.json inputs.json results-v1.schema.json > MANIFEST.sha256`
+  (Mac: `shasum -a 256` with the same names writes the same format). It lists every file in the directory except the
+  manifest (plan "MANIFEST lists the SHA-256 of every fixture file"; the schema is included, plan layout row). The
+  string is `EvalManifest.command`; a test parses it, checks its names are exactly the directory's files, runs it
+  without the redirection and compares the output byte for byte with the in-memory render.
+- **Honest state, not a silent pass.** `EvalFreeze.declaredFrozen = false` is the one declaration. The test "AC-M2-14
+  freeze state: NOT frozen yet …" asserts the manifest exists **exactly** when declared frozen, and that the Tester's
+  `eval-composition.md` Status bullet says "Not frozen" exactly when not frozen. So adding the manifest without flipping
+  the flag fails, flipping the flag without the manifest fails, and a status that disagrees fails. The test that
+  verifies the committed manifest is reported as **skipped** with "not frozen yet: no MANIFEST.sha256 (waits for L2a, PO
+  ruling 1)", never as a pass.
+- **To freeze** (after L2a and the PO's go): run the command, set `declaredFrozen = true`, and the Tester updates the
+  Status bullet, in one commit. The approved-hash pins stay; a later data change needs a PO decision in `DECISIONS.md`
+  and a pin update in the same commit.
+
+### AC → test
+| AC / rule | Test |
+|---|---|
+| AC-M2-14 composition (Q3 C1–C12, F1–F9) | `EvalCompositionTests` "AC-M2-14: Fixtures/M2/eval as committed passes every composition rule …", "… each rule, threshold and tabled value, holds …" (25 cases), "… every rule refuses its mutated copy (negative controls)" (63 cases), "… every rule has at least one negative control" |
+| AC-M2-28 / plan ID generator | "AC-M2-28 + plan ID generator: no EvalIDGenerator ID (version 8) can equal a fixture ID (version 4)" |
+| PO ruling 1 approval | `EvalFreezeTests` "PO ruling 1: … have the PO-approved SHA-256 …" (3 cases) + negative control |
+| AC-M2-14 manifest and freeze | "AC-M2-14 freeze state: NOT frozen yet …", "… a manifest rendered from the real files verifies …", "… manifest verifier, negative controls …" (7 cases), "… a fixture changed after the manifest was written is refused", "… the documented manifest command writes exactly the in-memory render …", "… MANIFEST.sha256 verifies …" (skipped until frozen) |
+
+### Verification environment
+| Check | Linux (Docker `swift:6.2-noble`, Swift 6.2.4) | macOS CI | Simulator | Device |
+|---|---|---|---|---|
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | ✔ exit 0, `Test run with 556 tests in 66 suites passed` (538 before; +18 tests, 1 skipped by design: the committed-manifest test) | not run | n.a. | n.a. |
+| `swift test --package-path Tools/TendTools -Xswiftc -warnings-as-errors` | ✔ exit 0, 8 tests in 1 suite (unchanged) | not run | n.a. | n.a. |
+| Documented `sha256sum` command | ✔ (runs in the container) | `sha256sum` may be absent; the test then reports skipped | n.a. | n.a. |
+| Freeze, L2a | not done (waits for the owner) | — | — | owner L2a |
+
+### Things the reviewer should look at closely
+- The pins are typed from the Tester's v3 table; a wrong pin would fail on the real files, and every pin passes, so
+  pins and data agree. Check that the pins say what the table says (they do not check the table itself).
+- F9's weather and deep-clean word rules are my machine reading of PO rulings 9 and Q3 on the `referencePhrase`; they
+  hold for all 58 items. If the Tester adds an item tied to weather by another word ("storm"), the rule refuses it and
+  the word list needs a reviewed change.
+- F6's word-match floor uses the `referencePhrase` (not a natural title) and the golden room; stricter titles exist.
+- C10's repeat evidence requires the same token twice per group (two synonyms do not count; the in03 control proves
+  "light … bulb" is not taken as a repeat).
+
+### Known limitations / tickets
+| Item | Severity | Ticket |
+|---|---|---|
+| `MANIFEST.sha256` and the freeze | blocking AC-M2-14 | after owner L2a (GR-4) and PO go; Tester freezes per "To freeze" above |
+| PO F4: `ds1-offline` / `ds2-*` profiles accept only the fixed input IDs (A-F1) | Minor | Developer, before DS-1/DS-2 scoring |
+| GR-9 `@Guide` parity | Minor (before DS-1) | WI-M2-M2 |
+| macOS CI does not run TendIngestion tests on this branch yet | info | HM-1 / CI owner |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Tests only; no entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | F3 refuses any banned whole token in the fixtures, so every banned token in a draft is "introduced" (AC-M2-12). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | The same fixtures serve DS-1 (on device) and DS-2; nothing routed. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | No dependency; the SHA-256 is local test code; the test runs `sha256sum` locally; nothing is sent. |
+| P-3 Cloud AI opt-in, minimised | pass | F2 (N-3) keeps fixture digits away from the interval sentinels; F6 proves the shortlist stays ≤ 6 titles per input. |
+| P-4 Media not persisted | n.a. | Text only; mutations are in memory. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Developer | accepted | WI-M2-16: merge main (PR #32), Linux composition check with negative controls, manifest step without writing the manifest. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent | Tests only; TendIngestion 556 green, 0 warnings; TendTools 8 green. Composition check passes on the committed fixtures: PO ruling 1 condition (e) met, pending review. |
+| 2026-11-24 | Developer | Acceptance Tester (via Orchestrator) | sent | Freeze procedure ("To freeze"); the Status bullet of `eval-composition.md` is now read by a test ("Not frozen" ⇔ no manifest). No fixture file changed. |
+
+### Update 2026-11-24: EC-Q8 golden pin, merge of main (PR #33)
+- **EC-Q8 (PO `po-m2-wi16.md` "## EC-Q8"):** the Tester relabelled `g16-carservice` effort `normal` → `low` (`0c69143`;
+  I checked that `golden.json` differs from `1184436` in that one value only). The PO re-approved the composition for
+  that file. `EvalFreezeTests.approvedSHA256["golden.json"]` is now
+  `0e819a89fcb65adb0a764d296f1d0dc8f30275cfe074495a4fe9c793a0f4b771`, and the comment records the EC-Q8 re-approval.
+  `inputs.json` (`b32e45af…`) and `household.json` (`089a22bd…`) pins are unchanged. Before the update the pin test
+  failed on `fc52a39`, as designed.
+- **Composition check:** unchanged and green. No pin covers effort values. F9 tests only "deep clean ⇒ high", and
+  `g16-carservice` is not a deep clean. The F6 word-match control on `g16-carservice` does not depend on effort.
+- **Merge:** `origin/main` `4e13164` (PR #33, the A-F1 subset-profile fix, PO F4) was merged with `--no-ff`. For the
+  `dev-notes.md` conflict I took main's file and appended this section. The "PO F4" ticket above is now done on main
+  (main's "A-F1 fix" section).
+- **Still not frozen:** no `MANIFEST.sha256` (waits for L2a). `EvalFreeze.declaredFrozen = false`.
+- **Verification (Linux, Docker `swift:6.2-noble`, `-warnings-as-errors`, merged tree):** TendIngestion exit 0,
+  `Test run with 564 tests in 66 suites passed` (the committed-manifest test skipped with its reason); TendTools exit 0,
+  `Test run with 11 tests in 1 suite passed`. macOS not run.
+
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Developer | accepted | EC-Q8 pin, merge main `4e13164`. |
+| 2026-11-24 | Developer | Reviewer, Acceptance Tester (via Orchestrator) | sent | One-hash test change and the merge. 564 + 11 tests green. |

@@ -1,0 +1,1478 @@
+{
+  "schemaVersion": 1,
+  "note": "WI-M2-16 eval fixtures (AC-M2-14), written by the Acceptance Tester. Not frozen until MANIFEST.sha256 exists and the PO has approved the composition (docs/milestones/M2/eval-composition.md). Plain household phrases; no personal data. referencePhrase: brief 'Distinguishable targets' (PO 2026-11-23, WI-M2-15 ruling 1); the scorer ignores it.",
+  "items": [
+    {
+      "inputID": "in01",
+      "key": "g01-ac",
+      "referencePhrase": "The AC needs servicing before summer",
+      "matchGroups": [
+        [
+          "ac",
+          "aircon",
+          "air",
+          "conditioner",
+          "conditioning"
+        ],
+        [
+          "service",
+          "servicing",
+          "serviced",
+          "check",
+          "tune"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in01",
+      "key": "g01-pods",
+      "referencePhrase": "we're almost out of dishwasher pods",
+      "matchGroups": [
+        [
+          "dishwasher",
+          "dish"
+        ],
+        [
+          "pods",
+          "tablets",
+          "capsules",
+          "detergent"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-pods"
+      }
+    },
+    {
+      "inputID": "in01",
+      "key": "g01-balcony",
+      "referencePhrase": "deep clean the balcony this weekend if it doesn't rain",
+      "matchGroups": [
+        [
+          "balcony"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "new",
+        "name": "Balcony",
+        "alternates": []
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": true,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in02",
+      "key": "g02-electric",
+      "referencePhrase": "pay the electric bill by Friday, no wait, Thursday",
+      "matchGroups": [
+        [
+          "electric",
+          "electricity",
+          "power",
+          "energy"
+        ],
+        [
+          "bill",
+          "bills"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in02",
+      "key": "g02-dentist",
+      "referencePhrase": "book the dentist for the kids",
+      "matchGroups": [
+        [
+          "dentist",
+          "dental"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-dentist"
+      }
+    },
+    {
+      "inputID": "in02",
+      "key": "g02-sink",
+      "referencePhrase": "the bathroom sink is draining really slowly",
+      "matchGroups": [
+        [
+          "sink",
+          "drain",
+          "draining",
+          "plughole"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "bathroom"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in03",
+      "key": "g03-milk",
+      "referencePhrase": "We're out of milk, grab some on the way home",
+      "matchGroups": [
+        [
+          "milk"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in03",
+      "key": "g03-bulb",
+      "referencePhrase": "the hallway light keeps flickering so swap the bulb",
+      "matchGroups": [
+        [
+          "bulb",
+          "bulbs",
+          "lightbulb",
+          "light"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "hallway"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in04",
+      "key": "g04-gutters",
+      "referencePhrase": "the gutters are full of leaves again, clear those once it's dry",
+      "matchGroups": [
+        [
+          "gutters",
+          "gutter"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-gutters"
+      }
+    },
+    {
+      "inputID": "in04",
+      "key": "g04-mow",
+      "referencePhrase": "mow the back garden every week from now on, but only when it's not raining",
+      "matchGroups": [
+        [
+          "mow",
+          "mowing",
+          "lawn",
+          "grass"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "existing",
+        "roomKey": "garden"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in04",
+      "key": "g04-trashbags",
+      "referencePhrase": "grab more trash bags",
+      "matchGroups": [
+        [
+          "trash",
+          "garbage",
+          "bin",
+          "bins"
+        ],
+        [
+          "bags",
+          "bag",
+          "liners",
+          "sacks"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in05",
+      "key": "g05-chicken",
+      "referencePhrase": "The chicken in the kitchen fridge needs cooking by tomorrow",
+      "matchGroups": [
+        [
+          "chicken"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "kitchen"
+      },
+      "effort": "normal",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in05",
+      "key": "g05-oven",
+      "referencePhrase": "the oven still needs that deep clean",
+      "matchGroups": [
+        [
+          "oven"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "kitchen"
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": true,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-oven"
+      }
+    },
+    {
+      "inputID": "in05",
+      "key": "g05-grout",
+      "referencePhrase": "give the bathroom grout a proper deep scrub this weekend",
+      "matchGroups": [
+        [
+          "grout",
+          "tiles",
+          "tile"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "bathroom"
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": true,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in06",
+      "key": "g06-pods",
+      "referencePhrase": "we're nearly out of dishwasher tablets",
+      "matchGroups": [
+        [
+          "dishwasher",
+          "dish"
+        ],
+        [
+          "pods",
+          "tablets",
+          "capsules",
+          "detergent"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-pods"
+      }
+    },
+    {
+      "inputID": "in06",
+      "key": "g06-toiletpaper",
+      "referencePhrase": "and toilet paper",
+      "matchGroups": [
+        [
+          "toilet"
+        ],
+        [
+          "paper",
+          "roll",
+          "rolls",
+          "tissue"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in06",
+      "key": "g06-washer",
+      "referencePhrase": "the washing machine in the laundry room smells funny so run a hot cleaning cycle",
+      "matchGroups": [
+        [
+          "machine",
+          "washer"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "laundry"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in07",
+      "key": "g07-patio",
+      "referencePhrase": "Sweep the patio every other week when it's dry",
+      "matchGroups": [
+        [
+          "patio"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "new",
+        "name": "Patio",
+        "alternates": []
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in07",
+      "key": "g07-car",
+      "referencePhrase": "wash the car this Saturday if the sun's out",
+      "matchGroups": [
+        [
+          "car"
+        ],
+        [
+          "wash",
+          "washing",
+          "clean",
+          "cleaning"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-car"
+      }
+    },
+    {
+      "inputID": "in07",
+      "key": "g07-shed",
+      "referencePhrase": "have a big sort-out of the shed before winter",
+      "matchGroups": [
+        [
+          "shed"
+        ],
+        [
+          "sort",
+          "tidy",
+          "clear",
+          "declutter",
+          "organise",
+          "organize"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "new",
+        "name": "Shed",
+        "alternates": [
+          "garden shed"
+        ]
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in08",
+      "key": "g08-water",
+      "referencePhrase": "the water bill, pay that by the twentieth, um, no, by the fifteenth",
+      "matchGroups": [
+        [
+          "water"
+        ],
+        [
+          "bill",
+          "bills"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in08",
+      "key": "g08-insurance",
+      "referencePhrase": "renew the car insurance this week",
+      "matchGroups": [
+        [
+          "insurance"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-insurance"
+      }
+    },
+    {
+      "inputID": "in08",
+      "key": "g08-card",
+      "referencePhrase": "pick up a birthday card",
+      "matchGroups": [
+        [
+          "card",
+          "birthday"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in09",
+      "key": "g09-carpet",
+      "referencePhrase": "Deep clean the carpet in the kids room",
+      "matchGroups": [
+        [
+          "carpet",
+          "carpets",
+          "rug"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "kids"
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": true,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in09",
+      "key": "g09-sheets",
+      "referencePhrase": "the weekly sheet change in our bedroom",
+      "matchGroups": [
+        [
+          "sheets",
+          "sheet",
+          "bedding",
+          "linens"
+        ],
+        [
+          "bedroom"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "existing",
+        "roomKey": "bedroom"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-sheets"
+      }
+    },
+    {
+      "inputID": "in09",
+      "key": "g09-vacuum",
+      "referencePhrase": "vacuum the living room like every week",
+      "matchGroups": [
+        [
+          "vacuum",
+          "vacuuming",
+          "hoover",
+          "hoovering"
+        ],
+        [
+          "living",
+          "lounge"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "existing",
+        "roomKey": "living"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-vacuum"
+      }
+    },
+    {
+      "inputID": "in10",
+      "key": "g10-plants",
+      "referencePhrase": "water the garden plants every morning",
+      "matchGroups": [
+        [
+          "water",
+          "watering"
+        ],
+        [
+          "plants",
+          "plant",
+          "pots",
+          "flowers"
+        ],
+        [
+          "garden"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "existing",
+        "roomKey": "garden"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-plants"
+      }
+    },
+    {
+      "inputID": "in10",
+      "key": "g10-windows",
+      "referencePhrase": "wash the outside windows when there's no rain forecast",
+      "matchGroups": [
+        [
+          "windows",
+          "window"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in10",
+      "key": "g10-heater",
+      "referencePhrase": "get the water heater serviced every year",
+      "matchGroups": [
+        [
+          "heater",
+          "boiler"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in11",
+      "key": "g11-smoke",
+      "referencePhrase": "Test the smoke alarms, it's a monthly thing",
+      "matchGroups": [
+        [
+          "smoke"
+        ],
+        [
+          "alarm",
+          "alarms",
+          "detector",
+          "detectors"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-smoke"
+      }
+    },
+    {
+      "inputID": "in11",
+      "key": "g11-yogurt",
+      "referencePhrase": "the yogurt expires on Wednesday so eat it before then",
+      "matchGroups": [
+        [
+          "yogurt",
+          "yoghurt"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in11",
+      "key": "g11-coffee",
+      "referencePhrase": "buy more coffee beans",
+      "matchGroups": [
+        [
+          "coffee"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in12",
+      "key": "g12-trash",
+      "referencePhrase": "Take the trash out tonight, it's trash day every Tuesday",
+      "matchGroups": [
+        [
+          "trash",
+          "garbage",
+          "bins",
+          "bin",
+          "rubbish"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-bins"
+      }
+    },
+    {
+      "inputID": "in12",
+      "key": "g12-door",
+      "referencePhrase": "fix the squeaky garage door this weekend",
+      "matchGroups": [
+        [
+          "door",
+          "doors",
+          "hinge",
+          "hinges"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "garage"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in13",
+      "key": "g13-porch",
+      "referencePhrase": "Every weekend sweep the front porch",
+      "matchGroups": [
+        [
+          "porch"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "new",
+        "name": "Porch",
+        "alternates": [
+          "front porch"
+        ]
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in13",
+      "key": "g13-leaves",
+      "referencePhrase": "rake the leaves in the garden when it's dry",
+      "matchGroups": [
+        [
+          "leaves",
+          "leaf"
+        ],
+        [
+          "rake",
+          "raking",
+          "clear",
+          "collect",
+          "sweep"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "garden"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in13",
+      "key": "g13-clothes",
+      "referencePhrase": "hang the clothes out on the line today if it stays sunny",
+      "matchGroups": [
+        [
+          "clothes",
+          "laundry",
+          "washing"
+        ],
+        [
+          "hang",
+          "line",
+          "clothesline",
+          "dry"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in14",
+      "key": "g14-fence",
+      "referencePhrase": "paint the garden fence when it's dry, no, actually, just stain it",
+      "matchGroups": [
+        [
+          "fence"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "garden"
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-fence"
+      }
+    },
+    {
+      "inputID": "in14",
+      "key": "g14-fridge",
+      "referencePhrase": "deep clean the kitchen fridge, it smells",
+      "matchGroups": [
+        [
+          "fridge",
+          "refrigerator"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "kitchen"
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": true,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in14",
+      "key": "g14-cleaner",
+      "referencePhrase": "book the window cleaner",
+      "matchGroups": [
+        [
+          "cleaner",
+          "cleaners"
+        ],
+        [
+          "window",
+          "windows"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in15",
+      "key": "g15-plants",
+      "referencePhrase": "Water the bathroom plants on Thursday",
+      "matchGroups": [
+        [
+          "water",
+          "watering"
+        ],
+        [
+          "plants",
+          "plant",
+          "pots",
+          "flowers"
+        ],
+        [
+          "bathroom"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "bathroom"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in15",
+      "key": "g15-soap",
+      "referencePhrase": "top up the hand soap in the bathroom",
+      "matchGroups": [
+        [
+          "soap",
+          "handwash"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "existing",
+        "roomKey": "bathroom"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in15",
+      "key": "g15-shower",
+      "referencePhrase": "clean the shower screen every two weeks",
+      "matchGroups": [
+        [
+          "shower"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "existing",
+        "roomKey": "bathroom"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in16",
+      "key": "g16-carservice",
+      "referencePhrase": "book the car in for a service on Monday, no wait, Tuesday",
+      "matchGroups": [
+        [
+          "car"
+        ],
+        [
+          "service",
+          "servicing",
+          "mechanic"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in16",
+      "key": "g16-gutters",
+      "referencePhrase": "the gutters, clear the gutters before the rain comes",
+      "matchGroups": [
+        [
+          "gutters",
+          "gutter"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-gutters"
+      }
+    },
+    {
+      "inputID": "in16",
+      "key": "g16-radiators",
+      "referencePhrase": "bleed the radiators in the bedroom",
+      "matchGroups": [
+        [
+          "radiator",
+          "radiators"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "bedroom"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in17",
+      "key": "g17-catfood",
+      "referencePhrase": "We're low on cat food, the kibble, so order more",
+      "matchGroups": [
+        [
+          "cat"
+        ],
+        [
+          "food",
+          "kibble"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-catfood"
+      }
+    },
+    {
+      "inputID": "in17",
+      "key": "g17-pods",
+      "referencePhrase": "the dishwasher tablets, yeah, those too",
+      "matchGroups": [
+        [
+          "dishwasher",
+          "dish"
+        ],
+        [
+          "pods",
+          "tablets",
+          "capsules",
+          "detergent"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-pods"
+      }
+    },
+    {
+      "inputID": "in17",
+      "key": "g17-toys",
+      "referencePhrase": "sort through the kids room toy box in three days",
+      "matchGroups": [
+        [
+          "toy",
+          "toys"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "kids"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in18",
+      "key": "g18-tax",
+      "referencePhrase": "Pay the property tax this week",
+      "matchGroups": [
+        [
+          "tax",
+          "taxes"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in18",
+      "key": "g18-soup",
+      "referencePhrase": "eat the leftover soup today before it goes off",
+      "matchGroups": [
+        [
+          "soup",
+          "leftover",
+          "leftovers"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in18",
+      "key": "g18-counters",
+      "referencePhrase": "wipe down the kitchen counters some evening",
+      "matchGroups": [
+        [
+          "counter",
+          "counters",
+          "worktop",
+          "worktops"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "kitchen"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in19",
+      "key": "g19-filter",
+      "referencePhrase": "Every three months change the furnace filter",
+      "matchGroups": [
+        [
+          "filter",
+          "filters"
+        ],
+        [
+          "furnace",
+          "heating",
+          "hvac"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "existing",
+        "seededKey": "t-filter"
+      }
+    },
+    {
+      "inputID": "in19",
+      "key": "g19-floor",
+      "referencePhrase": "deep clean the garage floor on a dry day",
+      "matchGroups": [
+        [
+          "floor",
+          "floors"
+        ],
+        [
+          "garage"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "garage"
+      },
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": true,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in19",
+      "key": "g19-oil",
+      "referencePhrase": "buy more olive oil",
+      "matchGroups": [
+        [
+          "oil"
+        ],
+        [
+          "olive"
+        ]
+      ],
+      "kind": "restock",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in20",
+      "key": "g20-windows",
+      "referencePhrase": "the living room windows, wash them this afternoon if it's sunny",
+      "matchGroups": [
+        [
+          "windows",
+          "window"
+        ],
+        [
+          "living",
+          "lounge"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "living"
+      },
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in20",
+      "key": "g20-books",
+      "referencePhrase": "dust the bookshelves in the hallway",
+      "matchGroups": [
+        [
+          "bookshelves",
+          "bookshelf",
+          "books",
+          "shelves"
+        ]
+      ],
+      "kind": "oneOff",
+      "room": {
+        "type": "existing",
+        "roomKey": "hallway"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    },
+    {
+      "inputID": "in20",
+      "key": "g20-chimney",
+      "referencePhrase": "book the chimney sweep every year before winter",
+      "matchGroups": [
+        [
+          "chimney",
+          "flue"
+        ]
+      ],
+      "kind": "recurring",
+      "room": {
+        "type": "none"
+      },
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "expect": {
+        "type": "create"
+      }
+    }
+  ]
+}
