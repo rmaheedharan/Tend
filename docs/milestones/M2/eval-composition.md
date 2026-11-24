@@ -1,9 +1,14 @@
 # M2 eval composition (WI-M2-16, AC-M2-14): fixtures for PO approval
 
 - **Owner:** Acceptance Tester  ·  **Base commit:** `1d1caa3` (branch `m2/eval-fixtures-freeze`)  ·  **Date:** 2026-11-24
-- **Status:** DRAFT, for **PO composition approval**. **Not frozen:** there is no `MANIFEST.sha256` yet. The freeze comes
-  after the Developer's Linux composition check, the owner's live check L2a (WI-M2-16 Definition of Ready) and the
-  answers to the open questions below (AC-M2-14; plan WI-M2-16).
+- **Status:** composition **APPROVED by the PO with conditions** (`po-m2-wi16.md` ruling 1, 2026-11-24) for the three
+  fixture files at commit `95491ed` (hashes in "PO approval" below). **Not frozen:** there is no `MANIFEST.sha256` yet.
+  The freeze comes after the ruling 1 conditions are met: GR-1 fixed and the 9 golden bodies regenerated with the
+  instruction lines of PO rulings 3, 4, 5 and 9, verified by me (GR-1, GR-2); GR-3 (WI-M2-M4); the owner's live check
+  L2a on the regenerated bodies (GR-4; WI-M2-16 Definition of Ready); the Developer's Linux composition check; and these
+  doc edits (AC-M2-14; plan WI-M2-16).
+- **Revisions:** v1 at `95491ed` (for approval). v2 (this text): PO rulings of `po-m2-wi16.md` applied to this document
+  only. `inputs.json`, `household.json` and `golden.json` are **unchanged** (PO "Changes required", Tester item 1).
 - **Requirement IDs:** FR-A1, UX-3, P-3, AC-M2-14 (also feeds AC-M2-11, 15, 16, 17, 25, 26, 27), brief rubric Q3,
   Q5, Q6, Q12, brief "Eval scoring rules", PO WI-M2-15 ruling 1 ("Distinguishable targets").
 
@@ -17,6 +22,19 @@
 
 The files use exactly the WI-M2-15 reader format (`EvalFixtures.swift`). `results-v1.schema.json` is unchanged. The
 self-test set `Fixtures/M2/eval-selftest/` is unchanged. Sources and tests are unchanged.
+
+## PO approval (AC-M2-14 "Authorship": the PO approves the composition)
+
+| What | Value |
+|---|---|
+| Decision | **APPROVED, with conditions** (`po-m2-wi16.md` ruling 1, PO, 2026-11-24). C1–C12 meet rubric Q3 and AC-M2-14; the extra cases are accepted. |
+| Approved at | commit `95491ed` (branch `m2/eval-fixtures-freeze`) |
+| `Fixtures/M2/eval/inputs.json` | `b32e45afeb25a6d8972ce9f3b78a6dd051686d4ac6b7d87564769bf92c7ebcec` |
+| `Fixtures/M2/eval/household.json` | `089a22bd5a0b3da9ef6b057b186f61b459963f02bbee322c30a47b2af8e17f66` |
+| `Fixtures/M2/eval/golden.json` | `882c2906a15704b9b8376cfdd62aa3b909239b4b6f7ca9ce4d370fa69580d4dc` |
+| Re-checked | `sha256sum` of the three files on this branch, 2026-11-24, after the v2 doc edit: identical to the values above (the PO note gives the 8-character prefixes `b32e45af…`, `089a22bd…`, `882c2906…`). |
+| Change rule | Any data change before the freeze goes back to the PO; after the freeze it needs a PO decision in `DECISIONS.md` (AC-M2-14). |
+| Conditions before the freeze | (a) GR-1 fixed (ruling 3) and the 9 golden bodies regenerated; (b) the room, effort and weather instruction lines of rulings 4, 5 and 9 in the same regeneration; (c) GR-3 (WI-M2-M4); (d) L2a (GR-4); (e) the Developer's Linux composition check passes; (f) these doc edits (done in v2). |
 
 ## Q3 composition: each rule and the inputs that meet it (for PO approval)
 
@@ -93,11 +111,14 @@ Other Q6 rows used: T1, T2, T4, T5, T9, T11, T13, R2, R3.
 7. **Golden fields of an `existing` item equal its seeded task** (kind, room, effort, three flags). Each input states
    the repeat ("like every week", "a monthly thing", "every Tuesday") when the seeded task is recurring, so the golden
    kind is what the person said.
-8. **Rooms (EC-Q1).** An `existing(room)` expectation is used only when the person says that room's name in the input.
-   The checker enforces this. Chores with no place (paying, booking, buying, outdoors with no room named) are `none`.
-   A place the person names that is not in the household is `new`.
-9. **Effort (EC-Q4).** `low` is a quick errand or touch-up (pay, book, buy, wipe, water, test, sweep). `normal` is the
-   default. `high` is a deep clean or a job the person calls big (shed sort-out, painting or staining the fence).
+8. **Rooms (EC-Q1; confirmed by PO ruling 2).** An `existing(room)` expectation is used only when the person says that
+   room's name in the input. The checker enforces this. Chores with no place (paying, booking, buying, outdoors with no
+   room named) are `none`. A place the person names that is not in the household is `new`. Pure inference without a
+   named room is not scored in M2 (ruling 2; unnamed-room cases such as "descale the kettle" go to the M3 dev-set).
+9. **Effort (EC-Q4; wording per PO ruling 5).** `low` is a quick errand or touch-up (pay, book, buy, wipe, water, test,
+   sweep). `high` is a deep clean or a long job (a big sort-out, painting or staining: the shed sort-out, the fence).
+   `normal` otherwise. (v1 said "a job the person calls big"; the fence is high without being called big, so the PO
+   fixed the wording to "a long job". The golden data is unchanged.)
 10. **en-US phrasing** (brief Q2): trash, toilet paper, property tax, water heater. No names, addresses or real
     personal data.
 
@@ -255,36 +276,45 @@ against brief AC-M2-20 and Definitions "Cloud request", PO WI-M2-10 rulings 3, 4
 
 | ID | Severity | Finding | Owner | Due |
 |---|---|---|---|---|
-| GR-1 | **Major** | The fixed instructions (`CloudOutputSchema.swift:41`, in all 9 golden bodies) say *"isCritical: true only for safety or health."* The PRD (FR-B2 "Critical items (e.g., paying a bill, expiring food)") and rubric Q3 ("critical (bill, expiring food)") define critical differently. Following the instructions, a cloud model would mark the eval's bills (in02, 08, 18) and expiring food (in05, 11, 18) as not critical. 8 golden items are critical, and the critical threshold is 56 of 58, so AC-M2-26 would fail because of the instruction, not because of the model. The on-device instructions (`TendAI`, not written yet) must use the same definition. | PO (meaning, EC-Q2), then Developer (instructions, regenerate the 9 golden bodies; key paths unchanged) | Before the AC-M2-14 freeze |
-| GR-2 | Minor | The room instruction ("a name from rooms when the chore belongs there") asks for inference, while the golden set expects a room only when the person names it (EC-Q1). The fixtures avoid most conflicts by always naming the room of a located chore. Remaining risk: "hang the clothes out on the line" (golden `none`; the model might pick Laundry room) and restocks (golden `none`; the model might pick Kitchen). | PO (EC-Q1) | Before the freeze |
-| GR-3 | Minor | The allowed lists' `headers` have only `auth`, `Content-Type` (and `anthropic-version`) and the transport-set `Content-Length` and `Host`. PO WI-M2-10 ruling 4 requires `User-Agent: Tend` and `Accept-Language: en-US` as fixed, and `Accept`, `Accept-Encoding` and `Connection` listed as transport-set. These are the WI-M2-M4 (Mac) deliverables. The golden heads are correct as builder output if the lists name these headers. | Developer (WI-M2-M4) | Before the freeze |
-| GR-4 | Minor | Gemini: `generationConfig.responseJsonSchema` and `thinkingConfig.thinkingLevel` on `streamGenerateContent`, and `null` inside `enum` (daypart, repeatUnit, season, weekday), are not confirmed by Google's pages (L1b note, 2026-11-24). They are in the golden bytes. L2a must show a schema-valid stream with no 4xx before the freeze; if it fails, the goldens change under a PO decision. | Owner (L2a), Developer | WI-M2-16 DoR |
-| GR-5 | Minor | OpenAI: `$.messages[].content` is both a string leaf (the system message) and the parent of `$.messages[].content[].text` (the user message). On device, `ds2-gated` checks only that key paths are a subset of the list. A request whose user content became a plain string would show only `$.messages[].content`, which is allowed, so the device check cannot see the change. The Linux structural check (AC-M2-20 (b), concrete indices) does catch it. Suggest sending the system message as a text-part array too, or recording the value type per path with the element counts of PO WI-M2-11 ruling 1. | Developer (technical choice) | With the WI-M2-11 ruling 1 ticket |
+| GR-1 | **Major, OPEN** | The fixed instructions (`CloudOutputSchema.swift:41`, in all 9 golden bodies) say *"isCritical: true only for safety or health."* The PRD (FR-B2 "Critical items (e.g., paying a bill, expiring food)") and rubric Q3 ("critical (bill, expiring food)") define critical differently. Following the instructions, a cloud model would mark the eval's bills (in02, 08, 18) and expiring food (in05, 11, 18) as not critical. 8 golden items are critical, and the critical threshold is 56 of 58, so AC-M2-26 would fail because of the instruction, not because of the model. The on-device instructions (`TendAI`, not written yet) must use the same definition. | PO (meaning, EC-Q2), then Developer (instructions, regenerate the 9 golden bodies; key paths unchanged) | Before the AC-M2-14 freeze |
+| | | **PO ruling 3 (2026-11-24):** my reading is confirmed (critical = waiting has a real cost: a bill, tax or other payment, a renewal with a date, food that will expire, a home safety check; routine servicing and appointments are not). The exact replacement line for `CloudOutputSchema.swift:41` is in `po-m2-wi16.md` ruling 3, and the on-device `@Guide` uses the same sentence. The Developer is regenerating the bodies on `m2/cloud-instructions`. **Stays open (Major)** until I verify the regenerated golden bodies: each of the 9 holds the ruling 3, 4, 5 and 9 lines word for word, the old line is gone, the key-path lists are unchanged, N-3 and banned-token checks pass. Only I lift GR-1. | Developer, then Tester | Before the freeze |
+| GR-2 | Minor, **ANSWERED (PO ruling 4)** | The room instruction ("a name from rooms when the chore belongs there") asks for inference, while the golden set expects a room only when the person names it (EC-Q1). The fixtures avoid most conflicts by always naming the room of a located chore. Remaining risk: "hang the clothes out on the line" (golden `none`; the model might pick Laundry room) and restocks (golden `none`; the model might pick Kitchen). **PO ruling 4:** the room instruction changes to state the "no room" cases (exact line in `po-m2-wi16.md` ruling 4; the same meaning in the on-device `@Guide`). Closes when I verify the regenerated bodies, together with GR-1. | PO (EC-Q1), then Developer | Before the freeze |
+| GR-3 | Minor | The allowed lists' `headers` have only `auth`, `Content-Type` (and `anthropic-version`) and the transport-set `Content-Length` and `Host`. PO WI-M2-10 ruling 4 requires `User-Agent: Tend` and `Accept-Language: en-US` as fixed, and `Accept`, `Accept-Encoding` and `Connection` listed as transport-set. These are the WI-M2-M4 (Mac) deliverables. The golden heads are correct as builder output if the lists name these headers. PO ruling 10: noted, before the freeze. | Developer (WI-M2-M4) | Before the freeze |
+| GR-4 | Minor | Gemini: `generationConfig.responseJsonSchema` and `thinkingConfig.thinkingLevel` on `streamGenerateContent`, and `null` inside `enum` (daypart, repeatUnit, season, weekday), are not confirmed by Google's pages (L1b note, 2026-11-24). They are in the golden bytes. L2a must show a schema-valid stream with no 4xx before the freeze; if it fails, the goldens change under a PO decision. PO ruling 10: L2a runs on the bodies regenerated by rulings 3, 4, 5 and 9. | Owner (L2a), Developer | WI-M2-16 DoR |
+| GR-5 | Minor | OpenAI: `$.messages[].content` is both a string leaf (the system message) and the parent of `$.messages[].content[].text` (the user message). On device, `ds2-gated` checks only that key paths are a subset of the list. A request whose user content became a plain string would show only `$.messages[].content`, which is allowed, so the device check cannot see the change. The Linux structural check (AC-M2-20 (b), concrete indices) does catch it. Suggest sending the system message as a text-part array too, or recording the value type per path with the element counts of PO WI-M2-11 ruling 1. PO ruling 10: noted, before the freeze. | Developer (technical choice) | With the WI-M2-11 ruling 1 ticket |
 | GR-6 | pass | **Shortlists.** I derived the shortlists by hand and they match the golden bodies. G2: water balcony plants (K3), dishwasher pods (K2, R1), kitchen bin (K2, R1), oven (K0, R1); "buy…" < "take…"; completed tasks are excluded. G3: 13 eligible tasks cut to 10, in rank order K2 (fold, wash), then K1 + R1 (air, dry, replace, sort), then K1 + R0 (bleach, buy "soft", count, hang). Titles are trimmed with the inner tab kept, and room names are sent as written (Q19). | — | — |
 | GR-7 | pass | **Fixed members** equal PO WI-M2-10 ruling 7: `gpt-6-luna`, `reasoning_effort: "none"`, `store: false`, `stream_options.include_usage`, `max_completion_tokens: 4096`, no `temperature`; `claude-haiku-4-5-20251001`, `anthropic-version: 2023-06-01`, `temperature: 0`, forced `tool_choice`, no `thinking`; `gemini-3.5-flash-lite`, `thinkingLevel: "minimal"`, `maxOutputTokens: 4096`, no `temperature`, no `thinkingBudget`, `propertyOrdering` or `nullable`. The auth header holds only the fake key. | — | — |
 | GR-8 | pass | **N-3.** No decimal digit run in any of the 18 golden files or 3 lists contains 600…729. The instructions contain no banned token. The key paths use the results-file form (PO WI-M2-15 ruling 2). | — | — |
 
-## Open questions for the PO (my reading is applied in the fixtures; the PO confirms or changes it before the freeze)
+## Open questions for the PO: all answered (`po-m2-wi16.md`, 2026-11-24)
 
-| ID | Question | Reading applied (most faithful to the PRD, as I read it) |
-|---|---|---|
-| EC-Q1 | When is a room expected? PRD FR-A1 says the AI "infers the room". | `existing(room)` only when the person says the room's name; `none` for chores with no place; `new` for a named place that is not in the household. Every located chore in the inputs names its room, so naming and inference agree, except for the risks in GR-2. |
-| EC-Q2 | What is "critical"? | PRD FR-B2 and Q3: a bill or obligation with a date (electric, water and property-tax bills, the insurance renewal) and expiring food (chicken, yogurt, soup) are critical, and so is a safety check (smoke alarms). A routine appointment (the dentist) is not. This needs GR-1 fixed. |
-| EC-Q3 | The task names "P1–P7 composition"; the brief's composition is rubric Q3, and P1–P7 are the plan's Q6 time-phrase rows. | Both are covered: Q3 is the binding table above (C1–C12), and P1–P7 coverage is information only. Windows are not scored, and no change to the scoring rules is proposed. |
-| EC-Q4 | Effort convention. | `low` = a quick errand or touch-up; `normal` = default; `high` = a deep clean or a job the person calls big (rule 9). |
-| EC-Q5 | Should the eval include an existing-task mention with **no** shared keyword (for example "dish tablets" for "Buy dishwasher pods")? | Excluded. Under Q12 = yes no cloud model is sent that title, and the word-match floor cannot match it, so the cloud run's 0-duplicate gate (AC-M2-26) could never pass. If the PO wants it, it needs a non-gated watch item, which is a scoring-rule change, so I do not propose it. |
-| EC-Q6 | What is "a repeat inside the input"? | The same chore said twice in one input. It is one golden item; the second draft should be `ofDraft` (it is not primary, so it is not an extra). |
-| EC-Q7 | What is "a weather condition"? | The person states one for that chore (rain, dry, sunny, "before the rain comes"). The item is `isWeatherDependent`. |
+Every reading below was confirmed; no fixture data changes. The PO's watch items (unnamed-room inference, synonym-only
+duplicates) go to the M3 dev-set and are not scored in M2.
 
-## Still open in WI-M2-16 (not done here)
+| ID | Question | Reading applied (most faithful to the PRD, as I read it) | Answer |
+|---|---|---|---|
+| EC-Q1 | When is a room expected? PRD FR-A1 says the AI "infers the room". | `existing(room)` only when the person says the room's name; `none` for chores with no place; `new` for a named place that is not in the household. Every located chore in the inputs names its room, so naming and inference agree, except for the risks in GR-2. | **ANSWERED, ruling 2:** confirmed and made precise (room = where the chore is done; buying, paying, booking and errands have none unless a room is named). Watch item for M3: unnamed-room inference. |
+| EC-Q2 | What is "critical"? | PRD FR-B2 and Q3: a bill or obligation with a date (electric, water and property-tax bills, the insurance renewal) and expiring food (chicken, yogurt, soup) are critical, and so is a safety check (smoke alarms). A routine appointment (the dentist) is not. This needs GR-1 fixed. | **ANSWERED, ruling 3:** confirmed (critical = waiting has a real cost). The instruction text changes (GR-1, still open until I verify the regenerated bodies). |
+| EC-Q3 | The task names "P1–P7 composition"; the brief's composition is rubric Q3, and P1–P7 are the plan's Q6 time-phrase rows. | Both are covered: Q3 is the binding table above (C1–C12), and P1–P7 coverage is information only. Windows are not scored, and no change to the scoring rules is proposed. | **ANSWERED, ruling 6:** confirmed. Q3 (C1–C12) is binding; P1–P7 coverage is information only. |
+| EC-Q4 | Effort convention. | `low` = a quick errand or touch-up; `normal` = default; `high` = a deep clean or a job the person calls big (v1 wording; v2 rule 9 says "a long job", ruling 5). | **ANSWERED, ruling 5:** confirmed, with the wording "a long job" (rule 9 updated) and stated in the instructions. |
+| EC-Q5 | Should the eval include an existing-task mention with **no** shared keyword (for example "dish tablets" for "Buy dishwasher pods")? | Excluded. Under Q12 = yes no cloud model is sent that title, and the word-match floor cannot match it, so the cloud run's 0-duplicate gate (AC-M2-26) could never pass. If the PO wants it, it needs a non-gated watch item, which is a scoring-rule change, so I do not propose it. | **ANSWERED, ruling 7:** confirmed, excluded from the gated set. Watch item for M3: synonym-only duplicates. |
+| EC-Q6 | What is "a repeat inside the input"? | The same chore said twice in one input. It is one golden item; the second draft should be `ofDraft` (it is not primary, so it is not an extra). | **ANSWERED, ruling 8:** confirmed. A second committed draft is a duplicate created (c(g) − 1). |
+| EC-Q7 | What is "a weather condition"? | The person states one for that chore (rain, dry, sunny, "before the rain comes"). The item is `isWeatherDependent`. | **ANSWERED, ruling 9:** confirmed (the person ties the chore to the weather; never inferred in M2) and stated in the instructions. |
+
+## Still open in WI-M2-16
 - The Developer's Linux composition check on these fixtures, including `referencePhrase` best-target and version-4
   UUID checks, and `MANIFEST.sha256` (Developer).
-- PO approval of this composition and answers to EC-Q1…Q7; GR-1 fixed and the golden bodies regenerated; GR-3
-  (WI-M2-M4); L2a (owner).
-- My independent re-score of `results-selftest-1` (AC-M2-14; it also confirms PO WI-M2-15 S1 and S4).
-- The DS-1 and DS-2 device scripts, including which inputs make up the AC-M2-11 subset (3 inputs, 2 of them voice) and
-  the AC-M2-25 subset (2 voice inputs). Every device AC stays AWAITING-DEVICE.
+- GR-1 and GR-2: the Developer applies the instruction lines of PO rulings 3, 4, 5 and 9 and regenerates the 9 golden
+  bodies (`m2/cloud-instructions`); then I verify them. GR-3 (WI-M2-M4) and GR-5 (Developer); L2a on the regenerated
+  bodies (owner, GR-4).
 - The freeze itself: no change after it without a PO decision in `DECISIONS.md`.
+
+Done since v1:
+- PO approval of the composition and answers to EC-Q1…Q7 (`po-m2-wi16.md`; see "PO approval" and the table above).
+- My independent re-score of `results-selftest-1`: same scores as the committed scorer log
+  (`docs/milestones/M2/acceptance.md`, "AC-M2-14 independent re-score").
+- DS-1 and DS-2 drafted in `docs/milestones/M2/acceptance.md`. AC-M2-11 subset: in01 (text), in02 and in12 (voice).
+  AC-M2-25 subset: in08 and in16 (voice). Every device AC stays AWAITING-DEVICE.
 
 ## Law check
 | Law | Status | Note |
@@ -295,7 +325,7 @@ against brief AC-M2-20 and Definitions "Cloud request", PO WI-M2-10 rulings 3, 4
 | UX-4 Design craft | n.a. | No UI. |
 | P-1 On device first | pass | The fixtures are the same for the on-device (DS-1) and cloud (DS-2) runs. Voice inputs are read live and no audio is stored (AC-M2-15). |
 | P-2 No data leaves the device | pass | Invented household data only: no names, addresses or IDs from real people. Nothing is sent by this work. |
-| P-3 Cloud AI opt-in, minimised | pass, with GR-1, 3, 4 and 5 open | During DS-2 a request carries one input, the 9 room names and at most 10 shortlist titles (≤ 6 eligible per input), all invented. GR-3 and GR-5 strengthen the minimisation proof. |
+| P-3 Cloud AI opt-in, minimised | pass, with GR-1, 2 (answered, to verify), 3, 4 and 5 open | During DS-2 a request carries one input, the 9 room names and at most 10 shortlist titles (≤ 6 eligible per input), all invented. GR-3 and GR-5 strengthen the minimisation proof. |
 | P-4 Media not persisted | pass | No audio or images in the fixtures. |
 
 ## Handoff log
@@ -304,3 +334,5 @@ against brief AC-M2-20 and Definitions "Cloud request", PO WI-M2-10 rulings 3, 4
 | 2026-11-24 | Orchestrator | Acceptance Tester | accepted | WI-M2-16 (AC-M2-14), Tester part: fixtures, a scorer proof, the golden-request review and this composition table. |
 | 2026-11-24 | Acceptance Tester | Product Owner (via Orchestrator) | sent for approval | Composition C1–C12 met (N = 58). EC-Q1…Q7 to answer. GR-1 (Major) needs a PO meaning ruling, then a Developer fix, before the freeze. |
 | 2026-11-24 | Acceptance Tester | Developer (via Orchestrator) | sent | Composition check and `MANIFEST.sha256` (after PO approval); GR-1 after the PO ruling; GR-3 (WI-M2-M4); GR-5 (with WI-M2-11 ruling 1). Not frozen. |
+| 2026-11-24 | Product Owner | Acceptance Tester (via Orchestrator) | answered | `po-m2-wi16.md`: composition approved with conditions at `95491ed`; EC-Q1…Q7 confirmed (rulings 2, 3, 5, 6, 7, 8, 9); GR-1 and GR-2 ruled with exact instruction lines (rulings 3, 4); GR-3, 4, 5 noted (ruling 10). |
+| 2026-11-24 | Acceptance Tester | Developer, Product Owner (via Orchestrator) | sent | v2 doc edits done (rule 9 wording, answers, approval record); fixture data unchanged. GR-1 stays open (Major) and GR-2 is answered, until I verify the bodies regenerated on `m2/cloud-instructions`. |
