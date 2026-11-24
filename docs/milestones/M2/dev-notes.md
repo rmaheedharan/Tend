@@ -4757,3 +4757,124 @@ now evidence.
 |---|---|---|---|---|
 | 2026-11-24 | Reviewer (via Orchestrator) | Developer | accepted (round 1: APPROVE) | 2 Minor (F1 auth value, F2 encoded forms), 4 Nit (N1–N3 here, N4 to WI-M2-M6). Re-check the mutants: a `tar`/`mv` restore keeps old mtimes. |
 | 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1 and F2 fixed (both options for F2), N1–N3 fixed, N4 and the F2 gap sentence ticketed to WI-M2-M6. Round-1 mutant table withdrawn as evidence; rerun with `touch` and M0 baselines: 26 of 26 killed (M1–M21 again, plus M22–M26, which include the review's RM2 and RM3). Merged `main` `e4bcdeb`. TendIngestion 484 green on the merged tree, 0 warnings; AC-M2-09 and AC-M2-12 0 violations. |
+
+## WI-M2-16 (Developer part) — cloud instructions use the PO's item meanings (GR-1, GR-2), fixed client headers and transport-set list (GR-3), OpenAI system content as a part array (GR-5); goldens regenerated
+
+- **Owner:** Developer  ·  **Branch:** `m2/cloud-instructions`, from `origin/main` at `1d1caa3`  ·  **PR:** not opened
+  (the Orchestrator opens it)  ·  **ADRs:** none new (decision note DN-16-1 below; a fixed-member shape change under
+  PO WI-M2-10 ruling 3, not architectural).
+- **Requirements:** FR-A1, FR-B2, P-3, UX-3. **AC-M2-20** (golden bytes, headers), **AC-M2-22** (Headers bullet, Linux
+  part), **AC-M2-26** (ds2-gated key-path subset), AC-M2-14 freeze conditions (a), (b), (c) of PO WI-M2-16 ruling 1.
+- **Binding inputs:** PO `po-m2-wi16.md` rulings 3, 4, 5, 9, 10 and "Changes required" (Developer 1, 2, 4);
+  `po-m2-wi10.md` rulings 3 (fixed members), 4 (headers), 7 (models); Tester review GR-1…GR-5 in
+  `eval-composition.md` (branch `m2/eval-fixtures-freeze`); `po-m2-wi11.md` ruling 1 (element counts).
+- **Milestone lock:** `STATUS.md` shows M2 in build; this is WI-M2-16 freeze-prerequisite work inside M2.
+
+### What changed (three commits, one concern each, each green on its own)
+1. **`17bd84a` GR-1, GR-2 + rulings 5 and 9** — `CloudOutputSchema.swift` `CloudInstructions.text`: the old room,
+   effort and combined isCritical/isDeepClean/isWeatherDependent lines are replaced by the PO's five exact sentences,
+   one per line (room, effort, isCritical, isDeepClean, isWeatherDependent). No other instruction line changed. 9 golden
+   bodies regenerated; heads and allowed lists byte-identical (key paths unchanged).
+2. **`558bb03` GR-3** — `CloudProviderTable.clientHeaders` = `User-Agent: Tend`, `Accept-Language: en-US`, appended to
+   every provider's fixed headers (order: auth, provider headers, `User-Agent`, `Accept-Language`).
+   `CloudAllowedKeyPaths.transportSetHeaders` = `Content-Length`, `Host`, `Accept`, `Accept-Encoding`, `Connection`
+   (role `derivedByTransport`, left out of the Linux header comparison). 9 heads gain two lines; the 3 allowed lists
+   change only in `headers`. The PO note puts GR-3 under WI-M2-M4 but rules "add … to all three allowed lists …
+   Before freeze", so the Linux half (builder, lists, goldens, tests) is done here; the Darwin `URLProtocol` proof that
+   the explicit values replace the system defaults stays with WI-M2-M4 (ticket below).
+3. **`12bd68c` GR-5** — OpenAI system message sent as `[{"type":"text","text":<instructions>}]` (DN-16-1). The 3 OpenAI
+   bodies change only in that shape; `allowed-key-paths-openai.json` loses `$.messages[].content`; Anthropic and
+   Gemini files are byte-identical.
+- `Fixtures/M2/payload/README.md`: one sentence on the header roles.
+
+### DN-16-1 (GR-5 technical choice): no allowed key path is both a leaf and a container
+- **Problem (GR-5):** OpenAI `$.messages[].content` was a string leaf (system) and the parent of
+  `$.messages[].content[].text` (user). A user content flattened to a string sent only allowed paths, so the device
+  `ds2-gated` subset check could not see it.
+- **Options:** (A) send the system content as a text-part array too; (B) record a value type per path in the results
+  file. (B) changes results v1, the schema pattern, the scorer and the harness recorder (AC-M2-28), a larger change on a
+  format the Tester has reviewed. (A) is one builder line, Linux-side, a fixed protocol member value under PO WI-M2-10
+  ruling 3 (constant, no household data, provider protocol shape, gives no extra reach, in the goldens and lists, N-3
+  clean). OpenAI Chat Completions documents the system message `content` as a string or an array of text parts.
+- **Decision:** (A). Invariant pinned by a test for all three providers: no allowed path is a leaf and the prefix of
+  another path. Consequence: the erased path `$.messages[].content[].text` is shared by the fixed instructions
+  (`$.messages[0]`) and the user content (`at` = `$.messages[1].content[0].text`); the Linux structural check
+  (concrete indices) still pins the instructions byte for byte.
+- **How we would know this was wrong:** L2a (owner live check) returns a 4xx for the array system content. Then revert
+  `12bd68c` (goldens and list regenerate back) and take (B).
+- **Not covered by DN-16-1:** extra elements (PO WI-M2-11 ruling 1, element counts) remain the Planner's open ticket;
+  DN-16-1 only makes the string-vs-array shape visible.
+
+### AC / ruling coverage
+| Item | Test(s) | Result (Linux) |
+|---|---|---|
+| GR-1, GR-2, rulings 3/4/5/9 exact lines | `PayloadBuilderTests` "PO WI-M2-16 rulings 3, 4, 5, 9 (GR-1, GR-2; FR-B2, FR-A1): … exact sentences …" (each line exact, in order between `kind` and `time`, old wording gone, one line per field, no digit, no banned token) | pass; red before the change |
+| Instructions in all slots, N-3, UX-3 | existing "ADR-0005 Decision 3: the instructions are fixed …", "N-3: no decimal string 600…729 …", "PO WI-M2-12 ruling 2 …" | pass |
+| AC-M2-20 golden bytes | existing "AC-M2-20 golden bytes: 3 households × 3 providers …" on the regenerated files | pass |
+| GR-3 builder | existing "the provider table …" and "AC-M2-20 headers: every header value except the auth header is fixed" with the hand-written table updated to both headers and values | pass; red before |
+| GR-3 lists | new `PayloadGoldenTests` "GR-3, PO WI-M2-10 ruling 4 and WI-M2-16 ruling 10 …" (names and roles in order, exact transport-set list, builder never sends a transport-set header, values `Tend` / `en-US`) | pass; red before. Mutant `Accept-Language: en-GB` killed (7 tests fail) |
+| GR-5 | new "GR-5 …: no allowed key path is both a leaf and a container …" and "GR-5 …: a system or user message whose content parts become a plain string sends a key path outside the allowed list …" (OpenAI system and user, Anthropic user, Gemini system and user) | pass; both red on the string system content (the mutant) |
+| AC-M2-20 (a), (b) (WI-M2-11) | existing sentinel and structural suites on the new goldens and lists | pass |
+| `tend-payload-dump --outcome-sample` | output compared with `cmp` to the 3 G1 bodies | identical |
+
+### Golden diff summary
+- Bodies (9): only the instructions leaf changes (`$.system`, `$.systemInstruction.parts[0].text`,
+  `$.messages[0].content` → `$.messages[0].content[0].text`), checked leaf by leaf against `1d1caa3`. Sizes grow by
+  446 bytes (Anthropic, Gemini) and 471 bytes (OpenAI: the part wrapper adds 25).
+- Heads (9): `+User-Agent: Tend`, `+Accept-Language: en-US` after the provider's headers.
+- Allowed lists: `headers` gain the 2 fixed and 3 transport-set names (all three); `keyPaths` byte-identical for
+  Anthropic and Gemini; OpenAI loses `$.messages[].content` (GR-5) and gains nothing. `userContentKeyPaths` unchanged.
+- N-3: no 3-digit window of any digit run in the 18 golden files or 3 lists falls in 600…729 (script and Swift test).
+  Instruction digit runs are `1`, `12`, `2`, `1` (unchanged lines). Banned tokens (overdue, late, missed, failed,
+  behind, penalty, debt, streak, lateness) in the instructions: none.
+- SHA-256 (first 12 hex) for the Tester: bodies g1 a/g/o `0530a6105c2c` `7be08e830d1f` `e27887c3755f`, g2
+  `2023877cc0a8` `74619173b3a7` `a8455b6bf511`, g3 `a4c4333e2673` `81f33f96777a` `ff8733432525`; heads a/g/o
+  `5e0624bde48a` `6f64aadbfc47` `5b74a96d5a84`; lists a/g/o `0c642484511e` `9051458c0aed` `72f48767fa58`.
+- Regenerated with `TEND_PAYLOAD_GOLDEN_OUT=<dir> swift test … --filter PayloadGoldenTests` once per commit (the
+  repository's tool; no byte hand-edited). The final files equal a single-pass regeneration of the final tree.
+
+### Verification environment
+| Check | Linux (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`) | owner-run Mac | Simulator | Device |
+|---|---|---|---|---|
+| TendIngestion after each commit | ✔ 535 / 536 / **538 tests in 64 suites passed** (baseline at `1d1caa3`: 534), 0 warnings; AC-M2-09 `55 files … 0 violations`; AC-M2-12 `55 files, 9 exempted, 0 violations` | not run | n.a. | n.a. |
+| TendCore | ✔ 141 tests in 18 suites | not run | n.a. | n.a. |
+| TendSourceScan | ✔ 63 tests in 4 suites | not run | n.a. | n.a. |
+| Tools/TendTools build + tests | ✔ build; 8 tests | not run | n.a. | n.a. |
+| Explicit headers replace Darwin defaults on the wire | not verifiable on Linux | WI-M2-M4 | — | — |
+| Providers accept the regenerated bodies (incl. OpenAI array system content) | not verifiable | — | — | owner L2a (GR-4) |
+
+### Things the reviewer should look at closely
+- The instruction text: compare each new line with `po-m2-wi16.md` rulings 3, 4, 5, 9 word for word (the test pins
+  them, but the test's constants were also typed by me). Source uses `\` line continuations; the test checks the
+  resulting single lines.
+- DN-16-1: the OpenAI erased path is now shared by fixed instructions and user content; role list says `userContent`
+  only. The concrete-index check still pins the instructions; confirm this is acceptable for AC-M2-26.
+- Header order (provider headers, then `User-Agent`, `Accept-Language`) is my choice; the PO named values, not order.
+
+### Known limitations / tickets
+| Item | Severity | Ticket |
+|---|---|---|
+| **WI-M2-M2 (Mac, TendAI):** the on-device `@Generable` `@Guide` descriptions for `isCritical` (same sentence as the cloud line: one shared constant if the macro takes one, else a test comparing the strings), `room`, `effort` and `isWeatherDependent` (same meaning) per PO WI-M2-16 rulings 3, 4, 5, 9; P-1 and P-3 asked the same thing. `TendAI` is not in this repo's Linux packages, so not done here. | Major for freeze parity | WI-M2-M2 |
+| **WI-M2-M4 (Mac):** `URLProtocol` test that the transport sets `User-Agent: Tend` and `Accept-Language: en-US` explicitly on every request and sends no header outside the lists; mutant dropping either; Reviewer confirms explicit values replace system defaults. | required before freeze | WI-M2-M4 |
+| PO WI-M2-11 ruling 1: per-array element counts in results v1 and `ds2-gated`. Not done here; DN-16-1 does not replace it. | open | Planner |
+| PO WI-M2-16 "Changes" 4: Linux composition check and `MANIFEST.sha256`. Not in this task's scope. | open (freeze condition (e)) | Developer, next |
+| L2a must run on these regenerated bodies (GR-4), including the OpenAI array system content. | blocking freeze | Owner |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface; the instructions ask the user nothing. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | New lines hold no banned token (test); "critical" means waiting has a real cost, no alarm wording. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Routing unchanged; on-device `@Guide` parity ticketed to WI-M2-M2. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | No dependency; fake key; fixtures invented. |
+| P-3 Cloud AI opt-in, minimised | pass | All changes are fixed members (constant, no household or device data, N-3 clean). The fixed `User-Agent` and `Accept-Language` remove the device's languages and versions from requests. GR-5 makes a shape change visible on device. |
+| P-4 Media not persisted | n.a. | Text only. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Developer | accepted | WI-M2-16 Developer part: PO rulings 3, 4, 5, 9, 10; GR-1, GR-2, GR-3, GR-5; regenerate goldens. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent | 3 commits; TendIngestion 538 green, 0 warnings; TendCore, TendSourceScan, TendTools green. |
+| 2026-11-24 | Developer | Acceptance Tester (via Orchestrator) | sent | Verify the regenerated bodies for GR-1 and GR-2 (only the Tester lifts GR-1); re-review GR-3 lists and GR-5 (OpenAI key-path list changed). |

@@ -1,3 +1,5 @@
 POST api.openai.com /v1/chat/completions
 Authorization: Bearer FAKE-TEST-KEY-not-a-real-key-0000
 Content-Type: application/json
+User-Agent: Tend
+Accept-Language: en-US

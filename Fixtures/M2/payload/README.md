@@ -31,6 +31,8 @@ Canonical JSON. `tend-eval-score --allowed-key-paths` reads `keyPaths[].path` (A
   `shortlistIndex`, `shortlistTitle`, and `emptyList` for an empty `rooms` or `existingTasks`.
 - `headers`: the builder's headers in order (`auth`, `fixed`), then headers the transport sets (`derivedByTransport`,
   left out of the Linux header comparison).
+  The builder's fixed headers end with `User-Agent: Tend` and `Accept-Language: en-US`; the transport-set headers are
+  `Content-Length`, `Host`, `Accept`, `Accept-Encoding` and `Connection` (PO WI-M2-10 ruling 4; WI-M2-16 ruling 10, GR-3).
 
 ## Used by the payload proof (WI-M2-11, AC-M2-20 (a) and (b))
 

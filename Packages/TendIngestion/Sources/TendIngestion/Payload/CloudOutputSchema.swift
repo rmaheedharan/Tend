@@ -26,7 +26,10 @@
 import Foundation
 import TendCore
 
-/// The fixed instructions sent with every cloud request (the same for all three providers).
+/// The fixed instructions sent with every cloud request (the same for all three providers). The room, effort,
+/// critical, deep-clean and weather lines are the PO's exact sentences (PO WI-M2-16 rulings 3, 4, 5 and 9; GR-1, GR-2;
+/// FR-B2 "Critical items (e.g., paying a bill, expiring food)"); the on-device `@Guide` descriptions carry the same
+/// meanings (WI-M2-M2 ticket).
 public enum CloudInstructions {
     public static let text = """
         You read one household capture and list the separate chores in it. The user message is JSON. "capture" is \
@@ -35,11 +38,15 @@ public enum CloudInstructions {
         Return one item per chore, in the order the person said them. For each item:
         - title: a short task title, in the person's words where possible.
         - kind: "recurring" for a chore that repeats, "restock" for buying something that runs out, otherwise "oneOff".
-        - room: a name from "rooms" when the chore belongs there; a room the person named that is not in "rooms"; \
-        otherwise "".
-        - effort: "low", "normal" or "high".
-        - isCritical: true only for safety or health. isDeepClean: true for a deep clean. isWeatherDependent: true \
-        when the chore depends on the weather.
+        - room: the name from "rooms" where the chore is done, when the person named that room or the thing they \
+        named clearly sits in it; a place the person named that is not in "rooms"; otherwise "". Buying, paying, \
+        booking and errands get "" unless the person named a room.
+        - effort: "low" for a quick errand or touch-up, "high" for a deep clean or a long job, otherwise "normal".
+        - isCritical: true when waiting has a real cost: a bill, tax or other payment, a renewal with a date, food \
+        that will expire, or a home safety check. Routine servicing, appointments and other chores are false.
+        - isDeepClean: true for a deep clean.
+        - isWeatherDependent: true only when the person ties the chore to the weather, such as rain, dry or sun; \
+        otherwise false.
         - time: only what the person said. Use anchor "none" when they gave no time. "weekday" needs weekday; \
         "beforeMonth" needs month (1 to 12); "beforeSeason" needs season; "inDays" and "inWeeks" need count. Give \
         daypart only when they named a part of the day, and repeatEvery with repeatUnit only for a repeat, for \
