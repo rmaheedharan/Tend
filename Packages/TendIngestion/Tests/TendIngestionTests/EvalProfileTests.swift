@@ -107,12 +107,19 @@ enum Synthetic {
     /// 20 right inputs with k items each, with `edit` applied per input (nil keeps it out of the file).
     static func request(
         _ profile: EvalProfile, inputs n: Int = 20, items k: Int = 3, provider: EvalProvider? = nil,
-        allowedKeyPaths: Set<String>? = nil, flipped: Set<Int> = [],
+        allowedKeyPaths: Set<String>? = nil, flipped: Set<Int> = [], retakes: Set<Int> = [],
         edit: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 }
     ) throws -> EvalScoringRequest {
         let route = provider.flatMap { EvalRoute(rawValue: $0.rawValue) } ?? .onDevice
-        let attempts = (1...n).compactMap { i in
-            edit(i, attempt(i, drafts: rightDrafts(i, items: k), route: route, flipped: flipped))
+        // `retakes`: those inputs get a first attempt with no draft and then the edited attempt as a retake (attempt 2).
+        let attempts = (1...n).flatMap { i -> [EvalResultsFileV1.InputAttempt] in
+            guard let edited = edit(i, attempt(i, drafts: rightDrafts(i, items: k), route: route, flipped: flipped))
+            else { return [] }
+            guard retakes.contains(i) else { return [edited] }
+            var retake = edited
+            retake.attempt = 2
+            retake.retakeReason = "background noise"
+            return [attempt(i, drafts: [], route: route, outcome: .noModel, flipped: flipped), retake]
         }
         let (inputs, household, golden) = try fixtures(inputs: n, items: k, flipped: flipped)
         return EvalScoringRequest(
@@ -133,10 +140,10 @@ enum Synthetic {
 
     /// The scoring error for a run, or nil when it is scored.
     static func rejection(
-        _ profile: EvalProfile, provider: EvalProvider? = nil, flipped: Set<Int> = [],
+        _ profile: EvalProfile, provider: EvalProvider? = nil, flipped: Set<Int> = [], retakes: Set<Int> = [],
         edit: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 }
     ) throws -> EvalScoringError? {
-        let request = try request(profile, provider: provider, flipped: flipped, edit: edit)
+        let request = try request(profile, provider: provider, flipped: flipped, retakes: retakes, edit: edit)
         do throws(EvalScoringError) {
             _ = try EvalScorer.run(request)
             return nil
@@ -362,10 +369,15 @@ struct EvalProfileTests {
         }
         #expect(Synthetic.failing(missing) == ["in16: parses cleanly (AC-M2-25)"])
         let textInput = try Synthetic.rejection(.ds2Online, provider: .openai) { i, a in [1, 8].contains(i) ? a : nil }
-        guard case .subsetMismatch? = textInput else {
+        guard case let .subsetMismatch(mismatch)? = textInput else {
             Issue.record("a text input under ds2-online is not rejected: \(String(describing: textInput))")
             return
         }
+        // Review N1: the content, not only the case.
+        #expect(mismatch.found.map(\.description) == ["in01 (text)", "in08 (voice)"])
+        #expect(mismatch.reason == "the inputs are not the fixed ds2-online subset (AC-M2-25, PO ruling F3): it takes "
+            + "exactly in08 (voice), in16 (voice); the file has in01 (text), in08 (voice); not in the subset: "
+            + "in01 (text); not in the file: in16 (voice)")
     }
 
     // MARK: A-F1: the subset profiles take exactly their fixed input IDs and modes (PO ruling F4)
@@ -457,6 +469,64 @@ struct EvalProfileTests {
         for input in required + found { #expect(reason.contains(input.description), "\(input)") }
         let words = Set(reason.lowercased().split { !$0.isLetter }.map(String.init))
         #expect(words.isDisjoint(with: ["overdue", "late", "missed", "failed", "behind", "penalty"]), "\(reason)")
+    }
+
+    @Test("A-F1 (review F1): a voice retake of in02 (attempts 1 and 2) is one input; the ds1-offline file is scored, attempt 2")
+    func retakeIsOneInput() throws {
+        let request = try Synthetic.request(.ds1Offline, retakes: [2]) { i, a in Self.ds1Subset.contains(i) ? a : nil }
+        let report = try EvalScorer.run(request)
+        #expect(report.file.inputs.filter { $0.inputID == "in02" }.map(\.attempt) == [1, 2])
+        #expect(report.profileResult.passes, "\(Synthetic.failing(report.profileResult))")
+        let in02 = try #require(report.score.inputs.first { $0.inputID == "in02" })
+        #expect(in02.attempt == 2 && in02.attemptsInFile == 2)
+        #expect(report.log.contains(
+            "check PASS: inputs in01 (text), in02 (voice), in10 (voice) (AC-M2-11): file has in01 (text), in02 (voice), "
+                + "in10 (voice)\n"))
+        // A retake of an input outside the subset is still refused.
+        let outside = try Synthetic.rejection(.ds1Offline, retakes: [4]) { i, a in [1, 2, 4].contains(i) ? a : nil }
+        guard case let .subsetMismatch(mismatch)? = outside else {
+            Issue.record("a retake outside the subset is not refused: \(String(describing: outside))")
+            return
+        }
+        #expect(mismatch.found.map(\.description) == ["in01 (text)", "in02 (voice)", "in04 (voice)"])
+    }
+
+    /// Review F1: the exact reason for each note kind (not in the subset, not in the file, mode difference).
+    static let exactReasons: [(SubsetCase, String)] = [
+        (SubsetCase(profile: .ds1Offline, inputs: [1, 2, 4], label: "wrong ID: both notes"),
+         "the inputs are not the fixed ds1-offline subset (AC-M2-11, PO ruling F3): it takes exactly in01 (text), "
+            + "in02 (voice), in10 (voice); the file has in01 (text), in02 (voice), in04 (voice); not in the subset: "
+            + "in04 (voice); not in the file: in10 (voice)"),
+        (SubsetCase(profile: .ds1Offline, inputs: [1, 2, 10, 4], label: "too many: not in the subset only"),
+         "the inputs are not the fixed ds1-offline subset (AC-M2-11, PO ruling F3): it takes exactly in01 (text), "
+            + "in02 (voice), in10 (voice); the file has in01 (text), in02 (voice), in04 (voice), in10 (voice); "
+            + "not in the subset: in04 (voice)"),
+        (SubsetCase(profile: .ds2Offline, inputs: [8], label: "too few: not in the file only"),
+         "the inputs are not the fixed ds2-offline subset (AC-M2-25, PO ruling F3): it takes exactly in08 (voice), "
+            + "in16 (voice); the file has in08 (voice); not in the file: in16 (voice)"),
+        (SubsetCase(profile: .ds2Online, inputs: ds2Subset, flipped: [16], label: "wrong mode: mode note only"),
+         "the inputs are not the fixed ds2-online subset (AC-M2-25, PO ruling F3): it takes exactly in08 (voice), "
+            + "in16 (voice); the file has in08 (voice), in16 (text); in16 is text in the file, the subset takes it "
+            + "as voice"),
+        (SubsetCase(profile: .ds1Offline, inputs: ds1Subset, flipped: [1], label: "wrong mode: in01 voice"),
+         "the inputs are not the fixed ds1-offline subset (AC-M2-11, PO ruling F3): it takes exactly in01 (text), "
+            + "in02 (voice), in10 (voice); the file has in01 (voice), in02 (voice), in10 (voice); in01 is voice in "
+            + "the file, the subset takes it as text"),
+    ]
+
+    @Test("A-F1 (review F1): the exact reason text for each note kind", arguments: exactReasons)
+    func exactReason(_ c: SubsetCase, reason: String) throws {
+        let error = try Synthetic.rejection(c.profile, provider: c.provider, flipped: c.flipped, edit: c.edit)
+        guard case let .subsetMismatch(mismatch)? = error else {
+            Issue.record("not refused as a subset mismatch: \(String(describing: error))")
+            return
+        }
+        #expect(mismatch.reason == reason)
+    }
+
+    @Test("A-F1 (review N2): only the subset profiles name an AC for the subset")
+    func subsetACs() {
+        #expect(EvalProfile.allCases.map(\.subsetAC) == [nil, "AC-M2-11", "AC-M2-25", "AC-M2-25", nil, nil])
     }
 
     @Test("A-F1: the profile check also holds the subset (second control) when the reader is bypassed")

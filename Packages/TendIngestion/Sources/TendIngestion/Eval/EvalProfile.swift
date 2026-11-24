@@ -63,14 +63,12 @@ extension EvalProfile {
         }
     }
 
-    /// The AC a subset profile scores.
-    var subsetAC: String {
+    /// The AC a subset profile scores; nil for a profile with no subset (review N2).
+    var subsetAC: String? {
         switch self {
         case .ds1Offline: "AC-M2-11"
         case .ds2Offline, .ds2Online: "AC-M2-25"
-        case .ds1Gated: "AC-M2-15"
-        case .ds2Gated: "AC-M2-26"
-        case .info: "no AC"
+        case .ds1Gated, .ds2Gated, .info: nil
         }
     }
 }
@@ -101,7 +99,8 @@ public struct EvalSubsetMismatch: Sendable, Hashable {
                 notes.append("\(input.inputID) is \(input.mode.rawValue) in the file, the subset takes it as \(mode.rawValue)")
             }
         }
-        return "the inputs are not the fixed \(profile.rawValue) subset (\(profile.subsetAC), PO ruling F3): it takes "
+        let ac = profile.subsetAC.map { "\($0), " } ?? ""
+        return "the inputs are not the fixed \(profile.rawValue) subset (\(ac)PO ruling F3): it takes "
             + "exactly \(EvalSubsetInput.list(required)); the file has \(EvalSubsetInput.list(found))"
             + (notes.isEmpty ? "" : "; " + notes.joined(separator: "; "))
     }
