@@ -414,6 +414,20 @@ struct IngestionSourceRulesTests {
         }, "\(elsewhere)")
         // The table file's path in another module's configuration does not help a TendAI or TendEval file.
         #expect(scan(.tendAI, PlanPaths.aiFile, table).count == 3)
+        // R28-F1: the match is on the exact path, not the file name. A file with the table's name in another folder
+        // of TendIngestion, or in another module, is caught.
+        let sameNameIngestion = "Packages/TendIngestion/Sources/TendIngestion/Duplicates/CloudProviderTable.swift"
+        let sameNameIngestionFound = scan(.tendIngestion, sameNameIngestion, table)
+        #expect(sameNameIngestionFound.count == 3 && sameNameIngestionFound.allSatisfy {
+            $0.rule == .rule4 && $0.check == "bare host outside the provider table"
+        }, "\(sameNameIngestionFound)")
+        let sameNameAI = "Packages/TendAI/Sources/TendAI/Cloud/CloudProviderTable.swift"
+        let sameNameAIFound = scan(.tendAI, sameNameAI, table)
+        #expect(sameNameAIFound.count == 3 && sameNameAIFound.allSatisfy {
+            $0.rule == .rule4 && $0.check == "bare host outside TendIngestion"
+        }, "\(sameNameAIFound)")
+        let prefixed = "Packages/TendIngestion/Sources/TendIngestion/Payload/OldCloudProviderTable.swift"
+        #expect(scan(.tendIngestion, prefixed, table).count == 3, "a longer name ending in the table's name")
         for file in [PlanPaths.transport, PlanPaths.failureMapping, PlanPaths.keychain] {
             let found = scan(.tendAI, file, """
                 let a = "https://api.openai.com"
@@ -506,6 +520,12 @@ struct IngestionSourceRulesTests {
             """
         let found = scan(.tendIngestion, PlanPaths.providerTable, code)  // the bare host: provider table only (R1-F6)
         #expect(found.isEmpty, "unexpected: \(found)")
+        // R28-N1: the same code without the bare host is clean in a general TendIngestion file (Rule 1 does not
+        // depend on the path inside TendIngestion).
+        let general = code.replacingOccurrences(of: "    static let hosts = [\"api.openai.com\"]\n", with: "")
+        #expect(general != code)
+        let generalFound = scan(.tendIngestion, PlanPaths.ingestionFile, general)
+        #expect(generalFound.isEmpty, "unexpected: \(generalFound)")
     }
 
     @Test("AC-M2-09 Rule 2 positive: allowed imports; media types in the speech adapter files only")

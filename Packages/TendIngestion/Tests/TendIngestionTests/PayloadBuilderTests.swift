@@ -102,50 +102,59 @@ struct PayloadBuilderTests {
 
     // MARK: - The provider table (plan WI-M2-10; ADR-0005 Decision 6; Q18)
 
-    @Test("the provider table: bare hosts, method, path, query, header names in order, and the curated pinned model per provider", arguments: providers)
-    func providerTable(provider: CloudProvider) throws {
-        let request = try Self.captured(Self.sample, provider)
+    static let expectedModels = PayloadExpectedModel.all
+
+    @Test("the provider table: bare host, method, path, query, header names in order and the model ID sent, per curated model (hand-written table, PO WI-M2-10 ruling 7)", arguments: expectedModels)
+    func providerTable(row: PayloadExpectedModel) throws {
+        #expect(row.model.rawValue == row.id)
+        #expect(row.model.provider == row.provider)
+        #expect((CloudModel.defaultModel(for: row.provider) == row.model) == row.isDefault)
+        let request = try Self.captured(Self.sample, row.provider)
         #expect(request.method == "POST")
-        #expect(request.provider == provider)
-        switch provider {
-        case .openAI:
-            #expect(request.host == "api.openai.com")
-            #expect(request.path == "/v1/chat/completions")
-            #expect(request.queryItems.isEmpty)
-            #expect(request.headerNames == ["Authorization", "Content-Type"])
-            #expect(request.model == .gpt41Mini && request.model.rawValue == "gpt-4.1-mini-2025-04-14")
-        case .anthropic:
-            #expect(request.host == "api.anthropic.com")
-            #expect(request.path == "/v1/messages")
-            #expect(request.queryItems.isEmpty)
-            #expect(request.headerNames == ["x-api-key", "anthropic-version", "Content-Type"])
-            #expect(request.model == .claudeHaiku45 && request.model.rawValue == "claude-haiku-4-5-20251001")
-        case .gemini:
-            #expect(request.host == "generativelanguage.googleapis.com")
-            #expect(request.path == "/v1beta/models/gemini-2.5-flash:streamGenerateContent")
-            #expect(request.queryItems == [CloudQueryItem(name: "alt", value: "sse")])
-            #expect(request.headerNames == ["x-goog-api-key", "Content-Type"])
-            #expect(request.model == .gemini25Flash && request.model.rawValue == "gemini-2.5-flash")
-        }
+        #expect(request.provider == row.provider)
+        #expect(request.model == row.model && request.model.rawValue == row.id)
+        #expect(request.host == row.host)
+        #expect(request.path == row.path)
+        #expect(request.queryItems == row.query)
+        #expect(request.headerNames == row.headerNames)
         #expect(!request.host.contains("/") && !request.host.contains(":"), "a bare host, no scheme or port")
-        #expect(CloudModel.curated(for: provider) == [CloudModel.defaultModel(for: provider)])
-        #expect(CloudModel.defaultModel(for: provider).provider == provider)
         #expect(CloudProviderTable.hosts.contains(request.host))
     }
 
-    @Test("the curated list is closed: one model per provider, every ID differs, no free-text model")
+    @Test("the curated list is closed: every model is in the hand-written table, every ID differs, each provider's default is first in its list, and every curated model has a profile that fits its provider (R28-F7)")
     func curatedModels() {
-        #expect(CloudModel.allCases.count == 3)
+        #expect(Set(CloudModel.allCases) == Set(Self.expectedModels.map(\.model)))
+        #expect(Set(CloudModel.allCases.map(\.rawValue)).count == CloudModel.allCases.count)
         #expect(Set(CloudModel.allCases.map(\.provider)) == Set(CloudProvider.allCases))
+        for provider in CloudProvider.allCases {
+            let curated = CloudModel.curated(for: provider)
+            #expect(curated.first == CloudModel.defaultModel(for: provider))
+            #expect(curated.first == PayloadExpectedModel.row(provider)?.model)
+            #expect(Set(curated) == Set(CloudModel.allCases.filter { $0.provider == provider }))
+            #expect(curated.count == Set(curated).count)
+            for model in curated {
+                #expect(model.provider == provider)
+                #expect(model.requestProfile == CloudProviderTable.profile(for: model))
+                #expect(model.requestProfile.fits(provider), "\(model.rawValue)")
+            }
+        }
         #expect(CloudProviderTable.hosts == ["api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com"])
     }
 
-    @Test("AC-M2-20 headers: every header value except the auth header is fixed", arguments: providers)
-    func fixedHeaderValues(provider: CloudProvider) throws {
-        let request = try Self.captured(Self.sample, provider)
-        let values = Dictionary(uniqueKeysWithValues: request.headers.map { ($0.name, $0.withValue { $0 }) })
-        #expect(values["Content-Type"] == "application/json")
-        if provider == .anthropic { #expect(values["anthropic-version"] == "2023-06-01") }
+    @Test("Q18 condition 2 (ruling 7): no model ID is a moving alias", arguments: CloudModel.allCases)
+    func noMovingAlias(model: CloudModel) {
+        for marker in ["latest", "preview", "exp", "beta", "alpha"] {
+            #expect(!model.rawValue.contains(marker), "\(model.rawValue)")
+        }
+        #expect(!model.rawValue.isEmpty && !model.rawValue.contains(" "))
+    }
+
+    @Test("AC-M2-20 headers: every header value except the auth header is fixed", arguments: expectedModels)
+    func fixedHeaderValues(row: PayloadExpectedModel) throws {
+        let request = try Self.captured(Self.sample, row.provider)
+        let values = Dictionary(uniqueKeysWithValues: request.headers.filter { !$0.isAuthorization }
+            .map { ($0.name, $0.withValue { $0 }) })
+        #expect(values == row.fixedHeaders)
         #expect(request.headers.filter(\.isAuthorization).count == 1)
     }
 
@@ -214,36 +223,83 @@ struct PayloadBuilderTests {
         }
     }
 
-    @Test("AC-M2-20 opt-outs and sampling: stream on, temperature 0, OpenAI store false, Gemini thinking budget 0, a fixed output cap", arguments: providers)
-    func optOutsAndSampling(provider: CloudProvider) throws {
-        let body = try Self.captured(Self.sample, provider).body
-        func at(_ path: String) -> Any? { PayloadOracle.value(body, at: path) }
-        switch provider {
-        case .openAI:
-            #expect(at("$.stream") as? Bool == true)
-            #expect(at("$.store") as? Bool == false)
-            #expect(at("$.temperature") as? Int == 0)
-            #expect(at("$.max_completion_tokens") as? Int == 4096)
-            #expect(at("$.model") as? String == "gpt-4.1-mini-2025-04-14")
-            #expect(at("$.response_format.type") as? String == "json_schema")
-            #expect(at("$.response_format.json_schema.strict") as? Bool == true)
-            #expect(at("$.response_format.json_schema.name") as? String == "tend_capture")
-        case .anthropic:
-            #expect(at("$.stream") as? Bool == true)
-            #expect(at("$.temperature") as? Int == 0)
-            #expect(at("$.max_tokens") as? Int == 4096)
-            #expect(at("$.model") as? String == "claude-haiku-4-5-20251001")
-            #expect(at("$.tool_choice.type") as? String == "tool")
-            #expect(at("$.tool_choice.name") as? String == "record_items")
-            #expect(at("$.tools[0].name") as? String == "record_items")
-            #expect(at("$.thinking") == nil, "no extended thinking (Q18 condition 5)")
-        case .gemini:
-            #expect(at("$.generationConfig.temperature") as? Int == 0)
-            #expect(at("$.generationConfig.thinkingConfig.thinkingBudget") as? Int == 0)
-            #expect(at("$.generationConfig.maxOutputTokens") as? Int == 4096)
-            #expect(at("$.generationConfig.responseMimeType") as? String == "application/json")
-            #expect(at("$.model") == nil, "the Gemini model is in the path")
+    @Test("AC-M2-20 opt-outs and Q18 conditions 4 and 5 (revised, PO WI-M2-10 ruling 7): each model's fixed members are exactly the hand-written table's values, and the members it must not send are absent", arguments: expectedModels)
+    func requestMembers(row: PayloadExpectedModel) throws {
+        for golden in PayloadGolden.all {
+            let input = CloudContextSelector.input(capture: golden.capture, household: golden.household,
+                                                   titleSharing: .shortlistTitles)
+            let body = try Self.captured(input, row.provider).body
+            for (path, expected) in row.present {
+                #expect(expected.matches(PayloadOracle.value(body, at: path)), "\(row.id) \(golden.name) \(path)")
+            }
+            for path in row.absent {
+                #expect(PayloadOracle.value(body, at: path) == nil, "\(row.id) \(golden.name): \(path) must be absent")
+            }
+            #expect(PayloadOracle.value(body, at: row.schemaPath) is [String: Any], "\(row.id) schema member")
         }
+    }
+
+    @Test("R28-F7: a same-provider profile changes the body with no builder change (hypothetical profiles, never shipped)")
+    func profileDrivesBody() throws {
+        let gemini = CloudRequestProfile(sampling: .temperatureZero, reasoning: .geminiThinkingLevel("low"),
+                                         usage: .streamedByDefault, schemaDialect: .jsonSchemaNullAnyOf,
+                                         schemaMember: "responseSchemaX")
+        let g = try CloudPayloadBuilder.body(Self.sample, model: .geminiDefault, profile: gemini)
+        #expect(PayloadOracle.value(g, at: "$.generationConfig.temperature") as? Int == 0)
+        #expect(PayloadOracle.value(g, at: "$.generationConfig.thinkingConfig.thinkingLevel") as? String == "low")
+        #expect(PayloadOracle.value(g, at: "$.generationConfig.responseSchemaX") is [String: Any])
+        #expect(PayloadOracle.value(g, at: "$.generationConfig.responseJsonSchema") == nil)
+        let budget = CloudRequestProfile(sampling: .providerDefault, reasoning: .geminiThinkingBudget(0),
+                                         usage: .streamedByDefault, schemaDialect: .jsonSchemaNullTypeArray,
+                                         schemaMember: "responseJsonSchema")
+        let b = try CloudPayloadBuilder.body(Self.sample, model: .geminiDefault, profile: budget)
+        #expect(PayloadOracle.value(b, at: "$.generationConfig.thinkingConfig.thinkingBudget") as? Int == 0)
+        #expect(PayloadOracle.value(b, at: "$.generationConfig.thinkingConfig.thinkingLevel") == nil)
+        let openAI = CloudRequestProfile(sampling: .temperatureZero, reasoning: .noMember, usage: .streamedByDefault,
+                                         schemaDialect: .jsonSchemaNullTypeArray, schemaMember: "schema")
+        let o = try CloudPayloadBuilder.body(Self.sample, model: .openAIDefault, profile: openAI)
+        #expect(PayloadOracle.value(o, at: "$.temperature") as? Int == 0)
+        #expect(PayloadOracle.value(o, at: "$.reasoning_effort") == nil)
+        #expect(PayloadOracle.value(o, at: "$.stream_options") == nil)
+        let anthropic = CloudRequestProfile(sampling: .providerDefault, reasoning: .noMember,
+                                            usage: .streamedByDefault, schemaDialect: .jsonSchemaNullAnyOf,
+                                            schemaMember: "input_schema")
+        let a = try CloudPayloadBuilder.body(Self.sample, model: .anthropicDefault, profile: anthropic)
+        #expect(PayloadOracle.value(a, at: "$.temperature") == nil)
+        #expect(PayloadOracle.value(a, at: "$.tools[0].input_schema") is [String: Any])
+        // A profile member with no place in the provider's body does not fit.
+        #expect(gemini.fits(.gemini) && !gemini.fits(.openAI) && !gemini.fits(.anthropic))
+        #expect(openAI.fits(.openAI) && anthropic.fits(.anthropic))
+        #expect(!CloudRequestProfile(sampling: .providerDefault, reasoning: .openAIReasoningEffort("none"),
+                                     usage: .streamedByDefault, schemaDialect: .jsonSchemaNullAnyOf,
+                                     schemaMember: "schema").fits(.gemini))
+        #expect(!CloudRequestProfile(sampling: .providerDefault, reasoning: .noMember,
+                                     usage: .openAIStreamOptionsIncludeUsage, schemaDialect: .jsonSchemaNullAnyOf,
+                                     schemaMember: "input_schema").fits(.anthropic))
+    }
+
+    // MARK: - The builder's own shortlist cap (review R28-F3; Q12; AC-M2-20 "n ≤ 10")
+
+    @Test("R28-F3: the builder refuses more than 10 shortlist titles with a typed error, for every provider; 10 are sent with indices 1…10", arguments: providers)
+    func builderTitleCap(provider: CloudProvider) throws {
+        #expect(CloudPayloadInput.maximumShortlistTitles == 10)
+        let titles = (1...11).map { "Fake chore \($0)" }
+        let eleven = CloudPayloadInput(capture: "wipe", roomNames: [], shortlistTitles: titles)
+        let model = CloudModel.defaultModel(for: provider)
+        #expect(throws: CloudPayloadError.tooManyShortlistTitles(count: 11)) {
+            try CloudPayloadBuilder.request(eleven, model: model, key: PayloadFixture.fakeKey)
+        }
+        #expect(throws: CloudPayloadError.tooManyShortlistTitles(count: 11)) {
+            try CloudPayloadBuilder.body(eleven, model: model)
+        }
+        #expect(throws: CloudPayloadError.tooManyShortlistTitles(count: 11)) {
+            try CloudPayloadBuilder.userContent(eleven)
+        }
+        let ten = CloudPayloadInput(capture: "wipe", roomNames: [], shortlistTitles: Array(titles.prefix(10)))
+        let body = try Self.captured(ten, provider).body
+        let text = try #require(PayloadOracle.value(body, at: PayloadOracle.userContentPath(provider)) as? String)
+        #expect(PayloadOracle.slots(ofUserContent: text) == ten)
+        #expect(!text.contains("Fake chore 11"))
     }
 
     @Test("ADR-0005 Decision 3: the instructions are fixed, sent once in the provider's system slot, and hold no household data", arguments: providers)
@@ -313,12 +369,8 @@ struct PayloadBuilderTests {
 
     static func schema(_ provider: CloudProvider) throws -> [String: Any] {
         let body = try captured(sample, provider).body
-        let path = switch provider {
-        case .openAI: "$.response_format.json_schema.schema"
-        case .anthropic: "$.tools[0].input_schema"
-        case .gemini: "$.generationConfig.responseSchema"
-        }
-        return try #require(PayloadOracle.value(body, at: path) as? [String: Any])
+        let row = try #require(PayloadExpectedModel.row(provider))
+        return try #require(PayloadOracle.value(body, at: row.schemaPath) as? [String: Any])
     }
 
     static func itemSchema(_ provider: CloudProvider) throws -> [String: Any] {
@@ -339,21 +391,53 @@ struct PayloadBuilderTests {
         let timeProperties = try #require(time["properties"] as? [String: Any])
         #expect(Set(timeProperties.keys) == Set(StructuredOutputKey.Time.allCases.map(\.rawValue)))
         #expect(time["required"] as? [String] == StructuredOutputKey.Time.allCases.map(\.rawValue))
-        if provider == .gemini {
-            let sorted = StructuredOutputKey.Item.allCases.map(\.rawValue).sorted { Array($0.utf8).lexicographicallyPrecedes(Array($1.utf8)) }
-            #expect(item["propertyOrdering"] as? [String] == sorted, "the same member order as the canonical JSON schema")
-        } else {
-            #expect(item["additionalProperties"] as? Bool == false)
-            #expect(time["additionalProperties"] as? Bool == false)
-            #expect(root["additionalProperties"] as? Bool == false)
+        #expect(item["additionalProperties"] as? Bool == false)
+        #expect(time["additionalProperties"] as? Bool == false)
+        #expect(root["additionalProperties"] as? Bool == false)
+    }
+
+    /// Every keyword used anywhere in a schema (the member names of schema objects, not of `properties`).
+    static func keywords(_ schema: Any) -> Set<String> {
+        guard let object = schema as? [String: Any] else {
+            return (schema as? [Any])?.reduce(into: Set<String>()) { $0.formUnion(keywords($1)) } ?? []
+        }
+        var found = Set(object.keys)
+        for (key, value) in object {
+            if key == "properties", let properties = value as? [String: Any] {
+                for member in properties.values { found.formUnion(keywords(member)) }
+            } else if key != "enum" && key != "required" {
+                found.formUnion(keywords(value))
+            }
+        }
+        return found
+    }
+
+    @Test("PO WI-M2-10 ruling 7: every schema uses only JSON Schema keywords; Gemini's has no nullable, format or propertyOrdering, and no upper-case type", arguments: providers)
+    func schemaKeywords(provider: CloudProvider) throws {
+        let root = try Self.schema(provider)
+        let row = try #require(PayloadExpectedModel.row(provider))
+        let allowed: Set<String> = row.nullStyle == .anyOf
+            ? ["type", "properties", "required", "additionalProperties", "items", "enum", "anyOf"]
+            : ["type", "properties", "required", "additionalProperties", "items", "enum"]
+        #expect(Self.keywords(root).isSubset(of: allowed), "\(Self.keywords(root).subtracting(allowed))")
+        for banned in ["nullable", "format", "propertyOrdering"] {
+            #expect(!Self.keywords(root).contains(banned))
+        }
+        let text = PayloadText.string(try Self.captured(Self.sample, provider).body)
+        for upper in ["\"STRING\"", "\"INTEGER\"", "\"OBJECT\"", "\"ARRAY\"", "\"BOOLEAN\""] {
+            #expect(!text.contains(upper))
         }
     }
 
     /// The enum strings a schema property allows, and whether it allows null, in either dialect.
     static func choices(_ property: Any?, provider: CloudProvider) -> (values: [String]?, nullable: Bool, type: String?) {
         guard let property = property as? [String: Any] else { return (nil, false, nil) }
-        if provider == .gemini {
-            return (property["enum"] as? [String], property["nullable"] as? Bool == true, property["type"] as? String)
+        if PayloadExpectedModel.row(provider)?.nullStyle == .typeArray, let types = property["type"] as? [String] {
+            // `type: [<type>, "null"]`, and a nullable enum lists null last: `[…, null]`.
+            guard types.count == 2, types[1] == "null" else { return (nil, false, nil) }
+            guard let raw = property["enum"] as? [Any] else { return (nil, true, types[0]) }
+            guard raw.last is NSNull else { return (nil, false, types[0]) }
+            return (raw.dropLast().compactMap { $0 as? String }, true, types[0])
         }
         if let anyOf = property["anyOf"] as? [[String: Any]], anyOf.count == 2,
            anyOf[1]["type"] as? String == "null", anyOf[1].count == 1 {
@@ -367,8 +451,7 @@ struct PayloadBuilderTests {
         let item = try Self.itemSchema(provider)
         let p = try #require(item["properties"] as? [String: Any])
         let time = try #require((p["time"] as? [String: Any])?["properties"] as? [String: Any])
-        let g = provider == .gemini
-        let str = g ? "STRING" : "string", int = g ? "INTEGER" : "integer", bool = g ? "BOOLEAN" : "boolean"
+        let str = "string", int = "integer", bool = "boolean"
 
         // Rule (a) fields: a finished non-null value is always possible (PO WI-M2-12 ruling 2).
         for (name, type, values) in [("title", str, nil), ("room", str, nil), ("sourcePhrase", str, nil),
@@ -396,9 +479,6 @@ struct PayloadBuilderTests {
         for name in ["sameAsItem", "sameAsExisting"] {
             let c = Self.choices(p[name], provider: provider)
             #expect(c.type == int && c.values == nil && c.nullable, "\(name): \(c)")
-        }
-        if g {
-            #expect((p["kind"] as? [String: Any])?["format"] as? String == "enum")
         }
     }
 

@@ -318,3 +318,97 @@ enum PayloadOracle {
         return false
     }
 }
+
+/// A value expected at a concrete body path.
+enum PayloadExpectedValue: Sendable, Equatable {
+    case bool(Bool)
+    case int(Int)
+    case string(String)
+
+    func matches(_ value: Any?) -> Bool {
+        switch self {
+        case let .bool(expected): (value as? Bool) == expected && !(value is String)
+        case let .int(expected): (value as? Int) == expected && !(value is String)
+        case let .string(expected): (value as? String) == expected
+        }
+    }
+}
+
+/// How the expected schema writes a member that may be null.
+enum PayloadNullStyle: Sendable {
+    case anyOf
+    case typeArray
+}
+
+/// One curated model's expected request, written by hand from PO WI-M2-10 ruling 7 ("FINAL model list" and "Exact fixed
+/// request members per provider"), never read from production (review R28-F7). A model swap changes a row here, the
+/// provider table and the regenerated goldens, and nothing else.
+struct PayloadExpectedModel: Sendable, CustomTestStringConvertible {
+    var model: CloudModel
+    var id: String
+    var provider: CloudProvider
+    var isDefault: Bool
+    var host: String
+    var path: String
+    var query: [CloudQueryItem]
+    var headerNames: [String]
+    var fixedHeaders: [String: String]
+    var schemaPath: String
+    var nullStyle: PayloadNullStyle
+    /// Members that must hold exactly this value.
+    var present: [(String, PayloadExpectedValue)]
+    /// Members that must not exist.
+    var absent: [String]
+
+    var testDescription: String { id }
+
+    static let all: [PayloadExpectedModel] = [
+        PayloadExpectedModel(
+            model: .openAIDefault, id: "gpt-6-luna", provider: .openAI, isDefault: true,
+            host: "api.openai.com", path: "/v1/chat/completions", query: [],
+            headerNames: ["Authorization", "Content-Type"], fixedHeaders: ["Content-Type": "application/json"],
+            schemaPath: "$.response_format.json_schema.schema", nullStyle: .anyOf,
+            present: [
+                ("$.model", .string("gpt-6-luna")), ("$.stream", .bool(true)),
+                ("$.stream_options.include_usage", .bool(true)), ("$.reasoning_effort", .string("none")),
+                ("$.store", .bool(false)), ("$.max_completion_tokens", .int(4096)),
+                ("$.response_format.type", .string("json_schema")),
+                ("$.response_format.json_schema.strict", .bool(true)),
+                ("$.response_format.json_schema.name", .string("tend_capture")),
+            ],
+            absent: ["$.temperature", "$.top_p", "$.user", "$.metadata", "$.safety_identifier", "$.tools",
+                     "$.prompt_cache_key", "$.max_tokens"]),
+        PayloadExpectedModel(
+            model: .anthropicDefault, id: "claude-haiku-4-5-20251001", provider: .anthropic, isDefault: true,
+            host: "api.anthropic.com", path: "/v1/messages", query: [],
+            headerNames: ["x-api-key", "anthropic-version", "Content-Type"],
+            fixedHeaders: ["anthropic-version": "2023-06-01", "Content-Type": "application/json"],
+            schemaPath: "$.tools[0].input_schema", nullStyle: .anyOf,
+            present: [
+                ("$.model", .string("claude-haiku-4-5-20251001")), ("$.stream", .bool(true)),
+                ("$.temperature", .int(0)), ("$.max_tokens", .int(4096)),
+                ("$.tool_choice.type", .string("tool")), ("$.tool_choice.name", .string("record_items")),
+                ("$.tools[0].name", .string("record_items")),
+            ],
+            absent: ["$.thinking", "$.metadata", "$.top_p", "$.tools[1]"]),
+        PayloadExpectedModel(
+            model: .geminiDefault, id: "gemini-3.5-flash-lite", provider: .gemini, isDefault: true,
+            host: "generativelanguage.googleapis.com",
+            path: "/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent",
+            query: [CloudQueryItem(name: "alt", value: "sse")],
+            headerNames: ["x-goog-api-key", "Content-Type"], fixedHeaders: ["Content-Type": "application/json"],
+            schemaPath: "$.generationConfig.responseJsonSchema", nullStyle: .typeArray,
+            present: [
+                ("$.generationConfig.thinkingConfig.thinkingLevel", .string("minimal")),
+                ("$.generationConfig.maxOutputTokens", .int(4096)),
+                ("$.generationConfig.responseMimeType", .string("application/json")),
+            ],
+            absent: ["$.generationConfig.temperature", "$.generationConfig.thinkingConfig.thinkingBudget",
+                     "$.generationConfig.responseSchema", "$.model", "$.tools", "$.cachedContent",
+                     "$.safetySettings"]),
+    ]
+
+    static func row(_ provider: CloudProvider) -> PayloadExpectedModel? {
+        all.first { $0.provider == provider && $0.isDefault }
+    }
+}

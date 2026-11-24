@@ -115,7 +115,7 @@ struct TendToolsTests {
     @Test("tend-payload-dump (WI-M2-10): each provider's body equals the committed G1 golden body byte for byte; no key and no extra output on stdout; the path goes to stderr", arguments: [
         ("openai", "api.openai.com/v1/chat/completions"),
         ("anthropic", "api.anthropic.com/v1/messages"),
-        ("gemini", "generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse"),
+        ("gemini", "generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse"),
     ])
     func payloadDump(provider: String, target: String) throws {
         let box = Captured()

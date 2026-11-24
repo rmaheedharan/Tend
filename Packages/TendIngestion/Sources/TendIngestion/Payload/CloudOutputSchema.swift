@@ -11,12 +11,15 @@
 // rule-(a) fields and may be `null`. Every member is listed as required in all three dialects, so strict mode
 // (OpenAI) holds and the three providers are asked the same thing.
 //
-// Two dialects:
-// - JSON Schema (OpenAI strict structured output; Anthropic tool input schema): lower-case types,
-//   `additionalProperties: false` on every object, and `anyOf: [<type>, {"type": "null"}]` for a member that may be null.
-// - Gemini `responseSchema` (OpenAPI subset): upper-case types, `format: "enum"` with `enum`, `nullable: true`, and
-//   `propertyOrdering`. The ordering is the canonical (sorted) member order, the order the other two providers see in
-//   the canonical body, so every provider writes `title` last and the claims before the last rule-(a) field.
+// Two dialects, both JSON Schema with lower-case types and `additionalProperties: false` on every object. The model's
+// request profile picks one (review R28-F7; `CloudProviderTable.profile(for:)`):
+// - `jsonSchemaNullAnyOf` (OpenAI strict structured output; Anthropic tool input schema): a member that may be null is
+//   `anyOf: [<schema>, {"type": "null"}]`.
+// - `jsonSchemaNullTypeArray` (Gemini `responseJsonSchema`, PO WI-M2-10 ruling 7): a member that may be null has a
+//   `type` array with `"null"`, and a nullable enum lists `null` among its values so the schema allows what the type
+//   allows. No `nullable`, no `format: "enum"`, no `propertyOrdering`: Gemini writes members in the order of the keys
+//   in the schema, which is the canonical (sorted) order of the body, the same order the other providers see (D5).
+//   Live check L2a confirms that Gemini accepts this dialect, `additionalProperties` and `null` in `enum`.
 // No number appears in the schema, and the instructions hold none in 600…729 (N-3).
 // Pure values: no I/O, no clock, no logging.
 
@@ -55,14 +58,12 @@ public enum CloudInstructions {
     static let openAISchemaName = "tend_capture"
 }
 
-/// The schema dialect of a provider.
-enum CloudSchemaDialect: Sendable {
-    case jsonSchema
-    case gemini
-
-    init(_ provider: CloudProvider) {
-        self = provider == .gemini ? .gemini : .jsonSchema
-    }
+/// How the output schema writes a member that may be null (chosen by the model's request profile).
+public enum CloudSchemaDialect: Hashable, Sendable {
+    /// `anyOf: [<schema>, {"type": "null"}]`.
+    case jsonSchemaNullAnyOf
+    /// `type: [<type>, "null"]`, and `null` in a nullable `enum`.
+    case jsonSchemaNullTypeArray
 }
 
 enum CloudOutputSchema {
@@ -104,62 +105,51 @@ enum CloudOutputSchema {
 
     // MARK: - Dialect building blocks
 
-    private static func typeName(_ name: String, _ d: CloudSchemaDialect) -> CanonicalJSON {
-        .string(d == .gemini ? name.uppercased() : name)
-    }
-
     /// An object whose members are all required, in `members` order (the canonical body sorts them).
     private static func object(_ members: [(String, CanonicalJSON)], _ d: CloudSchemaDialect) -> CanonicalJSON {
-        let names = members.map(\.0)
-        var schema: [CanonicalJSON.Member] = [
-            .init("type", typeName("object", d)),
+        .object([
+            .init("type", .string("object")),
             .init("properties", .object(members.map { .init($0.0, $0.1) })),
-            .init("required", .array(names.map { .string($0) })),
-        ]
-        switch d {
-        case .jsonSchema:
-            schema.append(.init("additionalProperties", .bool(false)))
-        case .gemini:
-            let ordered = names.sorted { TextFolding.utf8Precedes($0, $1) }
-            schema.append(.init("propertyOrdering", .array(ordered.map { .string($0) })))
-        }
-        return .object(schema)
+            .init("required", .array(members.map { .string($0.0) })),
+            .init("additionalProperties", .bool(false)),
+        ])
     }
 
     private static func array(_ items: CanonicalJSON, _ d: CloudSchemaDialect) -> CanonicalJSON {
-        .object([.init("type", typeName("array", d)), .init("items", items)])
+        .object([.init("type", .string("array")), .init("items", items)])
     }
 
     private static func string(_ d: CloudSchemaDialect) -> CanonicalJSON {
-        .object([.init("type", typeName("string", d))])
+        .object([.init("type", .string("string"))])
     }
 
     private static func boolean(_ d: CloudSchemaDialect) -> CanonicalJSON {
-        .object([.init("type", typeName("boolean", d))])
+        .object([.init("type", .string("boolean"))])
     }
 
     private static func integer(nullable: Bool, _ d: CloudSchemaDialect) -> CanonicalJSON {
-        nullableWrap(.object([.init("type", typeName("integer", d))]), nullable: nullable, d)
+        guard nullable else { return .object([.init("type", .string("integer"))]) }
+        switch d {
+        case .jsonSchemaNullAnyOf:
+            return anyOfNull(.object([.init("type", .string("integer"))]))
+        case .jsonSchemaNullTypeArray:
+            return .object([.init("type", .array([.string("integer"), .string("null")]))])
+        }
     }
 
     private static func choice(_ values: [String], nullable: Bool, _ d: CloudSchemaDialect) -> CanonicalJSON {
-        var members: [CanonicalJSON.Member] = [
-            .init("type", typeName("string", d)),
-            .init("enum", .array(values.map { .string($0) })),
-        ]
-        if d == .gemini { members.append(.init("format", .string("enum"))) }
-        return nullableWrap(.object(members), nullable: nullable, d)
+        let strings = values.map { CanonicalJSON.string($0) }
+        guard nullable else { return .object([.init("type", .string("string")), .init("enum", .array(strings))]) }
+        switch d {
+        case .jsonSchemaNullAnyOf:
+            return anyOfNull(.object([.init("type", .string("string")), .init("enum", .array(strings))]))
+        case .jsonSchemaNullTypeArray:
+            return .object([.init("type", .array([.string("string"), .string("null")])),
+                            .init("enum", .array(strings + [.null]))])
+        }
     }
 
-    private static func nullableWrap(_ schema: CanonicalJSON, nullable: Bool, _ d: CloudSchemaDialect)
-        -> CanonicalJSON {
-        guard nullable else { return schema }
-        switch d {
-        case .jsonSchema:
-            return .object([.init("anyOf", .array([schema, .object([.init("type", .string("null"))])]))])
-        case .gemini:
-            guard case let .object(members) = schema else { return schema }
-            return .object(members + [.init("nullable", .bool(true))])
-        }
+    private static func anyOfNull(_ schema: CanonicalJSON) -> CanonicalJSON {
+        .object([.init("anyOf", .array([schema, .object([.init("type", .string("null"))])]))])
     }
 }

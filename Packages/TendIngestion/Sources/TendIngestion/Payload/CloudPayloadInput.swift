@@ -20,6 +20,9 @@ public struct CloudPayloadInput: Hashable, Sendable {
     /// most 10. Empty under Q12 = no.
     public let shortlistTitles: [String]
 
+    /// The most titles a request may carry (Q12; the duplicate shortlist's limit). The builder refuses more (R28-F3).
+    public static let maximumShortlistTitles = DuplicateShortlist.limit
+
     public init(capture: String, roomNames: [String], shortlistTitles: [String]) {
         self.capture = capture
         self.roomNames = roomNames
