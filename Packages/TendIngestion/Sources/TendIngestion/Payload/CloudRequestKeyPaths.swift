@@ -12,6 +12,9 @@
 // - `keyPaths`: every key path of the body with a role. `userContent` is the one path that carries the capture, the
 //   room names and the titles; `at` gives its concrete path (value comparison uses concrete indices, N-3). Every other
 //   path is `fixed`: its value equals the golden request's value at the same concrete path.
+//   No path is both a leaf and a container (GR-5): OpenAI's system content is a text-part array like the user's, so
+//   its erased path `$.messages[].content[].text` is shared by the fixed instructions (`$.messages[0]…`) and the user
+//   content (`at`, `$.messages[1]…`); the concrete comparison keeps the instructions fixed.
 // - `userContentKeyPaths`: the layout inside the user content, with the slot roles `capture`, `roomName`,
 //   `shortlistIndex` and `shortlistTitle`, and `emptyList` for `rooms` or `existingTasks` when it has no element.
 // - `headers`: the builder's headers in order (`auth` or `fixed`), then the headers the transport sets, which are

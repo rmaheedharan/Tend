@@ -198,6 +198,40 @@ struct PayloadGoldenTests {
         #expect(Set(request.headerNames).isDisjoint(with: transportSet), "transport-set headers are not the builder's")
     }
 
+    @Test("GR-5 (PO WI-M2-16 ruling 10; AC-M2-26 ds2-gated): no allowed key path is both a leaf and a container, so the [] form alone tells a string from a part array at every path", arguments: providers)
+    func allowedPathsHaveOneShape(provider: CloudProvider) throws {
+        let paths = try #require(EvalProfileKeyPathsProbe.read(try Self.allowedList(provider)))
+        for path in paths {
+            let containers = paths.filter { $0.hasPrefix(path + ".") || $0.hasPrefix(path + "[]") }
+            #expect(containers.isEmpty, "\(path) is a leaf and the parent of \(containers.sorted().prefix(2))")
+        }
+    }
+
+    @Test("GR-5 (PO WI-M2-16 ruling 10; AC-M2-26 ds2-gated): a system or user message whose content parts become a plain string sends a key path outside the allowed list, so the device subset check sees it", arguments: providers)
+    func contentShapeChangeLeavesAllowedList(provider: CloudProvider) throws {
+        let allowed = try #require(EvalProfileKeyPathsProbe.read(try Self.allowedList(provider)))
+        let request = try Self.goldenRequest(PayloadGolden.g2, provider)
+        #expect(Set(try #require(CloudRequestKeyPaths.leafPaths(ofBody: request.body))).isSubset(of: allowed))
+        let flatten: (EvalJSON) -> EvalJSON = { value in
+            guard case let .array(parts) = value, case let .string(text)? = parts.first?["text"] else { return value }
+            return .string(text)
+        }
+        let slots: [(String, [JSONStep])] = switch provider {
+        case .openAI: [("system", [.key("messages"), .index(0), .key("content")]),
+                       ("user", [.key("messages"), .index(1), .key("content")])]
+        case .anthropic: [("user", [.key("messages"), .index(0), .key("content")])]
+        case .gemini: [("system", [.key("systemInstruction"), .key("parts")]),
+                       ("user", [.key("contents"), .index(0), .key("parts")])]
+        }
+        for (name, steps) in slots {
+            let body = PayloadStructure.modify(try EvalJSONReader.parse(request.body), at: steps, flatten)
+            let data = try CanonicalJSONWriter.data(body.canonical)
+            #expect(data != request.body, "\(name): the mutant changed nothing")
+            let sent = Set(try #require(CloudRequestKeyPaths.leafPaths(ofBody: data)))
+            #expect(!sent.isSubset(of: allowed), "\(name) content as a plain string is not seen: \(sent.subtracting(allowed))")
+        }
+    }
+
     @Test("PO WI-M2-15 ruling 2: every path in each allowed list, and in the user-content layout, passes the results-v1 keyPaths pattern", arguments: providers)
     func allowedListPattern(provider: CloudProvider) throws {
         let schema = try EvalJSONReader.parse(try PayloadFixture.repositoryFile(PayloadFixture.resultsSchemaPath))

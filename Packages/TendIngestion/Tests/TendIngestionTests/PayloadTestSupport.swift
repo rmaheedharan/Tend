@@ -304,7 +304,7 @@ enum PayloadOracle {
 
     static func instructionsPath(_ provider: CloudProvider) -> String {
         switch provider {
-        case .openAI: "$.messages[0].content"
+        case .openAI: "$.messages[0].content[0].text"
         case .anthropic: "$.system"
         case .gemini: "$.systemInstruction.parts[0].text"
         }
