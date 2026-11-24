@@ -1,5 +1,6 @@
 // WI-M2-16 freeze state and MANIFEST.sha256 (AC-M2-14: "committed, with a SHA-256 manifest, and frozen"; plan "Fixtures
-// hash"; PO `po-m2-wi16.md` ruling 1: approval holds for the files with the hashes b32e45af…, 089a22bd…, 882c2906…).
+// hash"; PO `po-m2-wi16.md` ruling 1: approval holds for the files with the hashes b32e45af…, 089a22bd…, 882c2906…;
+// golden.json re-approved as 0e819a89… under PO EC-Q8, g16-carservice effort normal → low).
 //
 // The freeze waits for the owner's live check L2a (GR-4) and the other ruling 1 conditions, so this branch writes no
 // manifest. What is tested now:
@@ -23,11 +24,13 @@ enum EvalFreeze {
     /// of PO ruling 1 are still open at this commit.
     static let declaredFrozen = false
 
-    /// PO ruling 1 (approved at `95491ed`); recorded in `eval-composition.md` "PO approval".
+    /// PO ruling 1 (approved at `95491ed`), recorded in `eval-composition.md` "PO approval". `golden.json` is
+    /// re-approved under PO EC-Q8 (`po-m2-wi16.md`, 2026-11-24): its only change from `882c2906…` is `g16-carservice`
+    /// effort `normal` → `low` (Tester commit `0c69143`). `inputs.json` and `household.json` are unchanged.
     static let approvedSHA256: [String: String] = [
         "inputs.json": "b32e45afeb25a6d8972ce9f3b78a6dd051686d4ac6b7d87564769bf92c7ebcec",
         "household.json": "089a22bd5a0b3da9ef6b057b186f61b459963f02bbee322c30a47b2af8e17f66",
-        "golden.json": "882c2906a15704b9b8376cfdd62aa3b909239b4b6f7ca9ce4d370fa69580d4dc",
+        "golden.json": "0e819a89fcb65adb0a764d296f1d0dc8f30275cfe074495a4fe9c793a0f4b771",
     ]
 
     static var directory: URL {

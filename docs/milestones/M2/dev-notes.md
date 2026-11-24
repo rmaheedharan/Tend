@@ -5100,3 +5100,25 @@ case.
 | 2026-11-24 | Orchestrator | Developer | accepted | WI-M2-16: merge main (PR #32), Linux composition check with negative controls, manifest step without writing the manifest. |
 | 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent | Tests only; TendIngestion 556 green, 0 warnings; TendTools 8 green. Composition check passes on the committed fixtures: PO ruling 1 condition (e) met, pending review. |
 | 2026-11-24 | Developer | Acceptance Tester (via Orchestrator) | sent | Freeze procedure ("To freeze"); the Status bullet of `eval-composition.md` is now read by a test ("Not frozen" ⇔ no manifest). No fixture file changed. |
+
+### Update 2026-11-24: EC-Q8 golden pin, merge of main (PR #33)
+- **EC-Q8 (PO `po-m2-wi16.md` "## EC-Q8"):** the Tester relabelled `g16-carservice` effort `normal` → `low` (`0c69143`;
+  I checked that `golden.json` differs from `1184436` in that one value only). The PO re-approved the composition for
+  that file. `EvalFreezeTests.approvedSHA256["golden.json"]` is now
+  `0e819a89fcb65adb0a764d296f1d0dc8f30275cfe074495a4fe9c793a0f4b771`, and the comment records the EC-Q8 re-approval.
+  `inputs.json` (`b32e45af…`) and `household.json` (`089a22bd…`) pins are unchanged. Before the update the pin test
+  failed on `fc52a39`, as designed.
+- **Composition check:** unchanged and green. No pin covers effort values. F9 tests only "deep clean ⇒ high", and
+  `g16-carservice` is not a deep clean. The F6 word-match control on `g16-carservice` does not depend on effort.
+- **Merge:** `origin/main` `4e13164` (PR #33, the A-F1 subset-profile fix, PO F4) was merged with `--no-ff`. For the
+  `dev-notes.md` conflict I took main's file and appended this section. The "PO F4" ticket above is now done on main
+  (main's "A-F1 fix" section).
+- **Still not frozen:** no `MANIFEST.sha256` (waits for L2a). `EvalFreeze.declaredFrozen = false`.
+- **Verification (Linux, Docker `swift:6.2-noble`, `-warnings-as-errors`, merged tree):** TendIngestion exit 0,
+  `Test run with 564 tests in 66 suites passed` (the committed-manifest test skipped with its reason); TendTools exit 0,
+  `Test run with 11 tests in 1 suite passed`. macOS not run.
+
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Developer | accepted | EC-Q8 pin, merge main `4e13164`. |
+| 2026-11-24 | Developer | Reviewer, Acceptance Tester (via Orchestrator) | sent | One-hash test change and the merge. 564 + 11 tests green. |
