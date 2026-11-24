@@ -172,7 +172,7 @@ available", or it shows "Untrusted Developer", do Appendix A first.
   whether a speech-recognition permission prompt appeared, and its exact words (plan WI-M2-M1, T-27 device check).
 - [ ] P9. Speed test (for the record only): open Safari, go to `fast.com`, tap **Show more info**, write down Download,
   Upload and Latency (Unloaded). Enter them in TendEval's **[Network]** fields with kind `home Wi-Fi`.
-- [ ] P10. **[Operator]**: type your name or initials.
+- [ ] P10. **[Operator]**: type your **initials only** (no full name: the results files are committed to the repository).
 
 #### Part A: the gated run, all 20 inputs (AC-M2-15, 16, 17), about 60 minutes
 1. **Fresh launch for the cold start.** Swipe TendEval away (app switcher), then open it again. Do not tap anything
@@ -236,7 +236,7 @@ network. None has a repeat inside the input; that case is gated on all 20 inputs
 | Screenshots | `ds1-p7-start.png`, `ds1-b6-airplane.png`, export confirmation |
 
 #### Scoring (Acceptance Tester, Linux, repo root, after the files are committed)
-- S1. `sha256sum -c Fixtures/M2/eval/MANIFEST.sha256` → every line `OK`. `H=$(sha256sum Fixtures/M2/eval/MANIFEST.sha256 | cut -d' ' -f1)`; `H` must equal `FIXTURE-HASH` and the file's `run.fixturesSHA256`.
+- S1. `(cd Fixtures/M2/eval && sha256sum -c MANIFEST.sha256)` → every line `OK`, exit 0 (the manifest lists bare file names, so the check runs inside the folder; review F1). Then, from the repo root, `H=$(sha256sum Fixtures/M2/eval/MANIFEST.sha256 | cut -d' ' -f1)`; `H` must equal `FIXTURE-HASH` and the file's `run.fixturesSHA256`.
 - S2. Part A:
   `swift run --package-path Tools/TendTools -c release tend-eval-score --profile ds1-gated --fixtures Fixtures/M2/eval --expected-fixtures-sha256 "$H" --results docs/milestones/M2/evidence/device/<part-A-file>.json --log docs/milestones/M2/evidence/device/<part-A-file>.score.log`
 - S3. Part B: the same with `--profile ds1-offline` and the Part B file.
@@ -367,7 +367,7 @@ cloud compares on the faster phone. It never replaces AC-M2-16.
 | Screenshots | `ds2-p7-start.png`, `ds2-b3-airplane.png`, two offline outcome screens, three "key removed" screens |
 
 #### Scoring (Acceptance Tester, Linux, repo root)
-- S1. As DS-1 S1.
+- S1. As DS-1 S1: `(cd Fixtures/M2/eval && sha256sum -c MANIFEST.sha256)` → every line `OK`, exit 0; then from the repo root `H=$(sha256sum Fixtures/M2/eval/MANIFEST.sha256 | cut -d' ' -f1)`; `H` must equal `FIXTURE-HASH` and each results file's `run.fixturesSHA256`.
 - S2. Part B offline: `tend-eval-score --profile ds2-offline …` (same arguments as DS-1 S2).
 - S3. Part B online: `--profile ds2-online`.
 - S4. Part C, per provider `<p>`: `--profile ds2-gated --allowed-key-paths Fixtures/M2/payload/allowed-key-paths-<p>.json`.
@@ -439,3 +439,4 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
 | 2026-11-24 | Acceptance Tester | Orchestrator → PO, Developer, owner | sent | Re-score agrees with the scorer log on every number (S1, S4 confirmed). DS-1 and DS-2 drafted; all seven device ACs AWAITING-DEVICE. AQ-1…AQ-4 open. AC-M2-14 stays OPEN until GR-1/GR-2 verification and the freeze. |
 | 2026-11-24 | PO (via Orchestrator) | Acceptance Tester | answered | `po-m2-wi16.md` follow-up rulings: F3 fixes both subsets (AQ-4 answered); F4: Developer fixes A-F1 in the tool, S5/S7 stay (AQ-2 answered, A-F1 open). |
 | 2026-11-24 | Acceptance Tester | Orchestrator → PO, Developer, owner | sent | AQ-2, AQ-4 answered. GR-1, GR-2, GR-3, GR-5 verified and closed at PR #32 head `02f944e` (`eval-composition.md` v3). DS-2 Part A `curl` lines now send `User-Agent: Tend` and `Accept-Language: en-US` (GR-10). AC-M2-14 stays OPEN (PR #32 merge, L2a, composition check, manifest, freeze). AQ-1, AQ-3 open. |
+| 2026-11-24 | Acceptance Tester | Orchestrator → Reviewer | sent | Review WI-M2-16 round 1: F1 fixed (DS-1 S1 and DS-2 S1 run `sha256sum -c` inside `Fixtures/M2/eval`); N4 fixed (P10 initials only). F2 answered in `eval-composition.md` (EC-Q8, to the PO). |
