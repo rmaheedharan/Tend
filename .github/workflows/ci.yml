@@ -84,6 +84,12 @@ jobs:
         run: |
           if [ ! -f Tools/TendTools/Package.swift ]; then exit 0; fi
           swift build --package-path Tools/TendTools -Xswiftc -warnings-as-errors
+      - name: Test tools (HM-1b)
+        shell: bash
+        run: |
+          if [ ! -f Tools/TendTools/Package.swift ]; then exit 0; fi
+          swift test --package-path Tools/TendTools -Xswiftc -warnings-as-errors 2>&1 | tee tendtools-test.log
+          exit "${PIPESTATUS[0]}"
       - name: Upload test logs
         if: always()
         uses: actions/upload-artifact@v4
