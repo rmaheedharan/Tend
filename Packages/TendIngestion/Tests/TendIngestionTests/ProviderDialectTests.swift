@@ -288,8 +288,8 @@ struct ProviderStreamReaderTests {
         #expect(reader.receivedByteCount == 4)
         #expect(throws: ProviderStreamError.unreadable(.responseTooLarge)) { try reader.append(Array("0123456".utf8)) }
         #expect(reader.receivedByteCount == 10)
-        // After the end, append reads nothing and counts nothing.
-        var ended = ProviderStreamReader(provider: provider, responseByteLimit: body.count)
+        // After the end, append reads nothing and counts nothing, even with room left under the limit.
+        var ended = ProviderStreamReader(provider: provider, responseByteLimit: body.count + 100)
         _ = try ended.append(body)
         #expect(try ended.append(Array(repeating: 0x61, count: 50)) == nil)
         #expect(ended.receivedByteCount == body.count)
@@ -585,12 +585,13 @@ struct AnthropicDialectTests {
                 + Body.anthropicEvent("message_start", #"{"type":"message_start"}"#),
             Body.anthropicEvent("x", #"{"index":0}"#),
             // Review R29-F3: R3 (message_delta or message_stop before message_start) and R5 (a stopped index restarted).
-            Body.anthropicEvent("message_delta", #"{"type":"message_delta","delta":{"stop_reason":"tool_use"}}"#),
-            Body.anthropicEvent("message_stop", #"{"type":"message_stop"}"#),
+            // Each row is otherwise a valid stream, so the named rule alone makes it unexpected structure.
+            Body.anthropicEvent("message_delta", #"{"type":"message_delta","delta":{"stop_reason":"tool_use"}}"#)
+                + Body.anthropicStart,
+            Body.anthropicEvent("message_stop", #"{"type":"message_stop"}"#) + Body.anthropicStart,
             Body.anthropicStart + Body.anthropicEvent("content_block_stop", #"{"type":"content_block_stop","index":0}"#)
                 + Body.anthropicEvent(
-                    "content_block_start",
-                    #"{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","input":{}}}"#),
+                    "content_block_start", #"{"type":"content_block_start","index":0,"content_block":{"type":"text"}}"#),
             Body.anthropicStart + Body.anthropicEvent("content_block_delta", #"{"type":"content_block_delta","delta":{}}"#),
           ])
     func unexpectedStructure(_ prefix: String) {
