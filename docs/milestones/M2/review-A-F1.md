@@ -1,6 +1,6 @@
 # M2 Code Review — A-F1 fix: eval scorer subset profiles take exactly the fixed input IDs and modes (PR #33, `m2/scorer-subset-ids`, head `f6af859`)
 
-- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE (round 2, head `1229ad1`; round 1 APPROVE at `f6af859`)  ·  **Round:** 2
 - **Requirements:** AC-M2-11 (DS-1 offline subset), AC-M2-25 (DS-2 subset), AC-M2-14 (scorer log as evidence, the
   "no subset chosen after results" rule), FR-A1, UX-3 (reason wording). Defect A-F1 (Tester, acceptance draft on
   `m2/eval-fixtures-freeze`, AQ-2), severity Minor.
@@ -115,3 +115,77 @@ No Blocker. No Major.
 |---|---|---|---|---|
 | 2026-11-24 | Orchestrator | Reviewer | accepted | Review PR #33 (`m2/scorer-subset-ids`, `f6af859`) for A-F1 under PO rulings F3 and F4. |
 | 2026-11-24 | Reviewer | Orchestrator | sent (round 1: APPROVE) | 0 Blocker, 0 Major, 1 Minor (F1: retake and reason-note tests only in TendTools, which CI does not run), 2 Nits. Only the Tester closes A-F1; S5/S7 stay as second controls (F4). |
+
+---
+
+## Round 2 — head `1229ad1` (fixes `9bce322`, then a `--no-ff` merge of `main` `368bb9e` with PR #32)
+
+- **Verdict: APPROVE.** No Blocker, no Major. F1, N1 and N2 are closed and verified in the new diff.
+- **Requirements:** AC-M2-11, AC-M2-25, AC-M2-14, FR-A1, UX-3 (unchanged from round 1). Milestone lock: M1 `ACCEPTED`,
+  M2 `IN-BUILD`, so this work is allowed. No protected path is touched.
+
+### What I checked
+- **Fix diff `f6af859..9bce322`** (product code: `EvalProfile.swift`; tests: `EvalProfileTests.swift`; plus the
+  round-1 review file committed as `06d3c54`):
+  - `subsetAC` is now `String?`. It is nil for `ds1-gated`, `ds2-gated` and `info`. The reason builds `(AC, PO ruling F3)`
+    only when there is an AC. Refusals print the same text as before, because only subset profiles can produce one.
+  - `Synthetic.request` gains `retakes`. For those inputs it writes a first attempt (noModel, no draft) and then the
+    edited attempt as attempt 2, with a retake reason. Every other path builds the same attempts as before.
+  - New tests: `retakeIsOneInput` (in02 attempts [1, 2] in the file; `ds1-offline` scored and passes; score uses
+    attempt 2; the log line shows the subset; a retake of in04, which is outside the subset, is still refused with the
+    exact `found` list). `exactReason` (5 cases): exact full-string reasons for both notes, "not in the subset" only,
+    "not in the file" only, and the mode note in both directions. `subsetACs`: pins `subsetAC` across
+    `EvalProfile.allCases` in declaration order (ds1-gated, ds1-offline, ds2-offline, ds2-online, ds2-gated, info).
+    The `ds2Online` text-input case now asserts `found` and the exact reason (N1).
+  - Nothing was removed or loosened. Every round-1 assertion is still present, unchanged.
+- **Merge `1229ad1`:** `git diff 368bb9e 1229ad1 --stat` lists only this PR's files (`EvalProfile.swift`,
+  `EvalProfileTests.swift`, the 3 TendTools files, `dev-notes.md`, `review-A-F1.md`). `git diff 9bce322 1229ad1`
+  outside `docs/` is exactly PR #32's payload changes from `main` (Payload sources and tests, `Fixtures/M2/payload/`).
+  Main changed no file under `Eval/` or `Tools/`. Only `dev-notes.md` conflicted, and it holds both the WI-M2-16 and
+  the A-F1 round-2 sections. No code is resolved by hand.
+
+### Evidence (Linux, Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, merged tree `1229ad1`)
+| Check | Result |
+|---|---|
+| `swift test --scratch-path /tmp/rev33-ing --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | exit 0, `✔ Test run with 546 tests in 64 suites passed after 156.365 seconds.`, 0 `warning:` lines |
+| `swift test --scratch-path /tmp/rev33-tools --package-path Tools/TendTools -Xswiftc -warnings-as-errors` | exit 0, `✔ Test run with 11 tests in 1 suite passed after 0.217 seconds.`, 0 `warning:` lines |
+
+### Mutants rerun against TendIngestion alone (fresh scratch copy of `1229ad1`; `cp` restore, then `touch` every `.swift` before each run; `--filter EvalProfileTests`)
+| # | Mutant (`EvalProfile.swift`) | Round 1 (TendIngestion) | Round 2 (TendIngestion) |
+|---|---|---|---|
+| M0 | none (baseline) | 18/18 green | `✔ 21 tests passed` |
+| M4 | retakes not merged (`Set` removed in `inputs(of:)`) | survived | killed, 1 issue (`retakeIsOneInput`: `found` has in02 twice) |
+| M7 | reason drops the mode-difference note | survived | killed, 2 issues |
+| M8 | reason drops "not in the file" | survived | killed, 3 issues |
+| M9 | reason drops "not in the subset" | survived | killed, 3 issues |
+| M11 (new) | reason always omits the AC (`let ac = ""`) | n.a. | killed, 6 issues |
+
+All the round-1 TendIngestion survivors are now killed by the suite CI runs. TendTools tests still do not run in CI
+(R27-F5 / HM-1b, owner ticket, `.github/**` protected). That ticket is not a finding on this PR.
+
+### Findings (round 2)
+| # | Severity | Finding | Verification | Status |
+|---|---|---|---|---|
+| F1 | Minor | The retake rule and the reason notes were tested only in TendTools. | `retakeIsOneInput` and `exactReason` (5 cases) in `EvalProfileTests`; M4, M7, M8, M9 killed in TendIngestion alone. | Closed |
+| N1 | Nit | The `ds2Online` text-input case checked only the error case. | Now asserts `found` and the exact reason string. | Closed |
+| N2 | Nit | `subsetAC` had values for profiles with no subset. | Now `String?`, nil for those profiles; pinned by `subsetACs`; M11 killed. | Closed |
+
+No new findings.
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Scorer tool only. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | Reason text unchanged except for the AC part. The banned-word assertions still run on every refusal. The new exact strings contain no banned token. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | AC-M2-11 subset identity is proven by the tool. No inference in the scorer. |
+| P-2 No data leaves device (except user iCloud / P-3 request) | pass | No network, no new dependency. The merge brings in only PR #32, which was reviewed separately. |
+| P-3 Cloud AI opt-in, BYOK, minimised, per ADR-0005 | n.a. | This PR changes no request. The merged payload changes come from PR #32 (`review-WI-M2-16-instructions.md`). |
+| P-4 Media not persisted without consent | n.a. | Text files only. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | accepted | Round 2: fixes `9bce322`, merge `1229ad1` with `main` `368bb9e`. |
+| 2026-11-24 | Reviewer | Orchestrator | sent (round 2: APPROVE) | F1, N1, N2 closed. 546 + 11 green, 0 warnings. M4, M7–M9 (and new M11) killed in TendIngestion alone. Merge clean. Only the Tester closes A-F1. |
