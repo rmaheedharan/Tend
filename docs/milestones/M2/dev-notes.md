@@ -3868,3 +3868,94 @@ Setup:
 |---|---|---|---|---|
 | 2026-11-24 | Orchestrator | Developer | accepted (H2) | WI-M2-11 Ready (WI-M2-10 merged as PR #28, `main` at `f1b6458`). Tickets R28-F2, R28-F6 and D11. Owner confirmed Q12/Q16/Q17 defaults (coordinator), so the goldens stand. |
 | 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (H4) | AC-M2-20 (a) and (b) over 520 seeded households × 3 providers × Q12 yes/no, through `ModelRouter` (R28-F2), compared at concrete indices and byte frame (R28-F6); D11 test. TendIngestion 449, TendSourceScan 63, TendCore 141, TendTools 8 green, 0 warnings, Linux. AC-M2-09 and AC-M2-12: 46 files, 0 violations. Mutants 21 of 21 killed. No R-23 split. Pushed; no PR opened. |
+
+### Round 2 (review round 1: APPROVE with 2 Minor and 4 Nit, `review-WI-M2-11.md`)
+`origin/main` had not moved (still `f1b6458` when fetched), so there was no merge. The review file is committed with
+this round, unchanged.
+
+| Finding | Change |
+|---|---|
+| **R31-F1 Minor** | `PayloadStructure.problems` now compares **every** header value with G1's head, the auth value included. This harness always uses `PayloadFixture.fakeKey`, and G1 holds exactly prefix + that key. So (b) now pins every byte of the request. **D5 is corrected:** in round 1, "holding the key" only checked that the header was the key case, not its value. The review's RM3 is mutant M22 below. |
+| **R31-F2 Minor** | Both options (i) and (ii). (i) The (a) scan now also finds encoded forms, listed below. (ii) The file header of `PayloadSentinelSupport.swift` and this note now say what (a) still does not find and that (b) covers it. The WI-M2-M6 ticket carries the same sentence. The review's RM2 is mutant M23 below, and (a) now kills it. |
+| **R31-N1 Nit** | Calendars carry the Swift case name as a literal (`islamicCivil`, `ethiopicAmeteMihret`). The name is checked when it differs from the CLDR form, so the round-1 D4 claim is now true on Linux. |
+| **R31-N2 Nit** | A zone the platform lacks now gives `Issue.record`, never a silent `GMT`. |
+| **R31-N3 Nit** | The unused `import Synchronization` is removed. |
+| **R31-N4 Nit** | Carried into the WI-M2-M6 ticket below. |
+
+The (a) scan now finds these forms (review R31-F2):
+- **Case:** ASCII letters are compared without case in both the needle and the request. This covers an upper-case or
+  mixed-case token, ID, identifier or title.
+- **JSON-escaped:** with and without `\/`, and with every non-ASCII scalar written as `\u` escapes. This also covers
+  titles that contain a tab or newline, which the body writes as `\t` or `\n`.
+- **Percent- and form-encoded:** `%2F`, and both `%20` and `+` for a space.
+- **Dates:** each date also as ISO 8601 to the minute and as the date alone, in UTC and in the local zone.
+
+**What (a) still does not find, and relies on (b) for:** other date layouts (compact `yyyyMMdd`, locale-formatted,
+days or hours since an epoch), base64 or any hash, a value split across fields, and a reworded value. In this harness
+(b) pins every byte, so these are caught. The same mutant table shows it.
+
+Hygiene, the check that no sentinel occurs in the allowed content, now uses the same caseless comparison. Per provider
+there are now **1,115,215 string sentinels** over the 1,040 requests (round 1: 539,574). The property's label check
+also requires the new forms: date-only, minute, `\/`, percent-encoded, form-encoded and `\u`-escaped.
+
+**Run time.** Making a formatter per date form made the suite 8× slower (391 s). `ISOFormatters` now makes one per zone
+and layout per capture, and a plain alphanumeric sentinel skips the variant work. The new suite now takes about 74 s.
+
+**New test:** "R31-F2: a sentinel is found JSON-escaped (with \/ and as \u escapes), percent- and form-encoded, in
+another letter case, and a date at minute precision or as the date alone" (3 providers, 16 plants each, in the body
+and in a header value). The scanner test gains caseless cases, and a check that non-ASCII letters are still compared
+exactly (`É` ≠ `é`).
+
+#### Mutation check, round 2: round 1's results were not trustworthy, so they are replaced
+The Reviewer is right. My round-1 script restored the scratch copy with `tar`, and `tar` keeps each file's original,
+older mtime. SwiftPM's incremental build may then skip the restored file, so an earlier mutant could stay compiled into
+later runs. For example, M1's room-ID change in `DraftPipeline.swift` could have stayed in M2…M21 if the restore was
+not rebuilt. **The round-1 kill table cannot count as evidence.** The round-1 mutants are not trivially independent:
+several share `DraftPipeline.swift`, and a mutant that only some tests kill could have been reported killed because of
+a leftover.
+
+Round 2 rerun (`/tmp/claude-0/b11/run2.sh`):
+- A fresh scratch copy and a fresh build directory (`/scr/mut2`).
+- Before **each** run: delete the copy's `Packages`, extract the worktree's again, `touch` every `.swift` file (so
+  every file is newer than any earlier build), then apply the mutant.
+- Each line records how many files differ from the worktree, which is 0 for the baseline and 1 or 2 for a mutant.
+- A **no-mutant baseline (M0) runs first and last**. It must pass, which shows that no mutant stays compiled in.
+- Afterwards, `diff -rq` showed the copy identical to the worktree.
+- All 21 round-1 mutants were rerun against the round-2 tests, plus M22–M26 (new, from the review and R31-F2).
+
+**Result: 26 of 26 killed; every mutant built. M0 passed first and last.** All of M1–M21 are again killed by the same
+tests as in round 1, now with a clean rebuild each time, so the round-1 claims hold. The difference is that they are
+now evidence.
+
+| # | Mutant | Killed by |
+|---|---|---|
+| M0 | none (baseline, first and last) | — (all 9 tests pass both times) |
+| M1–M21 | the round-1 mutants (table above) | the same tests as in round 1, each killed again |
+| M22 | auth prefix `"Bearer  "` (review RM3; round 1: survived this suite) | (b) property, golden control, D11, R28-F6 (R31-F1) |
+| M23 | pipeline appends the first room's `lastTendedAt` as date-only ISO (review RM2; round 1: passed (a)) | **(a)** property (R31-F2), (b) property |
+| M24 | shortlist includes completed tasks, sent upper-cased | **(a)** property (caseless), (b), golden control |
+| M25 | pipeline appends `now` at minute precision | **(a)** property, (b), D11 |
+| M26 | pipeline adds the time-zone identifier percent-encoded (`%2F`) as a room | **(a)** property, (b), D11 |
+
+#### Verification environment (round 2)
+| Check | Linux (container, `swift:6.2-noble`) | owner-run Mac | Simulator | Device |
+|---|---|---|---|---|
+| (a) with encoded forms, (b) with the auth value, the new control test, N1–N3 | ✔ | not run | n.a. | n.a. |
+| Mutants M0, M1–M26, with `touch` after each restore | ✔ (before the merge of `main`; see the merge note) | n.a. | n.a. | n.a. |
+
+#### Tickets (round 2)
+| Item | Owner |
+|---|---|
+| **WI-M2-M6 (updated):** run `PayloadStructure.problems` and `PayloadSentinels` on the requests the real `TendAI` adapters give the mock transport. (a) finds raw, caseless, JSON-escaped, `\u`-escaped, percent- and form-encoded forms, and minute-precision and date-only ISO. It does **not** find other date layouts, base64, hashes, split or reworded values. In this suite (b) covers those by pinning every byte against the golden, so where (b) is weaker or there is no golden, that gap must be closed there. **R31-N4:** the interval digit scan includes the auth header value. With a real key (WI-M2-M6, DS-2) a key containing `650` is a false positive. Decide with the PO whether "header values" in AC-M2-20 (a) includes the auth value; if it does, use a fake key. | WI-M2-M6; PO (N4) |
+
+#### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | n.a. | No copy or source change. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Routing unchanged. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | Test code only; the mock transport records; no dependency; fake key only. |
+| P-3 Cloud AI opt-in, minimised | pass | (b) now pins every request byte (auth value included). (a) also finds encoded and case-changed leaks. 26 of 26 mutants killed, with clean rebuilds. |
+| P-4 Media not persisted | pass | Text only, in memory. |

@@ -74,7 +74,10 @@ struct PayloadSentinelTests {
         for label in ["task ID", "room ID", "task room ID", "non-shortlisted title", "title token",
                       "windowStart Unix milliseconds", "windowEnd reference-date seconds", "completedAt ISO 8601 UTC",
                       "lastTendedAt Unix seconds", "deferred until ISO 8601 local", "now Unix milliseconds",
-                      "time-zone identifier", "calendar identifier"] {
+                      "time-zone identifier", "calendar identifier", "now ISO 8601 date local",
+                      "windowEnd ISO 8601 minute UTC", "time-zone identifier JSON-escaped with \\/",
+                      "time-zone identifier percent-encoded", "non-shortlisted title JSON-escaped",
+                      "non-shortlisted title form-encoded", "non-shortlisted title JSON-escaped ASCII"] {
             #expect(labels[label, default: 0] > 0, "no \(label) sentinel was generated")
         }
         #expect(titlesSent > 0 && cut > 0)
@@ -311,6 +314,34 @@ struct PayloadSentinelTests {
         #expect(!PayloadSentinels.intervalProblems(PayloadStructure.replacing(request, headers: request.headers + [header])).isEmpty)
     }
 
+    @Test("R31-F2: a sentinel is found JSON-escaped (with \\/ and as \\u escapes), percent- and form-encoded, in another letter case, and a date at minute precision or as the date alone", arguments: providers)
+    func encodedSentinelsAreFound(provider: CloudProvider) throws {
+        let request = try PayloadGoldenTests.goldenRequest(PayloadGolden.g2, provider)
+        let id = UUID(uuidString: "6E5D0A10-0000-4000-8000-00000000BEEF") ?? DupFixture.zeroUUID
+        let date = Date(timeIntervalSince1970: 1_800_000_123.456)
+        var base = PayloadSentinels.forms(id, label: "task ID")
+            + PayloadSentinels.forms(date, label: "now", timeZone: TimeZone(identifier: "Asia/Kathmandu") ?? .gmt)
+        base += [Sentinel(text: "Pacific/Chatham", label: "time-zone identifier"),
+                 Sentinel(text: "zqbcdefg", label: "title token"),
+                 Sentinel(text: "Wipe\tCaf\u{E9} counter", label: "non-shortlisted title")]
+        let scanner = SentinelScanner(base + base.flatMap(PayloadSentinels.encodedVariants))
+        #expect(PayloadSentinels.stringProblems(request, scanner).isEmpty, "the golden request holds none")
+        let plants = [
+            #"Pacific\/Chatham"#, "Pacific%2FChatham", "pacific%2fchatham", "PACIFIC/CHATHAM",
+            "ZQBCDEFG", "ZqBcDeFg", "6e5d0A10-0000-4000-8000-00000000bEeF", id.uuidString.replacingOccurrences(of: "-", with: "").lowercased(),
+            "2027-01-15", "2027-01-15T08:02", "2027-01-15T13:47",
+            #"Wipe\tCaf\u00e9 counter"#, #"Wipe\tCaf\u00E9 counter"#, "Wipe\\tCaf\u{E9} counter",
+            "Wipe%09Caf%C3%A9%20counter", "Wipe%09Caf%c3%a9+counter",
+        ]
+        for plant in plants {
+            let inBody = PayloadStructure.replacing(request, body: request.body + Data(plant.utf8))
+            #expect(!PayloadSentinels.stringProblems(inBody, scanner).isEmpty, "body: \(plant)")
+            let inHeader = PayloadStructure.replacing(
+                request, headers: request.headers + [CloudRequestHeader(name: "X-Trace", content: .text(plant))])
+            #expect(!PayloadSentinels.stringProblems(inHeader, scanner).isEmpty, "header value: \(plant)")
+        }
+    }
+
     @Test("the sentinel scanner finds needles at the start, the end, overlapping and side by side, and nothing else")
     func scanner() {
         let needles = [Sentinel(text: "abcd", label: "a"), Sentinel(text: "abcdef", label: "b"),
@@ -322,6 +353,10 @@ struct PayloadSentinelTests {
         #expect(scanner.found(in: Array("zzzz".utf8)).isEmpty)
         #expect(scanner.found(in: Array("abc".utf8)).isEmpty)
         #expect(scanner.found(in: Array("axyb".utf8)).map(\.label) == ["short"])
+        // ASCII letters without case (review R31-F2); other bytes exactly.
+        #expect(scanner.found(in: Array("ABCDEF".utf8)).map(\.label).sorted() == ["a", "b", "c"])
+        #expect(scanner.found(in: Array("AXyB".utf8)).map(\.label) == ["short"])
+        #expect(SentinelScanner([Sentinel(text: "Caf\u{E9}s", label: "e")]).found(in: Array("CAF\u{C9}S".utf8)).isEmpty)
         #expect(PayloadSentinels.intervalDigits(in: "a599b730 1600x729") == [600, 729])
     }
 
