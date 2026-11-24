@@ -165,6 +165,39 @@ struct PayloadGoldenTests {
         #expect(names.contains("Content-Length"), "transport-set headers are listed as derived")
     }
 
+    @Test("GR-3, PO WI-M2-10 ruling 4 and WI-M2-16 ruling 10 (AC-M2-20, AC-M2-22 Headers): each allowed list names, in order, the auth header, the provider's headers, User-Agent and Accept-Language as fixed, then exactly Content-Length, Host, Accept, Accept-Encoding and Connection as transport-set; no other header", arguments: providers)
+    func allowedListHeaders(provider: CloudProvider) throws {
+        let list = try EvalJSONReader.parse(try Self.allowedList(provider))
+        guard case let .array(headers)? = list["headers"] else {
+            Issue.record("no headers array")
+            return
+        }
+        var entries: [(String, String)] = []
+        for header in headers {
+            guard case let .string(name)? = header["name"], case let .string(role)? = header["role"] else {
+                Issue.record("header without name and role: \(header)")
+                continue
+            }
+            entries.append((name, role))
+        }
+        let providerHeaders: [String] = switch provider {
+        case .openAI: ["Authorization", "Content-Type"]
+        case .anthropic: ["x-api-key", "anthropic-version", "Content-Type"]
+        case .gemini: ["x-goog-api-key", "Content-Type"]
+        }
+        let transportSet = ["Content-Length", "Host", "Accept", "Accept-Encoding", "Connection"]
+        #expect(entries.map(\.0) == providerHeaders + ["User-Agent", "Accept-Language"] + transportSet)
+        #expect(entries.map(\.1) == ["auth"] + Array(repeating: "fixed", count: providerHeaders.count + 1)
+                + Array(repeating: "derivedByTransport", count: transportSet.count))
+        #expect(CloudAllowedKeyPaths.transportSetHeaders == transportSet)
+        // The builder sends the two fixed values itself (never the device's defaults).
+        let request = try Self.goldenRequest(PayloadGolden.g1, provider)
+        let values = request.headers.filter { !$0.isAuthorization }.map { ($0.name, $0.withValue { $0 }) }
+        #expect(values.suffix(2).map(\.0) == ["User-Agent", "Accept-Language"])
+        #expect(values.suffix(2).map(\.1) == ["Tend", "en-US"])
+        #expect(Set(request.headerNames).isDisjoint(with: transportSet), "transport-set headers are not the builder's")
+    }
+
     @Test("PO WI-M2-15 ruling 2: every path in each allowed list, and in the user-content layout, passes the results-v1 keyPaths pattern", arguments: providers)
     func allowedListPattern(provider: CloudProvider) throws {
         let schema = try EvalJSONReader.parse(try PayloadFixture.repositoryFile(PayloadFixture.resultsSchemaPath))

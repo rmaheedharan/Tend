@@ -366,7 +366,8 @@ struct PayloadExpectedModel: Sendable, CustomTestStringConvertible {
         PayloadExpectedModel(
             model: .openAIDefault, id: "gpt-6-luna", provider: .openAI, isDefault: true,
             host: "api.openai.com", path: "/v1/chat/completions", query: [],
-            headerNames: ["Authorization", "Content-Type"], fixedHeaders: ["Content-Type": "application/json"],
+            headerNames: ["Authorization", "Content-Type", "User-Agent", "Accept-Language"],
+            fixedHeaders: ["Content-Type": "application/json", "User-Agent": "Tend", "Accept-Language": "en-US"],
             schemaPath: "$.response_format.json_schema.schema", nullStyle: .anyOf,
             present: [
                 ("$.model", .string("gpt-6-luna")), ("$.stream", .bool(true)),
@@ -381,8 +382,9 @@ struct PayloadExpectedModel: Sendable, CustomTestStringConvertible {
         PayloadExpectedModel(
             model: .anthropicDefault, id: "claude-haiku-4-5-20251001", provider: .anthropic, isDefault: true,
             host: "api.anthropic.com", path: "/v1/messages", query: [],
-            headerNames: ["x-api-key", "anthropic-version", "Content-Type"],
-            fixedHeaders: ["anthropic-version": "2023-06-01", "Content-Type": "application/json"],
+            headerNames: ["x-api-key", "anthropic-version", "Content-Type", "User-Agent", "Accept-Language"],
+            fixedHeaders: ["anthropic-version": "2023-06-01", "Content-Type": "application/json", "User-Agent": "Tend",
+                           "Accept-Language": "en-US"],
             schemaPath: "$.tools[0].input_schema", nullStyle: .anyOf,
             present: [
                 ("$.model", .string("claude-haiku-4-5-20251001")), ("$.stream", .bool(true)),
@@ -396,7 +398,8 @@ struct PayloadExpectedModel: Sendable, CustomTestStringConvertible {
             host: "generativelanguage.googleapis.com",
             path: "/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent",
             query: [CloudQueryItem(name: "alt", value: "sse")],
-            headerNames: ["x-goog-api-key", "Content-Type"], fixedHeaders: ["Content-Type": "application/json"],
+            headerNames: ["x-goog-api-key", "Content-Type", "User-Agent", "Accept-Language"],
+            fixedHeaders: ["Content-Type": "application/json", "User-Agent": "Tend", "Accept-Language": "en-US"],
             schemaPath: "$.generationConfig.responseJsonSchema", nullStyle: .typeArray,
             present: [
                 ("$.generationConfig.thinkingConfig.thinkingLevel", .string("minimal")),

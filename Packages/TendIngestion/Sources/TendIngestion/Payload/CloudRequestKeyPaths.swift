@@ -59,8 +59,10 @@ public enum CloudAllowedKeyPaths {
         }
     }
 
-    /// Headers a transport adds from the body or the URL. They are not part of the builder's request.
-    public static let transportSetHeaders = ["Content-Length", "Host"]
+    /// Headers a transport sets itself: `Content-Length` and `Host` from the body and the URL, and `Accept`,
+    /// `Accept-Encoding` and `Connection`, fixed by the OS and not by the user (PO WI-M2-10 ruling 4; WI-M2-16 ruling
+    /// 10, GR-3). They are not part of the builder's request and are left out of the Linux header comparison.
+    public static let transportSetHeaders = ["Content-Length", "Host", "Accept", "Accept-Encoding", "Connection"]
 
     /// The allowed key-path list for `request`'s provider, as canonical JSON bytes; nil if the body is not readable.
     public static func list(for request: CloudRequest) throws(CanonicalJSONError) -> Data? {

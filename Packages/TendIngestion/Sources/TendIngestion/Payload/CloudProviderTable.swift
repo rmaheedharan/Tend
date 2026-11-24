@@ -155,6 +155,12 @@ public enum CloudProviderTable {
     /// The `Content-Type` of every request body.
     static let jsonContentType = CloudFixedHeader(name: "Content-Type", value: "application/json")
 
+    /// The two client headers every request sets explicitly, after the provider's headers, so the device's defaults
+    /// (the person's preferred languages; the app build, CFNetwork and Darwin versions) are never sent (PO WI-M2-10
+    /// ruling 4; WI-M2-16 ruling 10, GR-3; brief AC-M2-22 Headers). Constants, the same for every user and request.
+    static let clientHeaders = [CloudFixedHeader(name: "User-Agent", value: "Tend"),
+                                CloudFixedHeader(name: "Accept-Language", value: "en-US")]
+
     /// The Anthropic API version header value.
     static let anthropicVersion = "2023-06-01"
 
@@ -188,17 +194,18 @@ public enum CloudProviderTable {
         switch provider {
         case .openAI:
             CloudProviderEndpoint(provider: .openAI, host: "api.openai.com", authHeaderName: "Authorization",
-                                  authValuePrefix: "Bearer ", fixedHeaders: [jsonContentType], queryItems: [])
+                                  authValuePrefix: "Bearer ", fixedHeaders: [jsonContentType] + clientHeaders,
+                                  queryItems: [])
         case .anthropic:
             CloudProviderEndpoint(provider: .anthropic, host: "api.anthropic.com", authHeaderName: "x-api-key",
                                   authValuePrefix: "",
                                   fixedHeaders: [CloudFixedHeader(name: "anthropic-version", value: anthropicVersion),
-                                                 jsonContentType],
+                                                 jsonContentType] + clientHeaders,
                                   queryItems: [])
         case .gemini:
             CloudProviderEndpoint(provider: .gemini, host: "generativelanguage.googleapis.com",
                                   authHeaderName: "x-goog-api-key", authValuePrefix: "",
-                                  fixedHeaders: [jsonContentType],
+                                  fixedHeaders: [jsonContentType] + clientHeaders,
                                   queryItems: [CloudQueryItem(name: "alt", value: "sse")])
         }
     }
