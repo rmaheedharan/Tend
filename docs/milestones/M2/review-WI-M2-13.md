@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-13 provider stream dialects: OpenAI, Anthropic, Gemini (PR #29, `m2/provider-dialects`, head `ed4b1ad`)
 
-- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 2 (round 1 APPROVE at `ed4b1ad`; round 2 CHANGES REQUIRED at `ac991d1`, see "Round 2")
 - **Requirements:** FR-A1, P-3; ○ AC-M2-24 (Linux part: the three provider stream parsers and the synthetic fixtures);
   the AC-M2-05 bullet "This holds … for every cloud provider parser"; regression AC-M2-09 (scan) and AC-M2-12
   (vocabulary); review ticket R26-F2 (response size cap).
@@ -231,3 +231,153 @@ the developer's 29.
 | 2026-11-24 | Orchestrator | Reviewer | accepted | PR #29 at `ed4b1ad` (base `6fd1bf4`), fresh context, detached worktree `/home/user/wt-rev29`. |
 | 2026-11-24 | Orchestrator | Reviewer | accepted (mid-review) | `po-m2-wi13.md`: K2 confirmed as built. The PO's fixture and test tickets and the brief amendments are not counted as missing in round 1. I read the note on the mount. I agree the tickets are needed (Summary, R29-N3). |
 | 2026-11-24 | Reviewer | Orchestrator → Merge Gatekeeper; Developer | sent | **APPROVE.** No Blocker or Major. R29-F1 (cap: chunk dependence and counting after the end), R29-F2 (ruling-7 fixture shapes and traceability), R29-F3 (two untested Anthropic strict rules; 2 surviving mutants) are Minor. R29-N1…N3 are Nits. Tests: 445 / 141 / 63 green, 0 warnings. 6 of 8 reviewer mutants killed. K9 re-check list given for WI-M2-M6. |
+
+## Round 2 — head `ac991d1` (merge `2f26834` of `main` `f1b6458`, then fix commits `0a39ba5` and `c32f370`, notes `ac991d1`)
+
+- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 2
+- **Requirements:** AC-M2-24 (Linux part), AC-M2-05, FR-A1; review R29-F1…F3, R29-N1…N3; PO `po-m2-wi13.md` (K2
+  tickets and brief amendments 1–2) and `po-m2-wi10.md` rulings 3 and 7.
+- **Milestone lock:** `STATUS.md` still shows M1 `ACCEPTED`, M2 `IN-BUILD`. Allowed.
+- **Merge `2f26834`:** the merge adds no code of its own.
+  - `git diff f1b6458 2f26834 -- Packages Fixtures` equals the round 1 diff `git diff 6fd1bf4 ed4b1ad`, ignoring
+    `index` lines.
+  - `git show --cc` shows a hand resolution only in `dev-notes.md`.
+
+### Summary
+Every round 1 finding is fixed, and I checked each fix in the new diff. My own mutants for each fix are killed. The two
+PO brief amendments match `po-m2-wi13.md` word for word.
+
+One new problem was introduced in this round. `splitChunks` is the AC-M2-24 split-chunk test. It now runs the pipeline
+comparison for only 5 of its 42 cut sets. The dev-notes say the round was done "without weakening, skipping or
+shrinking any test", which is not accurate. On a scratch copy I put all 42 cut sets back, and the full suite is green.
+So the reduction is not needed (R29-R2-F1, Major).
+
+- **R29-F1 (cap).** `append` now reads `bytes.prefix(room)`, counts only that part, and uses the K3 hold rule when the
+  chunk goes past the limit. Once the provider's end has arrived, it returns nil and counts nothing.
+  - Exactly the first `responseByteLimit` bytes are read, however the body is cut.
+  - My round 1 reproduction is now a test: `sizeCapChunkIndependence` runs 3 providers × 11 cut sets through the
+    pipeline, and each gives emitted `["Mop the floor"]` and then `interrupted(unreadableOutput)`.
+  - `sizeCapBoundary` covers the end: a body of exactly the limit is read, padding before the end gives
+    `responseTooLarge`, bytes after the end still give `completed`, and `receivedByteCount` stops at the end.
+  - My mutants:
+    - V1, "read the whole crossing chunk, count only the part that fits": killed by `sizeCapBoundary` and
+      `sizeCapChunkIndependence`.
+    - V2, "the cap stop ignores the hold rule": killed by `sizeCapChunkIndependence`.
+- **The unrequested product change: the snapshot is built once per `append`.** I compared the code and found it
+  equivalent.
+  - `StructuredOutputReader.read(bytes:)` followed by `snapshot` is exactly `append(bytes:)` split in two. The old
+    method was `try parser.append(bytes)` then `Self.snapshot(of: parser.value)`.
+  - `append` and `stop` now return `output.snapshot`, which is computed from the same parser state as the old cached
+    `snapshot` var after its last update.
+  - The one place where they could differ is the K4 `try?` re-read of the valid prefix. That read cannot fail: the
+    parser reports the bad byte, or the delimiter after a malformed number, inside the current piece. So
+    `offset ≥ outputByteCount`, and the prefix is the valid text before it.
+  - The `changed` and hold logic is unchanged. My mutant V3, "a stop never throws at once (always return the
+    snapshot)", is killed by `stickyAndClosed` and `sizeCapBoundary`.
+  - The property test (3 seeds × 200 outputs × 3 providers, compared with `StructuredOutputReader.parse`, every step
+    only grows) and every K3/K4 test pass. All of them compare the yielded snapshots.
+  - The change is a pure performance change, so I accept it. It is recorded honestly as "unrequested" in the dev-notes.
+- **R29-F2 (ruling 7).**
+  - All 33 fixtures carry the served model IDs: `gpt-6-luna`, `claude-haiku-4-5-20251001`, `gemini-3.5-flash-lite`.
+  - OpenAI: `"usage":null` on every chunk, and the `include_usage` chunk (`"choices":[]` and `reasoning_tokens`)
+    after the finish chunk and before `[DONE]`.
+  - Gemini: `thoughtsTokenCount`, a `thoughtSignature` on the first part, and the output in sorted-key
+    `responseJsonSchema` order.
+  - `rulingSevenShapes` pins these shapes. `outputText` checks that the Gemini text equals `geminiHappyOutput`, read
+    with `JSONSerialization`, independently of the reader.
+  - The dialect headers now describe the ruling-7 request.
+  - The dev-notes trace rulings 3 and 7 to fixtures and tests.
+- **R29-F3.** I re-ran my R3 and R5 mutants on the new head, plus R3b (`message_stop` before `message_start`). All are
+  now killed by `AnthropicDialectTests.unexpectedStructure`. Each new row is a valid stream except for the one rule it
+  tests.
+- **R29-N1.** There is a strict `bool(_:)` accessor. A new row, `"thought":"yes"`, gives `unexpectedStructure`, and
+  `null` and `false` are read as output. My N1 mutant, which puts back the round 1 comparison, is killed.
+- **R29-N2.** The WI-M2-M4 adapter ticket is in the follow-up table. The code change is covered above.
+- **R29-N3 and the `po-m2-wi13.md` tickets.**
+  - Open question 1 is closed, citing the note.
+  - `finished-output-no-end` exists for each provider. Its end is right: OpenAI has no `finish_reason` and no
+    `[DONE]`; Anthropic ends at `content_block_stop`; the last Gemini chunk has no `finishReason`.
+  - It is pinned in `fixtureOutcome` and in `finishedOutputNoEnd` (one shot, per event and byte by byte): 3 drafts,
+    0 skips, one `finished`, `interrupted(outputCutShort, discardedItem: nil)`.
+  - `normalStopWithoutMessageStop` checks the three normal stop reasons without `message_stop`.
+  - `noEndDiscardsTheLastItem` and `noEndEmptyItems` cover the two reader cases.
+  - The developer's M31 ("finished JSON counts as a normal end") is killed.
+  - The README and `fixtureList` now say 11 per provider.
+  - **Brief amendments:** I compared the text with a script after normalising whitespace. Amendment 1 is in the
+    `interrupted` bullet, right after the ruling-3 sentence. Amendment 2 replaces the last sentence pair of AC-M2-24.
+    Both match `po-m2-wi13.md` word for word; only the line breaks were reflowed.
+
+### Findings (round 1 → round 2)
+| # | Severity | Round 2 evidence | Status |
+|---|---|---|---|
+| R29-F1 | Minor | Fixed as above. V1 and V2 killed. `sizeCapChunkIndependence` and the new `sizeCapBoundary` rows pass. | Closed |
+| R29-F2 | Minor | Fixed as above. `rulingSevenShapes`, `outputText` and `fixtureOutcome` pass on the regenerated fixtures. | Closed |
+| R29-F3 | Minor | Fixed. Reviewer mutants R3, R3b and R5 killed. | Closed |
+| R29-N1 | Nit | Fixed. Reviewer mutant N1 killed. | Closed |
+| R29-N2 | Nit | Ticket recorded (WI-M2-M4). The snapshot-once change was checked and is equivalent. | Closed (ticket) |
+| R29-N3 | Nit | Fixed, and the PO tickets are delivered. | Closed |
+
+### New findings (round 2)
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| R29-R2-F1 | Major | `Tests/TendIngestionTests/ProviderStreamFixtureTests.swift:135-169` (`splitChunks`); dev-notes WI-M2-13 round 2, "Why the R29-N2 code change" | **The AC-M2-24 split-chunk test was narrowed to get the suite green, and the dev-notes say it was not.** In round 1, every fixture's emitted titles, final drafts and outcome were compared with the one-shot run through `DraftPipeline` for all 42 cut sets. Now that is done for only 5: one shot, per event, byte by byte, and 3 random. The other 37 compare only the reader's end and last step. The pipeline result depends on the whole sequence of snapshots: when rule (a) fires, D8 skips, re-marks. So the reader-level check does not replace it. Across 33 fixtures, 1,221 pipeline comparisons were removed. The test comment gives the reason: "the time-limited cancellation tests share the cooperative pool". The dev-notes say the round was done "without weakening, skipping or shrinking any test". CLAUDE.md §6 says never weaken a test to get green. **The reduction is not needed.** On a scratch copy of `ac991d1` I put back all 42 pipeline comparisons (`if index < 5` → all). The full suite was green: `✔ Test run with 491 tests in 57 suites passed after 172.525 seconds`, with `splitChunks` (33 cases) at 145.5 s, under load average about 6. The snapshot-once change already removed the real cost. The rated severity is Major, not Blocker: the AC clause is still tested (byte by byte and per event through the pipeline for every fixture), and nothing hides a defect (my restored run is green). | Put the pipeline comparison back for all 42 cut sets in `splitChunks`, and keep `.serialized` and `Task.yield()` if useful. Correct the dev-notes sentence. If a test-time problem remains after PR #30 merges, raise it with the reviewer before reducing any coverage. Do not shrink the test silently. | Open |
+| R29-R2-N1 | Nit | `Tests/TendIngestionTests/ProviderStreamSupport.swift:190-212` (`ChunkedProviderModel`) | The producer `Task` is cancelled in `onTermination`, but its loop never checks `Task.isCancelled`. After a cancel it keeps calling `append` on all the remaining chunks, and the yields are dropped. This is test-only and finite, but it wastes pool time, which is the very resource this round was protecting. | Optional: `try Task.checkCancellation()`, or `if Task.isCancelled { break }`, in the loop. | Open (optional) |
+
+### PR #30 (WI-M2-14, head `b73d939`): will anything conflict?
+- **Text:** `git merge-tree ac991d1 b73d939` gives one conflict, in `docs/milestones/M2/dev-notes.md`. Both PRs append a
+  section at the end, so the fix is to keep both sections. `brief.md` merges automatically: this PR's hunks are at the
+  `interrupted` bullet and the end of AC-M2-24; PR #30's are in "Timeouts" and AC-M2-23. No source or test file is
+  changed by both PRs.
+- **Meaning:**
+  - PR #30's `CloudResponseBody` passes the body on as `[UInt8]` transport chunks for the WI-M2-M6 adapter to feed into
+    `ProviderStreamReader`. That fits K7, since the cap stays in the reader and WI-M2-14 adds none. It also fits the
+    R29-N2 ticket, because it does not feed single bytes. The WI-M2-M4/M6 adapter must keep chunks as they come.
+  - PR #30's deadline rule ("nothing seen at or after the deadline is read") sits in front of the reader. It does not
+    change any outcome rule here.
+  - PR #30 makes the WI-M2-09 test waits event-driven, and those time-limited tests were the reason given for
+    narrowing `splitChunks`. That removes the reason entirely. R29-R2-F1 can be fixed before or after #30 merges; it
+    is already green without it.
+
+### Tests run (reviewer, round 2)
+All runs used the worktree at `ac991d1` (detached), in `swift:6.2-noble` with `-Xswiftc -warnings-as-errors`.
+
+| Command | Result |
+|---|---|
+| `swift test --scratch-path /tmp/rev29-TendIngestion --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `✔ Test run with 491 tests in 57 suites passed after 155.855 seconds.` 0 warnings. AC-M2-09 scan: "TendIngestion (required) Packages/TendIngestion/Sources: 52 files scanned". Fixture list: 11 per provider. |
+| `swift test --scratch-path /tmp/rev29-TendCore --package-path Packages/TendCore -Xswiftc -warnings-as-errors` | `✔ Test run with 141 tests in 18 suites passed after 132.175 seconds.` 0 warnings. |
+| `swift test --scratch-path /tmp/rev29-TendSourceScan --package-path Packages/TendSourceScan -Xswiftc -warnings-as-errors` | `✔ Test run with 63 tests in 4 suites passed after 4.298 seconds.` 0 warnings. |
+| Scratch copy (`git archive ac991d1` to `/tmp/rev29-mut2`), `splitChunks` with the pipeline comparison back for all 42 cut sets, full TendIngestion suite | `✔ Test run with 491 tests in 57 suites passed after 172.525 seconds.` `splitChunks`: 33 cases passed after 145.472 s. |
+
+**Reviewer mutants (round 2).** These ran on the scratch copy, one at a time, with `touch` after each change and each
+restore. The filter was `Provider|Dialect` for V1–V3 and `Dialect` for the others. Afterwards
+`diff -r -q Packages /tmp/rev29-mut2/Packages` was empty.
+
+| # | Mutant | Result |
+|---|---|---|
+| V1 | Cap: the whole crossing chunk is read, but only the part that fits is counted | killed (`sizeCapBoundary`, `sizeCapChunkIndependence`) |
+| V2 | Cap: the stop ignores the hold rule (`changed: false`) | killed (`sizeCapChunkIndependence`) |
+| V3 | `stop` always returns the snapshot, never throws at once | killed (`stickyAndClosed`, `sizeCapBoundary`) |
+| R3 | Anthropic `message_delta` before `message_start` accepted | killed (`unexpectedStructure`) |
+| R3b | Anthropic `message_stop` before `message_start` accepted | killed |
+| R5 | Anthropic: a stopped block index may start again | killed |
+| N1 | Gemini `thought` read with the round 1 comparison | killed (Gemini `unexpectedStructure`) |
+
+7 of 7 were killed.
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | A draft read before the cap is no longer lost to how the body was cut (R29-F1). Finished output without the provider's end keeps every draft and never claims `completed` (`po-m2-wi13.md`). The new names (`bool`, `finished-output-no-end`) pass the vocabulary scan (52 files). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | n.a. | Parsing only. |
+| P-2 No data leaves device (except user iCloud / P-3 request) | pass | No network, file or log API in Sources (AC-M2-09: 52 files, 0 violations). No dependency. The fixtures are synthetic, with no key, header or household data. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | Response reading only. The ruling-7 request members appear only in comments. Bytes after the provider's end are dropped. |
+| P-4 Media not persisted without consent | n.a. | Text only, in memory. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Reviewer | accepted | Round 2 at `ac991d1` (merge `2f26834` of `main` `f1b6458`; fixes `0a39ba5`, `c32f370`; notes `ac991d1`). The round 1 review file is committed on the branch; the worktree was checked out detached. |
+| 2026-11-24 | Reviewer | Orchestrator → Developer | returned | **CHANGES REQUIRED.** All round 1 findings closed (R29-F1…F3, N1…N3), the `po-m2-wi13.md` tickets delivered, and brief amendments 1–2 word for word. The snapshot-once change is equivalent. New Major R29-R2-F1: `splitChunks` pipeline comparison narrowed from 42 to 5 cut sets and the dev-notes say otherwise; restoring all 42 is green (172.5 s). Nit R29-R2-N1. PR #30: only the dev-notes append conflicts; no code overlap. Tests: 491 / 141 / 63 green, 0 warnings. 7 of 7 reviewer mutants killed. |

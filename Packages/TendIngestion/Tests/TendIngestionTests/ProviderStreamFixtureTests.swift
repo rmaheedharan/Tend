@@ -132,7 +132,7 @@ struct ProviderStreamFixtureTests {
         }
     }
 
-    @Test("AC-M2-24: every fixture gives the same result one shot, one event per chunk, byte by byte and at 40 seeded random cut sets (reader: all 42; pipeline: 5)",
+    @Test("AC-M2-24: every fixture gives the same result one shot, one event per chunk, byte by byte and at 40 seeded random cut sets (reader and pipeline: all 42)",
           .serialized, arguments: ProviderFixtureCase.all)
     func splitChunks(_ fixture: ProviderFixtureCase) async throws {
         let bytes = try F.load(fixture.provider, fixture.name)
@@ -149,16 +149,13 @@ struct ProviderStreamFixtureTests {
             let read = ProviderRead.read(bytes, provider: fixture.provider, cuts: cuts)
             #expect(read.end == oneShot.end, "cut set \(index)")
             #expect(read.steps.last == oneShot.steps.last, "cut set \(index)")
-            // Through the pipeline for 5 cut sets (per event, byte by byte, 3 random): the pipeline runs are the
-            // costly part, and the time-limited cancellation tests share the cooperative pool (round 2).
-            if index < 5 {
-                let events = await ProviderPipeline.events(bytes, provider: fixture.provider, cuts: cuts)
-                #expect(ProviderPipeline.emitted(events).map(\.title)
-                        == ProviderPipeline.emitted(oneShotEvents).map(\.title), "cut set \(index)")
-                #expect(ProviderPipeline.finalDrafts(events) == ProviderPipeline.finalDrafts(oneShotEvents),
-                        "cut set \(index)")
-                #expect(ProviderPipeline.outcome(events) == ProviderPipeline.outcome(oneShotEvents), "cut set \(index)")
-            }
+            // Every cut set through the pipeline too: the same emitted titles, final drafts and outcome (review R29-R2-F1).
+            let events = await ProviderPipeline.events(bytes, provider: fixture.provider, cuts: cuts)
+            #expect(ProviderPipeline.emitted(events).map(\.title)
+                    == ProviderPipeline.emitted(oneShotEvents).map(\.title), "cut set \(index)")
+            #expect(ProviderPipeline.finalDrafts(events) == ProviderPipeline.finalDrafts(oneShotEvents),
+                    "cut set \(index)")
+            #expect(ProviderPipeline.outcome(events) == ProviderPipeline.outcome(oneShotEvents), "cut set \(index)")
             await Task.yield()
         }
     }

@@ -198,6 +198,8 @@ struct ChunkedProviderModel: IngestionModel {
                 var reader = ProviderStreamReader(provider: provider, responseByteLimit: limit)
                 do throws(ProviderStreamError) {
                     for (index, chunk) in chunks.enumerated() {
+                        // After a cancel (the consumer stopped), stop reading (review R29-R2-N1).
+                        if Task.isCancelled { return }
                         if let snapshot = try reader.append(chunk) { continuation.yield(snapshot) }
                         if index % 256 == 255 { await Task.yield() }
                     }
