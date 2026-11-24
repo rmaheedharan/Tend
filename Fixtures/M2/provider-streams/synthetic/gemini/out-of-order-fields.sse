@@ -1,0 +1,140 @@
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"{\"summa"},{"text":"ry\""}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":":{\"count\":3"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"},\"it"},{"text":"ems\":[{\"sourc"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"eP"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"hrase\":\"T"},{"text":"he AC n"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"eed"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"s servicing"},{"text":" befo"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"re summer\",\"t"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"im"},{"text":"e\":{\"seas"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"on\":\"su"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"mme"},{"text":"r\",\"anchor\""}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":":\"bef"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"oreSeason\"},\""},{"text":"ro"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"om\":\"\",\"k"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"ind\":\"o"},{"text":"neO"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"ff\",\"isWeat"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"herDe"},{"text":"pendent\":fals"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"e,"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"\"title\":\""},{"text":"Service"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":" th"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"e AC\",\"effo"},{"text":"rt\":\""}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"normal\",\"isDe"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"ep"},{"text":"Clean\":fa"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"lse,\"is"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"Cri"},{"text":"tical\":fals"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"e}"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":",{\"effort\":\"l"},{"text":"ow"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"\",\"title\""}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":":\"Buy d"},{"text":"ish"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"washer pods"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"\",\"is"},{"text":"Critical\":fal"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"se"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":",\"time\":{"},{"text":"\"anchor"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\":\""}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"none\"},\"roo"},{"text":"m\":\"K"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"itchen\",\"isDe"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"ep"},{"text":"Clean\":fa"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"lse,\"so"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"urc"},{"text":"ePhrase\":\"a"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"lmost"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":" out of dishw"},{"text":"as"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"her pods\""}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":",\"isWea"},{"text":"the"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"rDependent\""}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":":fals"},{"text":"e,\"kind\":\"res"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"to"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"ck\"}"},{"text":",{\"isWe"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"ath"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"erDependent"},{"text":"\":tru"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"e,\"time\":{\"an"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"ch"},{"text":"or\":\"this"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Weekend"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"\"},"},{"text":"\"effort\":\"h"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"igh\","}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"\"sourcePhrase"},{"text":"\":"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"\"deep cle"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"an the "},{"text":"bal"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"cony this w"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"eeken"},{"text":"d\",\"isDeepCle"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"an"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"\":true,\"r"},{"text":"oom\":\"B"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"alc"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"ony\",\"isCri"},{"text":"tical"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"\":false,\"kind"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":"\":"},{"text":"\"oneOff\","}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"\"title\""}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"Thinking about rooms.","thought":true},{"text":":\"D"},{"text":"eep clean t"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"he ba"}],"role":"model"},"index":0}],"responseId":"synthetic-0001"}
+
+data: {"candidates":[{"content":{"parts":[{"text":"lcony\"}"}],"role":"model"},"index":0}],"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","responseId":"synthetic-0001"}
+
+data: {"usageMetadata":{"promptTokenCount":120,"candidatesTokenCount":5,"totalTokenCount":149,"thoughtsTokenCount":24},"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"parts":[{"text":"]}"}],"role":"model"},"index":0,"finishReason":"STOP"}],"responseId":"synthetic-0001"}
+

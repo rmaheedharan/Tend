@@ -115,8 +115,12 @@ the Now canvas only through the Rule of Three.
   - `finished(outcome)`: exactly once, and always last. The outcome is one of:
     - **completed:** the stream finished normally. If no draft was emitted (the output had no items, or every item was
       skipped), the input text and a plain-note offer are also returned, as for `noModel` (PO 2026-11-21, WI-M2-06 Q1).
-    - **interrupted:** the stream ended with an error or was truncated after it started (a stop because the request's
-      fixed output cap was reached counts as truncated) (PO 2026-11-23, WI-M2-10). Drafts already emitted stay
+    - **interrupted:** the stream ended with an error or was truncated after it started (a stop because the
+      request's fixed output cap was reached counts as truncated) (PO 2026-11-23, WI-M2-10). A cloud stream also
+      counts as truncated when its body ends without the provider's own normal end (OpenAI `finish_reason` `stop`
+      and `data: [DONE]`; Anthropic a normal `stop_reason` and `message_stop`; Gemini `finishReason` `STOP`), even
+      if its output JSON is already finished. For a cloud stream, only that end means the stream finished normally,
+      for `completed` and for Item completion (c) (PO 2026-11-24, WI-M2-13 K2). Drafts already emitted stay
       available for confirmation. The in-progress, not yet complete item is discarded with a typed reason. The input
       text is returned in memory. No plain note is offered: a stop before any draft is `noModel` (T-25), so an
       `interrupted` outcome always has at least one draft.
@@ -739,7 +743,9 @@ I've said yes, so that I'm not left out and nothing goes anywhere without me kno
       replaces it, for the Q12 answer in force.
     - A cloud model is never given the duplicate-lookup `Tool`.
     - A truncated stream or invalid JSON after the first draft ends `interrupted`. A refusal before any draft ends
-      `noModel`.
+      `noModel`. A body that ends without the provider's normal end is truncated even when its output JSON is finished:
+      `interrupted` after a draft, `noModel` with the plain-note offer before one; it never ends `completed` (PO
+      2026-11-24, WI-M2-13 K2).
   *Verification:* unit (fixtures)  *Environment:* Linux for the three provider stream parsers and the local re-check
   (`TendIngestion`). Owner-run Mac for the cloud adapters end to end over the fixtures through a mock transport
   (`TendAI`).  *Evidence expected:* test names + fixture list (which are synthetic and which recorded) + logs.
