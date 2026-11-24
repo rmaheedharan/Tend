@@ -3667,3 +3667,204 @@ Two run notes, stated honestly:
 |---|---|---|---|---|
 | 2026-11-24 | Reviewer (via Orchestrator) | Developer | accepted (round 1: APPROVE) | 7 Minor, 3 Nit. PO `po-m2-wi10.md` rulings 1–7 (7 final) and L1/L1b notes. Coordinator: ruling 7 models, F7 profiles, F1, F3, the other Minors as tickets, regenerate, amend brief and plan. |
 | 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (round 2) | Ruling 7 models and fixed members; F7 per-model request profiles with a hand-written expectation table; F1 exact-path plants (M-A killed); F3 builder cap with a typed error; F2, F4, F5, F6 ticketed; N1 done. OpenAI and Gemini goldens and lists regenerated and checked by two independent oracles; Anthropic byte-identical. Brief (ruling 3, 4, 7) and plan (ruling 7, 1–4) amendments applied word for word. TendIngestion 441, TendSourceScan 63, TendCore 141, TendTools 8 green, 0 warnings, Linux. AC-M2-09 and AC-M2-12: 46 files, 0 violations. Mutants 48 of 48 killed. Gemini `responseJsonSchema` and the other provider-side facts await L2a. |
+
+## WI-M2-11 — payload proof: ≥ 500-household byte-level unique sentinels (AC-M2-20 (a)) and the structural key-path and value check at concrete indices (AC-M2-20 (b)), through the router path; R28-F2, R28-F6, D11
+
+- **Owner:** Developer  ·  **Branch:** `m2/payload-sentinels`, from `origin/main` at `f1b6458` (PR #28, WI-M2-10,
+  merged)  ·  **PR:** not opened (the Orchestrator opens it)  ·  **ADRs:** none new. Follows ADR-0005 Decision 3 and
+  ADR-0006. **Only test code and one README paragraph change**: no file under `Sources`, no fixture byte, no
+  dependency.
+- **Requirements:** P-2, P-3, P-4, FR-A1. **● AC-M2-20**, parts (a) and (b) (plan WI-M2-11). Review tickets R28-F2
+  (prove it through the path that really sends; D11 blank-room test) and R28-F6 (compare concrete indices so an extra
+  array element is caught).
+- **Binding inputs:** brief AC-M2-20 (a), (b), Definitions "Cloud request" and "Duplicate shortlist", Q12, Q19;
+  plan WI-M2-11 row and R-23; dev-notes WI-M2-10 D1–D17 and the round 2 tickets; `review-WI-M2-10.md` R28-F2, R28-F6;
+  PO notes `po-m2-wi10.md`, `po-q21-q22.md` (PR #28), `po-m2-wi15.md` ruling 2 (key-path form).
+- **Q12, Q16, Q17:** the coordinator reports (2026-11-24) that the owner confirmed the PO defaults: up to 10 titles,
+  all three providers, Gemini kept. So the committed goldens and allowed lists stand; nothing is regenerated.
+- **Milestone lock:** `STATUS.md` shows M2 `IN-BUILD`; WI-M2-10 (the dependency) is merged.
+- **R-23 split:** not needed. Both parts are done in this one round, in one PR.
+
+### What changed
+- **New, `Packages/TendIngestion/Tests/TendIngestionTests/PayloadSentinelSupport.swift`** (test support only):
+  - `SentinelHouseholdGenerator` (SplitMix64 through `DupRandom`). Each household has 0–8 rooms and 1–60 tasks (35 %
+    have 25–60, so the cut at 10 is common). Every value outside allowed content is unique and random:
+    - task and room IDs (and dangling task room IDs);
+    - every title holds a unique token, `zq` + 6 letters with no `z` or `q`, so one token can never occur inside
+      another;
+    - whole-millisecond dates (2025–2035) for `windowStart`, `windowEnd`, `completedAt`, `deferred(until:)` and
+      `lastTendedAt`;
+    - intervals in 600…729;
+    - per capture, a random `now`, one of 10 time zones and one of 10 calendars.
+    Kind, effort, the three flags, dayparts, weekdays and state are random within the M1 invariants. Room names are
+    never sentinels (Q19): they include `""`, `"  "`, `"\t"`, repeated names, a typographic apostrophe, quotes, a
+    slash, a backslash and non-ASCII. Words are letters only, so no interval digits occur in allowed content.
+  - `PayloadSentinels` gives the string sentinels of a capture:
+    - each ID in 4 text forms: upper and lower case, with and without hyphens;
+    - each date in the four AC forms. ISO 8601 is checked to the second, in UTC and in the capture's zone, so any
+      fraction, `Z` or offset still contains it. The others are Unix seconds, Unix milliseconds and reference-date
+      seconds;
+    - the token and trimmed title of every task **not** on the oracle's shortlist (every task under Q12 = no);
+    - the `now` forms, the time-zone identifier, and the calendar identifier in its CLDR form and its Swift case name.
+    It also checks hygiene: no sentinel may occur in the allowed content itself. The interval check works on the
+    decoded body: no integer is in 600…729, and no string holds a 3-digit run in 600…729. The user-content string is
+    decoded and walked too. The path, query and header values are checked the same way.
+  - `SentinelScanner`: a multi-needle byte search indexed on each needle's first 4 bytes. It checks about 520 needles
+    per request in one pass.
+  - `PayloadStructure`: the (b) check of one request against the provider's **committed** G1 head and body and the
+    allowed list (see D3).
+  - `PayloadRouterHarness`: one `ModelRouter` per provider with cloud on and the on-device model unavailable. Each
+    capture goes `router.events(…)` → `DraftPipeline` → `PayloadBuildingCloudModel` → `CloudPayloadBuilder` → the
+    recording mock transport. The harness returns the one request captured; anything other than exactly one counts
+    as a problem.
+- **New, `…/PayloadSentinelTests.swift`**: 8 tests, 25 cases (listed under AC coverage).
+- **Changed, `Fixtures/M2/payload/README.md`:** one paragraph on how WI-M2-11 uses the goldens and lists. No fixture
+  byte changed.
+
+### Decisions the Reviewer should know (technical; product-meaning readings are flagged)
+- **D1, R28-F2: option (b), an equivalence check, not a production change.** Production keeps its one sending path
+  (`ModelRouter` → `DraftPipeline`, with the titles from `DraftDuplicateRules`). The proof runs through that path. For
+  every capture and both Q12 answers, the property checks two things:
+  - `CloudContextSelector.input` equals the independent expectation: the household's room names in order, and
+    `DupOracle.shortlist` titles under yes or none under no.
+  - The captured request's user content equals the same values.
+  So selector = oracle = what was really sent, over 1,040 captures per provider. The households include blank,
+  whitespace-only and repeated room names. Review mutant M-C is now killed (M9 below). Option (a), routing production
+  through the selector, would change `DraftPipeline` for no gain in protection, so I did not take it.
+- **D2, the path that sends is a test cloud model.** The real `TendAI` adapters (WI-M2-M6) do not exist yet and need
+  the Mac. `PayloadBuildingCloudModel` has their shape: it takes the pipeline's `IngestionRequest`, calls
+  `CloudPayloadInput(request)` and the builder, and sends the result. WI-M2-M6 should run the same `PayloadStructure`
+  and `PayloadSentinels` checks on the requests its adapters give to the mock transport (ticket below).
+- **D3, (b) at concrete indices (R28-F6), plus a byte frame.** For each body:
+  1. `CloudRequestKeyPaths.leafPaths(ofBody:)` equals the committed list's `keyPaths[].path`.
+  2. The concrete leaf map (for example `$.messages[1].content[0].text`, with empty containers as leaves) has exactly
+     G1's paths outside the user content, and each value is `jsonEqual` to G1's.
+  3. The bytes before and after the user-content string literal equal G1's byte for byte. This is the AC sentence
+     "no household field can change any byte outside the capture, room-name and title values", taken literally.
+  4. The user content parses strictly, and its concrete leaves are exactly: `$.capture`, then `$.rooms[i]` in order
+     (or an empty `$.rooms`), then `$.existingTasks[i].index` = i+1 and `.title` (or an empty `$.existingTasks`).
+     Its `[]` paths are inside the committed `userContentKeyPaths`.
+  5. The request line equals G1's head. The header names equal the list's `auth` and `fixed` names in order, and
+     G1's names. Every non-auth value equals G1's. The auth header holds the key.
+  A negative test shows that an added message, an added part and an added enum element keep the `[]` path set the
+  same (the gap F6 names) but are caught by step 2.
+- **D4, more forms than the AC lists (stronger, not a meaning change).**
+  - IDs are checked without hyphens as well.
+  - Dates are also checked as ISO in the local zone.
+  - The calendar identifier is checked as the Swift case name as well as the CLDR form.
+  - `deferred(until:)` and a task's `roomID` are sentinels too. They are household fields outside allowed content,
+    even though the AC's list does not name them.
+  - The interval check covers the whole range 600…729, not only the values used.
+  - String sentinels are checked in the host as well.
+- **D5, the auth header value.** The AC excepts the auth value from the golden comparison. I compare it only for
+  holding the key. The string sentinels are still searched in it.
+- **D6, one seed, three providers, both Q12 answers.** Seed `0x0A1D_2011_0001`, 520 households, the same households
+  for each provider. Each test prints the seed, and each failure message names the household index and Q12 answer.
+  Long loops call `await Task.yield()` once per household.
+- **D7, test-first, stated honestly.** WI-M2-11 is a proof over code that is already merged, so the new tests passed
+  on their first run (they could only fail on a defect). The evidence that they detect defects is the mutant table:
+  21 production mutants, each one a realistic leak or shape change. Every check in the property also has a negative
+  control test that plants the defect directly.
+
+### AC coverage
+| AC (part) | Test(s) | Result |
+|---|---|---|
+| AC-M2-20 (a) byte-level unique sentinels | "AC-M2-20 (a): 520 seeded households × Q12 yes/no, through the router — no task or room ID, non-shortlisted title, date (four forms), now, time-zone or calendar identifier appears …; no interval 600…729 appears as a number or digits" (3 providers) | PASS (Linux). Per provider: 1,040 requests, 539,574 string sentinels; 2,972 titles sent; 136 shortlists cut at 10; all 130 intervals 600…729 used; every sentinel kind present (counts in the log line) |
+| AC-M2-20 (a) the check is real | "AC-M2-20 (a) control: a sentinel planted in the body, path, query, a header name or a header value is found; an interval planted as a number or as digits is found" (3); "the sentinel scanner finds needles …" | PASS (Linux) |
+| AC-M2-20 (b) structural check | "AC-M2-20 (b): 520 seeded households × Q12 yes/no, through the router — the key-path set equals the allowed list; at concrete indices every fixed value equals the golden request; the user content is exactly …; the selector gives the same input; headers equal the golden" (3) | PASS (Linux). Per provider: 1,040 requests; 365 blank and 260 repeated room names; 62 households with no room; 47/41/48 allowed paths; 102/100/104 fixed concrete leaves (Anthropic/Gemini/OpenAI) |
+| AC-M2-20 (b) the check is real (R28-F6) | "R28-F6: an added message, an added part or an added enum element keeps the [] key-path set but is caught at concrete indices; …" (3); "AC-M2-20 (b): a user content with an extra room, reordered rooms, … is caught" (3); "AC-M2-20 (b) control: the structural check passes every committed golden request" (9) | PASS (Linux) |
+| R28-F2 through the sending path + equivalence | the two property tests above (router path; selector = oracle = sent, both Q12 answers) | PASS (Linux) |
+| D11 / Q19 blank room names sent | "D11 (Q19): empty, whitespace-only and repeated room names are sent as written and in household order, through the router, for each provider" (3) | PASS (Linux) |
+| AC-M2-20 golden bytes on the Mac | unchanged (WI-M2-10 test); MS-2 B2 | not run here |
+
+### Test runs (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, own scratch paths `/tmp/b11-<pkg>`, 0 warnings in every package)
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 449 tests in 52 suites passed after 182.602 seconds.` (441 on `main` + 8 new; the new suite alone runs in about 47 s, and its (a) property is the longest case). AC-M2-09: `46 files in total, 0 violations`. AC-M2-12 vocabulary: `46 files, 9 exempted (the list), 0 violations`. |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 7.605 seconds.` (unchanged) |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 157.343 seconds.` (unchanged) |
+| Tools/TendTools | `✔ Test run with 8 tests in 1 suite passed after 0.140 seconds.` (unchanged) |
+
+Seed `0x0A1D_2011_0001` (printed as `0xa1d20110001`). The per-provider log lines give the counts in the AC table; the
+three providers see the same households, so the household-side counts are equal.
+
+### Mutation check
+Setup:
+- Scratch copy `/tmp/claude-0/b11/mut`, made with `tar --exclude=.git` from the worktree. The worktree was never
+  edited.
+- Mutants were applied one at a time by a script that asserts each target string occurs exactly once.
+- Each run: `-Xswiftc -warnings-as-errors`, `--filter PayloadSentinelTests`, own scratch path.
+- Afterwards, `diff -rq` showed the copy's `Packages` identical to the worktree's.
+
+**21 of 21 killed; every mutant built.** Every mutant is in production code (`Sources`), along the path that sends.
+
+| # | Mutant | Killed by |
+|---|---|---|
+| M1 | pipeline sends `name + " " + id.uuidString` as each room name | (a) property, (b) property, D11 |
+| M2 | pipeline appends `lastTendedAt` Unix seconds to room names | (a), (b) |
+| M3 | shortlist candidates include completed tasks | (a), (b), golden control |
+| M4 | shortlist limit 11 (the builder cap follows it) | (a), (b), golden control |
+| M5 | OpenAI: the user message twice | (b), D11, R28-F6 |
+| M6 | Anthropic: a second text part | (b), D11, R28-F6 |
+| M7 | Gemini: a second part | (b), D11, R28-F6 |
+| M8 | builder sends the rooms reversed | (b), user-content control, D11, R28-F6 |
+| M9 | selector drops blank room names (review M-C, survived in WI-M2-10) | (b) (selector = oracle), D11 |
+| M10 | pipeline drops blank room names | (b), D11 |
+| M11 | output cap 650 | (a) (number 650), (a) control, (b), D11, R28-F6 |
+| M12 | pipeline appends the time-zone identifier to the capture | (a), (b), D11 |
+| M13 | pipeline appends the calendar identifier | (a), (b), D11 |
+| M14 | pipeline appends `now.ISO8601Format()` | (a), (b), D11 |
+| M15 | pipeline adds `now` reference-date seconds as a room | (a), (b), D11 |
+| M16 | shortlist titles not trimmed | (b), golden control |
+| M17 | builder adds a fixed `X-Client` header | (b), golden control, D11, R28-F6 |
+| M18 | builder sends the titles reversed | (b), user-content control, R28-F6 |
+| M19 | router ignores Q12 = no (always sends titles) | (a) (every title is a sentinel under no), (b) |
+| M20 | user-content index from 0 | (b), D11, R28-F6 |
+| M21 | instructions say "Every 700 days" | (a) (digits in a string), (a) control, (b), D11, R28-F6 |
+
+### Verification environment
+| Check | Linux (container, `swift:6.2-noble`) | macOS / owner-run Mac | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| (a) sentinels and (b) structure over 520 households × 3 providers × Q12 yes/no, through `ModelRouter` | ✔ | not run (the suite is Foundation-only; MS-2 may repeat it with the TendIngestion suite) | n.a. | n.a. | — |
+| Controls, D11, scanner | ✔ | not run | n.a. | n.a. | — |
+| The real `TendAI` adapters produce the same requests | — | WI-M2-M6 (ticket below) | — | DS-2 | the adapters do not exist yet (D2) |
+| Golden bytes on the Mac | — | MS-2 B2 (WI-M2-10's test) | — | — | Mac session |
+
+### Things the reviewer should look at closely
+- The generator's coverage (log line): are any household fields that can hold a unique value missing from the
+  sentinel list? I added `deferred(until:)` and task `roomID` beyond the AC's list (D4).
+- The byte frame (D3, step 3) relies on the first `"{\"capture\":` in the body being the user content. The fixed
+  instructions come first and do not contain it (checked by the golden control), and a capture's own `{"capture":`
+  would be escaped inside the literal, after its start.
+- `PayloadBuildingCloudModel` stands in for the real adapters (D2).
+
+### Known limitations / tickets
+| Item | Severity | Ticket |
+|---|---|---|
+| Run `PayloadStructure.problems` and `PayloadSentinels` on the requests the real `TendAI` adapters give the mock transport (the same seed, at least the G1–G3 households and a sample of the generator) | — | WI-M2-M6 |
+| `ds2-gated` (AC-M2-26) compares `[]` path sets only, so on device an extra element would pass. Should the harness also record value-free per-array element counts? | question (from R28-F6) | Tester / PO; unchanged by this PR |
+
+### Open questions (built to the most literal reading; work continues)
+1. **Tester / PO (R28-F6, carried):** the `ds2-gated` element-count question above. This PR closes the AC-M2-20 side
+   only.
+2. **Reviewer (D4):** I treated `deferred(until:)` and a task's `roomID` as sentinels, though the AC's list does not
+   name them. This is stronger, not a meaning change. If the PO wants the list in the brief to name them, that is a
+   wording amendment.
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | n.a. | No copy or source change; AC-M2-12 vocabulary scan 0 violations. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Routing unchanged. The harness forces cloud only by making the on-device model unavailable, the documented route. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | Test code only; no networking (the mock transport records). AC-M2-09: 0 violations. No dependency. Fake key only. |
+| P-3 Cloud AI opt-in, minimised | pass | This PR is the proof: across 3,120 requests no ID, date, interval, non-shortlisted title, `now`, time zone or calendar reaches any byte. Every byte outside the user content equals the golden request's, and the user content holds exactly the capture, the room names and ≤ 10 oracle titles. 21 of 21 leak and shape mutants killed. |
+| P-4 Media not persisted | pass | Text only, in memory; nothing written. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Developer | accepted (H2) | WI-M2-11 Ready (WI-M2-10 merged as PR #28, `main` at `f1b6458`). Tickets R28-F2, R28-F6 and D11. Owner confirmed Q12/Q16/Q17 defaults (coordinator), so the goldens stand. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (H4) | AC-M2-20 (a) and (b) over 520 seeded households × 3 providers × Q12 yes/no, through `ModelRouter` (R28-F2), compared at concrete indices and byte frame (R28-F6); D11 test. TendIngestion 449, TendSourceScan 63, TendCore 141, TendTools 8 green, 0 warnings, Linux. AC-M2-09 and AC-M2-12: 46 files, 0 violations. Mutants 21 of 21 killed. No R-23 split. Pushed; no PR opened. |
