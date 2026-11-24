@@ -1,0 +1,306 @@
+# M2 eval composition (WI-M2-16, AC-M2-14): fixtures for PO approval
+
+- **Owner:** Acceptance Tester  ·  **Base commit:** `1d1caa3` (branch `m2/eval-fixtures-freeze`)  ·  **Date:** 2026-11-24
+- **Status:** DRAFT, for **PO composition approval**. **Not frozen:** there is no `MANIFEST.sha256` yet. The freeze comes
+  after the Developer's Linux composition check, the owner's live check L2a (WI-M2-16 Definition of Ready) and the
+  answers to the open questions below (AC-M2-14; plan WI-M2-16).
+- **Requirement IDs:** FR-A1, UX-3, P-3, AC-M2-14 (also feeds AC-M2-11, 15, 16, 17, 25, 26, 27), brief rubric Q3,
+  Q5, Q6, Q12, brief "Eval scoring rules", PO WI-M2-15 ruling 1 ("Distinguishable targets").
+
+## Files (written by the Acceptance Tester, AC-M2-14 "Authorship")
+
+| File | SHA-256 (as committed, pre-freeze) | Content |
+|---|---|---|
+| `Fixtures/M2/eval/inputs.json` | `b32e45afeb25a6d8972ce9f3b78a6dd051686d4ac6b7d87564769bf92c7ebcec` | 20 inputs (10 voice, 10 text). Extra members the reader ignores: `composition` (tags for the composition check) and `q6Rows` (the time-phrase rows each input uses, information only). |
+| `Fixtures/M2/eval/household.json` | `089a22bd5a0b3da9ef6b057b186f61b459963f02bbee322c30a47b2af8e17f66` | 9 rooms and 19 seeded tasks (16 not completed: 13 `active`, 1 `maintenance`, 1 `resurfaced`, 1 `deferred`; 3 `completed`). Fixed version-4 UUIDs `E7A1C0DE-0000-4000-8000-0000000001nn` (rooms) and `…0000000002nn` (tasks). Each task has match groups. |
+| `Fixtures/M2/eval/golden.json` | `882c2906a15704b9b8376cfdd62aa3b909239b4b6f7ca9ce4d370fa69580d4dc` | 58 golden items: 41 `create`, 17 `existing(seededKey)`. Each has a `referencePhrase` (PO WI-M2-15 ruling 1; on every item, not only `create`). |
+
+The files use exactly the WI-M2-15 reader format (`EvalFixtures.swift`). `results-v1.schema.json` is unchanged. The
+self-test set `Fixtures/M2/eval-selftest/` is unchanged. Sources and tests are unchanged.
+
+## Q3 composition: each rule and the inputs that meet it (for PO approval)
+
+Read from the brief's rubric Q3 "Composition" and AC-M2-14. Counts come from the fixtures (my generator's check) and
+match the `composition` tags. The checker refuses a tag that disagrees with the golden flags.
+
+| # | Q3 / AC-M2-14 rule | Required | In the fixtures | Inputs |
+|---|---|---|---|---|
+| C1 | 20 inputs | 20 | 20 | in01…in20 |
+| C2 | voice inputs | ≥ 8 | 10 | in02, 04, 06, 08, 10, 12, 14, 16, 17, 20 |
+| C3 | text inputs | ≥ 8 | 10 | in01, 03, 05, 07, 09, 11, 13, 15, 18, 19 |
+| C4 | 10–80 words each (whitespace-split) | all | 21–35 | all 20 |
+| C5 | all four item types (one-off errand, recurring maintenance, consumable restock, weather-dependent) | all four | oneOff 36, recurring 12, restock 10 items; 12 weather-dependent items | e.g. one-off in02, recurring in09, restock in11, weather in13 |
+| C6 | a weather condition | ≥ 5 inputs | 9 inputs (12 items) | in01, 04, 07, 10, 13, 14, 16, 19, 20 |
+| C7 | critical (bill, expiring food) | ≥ 3 inputs | 5 inputs (8 items): bills in02, 08, 18; expiring food in05, 11, 18; also car insurance (in08) and smoke alarms (in11) | in02, 05, 08, 11, 18 |
+| C8 | deep cleans | ≥ 3 inputs | 5 inputs (6 items) | in01, 05, 09, 14, 19 |
+| C9 | mentioning an existing task | ≥ 5 inputs | 15 inputs (17 items) | in01, 02, 04, 05, 06, 07, 08, 09, 10, 11, 12, 14, 16, 17, 19 |
+| C10 | a repeat inside the input | ≥ 3 inputs | 4 | in03 (milk), in06 (toilet paper), in12 (trash), in18 (property tax) |
+| C11 | filler or self-correction ("no wait, Thursday") | ≥ 4 inputs | 10 (self-corrections in02, 08, 14, 16, 20) | in02, 04, 06, 08, 10, 12, 14, 16, 17, 20 |
+| C12 | ≥ 50 expected items, ≥ 1 per input | N ≥ 50 | N = 58, 2–3 per input | all 20 |
+
+**Extra cases I added beyond Q3** (they make the duplicate gate meaningful, AC-M2-17, 26):
+- **A completed task said again is new** (brief Definitions "Duplicate"): in03 milk (`t-milk` completed) and the hallway
+  bulb (`t-bulb` completed) are `create`.
+- **False-merge traps** (same object, different chore or room): in15 "water the bathroom plants" against the live
+  `t-plants` (garden); in04 "trash bags" against `t-bins` ("Take the trash out"); in16 "car … service" against `t-car`
+  ("Wash the car").
+- **Non-`active` targets:** `maintenance` oven (in05), `resurfaced` car insurance (in08), `deferred` fence (in14).
+- **A synonym the model must see:** in06 and in17 say "dishwasher tablets" for `t-pods` ("Buy dishwasher pods"). The
+  local word-match floor cannot catch it, so the model's own claim is tested.
+- **New rooms:** Balcony (in01), Patio and Shed (in07), Porch (in13), scored as `new(name, alternates)`.
+- **in01 is the PRD FR-A1 sentence** word for word.
+
+### P1–P7 (plan Q6 table): coverage, information only
+
+The Orchestrator's task names a "P1–P7 composition", but P1–P7 in the plan are the Planner's Q6 time-phrase rows, not composition
+rules (open question EC-Q3). The eval scoring rules do not score windows, so this coverage is for information only.
+Each row is used at least once:
+
+| Row | Phrase family | Inputs |
+|---|---|---|
+| P1 (T3) | "this afternoon" | in20 |
+| P2 (T7/T8) | weekday, "no wait, Thursday" | in02, 07, 11, 15, 16 |
+| P3 (T10) | "this week" | in08, 18 |
+| P4 (T14) | "in three days" | in17 |
+| P5 (T15) | "some evening" | in18 |
+| P6 (R4) | "every year" | in10, 20 |
+| P7 (R5/R6/R7) | "every Tuesday", "every weekend", "every morning" | in12, 13, 10 |
+
+Other Q6 rows used: T1, T2, T4, T5, T9, T11, T13, R2, R3.
+
+## Fixture rules I applied (checked by my generator on every build)
+
+1. **Version-4 UUIDs.** Every room and task ID has version nibble `4` and variant `8` (plan "Eval harness ID
+   generator"), so `EvalIDGenerator` (version 8) can never yield one. IDs are unique across rooms and tasks.
+2. **No decimal digit run holds 600…729** in any of the three files (IDs, dates, intervals, text). The interval
+   sentinels (N-3, AC-M2-20) cannot be confused with fixture data.
+3. **Calm words (AC-M2-12, UX-3).** No banned token (*overdue, late, lateness, missed, failed, behind, penalty, debt,
+   streak*) appears as a whole token in any file. So any banned token in a draft is "introduced" (PO WI-M2-15 S4).
+4. **Match-group tokens are single keywords.** Each token is `Keywords.of(token) == [token]`, so none is a stop word.
+   The Swift reader also enforces this.
+5. **Distinguishable targets** (PO WI-M2-15 ruling 1). For every golden item, I take the keywords of its
+   `referencePhrase`, of a natural title, and of title plus phrase (and the repeat phrase for C10), and I check the
+   best target under the brief's rule. Each `create` item's best target is that item, and no seeded task ties or beats
+   it. Each `existing` item's best target is its seeded task. The Swift scorer confirms this on the hand-made perfect
+   file (below).
+6. **Every existing-task mention can be reached on every path.** For each input I computed the Q12 duplicate
+   shortlist (brief Definitions steps 1–6). Each of the 17 `existing` items' seeded tasks is on its input's shortlist
+   (≤ 6 eligible per input, so the cap of 10 never cuts). This holds for the Q12 = yes cloud path, and the on-device
+   `Tool` can find it with any input keyword. No `create` item's natural title is caught by the local word-match floor
+   against a live task, so the pipeline's own floor cannot cause a false merge. (While doing this I found and fixed
+   one case: "dish tablets" shared no keyword with "Buy dishwasher pods". That would have made AC-M2-26's
+   0-duplicate gate impossible to pass by construction, and it is now "dishwasher tablets"; see EC-Q5.)
+7. **Golden fields of an `existing` item equal its seeded task** (kind, room, effort, three flags). Each input states
+   the repeat ("like every week", "a monthly thing", "every Tuesday") when the seeded task is recurring, so the golden
+   kind is what the person said.
+8. **Rooms (EC-Q1).** An `existing(room)` expectation is used only when the person says that room's name in the input.
+   The checker enforces this. Chores with no place (paying, booking, buying, outdoors with no room named) are `none`.
+   A place the person names that is not in the household is `new`.
+9. **Effort (EC-Q4).** `low` is a quick errand or touch-up (pay, book, buy, wipe, water, test, sweep). `normal` is the
+   default. `high` is a deep clean or a job the person calls big (shed sort-out, painting or staining the fence).
+10. **en-US phrasing** (brief Q2): trash, toilet paper, property tax, water heater. No names, addresses or real
+    personal data.
+
+## Inputs
+
+| # | Mode | Words | Text | Tags | Q6 rows (info) |
+|---|---|---|---|---|---|
+| in01 | text | 24 | The AC needs servicing before summer, we're almost out of dishwasher pods, and let's deep clean the balcony this weekend if it doesn't rain | weather, deepClean, existingTask | T13, T9 |
+| in02 | voice | 31 | Um, okay, so I need to pay the electric bill by Friday, no wait, Thursday, and, uh, book the dentist for the kids, and the bathroom sink is draining really slowly | critical, existingTask, fillerOrCorrection | T7 |
+| in03 | text | 25 | We're out of milk, grab some on the way home, the hallway light keeps flickering so swap the bulb, and seriously, don't forget the milk | repeat, completedTaskSaidAgain | T1 |
+| in04 | voice | 35 | So, uh, the gutters are full of leaves again, clear those once it's dry, and mow the back garden every week from now on, but only when it's not raining, and grab more trash bags | weather, existingTask, fillerOrCorrection | R2 |
+| in05 | text | 28 | The chicken in the kitchen fridge needs cooking by tomorrow, the oven still needs that deep clean, and give the bathroom grout a proper deep scrub this weekend | critical, deepClean, existingTask | T5, T9 |
+| in06 | voice | 32 | Okay, uh, we're nearly out of dishwasher tablets, and toilet paper, we need toilet paper, and um the washing machine in the laundry room smells funny so run a hot cleaning cycle | existingTask, repeat, fillerOrCorrection | T1 |
+| in07 | text | 28 | Sweep the patio every other week when it's dry, wash the car this Saturday if the sun's out, and have a big sort-out of the shed before winter | weather, existingTask, newRoom | R2, T7, T13 |
+| in08 | voice | 28 | Right, the water bill, pay that by the twentieth, um, no, by the fifteenth, and renew the car insurance this week, and, uh, pick up a birthday card | critical, existingTask, fillerOrCorrection | T10 |
+| in09 | text | 26 | Deep clean the carpet in the kids room, it's sticky everywhere, the weekly sheet change in our bedroom, and vacuum the living room like every week | deepClean, existingTask | R2 |
+| in10 | voice | 29 | Um, so water the garden plants every morning, and, uh, the windows, wash the outside windows when there's no rain forecast, and get the water heater serviced every year | weather, existingTask, fillerOrCorrection | R7, R4 |
+| in11 | text | 23 | Test the smoke alarms, it's a monthly thing, the yogurt expires on Wednesday so eat it before then, and buy more coffee beans | critical, existingTask | R3, T7 |
+| in12 | voice | 27 | Take the trash out tonight, it's trash day every Tuesday, um, fix the squeaky garage door this weekend, and, uh, yeah, the trash, don't forget the trash | existingTask, repeat, fillerOrCorrection | T4, R5, T9 |
+| in13 | text | 28 | Every weekend sweep the front porch, rake the leaves in the garden when it's dry, and hang the clothes out on the line today if it stays sunny | weather, newRoom | R6, T2 |
+| in14 | voice | 32 | Okay so, um, paint the garden fence when it's dry, no, actually, just stain it, sometime next week, and deep clean the kitchen fridge, it smells, and, uh, book the window cleaner | weather, deepClean, existingTask, fillerOrCorrection | T11 |
+| in15 | text | 22 | Water the bathroom plants on Thursday, top up the hand soap in the bathroom, and clean the shower screen every two weeks | sameChoreOtherRoom | T7, R2 |
+| in16 | voice | 31 | Uh, book the car in for a service on Monday, no wait, Tuesday, and, um, the gutters, clear the gutters before the rain comes, and bleed the radiators in the bedroom | weather, existingTask, fillerOrCorrection | T7 |
+| in17 | voice | 29 | We're low on cat food, the kibble, so order more, and the dishwasher tablets, yeah, those too, and, um, sort through the kids room toy box in three days | existingTask, fillerOrCorrection | T14 |
+| in18 | text | 32 | Pay the property tax this week, eat the leftover soup today before it goes off, wipe down the kitchen counters some evening, and the property tax, please don't let me forget it | critical, repeat | T10, T2, T15 |
+| in19 | text | 21 | Every three months change the furnace filter, deep clean the garage floor on a dry day, and buy more olive oil | weather, deepClean, existingTask | R3 |
+| in20 | voice | 34 | Um, okay, the bedroom windows, no, the living room windows, wash them this afternoon if it's sunny, and dust the bookshelves in the hallway, and, um, book the chimney sweep every year before winter | weather, fillerOrCorrection | T3, R4, T13 |
+
+## Golden items (58)
+
+| Input | Key | Expect | Kind | Room | Effort | Crit | Deep | Weather | Match groups |
+|---|---|---|---|---|---|---|---|---|---|
+| in01 | g01-ac | create | oneOff | none | normal | - | - | - | {ac, aircon, air, conditioner, conditioning} / {service, servicing, serviced, check, tune} |
+| in01 | g01-pods | existing t-pods | restock | none | low | - | - | - | {dishwasher, dish} / {pods, tablets, capsules, detergent} |
+| in01 | g01-balcony | create | oneOff | new "Balcony" | high | - | yes | yes | {balcony} |
+| in02 | g02-electric | create | oneOff | none | low | yes | - | - | {electric, electricity, power, energy} / {bill, bills} |
+| in02 | g02-dentist | existing t-dentist | oneOff | none | low | - | - | - | {dentist, dental} |
+| in02 | g02-sink | create | oneOff | existing Bathroom | normal | - | - | - | {sink, drain, draining, plughole} |
+| in03 | g03-milk | create | restock | none | low | - | - | - | {milk} |
+| in03 | g03-bulb | create | oneOff | existing Hallway | low | - | - | - | {bulb, bulbs, lightbulb, light} |
+| in04 | g04-gutters | existing t-gutters | oneOff | none | normal | - | - | yes | {gutters, gutter} |
+| in04 | g04-mow | create | recurring | existing Garden | normal | - | - | yes | {mow, mowing, lawn, grass} |
+| in04 | g04-trashbags | create | restock | none | low | - | - | - | {trash, garbage, bin, bins} / {bags, bag, liners, sacks} |
+| in05 | g05-chicken | create | oneOff | existing Kitchen | normal | yes | - | - | {chicken} |
+| in05 | g05-oven | existing t-oven | oneOff | existing Kitchen | high | - | yes | - | {oven} |
+| in05 | g05-grout | create | oneOff | existing Bathroom | high | - | yes | - | {grout, tiles, tile} |
+| in06 | g06-pods | existing t-pods | restock | none | low | - | - | - | {dishwasher, dish} / {pods, tablets, capsules, detergent} |
+| in06 | g06-toiletpaper | create | restock | none | low | - | - | - | {toilet} / {paper, roll, rolls, tissue} |
+| in06 | g06-washer | create | oneOff | existing Laundry room | low | - | - | - | {machine, washer} |
+| in07 | g07-patio | create | recurring | new "Patio" | low | - | - | yes | {patio} |
+| in07 | g07-car | existing t-car | oneOff | none | normal | - | - | yes | {car} / {wash, washing, clean, cleaning} |
+| in07 | g07-shed | create | oneOff | new "Shed" (alt: garden shed) | high | - | - | - | {shed} / {sort, tidy, clear, declutter, organise, organize} |
+| in08 | g08-water | create | oneOff | none | low | yes | - | - | {water} / {bill, bills} |
+| in08 | g08-insurance | existing t-insurance | oneOff | none | normal | yes | - | - | {insurance} |
+| in08 | g08-card | create | oneOff | none | low | - | - | - | {card, birthday} |
+| in09 | g09-carpet | create | oneOff | existing Kids room | high | - | yes | - | {carpet, carpets, rug} |
+| in09 | g09-sheets | existing t-sheets | recurring | existing Bedroom | normal | - | - | - | {sheets, sheet, bedding, linens} / {bedroom} |
+| in09 | g09-vacuum | existing t-vacuum | recurring | existing Living room | normal | - | - | - | {vacuum, vacuuming, hoover, hoovering} / {living, lounge} |
+| in10 | g10-plants | existing t-plants | recurring | existing Garden | low | - | - | - | {water, watering} / {plants, plant, pots, flowers} / {garden} |
+| in10 | g10-windows | create | oneOff | none | normal | - | - | yes | {windows, window} |
+| in10 | g10-heater | create | recurring | none | normal | - | - | - | {heater, boiler} |
+| in11 | g11-smoke | existing t-smoke | recurring | none | low | yes | - | - | {smoke} / {alarm, alarms, detector, detectors} |
+| in11 | g11-yogurt | create | oneOff | none | low | yes | - | - | {yogurt, yoghurt} |
+| in11 | g11-coffee | create | restock | none | low | - | - | - | {coffee} |
+| in12 | g12-trash | existing t-bins | recurring | none | low | - | - | - | {trash, garbage, bins, bin, rubbish} |
+| in12 | g12-door | create | oneOff | existing Garage | normal | - | - | - | {door, doors, hinge, hinges} |
+| in13 | g13-porch | create | recurring | new "Porch" (alt: front porch) | low | - | - | - | {porch} |
+| in13 | g13-leaves | create | oneOff | existing Garden | normal | - | - | yes | {leaves, leaf} / {rake, raking, clear, collect, sweep} |
+| in13 | g13-clothes | create | oneOff | none | low | - | - | yes | {clothes, laundry, washing} / {hang, line, clothesline, dry} |
+| in14 | g14-fence | existing t-fence | oneOff | existing Garden | high | - | - | yes | {fence} |
+| in14 | g14-fridge | create | oneOff | existing Kitchen | high | - | yes | - | {fridge, refrigerator} |
+| in14 | g14-cleaner | create | oneOff | none | low | - | - | - | {cleaner, cleaners} / {window, windows} |
+| in15 | g15-plants | create | oneOff | existing Bathroom | low | - | - | - | {water, watering} / {plants, plant, pots, flowers} / {bathroom} |
+| in15 | g15-soap | create | restock | existing Bathroom | low | - | - | - | {soap, handwash} |
+| in15 | g15-shower | create | recurring | existing Bathroom | normal | - | - | - | {shower} |
+| in16 | g16-carservice | create | oneOff | none | normal | - | - | - | {car} / {service, servicing, mechanic} |
+| in16 | g16-gutters | existing t-gutters | oneOff | none | normal | - | - | yes | {gutters, gutter} |
+| in16 | g16-radiators | create | oneOff | existing Bedroom | normal | - | - | - | {radiator, radiators} |
+| in17 | g17-catfood | existing t-catfood | restock | none | low | - | - | - | {cat} / {food, kibble} |
+| in17 | g17-pods | existing t-pods | restock | none | low | - | - | - | {dishwasher, dish} / {pods, tablets, capsules, detergent} |
+| in17 | g17-toys | create | oneOff | existing Kids room | normal | - | - | - | {toy, toys} |
+| in18 | g18-tax | create | oneOff | none | low | yes | - | - | {tax, taxes} |
+| in18 | g18-soup | create | oneOff | none | low | yes | - | - | {soup, leftover, leftovers} |
+| in18 | g18-counters | create | oneOff | existing Kitchen | low | - | - | - | {counter, counters, worktop, worktops} |
+| in19 | g19-filter | existing t-filter | recurring | none | low | - | - | - | {filter, filters} / {furnace, heating, hvac} |
+| in19 | g19-floor | create | oneOff | existing Garage | high | - | yes | yes | {floor, floors} / {garage} |
+| in19 | g19-oil | create | restock | none | low | - | - | - | {oil} / {olive} |
+| in20 | g20-windows | create | oneOff | existing Living room | normal | - | - | yes | {windows, window} / {living, lounge} |
+| in20 | g20-books | create | oneOff | existing Hallway | low | - | - | - | {bookshelves, bookshelf, books, shelves} |
+| in20 | g20-chimney | create | recurring | none | low | - | - | - | {chimney, flue} |
+
+## Seeded household
+
+Rooms: Kitchen (`kitchen`, `E7A1C0DE-0000-4000-8000-000000000101`), Bathroom (`bathroom`, `E7A1C0DE-0000-4000-8000-000000000102`), Living room (`living`, `E7A1C0DE-0000-4000-8000-000000000103`), Bedroom (`bedroom`, `E7A1C0DE-0000-4000-8000-000000000104`), Kids room (`kids`, `E7A1C0DE-0000-4000-8000-000000000105`), Hallway (`hallway`, `E7A1C0DE-0000-4000-8000-000000000106`), Garage (`garage`, `E7A1C0DE-0000-4000-8000-000000000107`), Garden (`garden`, `E7A1C0DE-0000-4000-8000-000000000108`), Laundry room (`laundry`, `E7A1C0DE-0000-4000-8000-000000000109`)
+
+| Key | ID | Title | Kind | Room | Effort | Flags | Interval | State | Match groups |
+|---|---|---|---|---|---|---|---|---|---|
+| t-pods | `E7A1C0DE-0000-4000-8000-000000000201` | Buy dishwasher pods | restock | none | low | - | - | active | {dishwasher, dish} / {pods, tablets, capsules, detergent} |
+| t-gutters | `E7A1C0DE-0000-4000-8000-000000000202` | Clear the gutters | oneOff | none | normal | weather | - | active | {gutters, gutter} |
+| t-oven | `E7A1C0DE-0000-4000-8000-000000000203` | Deep clean the oven | oneOff | Kitchen | high | deepClean | - | maintenance | {oven} |
+| t-insurance | `E7A1C0DE-0000-4000-8000-000000000204` | Renew the car insurance | oneOff | none | normal | critical | - | resurfaced | {insurance} |
+| t-fence | `E7A1C0DE-0000-4000-8000-000000000205` | Paint the garden fence | oneOff | Garden | high | weather | - | deferred | {fence} |
+| t-plants | `E7A1C0DE-0000-4000-8000-000000000206` | Water the garden plants | recurring | Garden | low | - | 3 | active | {water, watering} / {plants, plant, pots, flowers} / {garden} |
+| t-bins | `E7A1C0DE-0000-4000-8000-000000000207` | Take the trash out | recurring | none | low | - | 7 | active | {trash, garbage, bins, bin, rubbish} |
+| t-filter | `E7A1C0DE-0000-4000-8000-000000000208` | Change the furnace filter | recurring | none | low | - | 90 | active | {filter, filters} / {furnace, heating, hvac} |
+| t-sheets | `E7A1C0DE-0000-4000-8000-000000000209` | Change the bedroom sheets | recurring | Bedroom | normal | - | 7 | active | {sheets, sheet, bedding, linens} / {bedroom} |
+| t-milk | `E7A1C0DE-0000-4000-8000-000000000210` | Buy milk | restock | none | low | - | - | completed | {milk} |
+| t-bulb | `E7A1C0DE-0000-4000-8000-000000000211` | Replace the hallway bulb | oneOff | Hallway | low | - | - | completed | {bulb, bulbs, lightbulb, light} |
+| t-vacuum | `E7A1C0DE-0000-4000-8000-000000000212` | Vacuum the living room | recurring | Living room | normal | - | 7 | active | {vacuum, vacuuming, hoover, hoovering} / {living, lounge} |
+| t-dentist | `E7A1C0DE-0000-4000-8000-000000000213` | Book the dentist appointment | oneOff | none | low | - | - | active | {dentist, dental} |
+| t-smoke | `E7A1C0DE-0000-4000-8000-000000000214` | Test the smoke alarms | recurring | none | low | critical | 30 | active | {smoke} / {alarm, alarms, detector, detectors} |
+| t-car | `E7A1C0DE-0000-4000-8000-000000000215` | Wash the car | oneOff | none | normal | weather | - | active | {car} / {wash, washing, clean, cleaning} |
+| t-kettle | `E7A1C0DE-0000-4000-8000-000000000216` | Descale the kettle | oneOff | Kitchen | low | - | - | active | {kettle} / {descale, descaling, limescale} |
+| t-shelves | `E7A1C0DE-0000-4000-8000-000000000217` | Sort the garage shelves | oneOff | Garage | normal | - | - | active | {shelves, shelf} / {garage} |
+| t-towels | `E7A1C0DE-0000-4000-8000-000000000218` | Wash the bath towels | oneOff | Bathroom | normal | - | - | completed | {towels, towel} |
+| t-catfood | `E7A1C0DE-0000-4000-8000-000000000219` | Buy cat food | restock | none | low | - | - | active | {cat} / {food, kibble} |
+
+## Scorer evidence (Linux, Docker `swift:6.2-noble`, working tree = `1d1caa3` + these three fixture files)
+
+Commands (from the repo root, run inside the container):
+```bash
+swift test --scratch-path /tmp/evalfix-ing --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors
+swift build --scratch-path /tmp/evalfix-tools --package-path Tools/TendTools -Xswiftc -warnings-as-errors
+tend-eval-score --profile ds1-gated --fixtures Fixtures/M2/eval \
+  --expected-fixtures-sha256 bbbb…bbbb --results <hand-made results file> --log <file>.score.log
+```
+There is no manifest before the freeze. So the hand-made files carry the placeholder hash `b` × 64, and the same value
+is passed as `--expected-fixtures-sha256`. Each hand-made file is canonical results v1, built from the golden set by my
+generator. It is kept in `/tmp` and not committed: it would have to be rebuilt after the freeze, because the hash
+changes.
+
+| Run | Result | Key scorer-log lines |
+|---|---|---|
+| `TendIngestion` tests | exit 0 | `Test run with 534 tests in 64 suites passed` (the same count as the `1d1caa3` baseline; no test reads these fixtures yet) |
+| `TendTools` build | exit 0 | warnings as errors |
+| **Perfect file** (one draft per golden item, `sourcePhrase` = `referencePhrase`, each repeat draft `ofDraft`, each `existing` draft `ofExisting`), `ds1-gated` | **exit 0, PASS** | `N 58, extras 0, drafts 62, valid 62, introduced banned tokens 0, duplicates created 0, false merges 0`; segmentation, kind, room, effort, critical, deepClean and weatherDependent each 58 of 58 (required 56 / 56 / 53 / 50 / 56 / 56 / 56); best targets: 44 golden, 18 seeded, 0 none |
+| **One planted false merge** (in15 `g15-plants` marked `ofExisting(t-plants)`, not committed) | exit 0, PASS (the gate allows ≤ 1) | `in15 … false merges: 1 (g15-plants)`; `check PASS: false merges <= 1 (AC-M2-17/26): 1` |
+| **Two planted false merges** (also in04 `g04-trashbags` marked `ofExisting(t-bins)`) | **exit 1, FAIL** | `false merges: 1 (g04-trashbags)`, `false merges: 1 (g15-plants)`; `check FAIL: false merges <= 1 (AC-M2-17/26): 2` |
+| **One duplicate created** (in05 oven draft left `none` and committed) | **exit 1, FAIL** | `in05 best target: draft 2 -> seeded t-oven`; `c(x): … seeded t-oven=1`; `check FAIL: 0 duplicates created (AC-M2-17/26): 1` |
+| Wrong fixtures hash | exit 2 | `file rejected: the fixtures hash does not match` |
+| Self-test file against its own fixtures (`info`) | exit 0 | unchanged by this work |
+
+SHA-256 of the hand-made files (kept in `/tmp/evalfix-results/final3/`, not evidence for any device AC, CLAUDE.md §5):
+
+- perfect `255ecc1176e8dbeb8efcd80832be8ed128cf84253e2b20539e61a3cd0f80d720`
+- one false merge `7078fd290ae60e4a7926809136f233ee79a100f46e50abb78b344a89f9782423`
+- two false merges `f48070dae41dd3be7180fa4cd38840d158156ab46f08ce9f6eb2d38ccddc245b`
+- duplicate created `50d22586b137d3b85f98bc6b68cf9a5670b68aca2506760c843270fd2bc76073`
+
+## Review of the WI-M2-10 golden requests and key-path lists (plan "golden requests … reviewed by the Tester")
+
+Scope: `Fixtures/M2/payload/golden/*` (9 bodies, 9 heads), `allowed-key-paths-{openai,anthropic,gemini}.json`, read
+against brief AC-M2-20 and Definitions "Cloud request", PO WI-M2-10 rulings 3, 4 and 7, PO WI-M2-11 rulings 1–3, and
+`l1-model-check-2026-11-23.md`.
+
+| ID | Severity | Finding | Owner | Due |
+|---|---|---|---|---|
+| GR-1 | **Major** | The fixed instructions (`CloudOutputSchema.swift:41`, in all 9 golden bodies) say *"isCritical: true only for safety or health."* The PRD (FR-B2 "Critical items (e.g., paying a bill, expiring food)") and rubric Q3 ("critical (bill, expiring food)") define critical differently. Following the instructions, a cloud model would mark the eval's bills (in02, 08, 18) and expiring food (in05, 11, 18) as not critical. 8 golden items are critical, and the critical threshold is 56 of 58, so AC-M2-26 would fail because of the instruction, not because of the model. The on-device instructions (`TendAI`, not written yet) must use the same definition. | PO (meaning, EC-Q2), then Developer (instructions, regenerate the 9 golden bodies; key paths unchanged) | Before the AC-M2-14 freeze |
+| GR-2 | Minor | The room instruction ("a name from rooms when the chore belongs there") asks for inference, while the golden set expects a room only when the person names it (EC-Q1). The fixtures avoid most conflicts by always naming the room of a located chore. Remaining risk: "hang the clothes out on the line" (golden `none`; the model might pick Laundry room) and restocks (golden `none`; the model might pick Kitchen). | PO (EC-Q1) | Before the freeze |
+| GR-3 | Minor | The allowed lists' `headers` have only `auth`, `Content-Type` (and `anthropic-version`) and the transport-set `Content-Length` and `Host`. PO WI-M2-10 ruling 4 requires `User-Agent: Tend` and `Accept-Language: en-US` as fixed, and `Accept`, `Accept-Encoding` and `Connection` listed as transport-set. These are the WI-M2-M4 (Mac) deliverables. The golden heads are correct as builder output if the lists name these headers. | Developer (WI-M2-M4) | Before the freeze |
+| GR-4 | Minor | Gemini: `generationConfig.responseJsonSchema` and `thinkingConfig.thinkingLevel` on `streamGenerateContent`, and `null` inside `enum` (daypart, repeatUnit, season, weekday), are not confirmed by Google's pages (L1b note, 2026-11-24). They are in the golden bytes. L2a must show a schema-valid stream with no 4xx before the freeze; if it fails, the goldens change under a PO decision. | Owner (L2a), Developer | WI-M2-16 DoR |
+| GR-5 | Minor | OpenAI: `$.messages[].content` is both a string leaf (the system message) and the parent of `$.messages[].content[].text` (the user message). On device, `ds2-gated` checks only that key paths are a subset of the list. A request whose user content became a plain string would show only `$.messages[].content`, which is allowed, so the device check cannot see the change. The Linux structural check (AC-M2-20 (b), concrete indices) does catch it. Suggest sending the system message as a text-part array too, or recording the value type per path with the element counts of PO WI-M2-11 ruling 1. | Developer (technical choice) | With the WI-M2-11 ruling 1 ticket |
+| GR-6 | pass | **Shortlists.** I derived the shortlists by hand and they match the golden bodies. G2: water balcony plants (K3), dishwasher pods (K2, R1), kitchen bin (K2, R1), oven (K0, R1); "buy…" < "take…"; completed tasks are excluded. G3: 13 eligible tasks cut to 10, in rank order K2 (fold, wash), then K1 + R1 (air, dry, replace, sort), then K1 + R0 (bleach, buy "soft", count, hang). Titles are trimmed with the inner tab kept, and room names are sent as written (Q19). | — | — |
+| GR-7 | pass | **Fixed members** equal PO WI-M2-10 ruling 7: `gpt-6-luna`, `reasoning_effort: "none"`, `store: false`, `stream_options.include_usage`, `max_completion_tokens: 4096`, no `temperature`; `claude-haiku-4-5-20251001`, `anthropic-version: 2023-06-01`, `temperature: 0`, forced `tool_choice`, no `thinking`; `gemini-3.5-flash-lite`, `thinkingLevel: "minimal"`, `maxOutputTokens: 4096`, no `temperature`, no `thinkingBudget`, `propertyOrdering` or `nullable`. The auth header holds only the fake key. | — | — |
+| GR-8 | pass | **N-3.** No decimal digit run in any of the 18 golden files or 3 lists contains 600…729. The instructions contain no banned token. The key paths use the results-file form (PO WI-M2-15 ruling 2). | — | — |
+
+## Open questions for the PO (my reading is applied in the fixtures; the PO confirms or changes it before the freeze)
+
+| ID | Question | Reading applied (most faithful to the PRD, as I read it) |
+|---|---|---|
+| EC-Q1 | When is a room expected? PRD FR-A1 says the AI "infers the room". | `existing(room)` only when the person says the room's name; `none` for chores with no place; `new` for a named place that is not in the household. Every located chore in the inputs names its room, so naming and inference agree, except for the risks in GR-2. |
+| EC-Q2 | What is "critical"? | PRD FR-B2 and Q3: a bill or obligation with a date (electric, water and property-tax bills, the insurance renewal) and expiring food (chicken, yogurt, soup) are critical, and so is a safety check (smoke alarms). A routine appointment (the dentist) is not. This needs GR-1 fixed. |
+| EC-Q3 | The task names "P1–P7 composition"; the brief's composition is rubric Q3, and P1–P7 are the plan's Q6 time-phrase rows. | Both are covered: Q3 is the binding table above (C1–C12), and P1–P7 coverage is information only. Windows are not scored, and no change to the scoring rules is proposed. |
+| EC-Q4 | Effort convention. | `low` = a quick errand or touch-up; `normal` = default; `high` = a deep clean or a job the person calls big (rule 9). |
+| EC-Q5 | Should the eval include an existing-task mention with **no** shared keyword (for example "dish tablets" for "Buy dishwasher pods")? | Excluded. Under Q12 = yes no cloud model is sent that title, and the word-match floor cannot match it, so the cloud run's 0-duplicate gate (AC-M2-26) could never pass. If the PO wants it, it needs a non-gated watch item, which is a scoring-rule change, so I do not propose it. |
+| EC-Q6 | What is "a repeat inside the input"? | The same chore said twice in one input. It is one golden item; the second draft should be `ofDraft` (it is not primary, so it is not an extra). |
+| EC-Q7 | What is "a weather condition"? | The person states one for that chore (rain, dry, sunny, "before the rain comes"). The item is `isWeatherDependent`. |
+
+## Still open in WI-M2-16 (not done here)
+- The Developer's Linux composition check on these fixtures, including `referencePhrase` best-target and version-4
+  UUID checks, and `MANIFEST.sha256` (Developer).
+- PO approval of this composition and answers to EC-Q1…Q7; GR-1 fixed and the golden bodies regenerated; GR-3
+  (WI-M2-M4); L2a (owner).
+- My independent re-score of `results-selftest-1` (AC-M2-14; it also confirms PO WI-M2-15 S1 and S4).
+- The DS-1 and DS-2 device scripts, including which inputs make up the AC-M2-11 subset (3 inputs, 2 of them voice) and
+  the AC-M2-25 subset (2 voice inputs). Every device AC stays AWAITING-DEVICE.
+- The freeze itself: no change after it without a PO decision in `DECISIONS.md`.
+
+## Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Every input is a free spoken or typed brain-dump (FR-A1). Nothing is form-shaped. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No banned token in any fixture file (rule 3). The inputs use calm wording ("please don't let me forget it"), with no lateness or shaming phrasing. Any banned token in a draft is therefore "introduced" and fails the gate. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | The fixtures are the same for the on-device (DS-1) and cloud (DS-2) runs. Voice inputs are read live and no audio is stored (AC-M2-15). |
+| P-2 No data leaves the device | pass | Invented household data only: no names, addresses or IDs from real people. Nothing is sent by this work. |
+| P-3 Cloud AI opt-in, minimised | pass, with GR-1, 3, 4 and 5 open | During DS-2 a request carries one input, the 9 room names and at most 10 shortlist titles (≤ 6 eligible per input), all invented. GR-3 and GR-5 strengthen the minimisation proof. |
+| P-4 Media not persisted | pass | No audio or images in the fixtures. |
+
+## Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Acceptance Tester | accepted | WI-M2-16 (AC-M2-14), Tester part: fixtures, a scorer proof, the golden-request review and this composition table. |
+| 2026-11-24 | Acceptance Tester | Product Owner (via Orchestrator) | sent for approval | Composition C1–C12 met (N = 58). EC-Q1…Q7 to answer. GR-1 (Major) needs a PO meaning ruling, then a Developer fix, before the freeze. |
+| 2026-11-24 | Acceptance Tester | Developer (via Orchestrator) | sent | Composition check and `MANIFEST.sha256` (after PO approval); GR-1 after the PO ruling; GR-3 (WI-M2-M4); GR-5 (with WI-M2-11 ruling 1). Not frozen. |

@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "note": "WI-M2-16 eval fixtures (AC-M2-14), written by the Acceptance Tester. Not frozen until MANIFEST.sha256 exists and the PO has approved the composition (docs/milestones/M2/eval-composition.md). Plain household phrases; no personal data.",
+  "inputs": [
+    {
+      "id": "in01",
+      "mode": "text",
+      "text": "The AC needs servicing before summer, we're almost out of dishwasher pods, and let's deep clean the balcony this weekend if it doesn't rain",
+      "composition": [
+        "weather",
+        "deepClean",
+        "existingTask"
+      ],
+      "q6Rows": [
+        "T13",
+        "T9"
+      ]
+    },
+    {
+      "id": "in02",
+      "mode": "voice",
+      "text": "Um, okay, so I need to pay the electric bill by Friday, no wait, Thursday, and, uh, book the dentist for the kids, and the bathroom sink is draining really slowly",
+      "composition": [
+        "critical",
+        "existingTask",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "T7"
+      ]
+    },
+    {
+      "id": "in03",
+      "mode": "text",
+      "text": "We're out of milk, grab some on the way home, the hallway light keeps flickering so swap the bulb, and seriously, don't forget the milk",
+      "composition": [
+        "repeat",
+        "completedTaskSaidAgain"
+      ],
+      "q6Rows": [
+        "T1"
+      ]
+    },
+    {
+      "id": "in04",
+      "mode": "voice",
+      "text": "So, uh, the gutters are full of leaves again, clear those once it's dry, and mow the back garden every week from now on, but only when it's not raining, and grab more trash bags",
+      "composition": [
+        "weather",
+        "existingTask",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "R2"
+      ]
+    },
+    {
+      "id": "in05",
+      "mode": "text",
+      "text": "The chicken in the kitchen fridge needs cooking by tomorrow, the oven still needs that deep clean, and give the bathroom grout a proper deep scrub this weekend",
+      "composition": [
+        "critical",
+        "deepClean",
+        "existingTask"
+      ],
+      "q6Rows": [
+        "T5",
+        "T9"
+      ]
+    },
+    {
+      "id": "in06",
+      "mode": "voice",
+      "text": "Okay, uh, we're nearly out of dishwasher tablets, and toilet paper, we need toilet paper, and um the washing machine in the laundry room smells funny so run a hot cleaning cycle",
+      "composition": [
+        "existingTask",
+        "repeat",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "T1"
+      ]
+    },
+    {
+      "id": "in07",
+      "mode": "text",
+      "text": "Sweep the patio every other week when it's dry, wash the car this Saturday if the sun's out, and have a big sort-out of the shed before winter",
+      "composition": [
+        "weather",
+        "existingTask",
+        "newRoom"
+      ],
+      "q6Rows": [
+        "R2",
+        "T7",
+        "T13"
+      ]
+    },
+    {
+      "id": "in08",
+      "mode": "voice",
+      "text": "Right, the water bill, pay that by the twentieth, um, no, by the fifteenth, and renew the car insurance this week, and, uh, pick up a birthday card",
+      "composition": [
+        "critical",
+        "existingTask",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "T10"
+      ]
+    },
+    {
+      "id": "in09",
+      "mode": "text",
+      "text": "Deep clean the carpet in the kids room, it's sticky everywhere, the weekly sheet change in our bedroom, and vacuum the living room like every week",
+      "composition": [
+        "deepClean",
+        "existingTask"
+      ],
+      "q6Rows": [
+        "R2"
+      ]
+    },
+    {
+      "id": "in10",
+      "mode": "voice",
+      "text": "Um, so water the garden plants every morning, and, uh, the windows, wash the outside windows when there's no rain forecast, and get the water heater serviced every year",
+      "composition": [
+        "weather",
+        "existingTask",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "R7",
+        "R4"
+      ]
+    },
+    {
+      "id": "in11",
+      "mode": "text",
+      "text": "Test the smoke alarms, it's a monthly thing, the yogurt expires on Wednesday so eat it before then, and buy more coffee beans",
+      "composition": [
+        "critical",
+        "existingTask"
+      ],
+      "q6Rows": [
+        "R3",
+        "T7"
+      ]
+    },
+    {
+      "id": "in12",
+      "mode": "voice",
+      "text": "Take the trash out tonight, it's trash day every Tuesday, um, fix the squeaky garage door this weekend, and, uh, yeah, the trash, don't forget the trash",
+      "composition": [
+        "existingTask",
+        "repeat",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "T4",
+        "R5",
+        "T9"
+      ]
+    },
+    {
+      "id": "in13",
+      "mode": "text",
+      "text": "Every weekend sweep the front porch, rake the leaves in the garden when it's dry, and hang the clothes out on the line today if it stays sunny",
+      "composition": [
+        "weather",
+        "newRoom"
+      ],
+      "q6Rows": [
+        "R6",
+        "T2"
+      ]
+    },
+    {
+      "id": "in14",
+      "mode": "voice",
+      "text": "Okay so, um, paint the garden fence when it's dry, no, actually, just stain it, sometime next week, and deep clean the kitchen fridge, it smells, and, uh, book the window cleaner",
+      "composition": [
+        "weather",
+        "deepClean",
+        "existingTask",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "T11"
+      ]
+    },
+    {
+      "id": "in15",
+      "mode": "text",
+      "text": "Water the bathroom plants on Thursday, top up the hand soap in the bathroom, and clean the shower screen every two weeks",
+      "composition": [
+        "sameChoreOtherRoom"
+      ],
+      "q6Rows": [
+        "T7",
+        "R2"
+      ]
+    },
+    {
+      "id": "in16",
+      "mode": "voice",
+      "text": "Uh, book the car in for a service on Monday, no wait, Tuesday, and, um, the gutters, clear the gutters before the rain comes, and bleed the radiators in the bedroom",
+      "composition": [
+        "weather",
+        "existingTask",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "T7"
+      ]
+    },
+    {
+      "id": "in17",
+      "mode": "voice",
+      "text": "We're low on cat food, the kibble, so order more, and the dishwasher tablets, yeah, those too, and, um, sort through the kids room toy box in three days",
+      "composition": [
+        "existingTask",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "T14"
+      ]
+    },
+    {
+      "id": "in18",
+      "mode": "text",
+      "text": "Pay the property tax this week, eat the leftover soup today before it goes off, wipe down the kitchen counters some evening, and the property tax, please don't let me forget it",
+      "composition": [
+        "critical",
+        "repeat"
+      ],
+      "q6Rows": [
+        "T10",
+        "T2",
+        "T15"
+      ]
+    },
+    {
+      "id": "in19",
+      "mode": "text",
+      "text": "Every three months change the furnace filter, deep clean the garage floor on a dry day, and buy more olive oil",
+      "composition": [
+        "weather",
+        "deepClean",
+        "existingTask"
+      ],
+      "q6Rows": [
+        "R3"
+      ]
+    },
+    {
+      "id": "in20",
+      "mode": "voice",
+      "text": "Um, okay, the bedroom windows, no, the living room windows, wash them this afternoon if it's sunny, and dust the bookshelves in the hallway, and, um, book the chimney sweep every year before winter",
+      "composition": [
+        "weather",
+        "fillerOrCorrection"
+      ],
+      "q6Rows": [
+        "T3",
+        "R4",
+        "T13"
+      ]
+    }
+  ]
+}

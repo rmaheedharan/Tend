@@ -1,0 +1,790 @@
+{
+  "schemaVersion": 1,
+  "note": "WI-M2-16 eval fixtures (AC-M2-14), written by the Acceptance Tester. Not frozen until MANIFEST.sha256 exists and the PO has approved the composition (docs/milestones/M2/eval-composition.md). Plain household phrases; no personal data.",
+  "rooms": [
+    {
+      "key": "kitchen",
+      "id": "E7A1C0DE-0000-4000-8000-000000000101",
+      "name": "Kitchen"
+    },
+    {
+      "key": "bathroom",
+      "id": "E7A1C0DE-0000-4000-8000-000000000102",
+      "name": "Bathroom"
+    },
+    {
+      "key": "living",
+      "id": "E7A1C0DE-0000-4000-8000-000000000103",
+      "name": "Living room"
+    },
+    {
+      "key": "bedroom",
+      "id": "E7A1C0DE-0000-4000-8000-000000000104",
+      "name": "Bedroom"
+    },
+    {
+      "key": "kids",
+      "id": "E7A1C0DE-0000-4000-8000-000000000105",
+      "name": "Kids room"
+    },
+    {
+      "key": "hallway",
+      "id": "E7A1C0DE-0000-4000-8000-000000000106",
+      "name": "Hallway"
+    },
+    {
+      "key": "garage",
+      "id": "E7A1C0DE-0000-4000-8000-000000000107",
+      "name": "Garage"
+    },
+    {
+      "key": "garden",
+      "id": "E7A1C0DE-0000-4000-8000-000000000108",
+      "name": "Garden"
+    },
+    {
+      "key": "laundry",
+      "id": "E7A1C0DE-0000-4000-8000-000000000109",
+      "name": "Laundry room"
+    }
+  ],
+  "tasks": [
+    {
+      "key": "t-pods",
+      "id": "E7A1C0DE-0000-4000-8000-000000000201",
+      "title": "Buy dishwasher pods",
+      "kind": "restock",
+      "roomKey": null,
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "dishwasher",
+          "dish"
+        ],
+        [
+          "pods",
+          "tablets",
+          "capsules",
+          "detergent"
+        ]
+      ]
+    },
+    {
+      "key": "t-gutters",
+      "id": "E7A1C0DE-0000-4000-8000-000000000202",
+      "title": "Clear the gutters",
+      "kind": "oneOff",
+      "roomKey": null,
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "gutters",
+          "gutter"
+        ]
+      ]
+    },
+    {
+      "key": "t-oven",
+      "id": "E7A1C0DE-0000-4000-8000-000000000203",
+      "title": "Deep clean the oven",
+      "kind": "oneOff",
+      "roomKey": "kitchen",
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": true,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "maintenance",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "oven"
+        ]
+      ]
+    },
+    {
+      "key": "t-insurance",
+      "id": "E7A1C0DE-0000-4000-8000-000000000204",
+      "title": "Renew the car insurance",
+      "kind": "oneOff",
+      "roomKey": null,
+      "effort": "normal",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "resurfaced",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "insurance"
+        ]
+      ]
+    },
+    {
+      "key": "t-fence",
+      "id": "E7A1C0DE-0000-4000-8000-000000000205",
+      "title": "Paint the garden fence",
+      "kind": "oneOff",
+      "roomKey": "garden",
+      "effort": "high",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "deferred",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "fence"
+        ]
+      ],
+      "deferredUntil": "2026-12-14T15:00:00.000Z"
+    },
+    {
+      "key": "t-plants",
+      "id": "E7A1C0DE-0000-4000-8000-000000000206",
+      "title": "Water the garden plants",
+      "kind": "recurring",
+      "roomKey": "garden",
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": 3,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "water",
+          "watering"
+        ],
+        [
+          "plants",
+          "plant",
+          "pots",
+          "flowers"
+        ],
+        [
+          "garden"
+        ]
+      ]
+    },
+    {
+      "key": "t-bins",
+      "id": "E7A1C0DE-0000-4000-8000-000000000207",
+      "title": "Take the trash out",
+      "kind": "recurring",
+      "roomKey": null,
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": 7,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "trash",
+          "garbage",
+          "bins",
+          "bin",
+          "rubbish"
+        ]
+      ]
+    },
+    {
+      "key": "t-filter",
+      "id": "E7A1C0DE-0000-4000-8000-000000000208",
+      "title": "Change the furnace filter",
+      "kind": "recurring",
+      "roomKey": null,
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": 90,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "filter",
+          "filters"
+        ],
+        [
+          "furnace",
+          "heating",
+          "hvac"
+        ]
+      ]
+    },
+    {
+      "key": "t-sheets",
+      "id": "E7A1C0DE-0000-4000-8000-000000000209",
+      "title": "Change the bedroom sheets",
+      "kind": "recurring",
+      "roomKey": "bedroom",
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": 7,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "sheets",
+          "sheet",
+          "bedding",
+          "linens"
+        ],
+        [
+          "bedroom"
+        ]
+      ]
+    },
+    {
+      "key": "t-milk",
+      "id": "E7A1C0DE-0000-4000-8000-000000000210",
+      "title": "Buy milk",
+      "kind": "restock",
+      "roomKey": null,
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "completed",
+      "completedAt": "2026-11-20T09:00:00.000Z",
+      "matchGroups": [
+        [
+          "milk"
+        ]
+      ]
+    },
+    {
+      "key": "t-bulb",
+      "id": "E7A1C0DE-0000-4000-8000-000000000211",
+      "title": "Replace the hallway bulb",
+      "kind": "oneOff",
+      "roomKey": "hallway",
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "completed",
+      "completedAt": "2026-11-20T09:00:00.000Z",
+      "matchGroups": [
+        [
+          "bulb",
+          "bulbs",
+          "lightbulb",
+          "light"
+        ]
+      ]
+    },
+    {
+      "key": "t-vacuum",
+      "id": "E7A1C0DE-0000-4000-8000-000000000212",
+      "title": "Vacuum the living room",
+      "kind": "recurring",
+      "roomKey": "living",
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": 7,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "vacuum",
+          "vacuuming",
+          "hoover",
+          "hoovering"
+        ],
+        [
+          "living",
+          "lounge"
+        ]
+      ]
+    },
+    {
+      "key": "t-dentist",
+      "id": "E7A1C0DE-0000-4000-8000-000000000213",
+      "title": "Book the dentist appointment",
+      "kind": "oneOff",
+      "roomKey": null,
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "dentist",
+          "dental"
+        ]
+      ]
+    },
+    {
+      "key": "t-smoke",
+      "id": "E7A1C0DE-0000-4000-8000-000000000214",
+      "title": "Test the smoke alarms",
+      "kind": "recurring",
+      "roomKey": null,
+      "effort": "low",
+      "isCritical": true,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": 30,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "smoke"
+        ],
+        [
+          "alarm",
+          "alarms",
+          "detector",
+          "detectors"
+        ]
+      ]
+    },
+    {
+      "key": "t-car",
+      "id": "E7A1C0DE-0000-4000-8000-000000000215",
+      "title": "Wash the car",
+      "kind": "oneOff",
+      "roomKey": null,
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": true,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "car"
+        ],
+        [
+          "wash",
+          "washing",
+          "clean",
+          "cleaning"
+        ]
+      ]
+    },
+    {
+      "key": "t-kettle",
+      "id": "E7A1C0DE-0000-4000-8000-000000000216",
+      "title": "Descale the kettle",
+      "kind": "oneOff",
+      "roomKey": "kitchen",
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "kettle"
+        ],
+        [
+          "descale",
+          "descaling",
+          "limescale"
+        ]
+      ]
+    },
+    {
+      "key": "t-shelves",
+      "id": "E7A1C0DE-0000-4000-8000-000000000217",
+      "title": "Sort the garage shelves",
+      "kind": "oneOff",
+      "roomKey": "garage",
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "shelves",
+          "shelf"
+        ],
+        [
+          "garage"
+        ]
+      ]
+    },
+    {
+      "key": "t-towels",
+      "id": "E7A1C0DE-0000-4000-8000-000000000218",
+      "title": "Wash the bath towels",
+      "kind": "oneOff",
+      "roomKey": "bathroom",
+      "effort": "normal",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "completed",
+      "completedAt": "2026-11-20T09:00:00.000Z",
+      "matchGroups": [
+        [
+          "towels",
+          "towel"
+        ]
+      ]
+    },
+    {
+      "key": "t-catfood",
+      "id": "E7A1C0DE-0000-4000-8000-000000000219",
+      "title": "Buy cat food",
+      "kind": "restock",
+      "roomKey": null,
+      "effort": "low",
+      "isCritical": false,
+      "isDeepClean": false,
+      "isWeatherDependent": false,
+      "allowedDayparts": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "allowedWeekdays": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+      ],
+      "windowStart": "2026-11-30T14:00:00.000Z",
+      "windowEnd": "2026-12-07T14:00:00.000Z",
+      "recurrenceIntervalDays": null,
+      "state": "active",
+      "completedAt": null,
+      "matchGroups": [
+        [
+          "cat"
+        ],
+        [
+          "food",
+          "kibble"
+        ]
+      ]
+    }
+  ]
+}
