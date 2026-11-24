@@ -1120,7 +1120,7 @@
       "room": {
         "type": "none"
       },
-      "effort": "normal",
+      "effort": "low",
       "isCritical": false,
       "isDeepClean": false,
       "isWeatherDependent": false,

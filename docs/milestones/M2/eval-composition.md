@@ -2,7 +2,8 @@
 
 - **Owner:** Acceptance Tester  ·  **Base commit:** `1d1caa3` (branch `m2/eval-fixtures-freeze`)  ·  **Date:** 2026-11-24
 - **Status:** composition **APPROVED by the PO with conditions** (`po-m2-wi16.md` ruling 1, 2026-11-24) for the three
-  fixture files at commit `95491ed` (hashes in "PO approval" below). **Not frozen:** there is no `MANIFEST.sha256` yet.
+  fixture files at commit `95491ed`, re-approved for `golden.json` with the EC-Q8 relabel (hashes in "PO approval"
+  below). **Not frozen:** there is no `MANIFEST.sha256` yet.
   The freeze comes after the ruling 1 conditions are met: GR-1 fixed and the 9 golden bodies regenerated with the
   instruction lines of PO rulings 3, 4, 5 and 9, verified by me (GR-1, GR-2: **verified, CLOSED at PR #32 head
   `02f944e`**); GR-3 (**CLOSED at `02f944e`**); the owner's live check L2a on the regenerated bodies (GR-4, still open;
@@ -11,7 +12,10 @@
 - **Revisions:** v1 at `95491ed` (for approval). v2: PO rulings of `po-m2-wi16.md` applied to this document
   only. v3: GR-1, GR-2, GR-3 and GR-5 verified on PR #32 (`m2/cloud-instructions`, head `02f944e`) and
   closed; GR-9 and GR-10 added; AQ-2/AQ-4 answered (PO follow-up rulings F3, F4). v4 (this text): review WI-M2-16 round 1 F2 answered
-  (rule 9 states that the person's verb decides; EC-Q8 to the PO: relabel `g16-carservice` effort `low`). `inputs.json`, `household.json` and `golden.json` are **unchanged** (PO "Changes required", Tester item 1).
+  (rule 9 states that the person's verb decides; EC-Q8 to the PO: relabel `g16-carservice` effort `low`). v5 (this
+  text): PO approved EC-Q8; `golden.json` relabelled in that one value (`$.items[43].effort`, `g16-carservice`,
+  `normal` → `low`), new SHA-256 recorded; EC-Q8 and review F2 closed. `inputs.json` and `household.json` are
+  **unchanged**.
 - **Requirement IDs:** FR-A1, UX-3, P-3, AC-M2-14 (also feeds AC-M2-11, 15, 16, 17, 25, 26, 27), brief rubric Q3,
   Q5, Q6, Q12, brief "Eval scoring rules", PO WI-M2-15 ruling 1 ("Distinguishable targets").
 
@@ -21,7 +25,7 @@
 |---|---|---|
 | `Fixtures/M2/eval/inputs.json` | `b32e45afeb25a6d8972ce9f3b78a6dd051686d4ac6b7d87564769bf92c7ebcec` | 20 inputs (10 voice, 10 text). Extra members the reader ignores: `composition` (tags for the composition check) and `q6Rows` (the time-phrase rows each input uses, information only). |
 | `Fixtures/M2/eval/household.json` | `089a22bd5a0b3da9ef6b057b186f61b459963f02bbee322c30a47b2af8e17f66` | 9 rooms and 19 seeded tasks (16 not completed: 13 `active`, 1 `maintenance`, 1 `resurfaced`, 1 `deferred`; 3 `completed`). Fixed version-4 UUIDs `E7A1C0DE-0000-4000-8000-0000000001nn` (rooms) and `…0000000002nn` (tasks). Each task has match groups. |
-| `Fixtures/M2/eval/golden.json` | `882c2906a15704b9b8376cfdd62aa3b909239b4b6f7ca9ce4d370fa69580d4dc` | 58 golden items: 41 `create`, 17 `existing(seededKey)`. Each has a `referencePhrase` (PO WI-M2-15 ruling 1; on every item, not only `create`). |
+| `Fixtures/M2/eval/golden.json` | `0e819a89fcb65adb0a764d296f1d0dc8f30275cfe074495a4fe9c793a0f4b771` (v5; was `882c2906…` before the EC-Q8 relabel) | 58 golden items: 41 `create`, 17 `existing(seededKey)`. Each has a `referencePhrase` (PO WI-M2-15 ruling 1; on every item, not only `create`). |
 
 The files use exactly the WI-M2-15 reader format (`EvalFixtures.swift`). `results-v1.schema.json` is unchanged. The
 self-test set `Fixtures/M2/eval-selftest/` is unchanged. Sources and tests are unchanged.
@@ -34,8 +38,11 @@ self-test set `Fixtures/M2/eval-selftest/` is unchanged. Sources and tests are u
 | Approved at | commit `95491ed` (branch `m2/eval-fixtures-freeze`) |
 | `Fixtures/M2/eval/inputs.json` | `b32e45afeb25a6d8972ce9f3b78a6dd051686d4ac6b7d87564769bf92c7ebcec` |
 | `Fixtures/M2/eval/household.json` | `089a22bd5a0b3da9ef6b057b186f61b459963f02bbee322c30a47b2af8e17f66` |
-| `Fixtures/M2/eval/golden.json` | `882c2906a15704b9b8376cfdd62aa3b909239b4b6f7ca9ce4d370fa69580d4dc` |
-| Re-checked | `sha256sum` of the three files on this branch, 2026-11-24, after the v2 doc edit: identical to the values above (the PO note gives the 8-character prefixes `b32e45af…`, `089a22bd…`, `882c2906…`). |
+| `Fixtures/M2/eval/golden.json` | `882c2906a15704b9b8376cfdd62aa3b909239b4b6f7ca9ce4d370fa69580d4dc` (approved at `95491ed`; superseded by the EC-Q8 re-approval below) |
+| EC-Q8 re-approval | `po-m2-wi16.md` "EC-Q8" (PO, 2026-11-24): composition re-approved for a `golden.json` whose only difference from `882c2906…` is `g16-carservice` effort `normal` → `low`. |
+| `Fixtures/M2/eval/golden.json` (current, approved) | **`0e819a89fcb65adb0a764d296f1d0dc8f30275cfe074495a4fe9c793a0f4b771`**. This is the hash the Developer pins in `EvalFreezeTests.swift` and `MANIFEST.sha256`. |
+| One-value diff (evidence) | `git diff -U1` on `golden.json`: one line, `-      "effort": "normal",` / `+      "effort": "low",` at line 1123 (numstat `1 1`). A JSON tree comparison of the old and new file (my script, `python3 -I`) gives exactly one difference: `$.items[43].effort: 'normal' -> 'low'`, and `items[43].key` is `g16-carservice`. |
+| Re-checked | v5, 2026-11-24, after the relabel: `inputs.json` `b32e45af…ebcec` and `household.json` `089a22bd…17f66` unchanged; `golden.json` = the current hash above. Earlier (v2): `sha256sum` of the three files after the v2 doc edit: identical to the values above (the PO note gives the 8-character prefixes `b32e45af…`, `089a22bd…`, `882c2906…`). |
 | Change rule | Any data change before the freeze goes back to the PO; after the freeze it needs a PO decision in `DECISIONS.md` (AC-M2-14). |
 | Conditions before the freeze | (a) GR-1 fixed (ruling 3) and the 9 golden bodies regenerated; (b) the room, effort and weather instruction lines of rulings 4, 5 and 9 in the same regeneration; (c) GR-3 (WI-M2-M4); (d) L2a (GR-4); (e) the Developer's Linux composition check passes; (f) these doc edits (done in v2). **v3:** (a), (b), (c) verified at PR #32 head `02f944e` ("Verification of the regenerated golden requests" below), to hold when PR #32 merges; (d) and (e) open. |
 
@@ -124,8 +131,8 @@ Other Q6 rows used: T1, T2, T4, T5, T9, T11, T13, R2, R3.
    fixed the wording to "a long job". The golden data is unchanged.) **v4 (review WI-M2-16 F2):** the person's verb
    decides. When they say "book" (or pay, buy) the item is the booking and is `low` (`g02-dentist`, `g14-cleaner`,
    `g20-chimney`); when they name only the service ("the AC needs servicing", "get the water heater serviced") it is
-   `normal` (`g01-ac`, `g10-heater`). `g16-carservice` ("book the car in for a service") is `normal` in `golden.json`
-   at the approved hash and so breaks this rule; I propose `low` (EC-Q8). Until the PO rules, the data is unchanged.
+   `normal` (`g01-ac`, `g10-heater`). `g16-carservice` ("book the car in for a service") was `normal` and broke this
+   rule; v5 relabels it `low` (EC-Q8, PO approved; booking, paying, buying or ordering is `low`).
 10. **en-US phrasing** (brief Q2): trash, toilet paper, property tax, water heater. No names, addresses or real
     personal data.
 
@@ -201,7 +208,7 @@ Other Q6 rows used: T1, T2, T4, T5, T9, T11, T13, R2, R3.
 | in15 | g15-plants | create | oneOff | existing Bathroom | low | - | - | - | {water, watering} / {plants, plant, pots, flowers} / {bathroom} |
 | in15 | g15-soap | create | restock | existing Bathroom | low | - | - | - | {soap, handwash} |
 | in15 | g15-shower | create | recurring | existing Bathroom | normal | - | - | - | {shower} |
-| in16 | g16-carservice | create | oneOff | none | normal | - | - | - | {car} / {service, servicing, mechanic} |
+| in16 | g16-carservice | create | oneOff | none | low | - | - | - | {car} / {service, servicing, mechanic} |
 | in16 | g16-gutters | existing t-gutters | oneOff | none | normal | - | - | yes | {gutters, gutter} |
 | in16 | g16-radiators | create | oneOff | existing Bedroom | normal | - | - | - | {radiator, radiators} |
 | in17 | g17-catfood | existing t-catfood | restock | none | low | - | - | - | {cat} / {food, kibble} |
@@ -316,7 +323,7 @@ Developer's tests; then I re-ran the Developer's suite at the same commit.
 Result: **GR-1, GR-2, GR-3, GR-5 CLOSED at `02f944e`.** If PR #32's golden files or lists change before merge (for
 example the F2 revert after L2a), the closure lapses and I re-verify. GR-4 (L2a) stays open and must run on these bodies.
 
-## Open questions for the PO: EC-Q1…Q7 answered (`po-m2-wi16.md`, 2026-11-24); EC-Q8 open (v4)
+## Open questions for the PO: all answered (`po-m2-wi16.md`, 2026-11-24; EC-Q8 in v5)
 
 Every reading below was confirmed; no fixture data changes. The PO's watch items (unnamed-room inference, synonym-only
 duplicates) go to the M3 dev-set and are not scored in M2.
@@ -330,7 +337,7 @@ duplicates) go to the M3 dev-set and are not scored in M2.
 | EC-Q5 | Should the eval include an existing-task mention with **no** shared keyword (for example "dish tablets" for "Buy dishwasher pods")? | Excluded. Under Q12 = yes no cloud model is sent that title, and the word-match floor cannot match it, so the cloud run's 0-duplicate gate (AC-M2-26) could never pass. If the PO wants it, it needs a non-gated watch item, which is a scoring-rule change, so I do not propose it. | **ANSWERED, ruling 7:** confirmed, excluded from the gated set. Watch item for M3: synonym-only duplicates. |
 | EC-Q6 | What is "a repeat inside the input"? | The same chore said twice in one input. It is one golden item; the second draft should be `ofDraft` (it is not primary, so it is not an extra). | **ANSWERED, ruling 8:** confirmed. A second committed draft is a duplicate created (c(g) − 1). |
 | EC-Q7 | What is "a weather condition"? | The person states one for that chore (rain, dry, sunny, "before the rain comes"). The item is `isWeatherDependent`. | **ANSWERED, ruling 9:** confirmed (the person ties the chore to the weather; never inferred in M2) and stated in the instructions. |
-| EC-Q8 | Review WI-M2-16 F2 (Minor): effort of `g16-carservice` ("book the car in for a service", in16). It is `normal`; the 3 other "book" items are `low`, and rule 9 lists "book" as `low`. Relabel it `low`? | **Relabel to `low`.** The reviewer's other reading ("scored on the service") is not consistent with my own labels: "book the dentist for the kids" (`g02-dentist`) is also an appointment the person attends, and it is `low`. PO ruling 4 puts booking with buying, paying and errands, and the instruction the model reads (ruling 5) says "low for a quick errand", so a model that follows it says `low` and would lose this item to my label. Items without "book" (`g01-ac`, `g10-heater`) stay `normal`. Impact: 1 of 58 effort labels (gate 50 of 58); a perfect file stays 58/58 once relabelled; composition C1–C12 unchanged. It changes `golden.json` and its approved hash `882c2906…` (pinned in `EvalFreezeTests.swift`), so under ruling 1 I do **not** change it until the PO re-approves; then I relabel, the Developer updates the pin and `MANIFEST.sha256`, and only then the freeze. | **OPEN, PO (before the freeze).** |
+| EC-Q8 | Review WI-M2-16 F2 (Minor): effort of `g16-carservice` ("book the car in for a service", in16). It is `normal`; the 3 other "book" items are `low`, and rule 9 lists "book" as `low`. Relabel it `low`? | **Relabel to `low`.** The reviewer's other reading ("scored on the service") is not consistent with my own labels: "book the dentist for the kids" (`g02-dentist`) is also an appointment the person attends, and it is `low`. PO ruling 4 puts booking with buying, paying and errands, and the instruction the model reads (ruling 5) says "low for a quick errand", so a model that follows it says `low` and would lose this item to my label. Items without "book" (`g01-ac`, `g10-heater`) stay `normal`. Impact: 1 of 58 effort labels (gate 50 of 58); a perfect file stays 58/58 once relabelled; composition C1–C12 unchanged. It changes `golden.json` and its approved hash `882c2906…` (pinned in `EvalFreezeTests.swift`), so under ruling 1 I do **not** change it until the PO re-approves; then I relabel, the Developer updates the pin and `MANIFEST.sha256`, and only then the freeze. | **ANSWERED (PO, `po-m2-wi16.md` "EC-Q8", 2026-11-24): relabel approved; rule 9 confirmed.** Done in v5 (one-value diff and new hash in "PO approval"). EC-Q8 and review WI-M2-16 F2 **CLOSED**. |
 
 ## Still open in WI-M2-16
 - The Developer's Linux composition check on these fixtures, including `referencePhrase` best-target and version-4
@@ -338,8 +345,8 @@ duplicates) go to the M3 dev-set and are not scored in M2.
 - PR #32 merges with the golden files verified at `02f944e` (GR-1, GR-2, GR-3, GR-5 closed there). L2a on these
   bodies (owner, GR-4), including the OpenAI array system content (F2). GR-9 (`@Guide` parity, WI-M2-M2, before
   DS-1) does not block the freeze. GR-10 (my DS-2 Part A headers) is fixed in v3.
-- EC-Q8 (review F2): PO re-approval of `g16-carservice` effort `low`, then my relabel, the Developer's hash pin and
-  manifest update. Blocks the freeze, not DS preparation.
+- EC-Q8 done (v5). The Developer updates the `golden.json` pin in `EvalFreezeTests.swift` to `0e819a89…4b771` and
+  writes `MANIFEST.sha256` (the pin test fails until then; expected).
 - The freeze itself: no change after it without a PO decision in `DECISIONS.md`.
 
 Done since v1:
@@ -371,3 +378,5 @@ Done since v1:
 | 2026-11-24 | Acceptance Tester | Developer, Product Owner (via Orchestrator) | sent | v2 doc edits done (rule 9 wording, answers, approval record); fixture data unchanged. GR-1 stays open (Major) and GR-2 is answered, until I verify the bodies regenerated on `m2/cloud-instructions`. |
 | 2026-11-24 | Acceptance Tester | Orchestrator → PO, Developer, owner | sent | v3: regenerated golden requests verified on PR #32 head `02f944e` (V1–V8): GR-1, GR-2, GR-3, GR-5 CLOSED there. New: GR-9 (Minor, open, Developer WI-M2-M2, `@Guide` parity before DS-1), GR-10 (Minor, my DS-2 Part A `curl` headers; fixed in v3); slip in12 → in10 corrected. GR-4 (L2a), composition check, manifest and freeze still open. |
 | 2026-11-24 | Acceptance Tester | PO, Reviewer, Developer (via Orchestrator) | sent | v4 (review WI-M2-16 round 1): F2 answered as EC-Q8, proposal relabel `g16-carservice` effort `normal` → `low` (rule 9 now states that the person's verb decides); no data change until the PO re-approves (ruling 1, hash pin). F1 and N4 fixed in `acceptance.md`. Still not frozen. |
+| 2026-11-24 | Product Owner | Acceptance Tester (via Orchestrator) | answered | EC-Q8: relabel approved, composition re-approved for the one-value change. |
+| 2026-11-24 | Acceptance Tester | Developer, Reviewer, PO (via Orchestrator) | sent | v5: `g16-carservice` effort `low`; one-value diff shown; `golden.json` SHA-256 `0e819a89fcb65adb0a764d296f1d0dc8f30275cfe074495a4fe9c793a0f4b771`; inputs and household unchanged. EC-Q8 and F2 closed. Developer: pin and manifest. Not frozen. |
