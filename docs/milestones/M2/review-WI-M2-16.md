@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-16: eval fixtures, Tester docs and the Linux composition check (PR #34, `m2/eval-fixtures-freeze`, head `1184436`)
 
-- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 2 (round 1 APPROVE at `1184436`; round 2 APPROVE at `70dcdeb`, see "Round 2" at the end)
 - **Requirements:** AC-M2-14 (fixtures meet rubric Q3 and the eval scoring rules; composition check on Linux; SHA-256
   manifest and freeze; Tester re-score), FR-A1, FR-B2, UX-3, P-3 (N-3); feeds AC-M2-11, 15, 16, 17, 25, 26, 27, 28.
 - **Binding inputs checked:** `CLAUDE.md`; brief AC-M2-14, rubric Q3, "Eval scoring rules", "Device-run rules"; plan
@@ -131,12 +131,12 @@ contains only the branch's own Tester files. `origin/main` is still `368bb9e`.
 ## Findings
 | # | Severity | File:line | Finding | Required change | Status |
 |---|---|---|---|---|---|
-| F1 | Minor | `docs/milestones/M2/acceptance.md:239` (DS-1 S1; DS-2 S1 at :370 says "As DS-1 S1") | `sha256sum -c Fixtures/M2/eval/MANIFEST.sha256` run "from the repo root" cannot work. The manifest lists bare names (`golden.json …`, `EvalManifest.command` runs inside the directory), so `sha256sum -c` looks in the current directory and fails. I reproduced it on a scratch copy: from the parent directory `FAILED open or read` ×4, exit 1; from `Fixtures/M2/eval`, 4 × `OK`, exit 0. It fails safe (no false PASS), hence Minor. It would still stop the Tester's scoring step. | Tester: change S1 to `(cd Fixtures/M2/eval && sha256sum -c MANIFEST.sha256)`, keeping `H=$(sha256sum Fixtures/M2/eval/MANIFEST.sha256 \| cut -d' ' -f1)` as is (that line is correct from the root). Doc-only; the Tester may fix it with the freeze commit. | OPEN |
-| F2 | Minor (question for Tester/PO, before the freeze) | `Fixtures/M2/eval/golden.json` item `g16-carservice` (`effort: normal`) | The Tester's rule 9 (`eval-composition.md:120`, ruling 5) names "book" as `low`. The sibling bookings `g02-dentist`, `g14-cleaner` and `g20-chimney` are `low`, but "book the car in for a service" is `normal`. One reading is defensible: the item is the service, not the booking, as with `g01-ac` and `g10-heater` at `normal`. But the labels are not consistent with the rule as written. It is 1 of 58 against an 85% effort gate, so the gate stays passable. It is still a label a correct model could lose on, and the composition check cannot see effort on create items (my mutant). | Tester: confirm the reading, or relabel `low` and take it back to the PO under ruling 1 **before** the freeze (afterwards it needs a DECISIONS.md entry). If kept, add one sentence to rule 9 saying that "book X for a service" is scored on the service. No code change. | OPEN |
+| F1 | Minor | `docs/milestones/M2/acceptance.md:239` (DS-1 S1; DS-2 S1 at :370 says "As DS-1 S1") | `sha256sum -c Fixtures/M2/eval/MANIFEST.sha256` run "from the repo root" cannot work. The manifest lists bare names (`golden.json …`, `EvalManifest.command` runs inside the directory), so `sha256sum -c` looks in the current directory and fails. I reproduced it on a scratch copy: from the parent directory `FAILED open or read` ×4, exit 1; from `Fixtures/M2/eval`, 4 × `OK`, exit 0. It fails safe (no false PASS), hence Minor. It would still stop the Tester's scoring step. | Tester: change S1 to `(cd Fixtures/M2/eval && sha256sum -c MANIFEST.sha256)`, keeping `H=$(sha256sum Fixtures/M2/eval/MANIFEST.sha256 \| cut -d' ' -f1)` as is (that line is correct from the root). Doc-only; the Tester may fix it with the freeze commit. | CLOSED (round 2, `812486d`) |
+| F2 | Minor (question for Tester/PO, before the freeze) | `Fixtures/M2/eval/golden.json` item `g16-carservice` (`effort: normal`) | The Tester's rule 9 (`eval-composition.md:120`, ruling 5) names "book" as `low`. The sibling bookings `g02-dentist`, `g14-cleaner` and `g20-chimney` are `low`, but "book the car in for a service" is `normal`. One reading is defensible: the item is the service, not the booking, as with `g01-ac` and `g10-heater` at `normal`. But the labels are not consistent with the rule as written. It is 1 of 58 against an 85% effort gate, so the gate stays passable. It is still a label a correct model could lose on, and the composition check cannot see effort on create items (my mutant). | Tester: confirm the reading, or relabel `low` and take it back to the PO under ruling 1 **before** the freeze (afterwards it needs a DECISIONS.md entry). If kept, add one sentence to rule 9 saying that "book X for a service" is scored on the service. No code change. | CLOSED (round 2: PO EC-Q8 relabel `low`, `0c69143`; pin `70dcdeb`) |
 | N1 | Nit | `EvalCompositionSupport.swift:480-503` (F8) | F8 checks one direction only. `existing(room)` must be named, but a create item whose `referencePhrase` names a household room can be labelled `none` and still pass (mutant `g18-counters` → none passed every composition rule; only the hash pin caught it). This matches the Tester's rule 8 as written, so it is not a defect. | Optional: add the converse for `create` items (room named **in the item's own `referencePhrase`** ⇒ expected `existing(that room)`). It holds today for every item I checked. | OPEN (optional) |
 | N2 | Nit | `EvalCompositionSupport.swift:619-624` | `listedNames` says "every regular file" but filters only dot-files and the manifest, so a sub-directory would be listed and `Data(contentsOf:)` would throw. No sub-directory exists today. | Optional: filter to regular files, or fix the comment. | OPEN (optional) |
 | N3 | Nit | `golden.json` `g15-shower` (room `existing(bathroom)`) | "Bathroom" is named in in15 for the other two chores, not in the shower clause. It meets rule 8 (input-level) and ruling 2 ("clearly sits in"), so I am not asking for a change. It is the one golden room that relies on inference within the input. | None. The Tester may note it next to the M3 unnamed-room dev-set watch item. | OPEN (info) |
-| N4 | Nit | `acceptance.md:175` (DS-1 P10) | "[Operator]: type your name or initials". The results files are committed to the repository. | Tester: say "initials" only. | OPEN |
+| N4 | Nit | `acceptance.md:175` (DS-1 P10) | "[Operator]: type your name or initials". The results files are committed to the repository. | Tester: say "initials" only. | CLOSED (round 2, `812486d`) |
 
 No Blocker. No Major.
 
@@ -172,3 +172,87 @@ No Blocker. No Major.
 |---|---|---|---|---|
 | 2026-11-24 | Orchestrator | Reviewer | accepted | PR #34 `m2/eval-fixtures-freeze` @ `1184436`; worktree `/home/user/wt-rev34`. |
 | 2026-11-24 | Reviewer | Orchestrator → Merge Gatekeeper, Acceptance Tester, PO | sent (round 1: APPROVE) | 0 Blocker, 0 Major. F1 (Tester, DS-1 S1 command), F2 (Tester/PO, `g16-carservice` effort, before the freeze), N1–N4 optional. AC-M2-14 stays OPEN until L2a, the manifest and the freeze. Not committed or pushed by the Reviewer. |
+
+---
+
+## Round 2 — head `70dcdeb` (base `origin/main` `4e13164`)
+
+- **Verdict:** APPROVE. No Blocker. No Major. No new finding.
+- **Commits since round 1 (`1184436`):**
+  - `728b2d7`: my round-1 review, committed; byte-identical to the file I wrote.
+  - `812486d`: Tester fixes F1 and N4, and sends F2 to the PO as EC-Q8.
+  - `0c69143`: Tester relabels `g16-carservice`.
+  - `fc52a39`: Tester closes A-F1.
+  - `7ab5a54`: Developer merges `origin/main` `4e13164` (PR #33).
+  - `70dcdeb`: Developer updates the golden pin.
+- **Milestone lock:** M1 `ACCEPTED`, M2 `IN-BUILD`. No protected path touched. The PR diff against `4e13164` is the
+  three fixtures, the three test files and `docs/milestones/M2/` files only.
+
+### What I checked
+1. **`golden.json` differs from round 1 in exactly one value.** I parsed both files with my own Python: the same top
+   level, 58 items, and the only difference is `g16-carservice` `effort` `"normal"` → `"low"`. The text diff is one
+   line (`golden.json:1123`). `sha256sum`:
+   - `golden.json` = `0e819a89fcb65adb0a764d296f1d0dc8f30275cfe074495a4fe9c793a0f4b771`, equal to the hash in the
+     `eval-composition.md` approval record and to the PO EC-Q8 condition ("only difference from `882c2906…` is
+     `g16-carservice` effort `normal` → `low`");
+   - `inputs.json` `b32e45af…ebcec` and `household.json` `089a22bd…17f66` are unchanged.
+2. **Only the golden pin changed in the tests.** Between `1184436` and `70dcdeb`, `EvalFreezeTests.swift` changes only
+   `approvedSHA256["golden.json"]` (`882c2906…` → `0e819a89…`) and two comments. `EvalCompositionSupport.swift` and
+   `EvalCompositionTests.swift` are unchanged, and so are `declaredFrozen = false` and the inputs/household pins.
+   No composition pin covers effort, and F9 checks only deep clean ⇒ high, so the relabel needs no other change. In
+   round 1 I showed that an effort mutant fails only the hash pin, so this pin update is the right and only place.
+3. **The merge `7ab5a54` adds nothing.**
+   - Every file the merge brings from main is byte-identical to `4e13164`: `EvalProfile.swift`,
+     `EvalProfileTests.swift`, `Tools/TendTools/Package.swift`, `EvalScoreCommand.swift`, `TendToolsTests.swift`,
+     `review-A-F1.md`.
+   - The one conflict, `dev-notes.md`, is a pure union. No line of the merged file is new to both parents, no line of
+     either parent is missing, and there are no conflict markers. The Developer's round-2 note sits in a later commit,
+     `70dcdeb`.
+   - `Tools/TendTools/Package.swift` changes only through main (PR #33, already reviewed in `review-A-F1.md`); this
+     branch adds no dependency.
+4. **The Tester's fixes.**
+   - F1: `acceptance.md:262` (DS-1 S1) and `:393` (DS-2 S1) now run `(cd Fixtures/M2/eval && sha256sum -c
+     MANIFEST.sha256)` and compute `H` from the repo root. This is the form I proved works in round 1.
+   - N4: P10 (`:198`) now asks for initials only.
+   - F2: rule 9 now says the person's verb decides. EC-Q8 is answered and closed in `eval-composition.md`, and the
+     approval record holds the full new hash.
+   - `eval-composition.md` Status still says "Not frozen", so `freezeStateAgrees` holds.
+   - The seven device ACs are still **AWAITING-DEVICE**, and AC-M2-14 is still **OPEN (not frozen)**.
+   - A-F1 is closed by the Tester, the role that raised it, at `4e13164`, with re-test evidence. S5/S7 stay as second
+     controls (PO F4).
+5. **Label.** PO EC-Q8 makes "book …" a `low` errand, consistent with `g02-dentist`, `g14-cleaner` and `g20-chimney`.
+   `g01-ac` and `g10-heater` ("needs servicing", "get … serviced") stay `normal`. Consistent.
+
+### Runs (Linux, Docker `swift:6.2-noble`, Swift 6.2.4, `-warnings-as-errors`, my scratch paths `/tmp/rev34-*-r2`)
+- `swift test --package-path Packages/TendIngestion`: exit 0, `Test run with 564 tests in 66 suites passed`, 0
+  `warning:`, 0 `✘`. The only skip is `"AC-M2-14: MANIFEST.sha256 verifies …" skipped: "not frozen yet: no
+  MANIFEST.sha256 (waits for L2a, PO ruling 1)"`. The count went from 556 to 564 because of PR #33's tests from main.
+- `swift test --package-path Tools/TendTools`: exit 0, `Test run with 11 tests in 1 suite passed`, 0 `warning:`.
+
+### Findings status after round 2
+| # | Severity | Status |
+|---|---|---|
+| F1 | Minor | CLOSED: verified at `812486d` (`acceptance.md:262`, `:393`) |
+| F2 | Minor | CLOSED: PO EC-Q8; one-value relabel `0c69143` verified; pin `70dcdeb` |
+| N1 | Nit | OPEN (optional, no change needed) |
+| N2 | Nit | OPEN (optional) |
+| N3 | Nit | OPEN (info only) |
+| N4 | Nit | CLOSED: verified at `812486d` (`acceptance.md:198`) |
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | One fixture label and docs; no entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | F3 is still green; no new copy. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No routing change. |
+| P-2 No data leaves device (except user iCloud) | pass | No dependency added by this branch; fixtures stay invented. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | No instruction or request change (EC-Q8 changes no instruction text); N-3 still green. L2a (GR-4) is still required before the freeze. |
+| P-4 Media not persisted without consent | n.a. | Text only. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Reviewer | accepted | Round 2 at `70dcdeb`; worktree `/home/user/wt-rev34` (detached). |
+| 2026-11-24 | Reviewer | Orchestrator → Merge Gatekeeper, Acceptance Tester, Developer | sent (round 2: APPROVE) | 0 Blocker, 0 Major. F1, F2, N4 closed; N1–N3 optional. AC-M2-14 stays OPEN until L2a, `MANIFEST.sha256` and the freeze (flip `declaredFrozen` + Status bullet in one commit). Not committed or pushed by the Reviewer. |
