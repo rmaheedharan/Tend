@@ -23,6 +23,89 @@ public enum EvalProfile: String, Sendable, Hashable, CaseIterable {
     case info
 }
 
+/// One input of a fixed subset: its ID and mode (A-F1; PO rulings F3 and F4 in po-m2-wi16.md).
+public struct EvalSubsetInput: Sendable, Hashable, CustomStringConvertible {
+    public var inputID: String
+    public var mode: EvalInputMode
+
+    public init(_ inputID: String, _ mode: EvalInputMode) {
+        self.inputID = inputID
+        self.mode = mode
+    }
+
+    /// `in01 (text)`: the form the reason and the scorer log use.
+    public var description: String { "\(inputID) (\(mode.rawValue))" }
+
+    /// The distinct (input ID, mode) pairs of the file's attempts, sorted by input ID (UTF-8 bytes), then mode. A
+    /// retake does not add a pair.
+    static func inputs(of file: EvalResultsFileV1) -> [EvalSubsetInput] {
+        Set(file.inputs.map { EvalSubsetInput($0.inputID, $0.mode) }).sorted {
+            $0.inputID == $1.inputID ? $0.mode.rawValue < $1.mode.rawValue
+                : TextFolding.utf8Precedes($0.inputID, $1.inputID)
+        }
+    }
+
+    static func list(_ inputs: [EvalSubsetInput]) -> String {
+        inputs.isEmpty ? "no input" : inputs.map(\.description).joined(separator: ", ")
+    }
+}
+
+extension EvalProfile {
+
+    /// The fixed input subset of the profile (PO ruling F3), or nil for a profile over the whole fixture set. Pinned
+    /// here, not an argument: AC-M2-11 = in01 (text), in02 (voice), in10 (voice); AC-M2-25 = in08 (voice),
+    /// in16 (voice). A change needs a DECISIONS.md entry (AC-M2-14 rule). Sorted by input ID.
+    public var subset: [EvalSubsetInput]? {
+        switch self {
+        case .ds1Offline: [EvalSubsetInput("in01", .text), EvalSubsetInput("in02", .voice), EvalSubsetInput("in10", .voice)]
+        case .ds2Offline, .ds2Online: [EvalSubsetInput("in08", .voice), EvalSubsetInput("in16", .voice)]
+        case .ds1Gated, .ds2Gated, .info: nil
+        }
+    }
+
+    /// The AC a subset profile scores; nil for a profile with no subset (review N2).
+    var subsetAC: String? {
+        switch self {
+        case .ds1Offline: "AC-M2-11"
+        case .ds2Offline, .ds2Online: "AC-M2-25"
+        case .ds1Gated, .ds2Gated, .info: nil
+        }
+    }
+}
+
+/// A file whose inputs are not exactly the profile's fixed subset (A-F1). The tool exits 2.
+public struct EvalSubsetMismatch: Sendable, Hashable {
+    public var profile: EvalProfile
+    public var required: [EvalSubsetInput]
+    public var found: [EvalSubsetInput]
+
+    public init(profile: EvalProfile, required: [EvalSubsetInput], found: [EvalSubsetInput]) {
+        self.profile = profile
+        self.required = required
+        self.found = found
+    }
+
+    /// A plain reason that names every input ID and mode on both sides.
+    public var reason: String {
+        let requiredIDs = Dictionary(required.map { ($0.inputID, $0.mode) }, uniquingKeysWith: { first, _ in first })
+        let foundIDs = Set(found.map(\.inputID))
+        var notes: [String] = []
+        let extra = found.filter { requiredIDs[$0.inputID] == nil }
+        if !extra.isEmpty { notes.append("not in the subset: " + EvalSubsetInput.list(extra)) }
+        let absent = required.filter { !foundIDs.contains($0.inputID) }
+        if !absent.isEmpty { notes.append("not in the file: " + EvalSubsetInput.list(absent)) }
+        for input in found {
+            if let mode = requiredIDs[input.inputID], mode != input.mode {
+                notes.append("\(input.inputID) is \(input.mode.rawValue) in the file, the subset takes it as \(mode.rawValue)")
+            }
+        }
+        let ac = profile.subsetAC.map { "\($0), " } ?? ""
+        return "the inputs are not the fixed \(profile.rawValue) subset (\(ac)PO ruling F3): it takes "
+            + "exactly \(EvalSubsetInput.list(required)); the file has \(EvalSubsetInput.list(found))"
+            + (notes.isEmpty ? "" : "; " + notes.joined(separator: "; "))
+    }
+}
+
 /// One named check of a profile.
 public struct EvalCheck: Sendable, Hashable {
     public var name: String
@@ -79,6 +162,8 @@ public enum EvalScoringError: Error, Sendable, Hashable {
     case schemaUnusable(EvalSchemaError)
     case fixturesUnusable(EvalFixtureError)
     case rejected(EvalRejection)
+    /// A-F1: a subset profile (`ds1-offline`, `ds2-offline`, `ds2-online`) got other input IDs or modes.
+    case subsetMismatch(EvalSubsetMismatch)
 }
 
 extension EvalScorer {
@@ -101,6 +186,12 @@ extension EvalScorer {
                                              expectedFixturesSHA256: request.expectedFixturesSHA256)
         } catch {
             throw .rejected(error)
+        }
+        if let required = request.profile.subset {
+            let found = EvalSubsetInput.inputs(of: file)
+            guard found == required else {
+                throw .subsetMismatch(EvalSubsetMismatch(profile: request.profile, required: required, found: found))
+            }
         }
         let score = score(file, fixtures: fixtures)
         let result = EvalProfileChecks.evaluate(request.profile, file: file, score: score, fixtures: fixtures,
@@ -163,10 +254,13 @@ enum EvalProfileChecks {
                     .joined(separator: ", "))
         }
 
-        func inputSet(count: Int, voice: Int, ac: String) {
-            let voiceCount = score.inputs.filter { $0.mode == .voice }.count
-            check("\(count) inputs, \(voice) voice (\(ac))", score.inputs.count == count && voiceCount == voice,
-                  "\(score.inputs.count) inputs, \(voiceCount) voice")
+        /// A-F1, second control: `run` refuses another subset before scoring; this check prints the IDs and modes
+        /// in the scorer log and holds the rule if `evaluate` is ever reached another way.
+        func inputSet(ac: String) {
+            let required = profile.subset ?? []
+            let found = EvalSubsetInput.inputs(of: file)
+            check("inputs \(EvalSubsetInput.list(required)) (\(ac))", found == required,
+                  "file has \(EvalSubsetInput.list(found))")
         }
 
         /// AC-M2-11 / AC-M2-25 per-input rules: completed, every golden item matched, 0 extras, all valid, 0 duplicates
@@ -196,12 +290,12 @@ enum EvalProfileChecks {
             timing(ttfiBelow: 1500, totalAtMost: 5000, ac: "AC-M2-16")
         case .ds1Offline:
             check("run on device, no provider (AC-M2-11)", provider == nil, provider?.rawValue ?? "none")
-            inputSet(count: 3, voice: 2, ac: "AC-M2-11")
+            inputSet(ac: "AC-M2-11")
             routes(.onDevice, ac: "AC-M2-11")
             perInputParse(ac: "AC-M2-11", calmWords: true)
         case .ds2Offline:
             check("a provider is selected (AC-M2-25)", provider != nil, provider?.rawValue ?? "none")
-            inputSet(count: 2, voice: 2, ac: "AC-M2-25")
+            inputSet(ac: "AC-M2-25")
             for input in score.inputs {
                 let holds = input.outcome == .noModel && input.committedCount == 0 && input.draftCount == 0
                 check("\(input.inputID): noModel, no task created (AC-M2-25)", holds,
@@ -209,7 +303,7 @@ enum EvalProfileChecks {
             }
         case .ds2Online:
             check("a provider is selected (AC-M2-25)", provider != nil, provider?.rawValue ?? "none")
-            inputSet(count: 2, voice: 2, ac: "AC-M2-25")
+            inputSet(ac: "AC-M2-25")
             if let provider { routes(EvalRoute(rawValue: provider.rawValue) ?? .none, ac: "AC-M2-25") }
             perInputParse(ac: "AC-M2-25", calmWords: false)
         case .ds2Gated:

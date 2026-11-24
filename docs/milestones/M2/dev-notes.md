@@ -4879,6 +4879,94 @@ now evidence.
 | 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent | 3 commits; TendIngestion 538 green, 0 warnings; TendCore, TendSourceScan, TendTools green. |
 | 2026-11-24 | Developer | Acceptance Tester (via Orchestrator) | sent | Verify the regenerated bodies for GR-1 and GR-2 (only the Tester lifts GR-1); re-review GR-3 lists and GR-5 (OpenAI key-path list changed). |
 
+---
+
+## A-F1 fix: subset profiles take exactly their fixed input IDs and modes (PO ruling F4)
+Branch `m2/scorer-subset-ids` (from `main` `1d1caa3`). Defect A-F1 (Tester, `m2/eval-fixtures-freeze` acceptance draft,
+AQ-2), severity Minor. Rulings F3 and F4 in `po-m2-wi16.md` ("Follow-up rulings (PR #32 and acceptance)").
+Requirement IDs: AC-M2-11, AC-M2-25, AC-M2-14 (scorer log as evidence), FR-A1.
+
+### What changed
+- `TendIngestion/Eval/EvalProfile.swift`: new `EvalSubsetInput` (ID + mode) and `EvalProfile.subset`, which pins the
+  subsets in the profiles (not an argument): `ds1-offline` = in01 (text), in02 (voice), in10 (voice) (AC-M2-11);
+  `ds2-offline` and `ds2-online` = in08 (voice), in16 (voice) (AC-M2-25); `ds1-gated`, `ds2-gated`, `info` = none.
+  `EvalScorer.run` compares the file's distinct (input ID, mode) pairs with the subset after the file is read and
+  before scoring; any difference throws the new `EvalScoringError.subsetMismatch(EvalSubsetMismatch)`. Its `reason`
+  names the profile, the AC, the subset and the file's inputs, then what is not in the subset, what is not in the file,
+  and each mode difference. A voice retake (attempt 2) does not count as another input.
+- The old count-only check (`3 inputs, 2 voice` / `2 inputs, 2 voice`) is replaced by a second control in the profile:
+  `inputs in01 (text), in02 (voice), in10 (voice) (AC-M2-11): file has …`. It prints the IDs and modes in the scorer
+  log for every subset run, and fails if `evaluate` is reached without the `run` check.
+- `TendTools/EvalScoreCommand.swift`: the mismatch exits 2 as `file rejected: <reason>`; usage text lists the subsets.
+  `Package.swift`: the test target also depends on `TendIngestion` (to build the A-F1 files; no new package).
+- Checked by hand against the Tester's frozen fixtures (`origin/m2/eval-fixtures-freeze`,
+  `Fixtures/M2/eval/inputs.json`): in01 text, in02 voice, in10 voice, in08 voice, in16 voice. Matches AC-M2-11
+  ("3 eval inputs … 2 voice, 1 text") and AC-M2-25 ("2 voice inputs"). `Fixtures/M2/eval/` not touched.
+
+### AC → test
+| Item | Test |
+|---|---|
+| Subsets pinned, whole-set profiles have none | `EvalProfileTests` "A-F1: the subsets are pinned in the profiles (PO ruling F3) …" |
+| Fixed subset scored and passes (3 profiles) | "A-F1: the fixed subset is scored and passes" (3 cases) |
+| Right count, wrong ID; wrong mode; too few; too many; whole set → refused with the exact mismatch and a calm reason | "A-F1: any other file is refused (exit 2) …" (16 cases: 7 wrong-ID right-count, 4 wrong-mode, 5 count) |
+| Second control in the profile | "A-F1: the profile check also holds the subset (second control) …" |
+| Scorer log prints IDs and modes | "A-F1: the scorer log prints the input IDs and modes of a subset run" |
+| AC-M2-11 / AC-M2-25 per-input rules on the fixed IDs | `ds1Offline`, `ds2Offline`, `ds2Online` (same assertions as before, now on in01/in02/in10 and in08/in16; the 4-input and text-input files are now refusals) |
+| Tool exit codes and messages | `TendToolsTests` "tend-eval-score (A-F1): the fixed subset is scored (exit 0 or 1, not 2) …" (3 cases), "… any other input set exits 2 with a plain reason …" (7 cases: wrong ID right count and wrong mode for each profile, plus the whole self-test file), "… the whole-set profiles take any input set" |
+
+The synthetic eval in `EvalProfileTests` now uses the frozen fixtures' modes (was: odd numbers voice); `flipped` makes
+the wrong-mode fixtures. No test was removed, skipped or loosened; the count-only failures became exit-2 refusals.
+Mutation check: with the `run` guard disabled (`|| true`), 18 issues in `EvalProfileTests` (every refusal case, the
+4-input and text-input refusals); restored and rerun green.
+
+### Verification environment
+| Check | Linux (container, `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`) | macOS CI | Simulator | Device |
+|---|---|---|---|---|
+| TendIngestion (incl. AC-M2-09 and AC-M2-12 source scans) | ✔ `Test run with 539 tests in 64 suites passed` (5 new tests), 0 warnings | not run | n.a. | n.a. |
+| TendTools | ✔ `Test run with 11 tests in 1 suite passed` (3 new tests), 0 warnings | not run | n.a. | n.a. |
+| Mutation (guard off) | ✔ killed | n.a. | n.a. | n.a. |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Tool only. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No app copy. Reason text checked by test for the banned words. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Scorer is Linux-side; AC-M2-11 subset identity now proven by the tool. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | No dependency, no network; the test target dependency is an in-repo package. |
+| P-3 Cloud AI opt-in, minimised | n.a. | No request change. |
+| P-4 Media not persisted | n.a. | Text files only. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | PO (via Orchestrator) | Developer | accepted | F4: fix the tool for A-F1. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent | Subsets pinned; other files exit 2 with a plain reason; log prints IDs and modes. Only the Tester closes A-F1; S5/S7 stay as second controls. No PR opened (Orchestrator to open). |
+
+### A-F1 round 2 (review `review-A-F1.md`, round 1 APPROVE: F1 Minor, N1, N2)
+- **F1:** `EvalProfileTests` (TendIngestion, which CI runs) now covers what only `TendToolsTests` covered:
+  "A-F1 (review F1): a voice retake of in02 … is one input" (in02 attempts 1 and 2: scored, passes, attempt 2 scored,
+  log line; a retake outside the subset is still refused) and "A-F1 (review F1): the exact reason text for each note
+  kind" (5 cases: both notes, "not in the subset" only, "not in the file" only, two mode notes). `Synthetic.request`
+  gained `retakes:` (a no-draft `noModel` attempt 1, then the edited attempt as attempt 2 with a reason).
+  Reviewer mutants rerun on `EvalProfileTests` alone (restore with `cp` + `touch`): M4 (no retake dedupe) 1 issue,
+  M7 (no mode note) 2, M8 (no "not in the file") 3, M9 (no "not in the subset") 3; M0 baseline green. All killed.
+- **N1:** the `ds2Online` text-input case asserts `found` (`in01 (text)`, `in08 (voice)`) and the exact reason.
+- **N2:** `subsetAC` is `String?`, nil for `ds1-gated`, `ds2-gated`, `info`; test "A-F1 (review N2) …".
+- **Merge:** `git merge --no-ff origin/main` (`368bb9e`, PR #32). Only conflict: `dev-notes.md`; took main's file and
+  appended the A-F1 sections at the end.
+- **Merged tree** (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`): TendIngestion `✔ Test run with 546 tests in
+  64 suites passed` (main's 538 + 8 A-F1), 0 warnings; AC-M2-09 `55 files in total, 0 violations`; AC-M2-12
+  `55 files, 9 exempted (the list), 0 violations`. TendTools `✔ Test run with 11 tests in 1 suite passed`, 0 warnings.
+  macOS CI, Simulator, device: not run.
+- Law check unchanged from round 1 (test code and an internal optional only).
+
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Reviewer (via Orchestrator) | Developer | accepted (round 1: APPROVE) | F1 Minor, N1, N2. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1, N1, N2 fixed; M4, M7–M9 now killed in TendIngestion; merged `main` `368bb9e`; 546 + 11 green. |
+
 ## WI-M2-16 (Developer part 2) — Linux composition check on the real eval fixtures; freeze state and MANIFEST.sha256 verifier (no manifest yet)
 
 - **Owner:** Developer  ·  **Branch:** `m2/eval-fixtures-freeze` (merged `origin/main` at `368bb9e`, PR #32, with
