@@ -32,6 +32,13 @@ Canonical JSON. `tend-eval-score --allowed-key-paths` reads `keyPaths[].path` (A
 - `headers`: the builder's headers in order (`auth`, `fixed`), then headers the transport sets (`derivedByTransport`,
   left out of the Linux header comparison).
 
+## Used by the payload proof (WI-M2-11, AC-M2-20 (a) and (b))
+
+`PayloadSentinelTests.swift` reads the G1 head and body of each provider and its allowed list as the reference for
+≥ 500 seeded households sent through the router: the key-path set must equal `keyPaths[].path`, every leaf outside the
+user content must equal G1's at the same **concrete** index, every body byte outside the user-content string must
+equal G1's, and the header names must equal the list's `auth` and `fixed` names in order.
+
 ## Regenerating (only under a PO decision, plan R-15)
 
 ```bash
