@@ -91,11 +91,34 @@ the named subset?"* Read the profile rules in the tool's usage and ran the score
   inputs, not their **IDs**. Any 3 inputs with 2 voice would pass `ds1-offline`. Mitigation in the scripts below: I
   check the input IDs by hand (step S5 of each scoring part) before I record a PASS. A tool check would be better
   (Minor, below).
+- **A-F1 re-test (2026-11-24, `origin/main` `4e13164`, PR #33 merged).** Charter: *"Can any input set other than the
+  fixed subset get scored under `ds1-offline`, `ds2-offline` or `ds2-online`?"* Linux, Docker `swift:6.2-noble`. I
+  built `tend-eval-score` (`swift build --package-path Tools/TendTools -Xswiftc -warnings-as-errors`) and scored my own
+  files, built by my script from the self-test set (IDs renamed in inputs, golden and results alike; only the kept
+  inputs left; canonical bytes), not the Developer's test helpers:
+
+  | Case | Profile | File holds | Exit | Tool says |
+  |---|---|---|---|---|
+  | c1 exact | ds1-offline | in01 (text), in02 (voice, 2 attempts), in10 (voice) | 1 (scored) | log: `check PASS: inputs in01 (text), in02 (voice), in10 (voice) (AC-M2-11)` |
+  | c2 right count, wrong ID | ds1-offline | in01, in02, **in06** (voice) | **2** | "not in the subset: in06 (voice); not in the file: in10 (voice)" |
+  | c3 right IDs and counts (3 inputs, 2 voice), **modes swapped** | ds1-offline | in01 (**voice**), in02 (voice), in10 (**text**) | **2** | "in01 is voice in the file, the subset takes it as text; in10 is text …" (the old count check would have let this through) |
+  | c4 superset | ds1-offline | the 3 + in03 (text) | **2** | "not in the subset: in03 (text)" |
+  | c5 exact | ds2-offline, ds2-online | in08 (voice), in16 (voice) | 1, 1 (scored) | log: `check PASS: inputs in08 (voice), in16 (voice) (AC-M2-25)` |
+  | c6 wrong ID | ds2-online | in08, **in02** (voice) | **2** | "not in the subset: in02 (voice); not in the file: in16 (voice)" |
+  | c7 wrong mode | ds2-offline | in08 (voice), in16 (**text**) | **2** | "in16 is text in the file, the subset takes it as voice" |
+
+  Exit 1 on c1/c5 is expected: the self-test answers do not pass the per-input parse rules; what matters is that the
+  subset was accepted and scored, not rejected. The IDs are pinned in `EvalProfile.subset` (no argument), so they
+  cannot be changed at scoring time. The Developer's suite also passes: `swift test --package-path Tools/TendTools
+  -Xswiftc -warnings-as-errors`, 11 tests, incl. "any other input set exits 2 with a plain reason naming the IDs and
+  modes" (7 cases) and "the fixed subset is scored … the log prints its IDs and modes" (3 cases). Note: a rejected
+  file writes no scorer log; the reason is on the tool output, which I paste into the evidence with S5/S7.
+  **A-F1 CLOSED.**
 
 ## Defects
 | ID | Severity | AC | Steps | Expected | Actual | Owner |
 |---|---|---|---|---|---|---|
-| A-F1 | Minor | AC-M2-11, AC-M2-25 | Score any 3-input file (2 voice) that is not in01, in02, in10 with `--profile ds1-offline`. | The profile refuses inputs other than the subset named in this file (or the tool takes the subset as an argument). | Only the counts are checked. | Developer, **OPEN (Minor)**. PO F4: the Developer pins the IDs in the profiles (`ds1-offline` = in01 text, in02 voice, in10 voice; `ds2-offline`/`ds2-online` = in08 voice, in16 voice), anything else exits 2 with a plain reason, the log prints input IDs and modes, plus a right-count wrong-ID self-test; due before DS-1/DS-2 scoring. DS-1 S5 and DS-2 S7 stay as a second control, recorded with the file's IDs. If the fix is not in before scoring, S5/S7 alone are accepted for that scoring and A-F1 stays open. Only I close A-F1. |
+| A-F1 | Minor | AC-M2-11, AC-M2-25 | Score any 3-input file (2 voice) that is not in01, in02, in10 with `--profile ds1-offline`. | The profile refuses inputs other than the subset named in this file (or the tool takes the subset as an argument). | Only the counts are checked. | Developer. **CLOSED 2026-11-24** at `origin/main` `4e13164` (PR #33): re-test c1–c7 in "Exploratory testing" (wrong ID, swapped modes, superset all exit 2 with a plain reason; the fixed subsets are scored and logged with IDs and modes). Was: PO F4: the Developer pins the IDs in the profiles (`ds1-offline` = in01 text, in02 voice, in10 voice; `ds2-offline`/`ds2-online` = in08 voice, in16 voice), anything else exits 2 with a plain reason, the log prints input IDs and modes, plus a right-count wrong-ID self-test; due before DS-1/DS-2 scoring. DS-1 S5 and DS-2 S7 stay as a second control, recorded with the file's IDs. If the fix is not in before scoring, S5/S7 alone are accepted for that scoring and A-F1 stays open. Only I close A-F1. |
 
 ## Device test scripts (for the human owner)
 
@@ -243,7 +266,7 @@ network. None has a repeat inside the input; that case is gated on all 20 inputs
 - S4. My independent re-score of both files:
   `python3 -I docs/milestones/M2/evidence/tester/independent-rescore.py Fixtures/M2/eval <file>.json > <file>.rescore.out`.
   Every total must equal the scorer log (AC-M2-15 "The Tester's re-score must agree").
-- S5. By hand: the Part B file holds exactly in01 (text), in02 (voice), in10 (voice) (A-F1); `run.provider` is null;
+- S5. By hand, as a second control to the tool's subset check (A-F1, closed; PO F4): the Part B file holds exactly in01 (text), in02 (voice), in10 (voice), and the S3 log shows `check PASS: inputs in01 (text), in02 (voice), in10 (voice)`; `run.provider` is null;
   `run.routePreference` is `onDeviceFirst`; `run.network.kind` says airplane mode; the screenshot shows airplane mode
   on, Wi-Fi and Bluetooth off; each voice attempt has a non-empty `transcript`. Part A holds all 20 inputs, last
   attempt scored, at most one retake per voice input, each with a reason; `coldStart.inputID` is `in01`.
@@ -373,7 +396,7 @@ cloud compares on the faster phone. It never replaces AC-M2-16.
 - S4. Part C, per provider `<p>`: `--profile ds2-gated --allowed-key-paths Fixtures/M2/payload/allowed-key-paths-<p>.json`.
 - S5. Part D: `--profile info`.
 - S6. My independent re-score of every file (as DS-1 S4); totals must agree.
-- S7. By hand: Part B files hold exactly in08 and in16, both voice (A-F1); both Part B files name the same provider;
+- S7. By hand, as a second control to the tool's subset check (A-F1, closed; PO F4): Part B files hold exactly in08 and in16, both voice, and the S2/S3 logs show `check PASS: inputs in08 (voice), in16 (voice)`; both Part B files name the same provider;
   in the offline file each attempt has a non-empty `transcript` and a non-null `transcriber`, `cloudRequests` is empty
   and nothing is committed; the two offline screenshots show the calm outcome with the plain-note offer; served models
   before and after match the curated ID for every provider; each "key removed" screenshot is present.
@@ -428,7 +451,7 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
 | ID | For | Question / need | Needed by |
 |---|---|---|---|
 | AQ-1 | Developer (WI-M2-M7) | The scripts need: a subset run of named inputs that exports its own results file (`ds1-offline`, `ds2-offline`, `ds2-online` require 3 or 2 inputs per file); on-screen model availability, speech-asset status with a download while online, the route preference, the selected provider and whether a key is stored; the device's `APP-COMMIT`. Please confirm these exist, and give the exact control labels so I can replace the bracketed names. | Before WI-M2-M7 review |
-| AQ-2 | Developer | A-F1 (Minor): let the subset profiles check input IDs (for example a `--inputs in01,in02,in10` option), or confirm the manual check S5/S7 is the accepted control. **ANSWERED (PO F4, `po-m2-wi16.md` follow-up, 2026-11-24):** the Developer fixes the tool (IDs pinned in the profiles, not a free argument; exit 2 otherwise; IDs and modes in the log; self-test), due before DS-1/DS-2 scoring; S5/S7 stay as manual controls with the file's IDs recorded. A-F1 stays open until I verify the fix. | Before DS-1 |
+| AQ-2 | Developer | A-F1 (Minor): let the subset profiles check input IDs (for example a `--inputs in01,in02,in10` option), or confirm the manual check S5/S7 is the accepted control. **ANSWERED (PO F4, `po-m2-wi16.md` follow-up, 2026-11-24):** the Developer fixes the tool (IDs pinned in the profiles, not a free argument; exit 2 otherwise; IDs and modes in the log; self-test), due before DS-1/DS-2 scoring; S5/S7 stay as manual controls with the file's IDs recorded. A-F1 stays open until I verify the fix. **Fix verified at `4e13164`; A-F1 CLOSED.** | Before DS-1 |
 | AQ-3 | Human owner (Q20, plan O-3) | Confirm the signing team: your free personal team is assumed in Appendix A. | Before MS-3 |
 | AQ-4 | PO | Confirm the AC-M2-11 subset (in01, in02, in10) and the AC-M2-25 subset (in08, in16). They are fixed now, before any device output exists. **ANSWERED (PO F3, 2026-11-24):** confirmed and fixed: AC-M2-11 = in01 (text), in02 (voice), in10 (voice); AC-M2-25 = in08 (voice), in16 (voice). Any change after the freeze or a device run needs a DECISIONS.md entry; choosing a subset after seeing results is not allowed (governance PR records it). | Before the freeze |
 
@@ -440,3 +463,4 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
 | 2026-11-24 | PO (via Orchestrator) | Acceptance Tester | answered | `po-m2-wi16.md` follow-up rulings: F3 fixes both subsets (AQ-4 answered); F4: Developer fixes A-F1 in the tool, S5/S7 stay (AQ-2 answered, A-F1 open). |
 | 2026-11-24 | Acceptance Tester | Orchestrator → PO, Developer, owner | sent | AQ-2, AQ-4 answered. GR-1, GR-2, GR-3, GR-5 verified and closed at PR #32 head `02f944e` (`eval-composition.md` v3). DS-2 Part A `curl` lines now send `User-Agent: Tend` and `Accept-Language: en-US` (GR-10). AC-M2-14 stays OPEN (PR #32 merge, L2a, composition check, manifest, freeze). AQ-1, AQ-3 open. |
 | 2026-11-24 | Acceptance Tester | Orchestrator → Reviewer | sent | Review WI-M2-16 round 1: F1 fixed (DS-1 S1 and DS-2 S1 run `sha256sum -c` inside `Fixtures/M2/eval`); N4 fixed (P10 initials only). F2 answered in `eval-composition.md` (EC-Q8, to the PO). |
+| 2026-11-24 | Acceptance Tester | Orchestrator → Developer, PO, Reviewer | sent | A-F1 re-tested at `origin/main` `4e13164` (PR #33): 7 own cases, all as F4 requires; Developer's TendTools suite 11/11. **A-F1 CLOSED.** S5/S7 stay as the second control and now also read the tool's subset line. |
