@@ -73,8 +73,9 @@ public struct CloudRequest: Equatable, Sendable, CustomStringConvertible, Custom
     public let host: String
     public let path: String
     public let queryItems: [CloudQueryItem]
-    /// In order: the auth header first, then the provider's fixed headers. Transport-set headers (`Content-Length`,
-    /// `Host`, …) are not here; the allowed key-path lists name them as derived (WI-M2-10).
+    /// In order: the auth header first, then the provider's fixed headers, then `User-Agent: Tend` and
+    /// `Accept-Language: en-US` (PO WI-M2-10 ruling 4, GR-3). Transport-set headers (`Content-Length`, `Host`,
+    /// `Accept`, `Accept-Encoding`, `Connection`) are not here; the allowed key-path lists name them as derived.
     public let headers: [CloudRequestHeader]
     /// The canonical JSON body.
     public let body: Data

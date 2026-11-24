@@ -165,6 +165,73 @@ struct PayloadGoldenTests {
         #expect(names.contains("Content-Length"), "transport-set headers are listed as derived")
     }
 
+    @Test("GR-3, PO WI-M2-10 ruling 4 and WI-M2-16 ruling 10 (AC-M2-20, AC-M2-22 Headers): each allowed list names, in order, the auth header, the provider's headers, User-Agent and Accept-Language as fixed, then exactly Content-Length, Host, Accept, Accept-Encoding and Connection as transport-set; no other header", arguments: providers)
+    func allowedListHeaders(provider: CloudProvider) throws {
+        let list = try EvalJSONReader.parse(try Self.allowedList(provider))
+        guard case let .array(headers)? = list["headers"] else {
+            Issue.record("no headers array")
+            return
+        }
+        var entries: [(String, String)] = []
+        for header in headers {
+            guard case let .string(name)? = header["name"], case let .string(role)? = header["role"] else {
+                Issue.record("header without name and role: \(header)")
+                continue
+            }
+            entries.append((name, role))
+        }
+        let providerHeaders: [String] = switch provider {
+        case .openAI: ["Authorization", "Content-Type"]
+        case .anthropic: ["x-api-key", "anthropic-version", "Content-Type"]
+        case .gemini: ["x-goog-api-key", "Content-Type"]
+        }
+        let transportSet = ["Content-Length", "Host", "Accept", "Accept-Encoding", "Connection"]
+        #expect(entries.map(\.0) == providerHeaders + ["User-Agent", "Accept-Language"] + transportSet)
+        #expect(entries.map(\.1) == ["auth"] + Array(repeating: "fixed", count: providerHeaders.count + 1)
+                + Array(repeating: "derivedByTransport", count: transportSet.count))
+        #expect(CloudAllowedKeyPaths.transportSetHeaders == transportSet)
+        // The builder sends the two fixed values itself (never the device's defaults).
+        let request = try Self.goldenRequest(PayloadGolden.g1, provider)
+        let values = request.headers.filter { !$0.isAuthorization }.map { ($0.name, $0.withValue { $0 }) }
+        #expect(values.suffix(2).map(\.0) == ["User-Agent", "Accept-Language"])
+        #expect(values.suffix(2).map(\.1) == ["Tend", "en-US"])
+        #expect(Set(request.headerNames).isDisjoint(with: transportSet), "transport-set headers are not the builder's")
+    }
+
+    @Test("GR-5 (PO WI-M2-16 ruling 10; AC-M2-26 ds2-gated): no allowed key path is both a leaf and a container, so the [] form alone tells a string from a part array at every path", arguments: providers)
+    func allowedPathsHaveOneShape(provider: CloudProvider) throws {
+        let paths = try #require(EvalProfileKeyPathsProbe.read(try Self.allowedList(provider)))
+        for path in paths {
+            let containers = paths.filter { $0.hasPrefix(path + ".") || $0.hasPrefix(path + "[]") }
+            #expect(containers.isEmpty, "\(path) is a leaf and the parent of \(containers.sorted().prefix(2))")
+        }
+    }
+
+    @Test("GR-5 (PO WI-M2-16 ruling 10; AC-M2-26 ds2-gated): a system or user message whose content parts become a plain string sends a key path outside the allowed list, so the device subset check sees it", arguments: providers)
+    func contentShapeChangeLeavesAllowedList(provider: CloudProvider) throws {
+        let allowed = try #require(EvalProfileKeyPathsProbe.read(try Self.allowedList(provider)))
+        let request = try Self.goldenRequest(PayloadGolden.g2, provider)
+        #expect(Set(try #require(CloudRequestKeyPaths.leafPaths(ofBody: request.body))).isSubset(of: allowed))
+        let flatten: (EvalJSON) -> EvalJSON = { value in
+            guard case let .array(parts) = value, case let .string(text)? = parts.first?["text"] else { return value }
+            return .string(text)
+        }
+        let slots: [(String, [JSONStep])] = switch provider {
+        case .openAI: [("system", [.key("messages"), .index(0), .key("content")]),
+                       ("user", [.key("messages"), .index(1), .key("content")])]
+        case .anthropic: [("user", [.key("messages"), .index(0), .key("content")])]
+        case .gemini: [("system", [.key("systemInstruction"), .key("parts")]),
+                       ("user", [.key("contents"), .index(0), .key("parts")])]
+        }
+        for (name, steps) in slots {
+            let body = PayloadStructure.modify(try EvalJSONReader.parse(request.body), at: steps, flatten)
+            let data = try CanonicalJSONWriter.data(body.canonical)
+            #expect(data != request.body, "\(name): the mutant changed nothing")
+            let sent = Set(try #require(CloudRequestKeyPaths.leafPaths(ofBody: data)))
+            #expect(!sent.isSubset(of: allowed), "\(name) content as a plain string is not seen: \(sent.subtracting(allowed))")
+        }
+    }
+
     @Test("PO WI-M2-15 ruling 2: every path in each allowed list, and in the user-content layout, passes the results-v1 keyPaths pattern", arguments: providers)
     func allowedListPattern(provider: CloudProvider) throws {
         let schema = try EvalJSONReader.parse(try PayloadFixture.repositoryFile(PayloadFixture.resultsSchemaPath))
