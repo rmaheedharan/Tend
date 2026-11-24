@@ -116,8 +116,9 @@ struct ProviderStreamReaderTests {
             String(B.output.dropFirst(start).prefix(5))
         }
         expectSnapshot(B.body(provider, pieces), provider, expected)
-        #expect(try ProviderStreamReader.read(Array(B.body(provider, pieces).utf8), provider: provider) == expected)
-        #expect(expected.lookupQueries.isEmpty)
+        let read = try ProviderStreamReader.read(Array(B.body(provider, pieces).utf8), provider: provider)
+        #expect(read == expected)
+        #expect(read.lookupQueries.isEmpty)  // a cloud model is never given the duplicate-lookup Tool (AC-M2-24)
     }
 
     @Test("AC-M2-24: every error maps to exactly one neutral stop reason (the adapter throws it)",

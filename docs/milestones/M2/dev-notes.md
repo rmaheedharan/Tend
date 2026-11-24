@@ -3213,3 +3213,286 @@ The merge changes no file under `Eval/`, no eval test and no self-test fixture, 
 |---|---|---|---|---|
 | 2026-11-23 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: R27-F1 and F2 Major; F3–F5 Minor; N1–N3. PO `po-m2-wi15.md` answered Q1–Q3. |
 | 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1–F4 fixed, F5 is owner ticket HM-1b, N1 done, N2 declined with a reason, N3 recorded. The brief amendment is inserted word for word, and Q1–Q3 are closed. origin/main `aa38472` and then `03e98c6` are merged. All four packages are green with 0 warnings on the merged tree (TendIngestion 401). 30/30 mutants killed. The review file is committed with the fix. |
+
+## WI-M2-13 — the three provider stream dialects (OpenAI, Anthropic, Gemini) on top of WI-M2-12, with synthetic fixtures
+
+- **Owner:** Developer. **Branch:** `m2/provider-dialects`, from `origin/main` at `03e98c6` (PR #26, WI-M2-12, merged).
+  `origin/main` at `6fd1bf4` (PR #27, WI-M2-15) was merged in before the push, with no conflict. **PR:** not opened;
+  the Orchestrator opens it. **ADRs:** none new. The work follows
+  [ADR-0005](../../architecture/adr/0005-cloud-ai-providers.md) and
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md): six new files under
+  `TendIngestion/Sources/TendIngestion/CloudOutput/`, Foundation and TendCore only, with no I/O, no network, no
+  logging and no new dependency.
+- **Requirements:** FR-A1, P-3. This item delivers the **Linux part of AC-M2-24** ([plan.md](plan.md) WI-M2-13, ○):
+  the three provider stream parsers and the synthetic fixtures. The cloud adapters end to end over these fixtures
+  through a mock transport, and the real recordings, are WI-M2-M6 on the owner-run Mac. It also covers the AC-M2-05
+  bullet "This holds … for every cloud provider parser". It closes review ticket **R26-F2** (response size cap).
+- **Binding inputs:**
+  - the brief's AC-M2-24, AC-M2-05 and Definitions ("Item completion" (a)–(c) with PO amendment 1; "Draft stream
+    events"; `noModel` and `interrupted`);
+  - T-19 and T-25;
+  - PO WI-M2-12 rulings 1 and 2 and their tickets (`po-m2-wi12.md`: "per-provider fixture: no-room item completes by
+    (a) before the next item; title-arrives-last per provider");
+  - `po-q21-q22.md` "From PR #22" and "PR #26" (title arrives last);
+  - WI-M2-12 J7 (when a provider stream counts as cut off is this item's rule) and J8 (the event JSON goes through the
+    same parser);
+  - the plan's WI-M2-10 endpoints (OpenAI Chat Completions, Anthropic Messages with one forced tool, Gemini
+    `streamGenerateContent?alt=sse`).
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED` and M2 `IN-BUILD`. This is M2 work. DoR "deps merged" is met:
+  WI-M2-12 is on `main`.
+- **Network and data:** nothing was fetched. Each provider's format comes from its documented streaming format as I
+  know it. Checking against the current provider documentation and real recordings is WI-M2-M6 (see K9). No personal
+  data was used or sent anywhere.
+
+### What changed
+- New source files in `Packages/TendIngestion/Sources/TendIngestion/CloudOutput/`:
+  - `ProviderStreamReader.swift`: the public entry point. `init(provider:responseByteLimit:)`; `append(_:)` takes a
+    body chunk and returns `IngestionSnapshot?` (nil when the chunk added no output text); `finish()`;
+    `read(_:provider:)` reads a whole body at once; `receivedByteCount`; `defaultResponseByteLimit` (1 MiB).
+  - `ProviderStreamError.swift`: the typed error, `declined(ProviderDeclineSignal)`, `languageNotSupported`,
+    `cutShort(ProviderCutShortCause)`, `unreadable(ProviderUnreadableCause)`, `providerError(ModelStopReason)` and
+    `unexpectedFinish`, with `stopReason`, the neutral reason the adapter throws.
+  - `OpenAIStreamDialect.swift`, `AnthropicStreamDialect.swift`, `GeminiStreamDialect.swift`: one internal dialect
+    per provider. Each turns one `ServerSentEvent` into a `DialectStep` (the output text, then an optional stop) and
+    checks the end. Each file header lists the documented format and the rules as built.
+  - `ProviderEventJSON.swift`: reads one event's data with `PartialJSONParser` in one shot (J8), plus strict typed
+    accessors (a missing member or `null` counts as absent; any other wrong type is `unexpectedStructure`).
+- New fixtures: `Fixtures/M2/provider-streams/synthetic/{openai,anthropic,gemini}/*.sse`, 10 per provider (30 in all),
+  plus `Fixtures/M2/provider-streams/README.md` (the fixture list: synthetic or recorded, and what each one covers).
+  No existing source file was changed. No existing test file was changed.
+- New tests, written first. The first build failed with "cannot find type 'ProviderStreamError' in scope" and about
+  240 errors like it.
+  - `ProviderStreamSupport.swift`: fixture loading; `ProviderRead`, which records what an adapter would yield;
+    `ChunkedProviderModel`, a test-only adapter that follows the `IngestionModel` contract; and `DialectWriter`, an
+    independent Swift writer of provider bodies for the property test.
+  - `ProviderDialectTests.swift` (33 tests in 5 suites).
+  - `ProviderStreamFixtureTests.swift` (11 tests).
+
+### The rules as built (each one is tested)
+- **Pipeline.** Body bytes go to `ServerSentEventFramer`, then to the provider's dialect, then to
+  `StructuredOutputReader`. So every provider reaches the draft stream through the same `IngestionModel` contract and
+  the same only-finished-values reader (J2) as the WI-M2-12 tests.
+- **OpenAI** (Chat Completions, `stream: true`):
+  - The output is `choices[0].delta.content`. A non-empty `delta.refusal` is a refusal; `null` and `""` are not.
+  - `finish_reason`: `stop` is normal, `length` cuts the output, `content_filter` is a safety stop, and any other
+    value is an unexpected finish.
+  - An in-stream `error` object maps to a reason: `server_error` → `serviceUnavailable`, `rate_limit_exceeded` →
+    `rateLimited`, anything else → `otherModelError`.
+  - A normal end needs both `stop` and `data: [DONE]`.
+  - Strict: choice index 0 only (a missing index counts as 0). Content after the finish reason is unexpected, and so
+    is a wrong-typed member.
+- **Anthropic** (Messages with one forced tool):
+  - The output is the `partial_json` of the `input_json_delta`s for the one `tool_use` block. Other blocks (for
+    example text) are ignored. `ping` and unknown event types are ignored. The data's `type` counts, not the SSE event
+    name.
+  - `stop_reason`: `tool_use`, `end_turn` and `stop_sequence` are normal. `max_tokens` and
+    `model_context_window_exceeded` cut the output. `refusal` is a refusal. Anything else is an unexpected finish.
+  - An `error` event maps by its type: overloaded or api → `serviceUnavailable`, rate limit → `rateLimited`,
+    authentication or permission → `keyNotAccepted`, anything else → `otherModelError`.
+  - A normal end needs a normal `stop_reason` and `message_stop`.
+  - Strict: content before `message_start`; a second `message_start`; a block index started twice; a delta or stop
+    for a block that is not open; a second `tool_use` block; a tool delta that is not `input_json_delta` with a string
+    `partial_json`; an event with no `type`.
+- **Gemini** (`streamGenerateContent?alt=sse`):
+  - The output is the text of each part of `candidates[0].content.parts`, in order. A `thought` part is skipped.
+  - `finishReason`: `STOP` is normal, `MAX_TOKENS` cuts the output, `LANGUAGE` → `languageNotSupported`, and
+    `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII` and `IMAGE_SAFETY` are safety stops. Anything
+    else is an unexpected finish.
+  - `promptFeedback.blockReason` means the prompt was blocked.
+  - An in-stream `error` object maps by its code: 429 → `rateLimited`, 5xx → `serviceUnavailable`, 401 or 403 →
+    `keyNotAccepted`, anything else → `otherModelError`.
+  - The normal end is `STOP`.
+  - Strict: candidate index 0 only, and wrong-typed members are unexpected.
+- **Shared reader rules:**
+  - Within a chunk, events are read in order. An event's text is read before its stop.
+  - A stop that comes after new output in the same chunk is **deferred** (K3).
+  - Invalid output JSON stops at its first bad byte, and the valid text before that byte is still read (K4).
+  - Events after the provider's end are ignored, including a part-written last line.
+  - At `finish()`, the checks run in this order: inside an event → `bodyEndedInsideEvent`; no provider end →
+    `noFinish`; no output → `noOutput`; unfinished JSON → `outputUnfinished`.
+  - Errors are sticky. `finish()` is idempotent. A chunk after `finish()` reads nothing.
+- **Response size cap (R26-F2):** a body longer than `responseByteLimit` (default 1,048,576 bytes) ends with
+  `unreadable(.responseTooLarge)` at the chunk that would pass the limit. That chunk is not read and not counted.
+- **Outcomes, through WI-M2-06:**
+  - Before any draft, every stop is `noModel` with the plain-note offer. That covers a refusal, a safety stop, a
+    blocked prompt, an invalid event or output, the size cap, a cut and a provider error.
+  - After a draft, every stop is `interrupted`. The drafts stay, and the in-progress item is discarded.
+  - `ProviderStreamError.stopReason` maps:
+
+    | Error | Stop reason |
+    |---|---|
+    | `declined` | `refusal` |
+    | `cutShort` | `outputCutShort` |
+    | `unreadable` | `unreadableOutput` |
+    | `languageNotSupported` | `unsupportedLanguage` |
+    | `providerError(r)` | `r` |
+    | `unexpectedFinish` | `otherModelError` |
+
+### Decisions the Reviewer should know
+- **K1, one public reader and internal dialects.** `ProviderStreamReader(provider:)` is the only API the cloud
+  adapters (WI-M2-M4/M6) need. They pass it each chunk, yield the snapshots, yield `finish()`, or throw
+  `error.stopReason`. The three dialects are internal value types behind an enum, so there are no existentials. The
+  test adapter `ChunkedProviderModel` is the pattern the Mac adapter follows. The adapter itself (`onTermination`,
+  cancellation, transport) stays in WI-M2-M4/M6 and is not in this item.
+- **K2, the end needs the provider's own "finished".** A body with no normal end is `cutShort(.noFinish)`, even when
+  its JSON happens to be finished. The normal end is OpenAI `stop` + `[DONE]`, Anthropic a normal `stop_reason` +
+  `message_stop`, and Gemini `STOP`. This is the literal reading of "a truncated stream … ends `interrupted`". Without
+  the end, nothing says the model was done, so the item in progress is discarded, not completed by rule (c), which
+  needs "the stream finishes normally". **Open question 1** asks the PO to confirm.
+- **K3, a stop after new output in the same chunk is deferred.** If one chunk holds output that completes an item and
+  then a refusal, length cut or error, `append` returns that snapshot first, and the next call throws. Without this,
+  the outcome would depend on how the transport cut the body: byte by byte gives `interrupted` with the draft, while
+  one chunk gives `noModel`. The `splitChunks` test checks every fixture against 42 cut sets for exactly that. Mutant
+  M17 shows the rule matters.
+- **K4, valid output before a bad byte is read.** A piece such as `p"},{"kind":restock` finishes item 1 before the bad
+  `r`. The reader reads that piece again, from the state before it, up to the bad byte (`StructuredOutputReader` is a
+  value type, so this is a cheap copy). The draft is emitted and the end is `interrupted`, not `noModel`. The offset
+  in `outputNotJSON` counts output bytes, the same as WI-M2-12's `byteOffset`.
+- **K5, provider safety stops are `refusal`, not `guardrail`.** `ModelStopReason.guardrail` is documented as the
+  on-device generation guardrail. `refusal` is documented as "the model or provider declined to answer", which fits
+  OpenAI `content_filter`, Anthropic `refusal`, Gemini `SAFETY` (and the others) and a blocked prompt. Either way the
+  brief gives the same outcome (`noModel` before a draft, `interrupted` after). Gemini `LANGUAGE` maps to the existing
+  `unsupportedLanguage`. An unknown finish reason is `otherModelError`, never a normal end, so a provider change can
+  never pass as success.
+- **K6, strict structure, calm outcome.** A wrong-typed member, a second choice or candidate or tool block, a delta
+  for a block that is not open, or output after the finish is `unexpectedStructure` (`unreadableOutput`). Unknown
+  event types, pings, usage chunks, text blocks and thought parts are ignored, because the providers document that
+  such events may appear. This follows WI-M2-12 J5: the output JSON is read leniently by Q5, but the provider envelope
+  is not guessed.
+- **K7, R26-F2 closed here, 1 MiB.** The cap belongs to the body reader, not the transport, so it also bounds the
+  framer's line and data buffers, the event parser and the output text. Each of those is fed only bytes that have
+  passed the cap. 1 MiB is about 35 times the largest synthetic fixture (28,697 bytes; a test asserts a factor ≥ 16)
+  and far above one capture's output. The OpenAI per-chunk overhead is about 200 bytes per few tokens. The 10.0 s
+  deadline (WI-M2-14) bounds time, and this bounds memory. WI-M2-14 needs no cap of its own. The limit is an init
+  parameter only so the tests can use small limits. The adapters use the default.
+- **K8, fixtures are files, not code.** The plan names `Fixtures/M2/provider-streams/` for synthetic and recorded
+  fixtures, and WI-M2-M6 reads them again through a mock transport on the Mac. So the synthetic set is plain `.sse`
+  files. I wrote them with a one-off generator (Python, not committed: it is not a tool the build uses).
+  `ProviderStreamFixtureTests` is the specification: `fixtureList` fails on any missing or extra file, and
+  `outputText` checks that the happy and out-of-order fixtures' pieces join up to exactly the output typed again in
+  Swift (`ProviderFixtures.happyOutput`). The tests never write a fixture. The model ID in every file is
+  `synthetic-model`, and the files hold no host, key or header.
+- **K9, the provider formats as built are from the documented formats, not checked online here.** No web fetch was
+  allowed or made. The dialect files list each rule they rely on. WI-M2-M6 must:
+  1. check each rule against the current docs and the real recordings: the `[DONE]` need, `content_filter`, the
+     in-stream error shapes, Gemini's last-chunk `finishReason`, the Anthropic stop reasons;
+  2. add a recorded fixture per provider;
+  3. change a dialect rule here only with a test.
+  
+  A mismatch fails calmly (`noFinish`, `unexpectedFinish` or `unexpectedStructure`), never by reading wrong output.
+
+### AC coverage
+| AC (Linux part) | Test(s) | Result |
+|---|---|---|
+| AC-M2-24 fixtures: happy path, out-of-order or split chunks, truncated stream, invalid JSON, schema-violating fields, unknown enums, refusal (T-19) | `ProviderStreamFixtureTests.fixtureOutcome`: 30 cases, one per fixture. Each checks the reader's exact error, the emitted titles, the skips, exactly one `finished`, the exact outcome through `DraftPipeline` on `cloud(provider)`, the plain-note offer for `noModel`, and that the error's `stopReason` is the outcome's reason. `fixtureList` checks that the files on disk equal the table (10 per provider, logged) | PASS (Linux) |
+| AC-M2-24 split chunks | `splitChunks`: 30 cases. Each fixture is read one shot, one event per chunk, byte by byte and at 40 seeded random cut sets. The reader's end and, through the pipeline, the emitted titles, final drafts and outcome all equal the one-shot result. `ProviderDialectPropertyTests.randomBodies`: 3 seeds (`0x0D1A1EC71301…03`) × 200 WI-M2-12 corpus outputs × 3 providers. `DialectWriter` (random pieces, CR/LF/CRLF, comments, `data:` without a space, noise events) writes each body, which is read one shot and at 2 random cut sets: the end equals `StructuredOutputReader.parse(output)`, and every step only grows | PASS (Linux): 0 mismatches. Items per seed (1301 / 1302 / 1303): 505 / 520 / 464 per provider; 1,800 reads per seed |
+| AC-M2-24 + AC-M2-05: title arrives last, per provider (PO tickets) | `titleArrivesLast`: 3 providers × {happy, out-of-order}, each one event per chunk and byte by byte. Rule (a) is first met for item 3 with the whole title, before the end; no earlier step shows its title; exactly one `emitted` for draft 3 with "Deep clean the balcony"; no `updated`; no `itemSkipped`. `neverAPartTitle`: 30 cases, every step of every fixture read byte by byte shows only finished titles | PASS (Linux) |
+| AC-M2-24 + AC-M2-05: no-room item completes by (a) before the next item (PO WI-M2-12 ruling 2 ticket) | `noRoomItemCompletesByRuleA`: 3 providers. In each happy path, one event per chunk, draft 1 ("Service the AC", `"room":""`) is emitted at a step whose snapshot holds only that item (`hasValueForEveryField`, `roomName == ""`), and its room is `none` | PASS (Linux) |
+| AC-M2-24: refusal before a draft → `noModel`; truncation, invalid JSON or a cut after a draft → `interrupted` | the fixture rows `refusal-before-draft` (×3), `truncated-…`, `length-limit-…`, `invalid-json-…`, `invalid-event-before-draft`, `provider-error-…`; `deferredStop` (a refusal or safety stop in the same chunk as a completed item → `interrupted(refusal)`, 3 providers); `validTextBeforeBadByte` (3) | PASS (Linux) |
+| AC-M2-24: each dialect's rules | `OpenAIDialectTests` (7 tests, 21 cases), `AnthropicDialectTests` (5 tests, 27 cases), `GeminiDialectTests` (5 tests, 28 cases): finish and stop reason tables, refusal and blocked-prompt signals, ignored noise, every `unexpectedStructure` case, in-stream error mapping. Each expected error is checked one shot and byte by byte | PASS (Linux) |
+| AC-M2-24: shared reader rules | `ProviderStreamReaderTests` (15 tests): the happy body per provider and `read(_:provider:)`; the stop-reason table (19 rows); empty and unended bodies; a body ending inside an event; unfinished output; no output; invalid output offsets; `eventNotJSON` (6 data texts × 3); K3 and K4; sticky and closed; after the end; nil without output; `lookupQueries` empty | PASS (Linux) |
+| R26-F2 response size cap | `sizeCapBoundary` (3 providers × 3 chunkings: exactly the limit is read, one byte more is `responseTooLarge`; a refused chunk is not counted); `sizeCapOutcomes` (a stream with no line end stops within the limit; through the pipeline, after a draft `interrupted(unreadableOutput)`, before one `noModel` with the plain note); `fixturesUnderTheLimit` | PASS (Linux) |
+| AC-M2-24 + AC-M2-02/04: Q5 repairs and room linking on cloud output | `happyDrafts` (rooms `none`, existing Kitchen, proposed "Balcony"; kinds, efforts, flags, `sourcePhrase`, duplicate `none`); `schemaViolatingRepairs`; `unknownEnumRepairs` (3 providers each) | PASS (Linux) |
+| AC-M2-24: "a cloud model is never given the duplicate-lookup `Tool`" | `happyBody`: the reader's own snapshot has empty `lookupQueries` for every provider. The reader has no Tool path | PASS (Linux) |
+| AC-M2-09 (regression) | "AC-M2-09: Rules 1–6 hold …" over 46 files | PASS (Linux): 0 violations |
+| AC-M2-12 vocabulary (regression) | the AC-M1-02 vocabulary scan over the module roots, 46 files (every new case name and literal) | PASS (Linux): 0 violations |
+
+### Test runs
+| Command (in `swift:6.2-noble`, Swift 6.2.x, `-Xswiftc -warnings-as-errors`, scratch path `/tmp/b13-<pkg>` on a cache volume) | Summary line |
+|---|---|
+| `swift test --package-path Packages/TendIngestion` (final head, after merging `6fd1bf4`) | `✔ Test run with 445 tests in 55 suites passed after 105.396 seconds.` That is 401 on `main` at `6fd1bf4` (`✔ … 401 tests in 49 suites …`, run on a scratch checkout) plus 44 new. Before the merge, on `03e98c6`: 377 = 333 + 44. |
+| `swift test --package-path Packages/TendCore` | `✔ Test run with 141 tests in 18 suites passed after 80.811 seconds.` (unchanged package) |
+| `swift test --package-path Packages/TendSourceScan` | `✔ Test run with 63 tests in 4 suites passed after 2.391 seconds.` (unchanged package) |
+
+### Mutation check
+Each mutant was applied alone by a script to a scratch copy of the head (`git archive`, never this branch). It was
+built with `-warnings-as-errors`, run with `--filter "Provider|Dialect"` in a 900 s timeout, and then restored.
+**29 of 29 killed.** M6, M8 and M9 at first did not compile under `-warnings-as-errors` (an unused value, and a
+duplicate `case` literal), so the first attempt did not count. They were rewritten to compile cleanly, and the table
+shows the second run.
+
+| # | Mutant | Killed by (first failing tests) |
+|---|---|---|
+| M1 | OpenAI: an empty refusal piece counts as a refusal | a refusal piece stops the stream (refusal); a null or empty refusal is… |
+| M2 | OpenAI: content_filter read as an unexpected finish | a stop in the same chunk as output that completes a draft is thrown on…; finish_reason stop then [DONE] is the only normal end; length, content… |
+| M3 | OpenAI: [DONE] alone is a normal end (no finish reason needed) | [DONE] without a finish reason, or a stop finish without [DONE], is cu… |
+| M4 | OpenAI: content after the finish reason accepted | output text after finish_reason stop is unexpected structure |
+| M5 | OpenAI: choice index not checked | content after the finish reason, a second choice, or wrong-typed membe… |
+| M6 | Anthropic: deltas of non-tool blocks read as output | in each provider's happy and out-of-order fixtures the title-last item…; each fixture gives its exact outcome, emitted titles and skips through…; a text block before the tool block is ignored; pings and unknown event… … |
+| M7 | Anthropic: a second tool_use block replaces the first | deltas for a block never started or already stopped, a second tool blo… |
+| M8 | Anthropic: stop_reason refusal read as a normal end | each fixture gives its exact outcome, emitted titles and skips through…; a stop in the same chunk as output that completes a draft is thrown on…; stop reasons tool_use, end_turn and stop_sequence end normally; the re… |
+| M9 | Anthropic: max_tokens read as a normal end | each fixture gives its exact outcome, emitted titles and skips through…; stop reasons tool_use, end_turn and stop_sequence end normally; the re… |
+| M10 | Anthropic: overloaded_error mapped to otherModelError | each fixture gives its exact outcome, emitted titles and skips through…; an error event stops the stream with a neutral reason |
+| M11 | Anthropic: a delta for a stopped block accepted | deltas for a block never started or already stopped, a second tool blo… |
+| M12 | Gemini: thought parts read as output | in each provider's happy and out-of-order fixtures the title-last item…; each fixture gives its exact outcome, emitted titles and skips through…; 3 seeds × 200 outputs × 3 providers; one shot and 2 random cut sets eq… … |
+| M13 | Gemini: promptFeedback.blockReason ignored | each fixture gives its exact outcome, emitted titles and skips through…; a blocked prompt (promptFeedback.blockReason) is a refusal; feedback w… |
+| M14 | Gemini: LANGUAGE read as a safety stop | finishReason STOP ends normally; the others stop the stream |
+| M15 | Gemini: candidate index not checked | a second candidate or wrong-typed members are unexpected structure |
+| M16 | Gemini: finish reason read before the text of its chunk | a stop in the same chunk as output that completes a draft is thrown on… |
+| M17 | Reader: a stop after new output is thrown at once (no deferral) | valid output before a bad byte in the same piece is read, so a draft i…; each fixture gives its exact outcome, emitted titles and skips through…; a stop in the same chunk as output that completes a draft is thrown on… … |
+| M18 | Reader: the valid text before a bad byte is not read | valid output before a bad byte in the same piece is read, so a draft i… |
+| M19 | Reader: events after the provider end are read | events after the provider's end are ignored, including a part-written… |
+| M20 | Reader: a body that stops inside an event is not reported | each fixture gives its exact outcome, emitted titles and skips through…; a body that stops inside an event (no blank line) is cut short (bodyEn… |
+| M21 | Reader: size cap off by one (a body of exactly the limit is refused) | R26-F2 / AC-M2-24: a body of exactly the limit is read; one byte more… |
+| M22 | Reader: no size cap | R26-F2 / AC-M2-24: a body of exactly the limit is read; one byte more…; R26-F2 / AC-M2-24: a stream with no line end (or one endless output) s… |
+| M23 | Reader: a refused chunk is counted | R26-F2 / AC-M2-24: a body of exactly the limit is read; one byte more…; R26-F2 / AC-M2-24: a stream with no line end (or one endless output) s… |
+| M24 | Reader: no noOutput check | a normal provider end with no output text at all is unreadable (noOutp… |
+| M25 | Reader: unfinished output JSON reported as noFinish | a normal provider end with unfinished output JSON is cut short (output… |
+| M26 | Reader: the step stop handled before the step output | a stop in the same chunk as output that completes a draft is thrown on… |
+| M27 | Error: declined mapped to guardrail | each fixture gives its exact outcome, emitted titles and skips through…; a stop in the same chunk as output that completes a draft is thrown on…; every error maps to exactly one neutral stop reason (the adapter throw… |
+| M28 | Event JSON: a non-object root accepted | event data that is not a JSON object is unreadable (eventNotJSON) |
+| M29 | Event JSON: null is not absent | in each provider's happy and out-of-order fixtures the title-last item…; in each provider's happy path (one event per chunk) the no-room item (; valid output before a bad byte in the same piece is read, so a draft i… … |
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendIngestion 445 tests: the three dialects, the 30 fixtures, the property, the size cap, the pipeline outcomes, AC-M2-09 and AC-M2-12 scans | ✔ container | — | — | — | Linux CI runs on the PR |
+| TendCore 141, TendSourceScan 63 (unchanged) | ✔ container | — | — | — | — |
+| The same reader on Darwin Foundation | — | — | — | — | Mac repeat in MS-2 |
+| The cloud adapters end to end over these fixtures through a mock transport (AC-M2-24 Mac part) | — | — | — | — | WI-M2-M6 (owner-run Mac) |
+| The dialect rules against real provider streams and current docs (K9) | — | — | — | — | WI-M2-M6 recordings; no network here |
+
+Device ACs: none in this item.
+
+### Things the reviewer should look at closely
+- K2: whether a body with finished JSON but no provider end should be `interrupted` (as built) or `completed`
+  (open question 1).
+- K3 and K4 in `ProviderStreamReader.append` and `readOutput`: the deferred stop and the re-read up to the bad byte.
+  Check that the outcome cannot depend on chunking. `splitChunks` and the property test check this.
+- Each dialect's strict and ignored lists (K6) against the provider docs you know, and the in-stream error mappings.
+- The fixtures: read two or three `.sse` files against the README table.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| The dialect rules are from the documented formats as I know them; nothing was checked online (K9) | watch | WI-M2-M6: verify each rule against the current docs and the real recordings; record one fixture per provider in `recorded/<provider>/`; change a rule only with a test |
+| The forced tool's name is not checked (Anthropic), and neither are `n` / `candidateCount` (any second choice or candidate is refused) | — | WI-M2-10: send one forced tool with `disable_parallel_tool_use`, `n` 1 (default) and `candidateCount` 1, and say whether the reader should also check the tool name |
+| The cloud adapter loop (`ChunkedProviderModel` is the test pattern): `onTermination`, cancellation, the transport | — | WI-M2-M4 / M6 |
+| R26-F2 (response size cap) | closed | here (K7); WI-M2-14 needs no cap |
+| The Darwin rerun of these tests | — | MS-2 |
+
+### Open questions
+1. **PO (confirm, K2): a body that stops without the provider's end, even when its JSON is finished, counts as
+   truncated.** Built: `cutShort(.noFinish)` → `outputCutShort`. After a draft the outcome is `interrupted`, and an
+   item still in progress is discarded. Before any draft it is `noModel` with the plain note. The other reading would
+   complete the items (rule (c)) and give `completed` whenever the JSON is finished. That would treat a connection that
+   dropped just before the provider said "done" as a normal finish. Work continues on the literal reading. A change
+   would be one line per dialect `checkEnd`, plus the fixture rows.
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. The reader only turns provider streams into snapshots. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | Every new case name and literal passes the AC-M2-12 vocabulary scan (46 files, 0 violations). The names describe the stream, never the person (`declined`, `cutShort`, `responseTooLarge`, `unexpectedFinish`). No provider text (refusal wording, error messages) is kept or shown. A stop after drafts keeps them (`interrupted`), and a stop before any draft returns the input with the plain note, so nothing the person said is lost. The title-last and finished-values tests per provider mean no part title can be guarded away. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | n.a. | Parsing only. Nothing here chooses a model or a route. |
+| P-2 No data leaves the device | pass | Pure parsing over bytes and strings: no network, file I/O or logging in Sources (AC-M2-09: 46 files, 0 violations). No dependency. The fixtures hold no household data, key, header or host. |
+| P-3 Cloud AI opt-in, minimised | pass | This reads responses only; it builds no request and adds no request field. The cloud model has no `Tool` (`lookupQueries` is always empty). The size cap bounds what a provider stream can make the phone hold. |
+| P-4 Media not persisted | n.a. | Text only, held in memory. The reader keeps no body after `finish`. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-23 | Orchestrator | Developer | accepted (H2) | WI-M2-13 Ready (WI-M2-12 merged as PR #26; `main` at `03e98c6`). PO tickets: per-provider title-arrives-last and no-room-by-(a) fixtures; R26-F2 here or in WI-M2-14. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). Merged `origin/main` `6fd1bf4`. TendIngestion 445, TendCore 141, TendSourceScan 63 green, 0 warnings, Linux. 29 of 29 mutants killed. R26-F2 closed (1 MiB cap). One PO question (K2). Pushed; no PR opened. |
