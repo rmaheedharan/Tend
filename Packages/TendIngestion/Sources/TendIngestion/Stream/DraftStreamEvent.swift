@@ -131,6 +131,14 @@ public struct DuplicateCheckEntry: Hashable, Sendable {
 public protocol DraftDuplicateCheck: Sendable {
     func duplicate(of entry: DuplicateCheckEntry, earlier: [DuplicateCheckEntry],
                    lookupQueries: [String]) -> DraftDuplicate
+
+    /// The shortlist titles a cloud request carries for these rules, in index order (Q12 = yes), so that the titles
+    /// sent and the index claims the rules accept come from one shortlist (WI-M2-10). Empty by default.
+    var sentShortlistTitles: [String] { get }
+}
+
+extension DraftDuplicateCheck {
+    public var sentShortlistTitles: [String] { [] }
 }
 
 /// A check that marks nothing (for callers with no household tasks, and for tests).

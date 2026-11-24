@@ -58,6 +58,7 @@ note, because AC-M2-09 scans these paths.
 | Fixtures loader (the only TendEval file allowed `Data(contentsOf:`, bundle resources named by string literals only; M2 Q23) | `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift` | Rule 6 |
 | Harness transport wrapper (N-2) | `Apps/TendEval/Sources/Run/RecordingTransport.swift`. It wraps the neutral `CloudTransport` protocol (plain request value in, byte-chunk stream out) and records only the byte count and key paths. It uses no `URL*` type. | Rule 6 |
 | Scoring tool | `Tools/TendTools/Sources/tend-eval-score/` (see "Scoring tool and command") | Outside Rule 1 |
+| Payload builder provider table (the only file where the three bare hosts may appear; review R1-F6, named by WI-M2-10) | `Packages/TendIngestion/Sources/TendIngestion/Payload/CloudProviderTable.swift` | AC-M2-09 Rule 4 (`IngestionScanConfiguration.providerTableFile`) |
 
 ## Work items
 
@@ -228,16 +229,28 @@ stop-word-only queries.
   - Gemini: `POST generativelanguage.googleapis.com /v1beta/models/<model>:streamGenerateContent?alt=sse`,
     `responseMimeType: application/json`, `responseSchema`, `temperature: 0`, thinking off where the model allows it.
     Headers: `x-goog-api-key`, `Content-Type`. Never `key=` in the query.
-- **Q18, curated default models (approved by the PO 2026-11-21, with five conditions):** OpenAI `gpt-4.1-mini`,
-  Anthropic `claude-haiku-4-5`, Gemini `gemini-2.5-flash`. Each model must meet **all five** conditions. WI-M2-10
+- **Q18, curated default models (approved by the PO 2026-11-21, with five conditions):** OpenAI `gpt-6-luna`,
+  Anthropic `claude-haiku-4-5-20251001`, Gemini `gemini-3.5-flash-lite` (PO 2026-11-23, WI-M2-10 ruling 7; the
+  2026-11-21 list failed live check L1). Fallbacks, only by PO ruling: Anthropic `claude-haiku-5-5`, Gemini
+  `gemini-3.8-flash`. Each model must meet **all five** conditions. WI-M2-10
   checks them when it writes the provider table, and WI-M2-M6 checks them again before the real recordings:
   1. **Current:** the model is offered by the provider and is not deprecated or announced for removal.
-  2. **Pinned snapshot ID:** the request uses a fixed, dated snapshot ID for the model, not a moving alias. The exact
-     ID is written in the provider table and in the golden requests (AC-M2-20).
+  2. **Pinned model:** a dated snapshot ID where the provider offers one; else an ID the provider documents as one fixed
+     snapshot; else, only if no suitable model offers either, the provider's only listed snapshot name. Never a
+     `-latest`, preview or experimental alias. The served model ID reported in the response is recorded in every real
+     recording and in an Outcome-sample recording right before and after each provider's DS-2 run; a difference voids
+     that provider's run until a PO ruling.
   3. **Structured streaming:** the model streams output that follows the JSON schema (AC-M2-24).
-  4. **Temperature 0:** the request sets `temperature: 0`, and the model accepts it.
-  5. **No reasoning tokens:** the model spends no reasoning or thinking tokens before its output. For Gemini, the
-     request sets the thinking budget to 0. A model that cannot do this does not meet the condition (AC-M2-27, R-5).
+  4. **Fixed sampling:** `temperature: 0` where the provider documents that the model accepts it and does not advise
+     against it; otherwise `temperature` is omitted. The choice is fixed in the golden request. The DS-2 dev-set run
+     runs each dev-set input twice per provider and reports the share of inputs with identical Q3-scored fields
+     (watch; below 90% goes to the PO before the AC-M2-14 freeze).
+  5. **Least reasoning:** the request sets the model's lowest documented reasoning or thinking level explicitly (off if
+     the model allows it), never the default or adaptive. Reasoning and thinking tokens are read from usage in every
+     real recording and reported. AC-M2-27 is the gate and is not relaxed (R-5).
+  Live check L2a: as soon as the regenerated golden requests exist, the owner makes one real Outcome-sample recording
+  per provider (commands under "Real provider recordings"). It shows no 4xx, a schema-valid stream, the served model
+  ID and the reasoning-token count. L2a is in the WI-M2-16 Definition of Ready. WI-M2-M6's check L2 is unchanged.
   If a model fails any condition, the Developer stops and asks the PO for a replacement. The Developer never picks a
   different model alone (R-6).
 - Fixed numeric body parameters (for example a max-tokens value) and every number in the instructions and schema must
@@ -696,7 +709,7 @@ This rule is not in force until it is recorded as **D-032** in `DECISIONS.md` (a
 | R-2 | On-device accuracy falls below the Q3 thresholds (small model) | M | H | Tune instructions against a Developer dev set that is **not** the frozen eval; the Tester runs an exploratory charter with unseen inputs (R-19). | Developer; Acceptance Tester |
 | R-3 | Context window: long dumps + schema + instructions + tool output exceed the on-device limit | M | M | Eval inputs are ≤ 80 words (Q3); log token counts in dev notes; "context too long" maps to the calm `noModel` (AC-M2-10). | Developer |
 | R-4 | `PartiallyGenerated` snapshot order does not match the item-completion rules (fields arrive in declaration order; arrays grow) | M | M | WI-M2-06 is defined over neutral snapshots; WI-M2-M2 maps and tests every snapshot shape; Linux stream tests are the oracle. | Developer |
-| R-5 | Cloud TTFI ≥ 3.0 s (model reasoning or thinking tokens, structured-output warm-up, network) | M | H | Q18 models are approved only with no reasoning tokens (Gemini thinking budget 0) and temperature 0; the real recordings in MS-2 give an early timing; the run record holds a speed test (Q15). | Developer |
+| R-5 | Cloud TTFI ≥ 3.0 s (model reasoning or thinking tokens, structured-output warm-up, network) | M | H | Q18 models are approved only with no reasoning tokens (Gemini thinking budget 0) and temperature 0; the real recordings in MS-2 give an early timing; the run record holds a speed test (Q15). Q18 conditions 4 and 5 revised 2026-11-23 (PO WI-M2-10 ruling 7): lowest documented reasoning level, fixed; AC-M2-27 measured in the dev-set run. | Developer |
 | R-6 | Provider APIs, model names or data terms change before the device run | M | M | Curated list per release; the Developer re-checks at WI-M2-10 and the Reviewer against current docs; a change goes to the PO (golden bytes under a PO decision). | Developer; PO |
 | R-7 | `SpeechTranscriber` is not supported on A15, or speech assets are missing in airplane mode | M | M | `DictationTranscriber` fallback, with the transcriber recorded (AC-M2-25); DS-1 and DS-2 preconditions download the assets online first. | Developer; Acceptance Tester |
 | R-8 | The T-27 answer is unclear from the Simulator alone | M | L | MS-1 records the docs and the Simulator result; DS-1 and DS-2 confirm the permission prompt on device; if the rule changes, the scope table and this plan are updated. | Developer |

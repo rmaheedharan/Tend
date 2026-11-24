@@ -115,7 +115,8 @@ the Now canvas only through the Rule of Three.
   - `finished(outcome)`: exactly once, and always last. The outcome is one of:
     - **completed:** the stream finished normally. If no draft was emitted (the output had no items, or every item was
       skipped), the input text and a plain-note offer are also returned, as for `noModel` (PO 2026-11-21, WI-M2-06 Q1).
-    - **interrupted:** the stream ended with an error or was truncated after it started. Drafts already emitted stay
+    - **interrupted:** the stream ended with an error or was truncated after it started (a stop because the request's
+      fixed output cap was reached counts as truncated) (PO 2026-11-23, WI-M2-10). Drafts already emitted stay
       available for confirmation. The in-progress, not yet complete item is discarded with a typed reason. The input
       text is returned in memory. No plain note is offered: a stop before any draft is `noModel` (T-25), so an
       `interrupted` outcome always has at least one draft.
@@ -213,6 +214,11 @@ the Now canvas only through the Rule of Three.
   - Room names and titles are user labels and are sent as the user wrote them (Q19).
   - The payload builder's input type holds only the capture text (`String`), the room names (`[String]`) and the
     shortlist titles (`[String]`). A pure, separate context selector derives them from the household.
+  - Every header value except the auth header is a fixed constant, the same for every user, device and request.
+    `User-Agent` is exactly `Tend` and `Accept-Language` is exactly `en-US`; the device's default values for them are
+    never sent. Fixed protocol members (output cap, tool and schema names, schema keywords, sampling and retention
+    options) are part of the fixed instructions and schema under ADR-0005 Decision 3 and are not new request fields
+    (PO 2026-11-23, WI-M2-10).
 - **Plain note:** one draft whose title is the user's own words (trimmed), with the Q5 default fields and no inference.
 - **Banned tokens:** the AC-M1-02 list (*overdue, late, lateness, missed, failed, behind, penalty, debt, streak*).
   - In source code and case names they are matched as AC-M1-02 does.
@@ -817,6 +823,9 @@ stay calm when the cloud isn't there, so that saying yes to the cloud never cost
 - **AC-M2-22** Given the cloud transport, when it is configured, then it uses an ephemeral `URLSession` configuration
   with no cookie storage and no URL cache. It sends only HTTPS to the ADR-0005 host for the routed provider. A request
   to any other host, a redirect to another host, or a non-HTTPS URL is refused before sending.
+  - **Headers.** Every request carries `User-Agent: Tend` and `Accept-Language: en-US`, set explicitly, and no
+    other header than the provider's headers (AC-M2-20) and the transport-set headers named in the allowed lists
+    (PO 2026-11-23, WI-M2-10).
   - **Timeouts (T-17; Q22).** Each capture has a cloud deadline of 10.0 s, measured on an injected clock from the
     moment the pipeline receives the input.
     - Each attempt sets `timeoutIntervalForResource` to the time left before the deadline, and
@@ -977,7 +986,7 @@ Tester's script and the result is recorded (CLAUDE.md §5). M2 cannot be `ACCEPT
 | Q15 | What are the cloud latency targets, and on what network? | TTFI < 3.0 s and total ≤ 10.0 s **per input**, on home Wi-Fi (the run record states the network and a speed-test result). One retry for 429/5xx must fit inside the total, under the AC-M2-22 deadline rule (Q22). (PO default; the owner may tighten it.) | Before AC-M2-14 is frozen |
 | Q16 | Which providers must pass the device eval for M2 to be accepted? | **All three** (OpenAI, Anthropic, Gemini), each with its default curated model, using the owner's own keys (the owner pays the API cost of 3 × 20 inputs). The owner may narrow this to fewer providers for M2. Any provider left out is hidden in the app until it passes, not shipped untested. **PO default, owner may change.** | Before M2 build |
 | Q17 | Gemini's free tier lets Google use prompts to improve its products, and human reviewers may read them. Tend cannot detect which tier a key is on. | Support Gemini, and show a plain warning on its consent screen recommending a paid-tier key. Gemini stays on the AC-M2-20/22 host list and in the AC-M2-26/27 runs. The owner could choose instead to leave Gemini out; that removes its host, adapter and runs under a PO decision. **PO default, owner may change.** | Before M2 build (it affects AC-M2-20, 22, 26 and 27); copy before M3 |
-| Q18 | Which model per provider is the default? | The Developer proposes one model per provider in the plan: fast, structured-output capable, and in a curated list that can be updated per release. There is no free-text model ID. The PO approves the list. (PO default) | M2 planning |
+| Q18 | Which model per provider is the default? | The Developer proposes one model per provider in the plan: fast, structured-output capable, and in a curated list that can be updated per release. There is no free-text model ID. The PO approves the list. (PO default) Approved 2026-11-21 with five conditions (plan WI-M2-10), revised 2026-11-23 after a live check of the providers' docs found no current OpenAI or Gemini model with zero reasoning and temperature 0. M2 list: OpenAI `gpt-6-luna`, Anthropic `claude-haiku-4-5-20251001`, Gemini `gemini-3.5-flash-lite`. Each model is pinned as far as the provider allows, and the model the provider reports serving is recorded before and after each device run. Each request uses the lowest documented reasoning level and either temperature 0 or the provider's default, fixed in the golden requests. AC-M2-26 and AC-M2-27 decide, and are not relaxed. A model is replaced only by a PO ruling (PO 2026-11-23, WI-M2-10 rulings 1, 6, 7). | M2 planning |
 | Q19 | Room names (and shortlisted titles) may contain a person's name, for example "Sam's room" (T-15). | They are user labels and are sent **as the user wrote them**. M2 has no member model, so Tend cannot recognise names in labels. The M3 consent copy must say "your room names, as you wrote them". The AC-M2-20 sentinel generator never puts sentinels into room names. M5 revisits this when members exist (FR-E2). (PO default) | M2 (copy in M3) |
 | Q20 | Which Apple signing team installs `TendEval` on the iPhones (AC-M2-28)? | The owner's own team: a personal (free) team is enough for a debug install, but its profile lasts 7 days, so reinstall before each run. The Planner records it in the plan. **Human owner to confirm.** | Before the first device run |
 | Q21 | Where is the consent record stored so that a restore never turns cloud on (T-14)? | M2 defines the rule and tests it with fixtures (AC-M2-18). The durable consent store is delivered in **M3** together with the Settings screens. It must be excluded from device backups and from iCloud, so a restore always gives "no consent". The orphan-key deletion in AC-M2-18 then also removes a restored key. Owner: PO (an M3 brief AC), due with the M3 brief. | M3 brief |

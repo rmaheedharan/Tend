@@ -32,7 +32,10 @@ public struct DraftPipeline: Sendable {
                 duplicateCheck: any DraftDuplicateCheck) {
         self.mapper = DraftMapper(input: input, rooms: rooms, now: now, calendar: calendar, timeZone: timeZone)
         self.duplicateCheck = duplicateCheck
-        self.request = IngestionRequest(input: input, roomNames: rooms.map(\.name))
+        // The cloud titles come from the rules' own shortlist, so the titles sent and the claims accepted cannot
+        // differ (WI-M2-10; `CloudContextSelector` gives the same values from the household).
+        self.request = IngestionRequest(input: input, roomNames: rooms.map(\.name),
+                                        shortlistTitles: duplicateCheck.sentShortlistTitles)
     }
 
     /// The draft stream for this capture on the routed model.

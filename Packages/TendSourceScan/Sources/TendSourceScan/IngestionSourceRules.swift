@@ -102,19 +102,24 @@ public struct IngestionScanConfiguration: Sendable, Equatable {
     public var speechPermissionExceptionEnabled: Bool
     /// Rule 6: the only `TendEval` file where write APIs may appear.
     public var resultsWriterFile: String
+    /// Rule 4: the payload builder's provider table in `TendIngestion`, the only file where the bare hosts may appear
+    /// (brief AC-M2-09 Rule 4 "Where they may appear"; review R1-F6, named in the plan by WI-M2-10).
+    public var providerTableFile: String
 
     public init(
         cloudAdapterAllowlist: Set<String>,
         speechAdapterFiles: Set<String>,
         speechPermissionFile: String,
         speechPermissionExceptionEnabled: Bool,
-        resultsWriterFile: String
+        resultsWriterFile: String,
+        providerTableFile: String
     ) {
         self.cloudAdapterAllowlist = cloudAdapterAllowlist
         self.speechAdapterFiles = speechAdapterFiles
         self.speechPermissionFile = speechPermissionFile
         self.speechPermissionExceptionEnabled = speechPermissionExceptionEnabled
         self.resultsWriterFile = resultsWriterFile
+        self.providerTableFile = providerTableFile
     }
 }
 
@@ -340,15 +345,20 @@ public enum IngestionSourceRules {
     }
 
     /// Rule 4, all three modules: every host-like literal is an allowed host (bare) or `https://` + an allowed host.
-    /// Bare hosts may appear only in `TendIngestion` (the payload builder's provider table); `https://` hosts only in
-    /// the allowlisted cloud-adapter files.
+    /// Bare hosts may appear only in the payload builder's provider table, one named `TendIngestion` file (review
+    /// R1-F6); `https://` hosts only in the allowlisted cloud-adapter files.
     static func rule4(_ facts: FileFacts) -> [RuleViolation] {
         var result: [RuleViolation] = []
         for literal in facts.lexed.literals where isHostLike(literal.text) {
             let text = literal.text
             let check: String?
             if allowedHosts.contains(text) {
-                check = facts.file.module == .tendIngestion ? nil : "bare host outside TendIngestion"
+                if facts.file.module != .tendIngestion {
+                    check = "bare host outside TendIngestion"
+                } else {
+                    check = facts.file.path == facts.configuration.providerTableFile
+                        ? nil : "bare host outside the provider table"
+                }
             } else if allowedHosts.contains(where: { "https://" + $0 == text }) {
                 check = facts.isAllowlisted ? nil : "https:// host outside the cloud-adapter allowlist"
             } else {

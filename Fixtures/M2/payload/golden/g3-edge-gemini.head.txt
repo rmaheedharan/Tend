@@ -1,0 +1,3 @@
+POST generativelanguage.googleapis.com /v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse
+x-goog-api-key: FAKE-TEST-KEY-not-a-real-key-0000
+Content-Type: application/json

@@ -16,6 +16,8 @@ enum PlanPaths {
     static let microphone = "Packages/TendAI/Sources/TendAI/Speech/MicrophoneAudioSource.swift"
     static let speechPermission = "Packages/TendAI/Sources/TendAI/Speech/SpeechPermission.swift"
     static let resultsWriter = "Apps/TendEval/Sources/Results/EvalResultsWriter.swift"
+    /// The payload builder's provider table: the only file where bare hosts may appear (review R1-F6, WI-M2-10).
+    static let providerTable = "Packages/TendIngestion/Sources/TendIngestion/Payload/CloudProviderTable.swift"
 
     static let ingestionFile = "Packages/TendIngestion/Sources/TendIngestion/Planted.swift"
     static let aiFile = "Packages/TendAI/Sources/TendAI/Cloud/OpenAIIngestionModel.swift"
@@ -27,7 +29,8 @@ enum PlanPaths {
             speechAdapterFiles: [speechAdapter, microphone],
             speechPermissionFile: speechPermission,
             speechPermissionExceptionEnabled: speechException,
-            resultsWriterFile: resultsWriter
+            resultsWriterFile: resultsWriter,
+            providerTableFile: providerTable
         )
     }
 }
@@ -221,6 +224,13 @@ struct IngestionSourceRulesTests {
                 rule: .rule4, check: "bare host outside TendIngestion"),
         Planted(module: .tendEval, path: PlanPaths.evalFile, code: "let h = \"api.anthropic.com\"",
                 rule: .rule4, check: "bare host outside TendIngestion"),
+        // R1-F6 (WI-M2-10): a bare host in a TendIngestion file other than the provider table.
+        Planted(module: .tendIngestion, path: PlanPaths.ingestionFile, code: "let h = \"api.openai.com\"",
+                rule: .rule4, check: "bare host outside the provider table"),
+        Planted(module: .tendIngestion,
+                path: "Packages/TendIngestion/Sources/TendIngestion/Payload/CloudPayloadBuilder.swift",
+                code: "let h = \"generativelanguage.googleapis.com\"",
+                rule: .rule4, check: "bare host outside the provider table"),
     ]
 
     /// Rule 5 (T-27): `SFSpeech*` APIs, with the exception off (the state until WI-M2-M1).
@@ -391,12 +401,33 @@ struct IngestionSourceRulesTests {
         }
     }
 
-    @Test("AC-M2-09 Rule 4: bare hosts pass in TendIngestion; https:// hosts pass only in allowlisted files")
+    @Test("AC-M2-09 Rule 4: bare hosts pass only in the provider table (R1-F6); https:// hosts pass only in allowlisted files")
     func rule4AllowedPlacements() {
         let table = """
             let hosts = ["api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com"]
             """
-        #expect(scan(.tendIngestion, PlanPaths.ingestionFile, table).isEmpty)
+        #expect(scan(.tendIngestion, PlanPaths.providerTable, table).isEmpty)
+        // R1-F6: the same table anywhere else in TendIngestion is caught, once per host.
+        let elsewhere = scan(.tendIngestion, PlanPaths.ingestionFile, table)
+        #expect(elsewhere.count == 3 && elsewhere.allSatisfy {
+            $0.rule == .rule4 && $0.check == "bare host outside the provider table"
+        }, "\(elsewhere)")
+        // The table file's path in another module's configuration does not help a TendAI or TendEval file.
+        #expect(scan(.tendAI, PlanPaths.aiFile, table).count == 3)
+        // R28-F1: the match is on the exact path, not the file name. A file with the table's name in another folder
+        // of TendIngestion, or in another module, is caught.
+        let sameNameIngestion = "Packages/TendIngestion/Sources/TendIngestion/Duplicates/CloudProviderTable.swift"
+        let sameNameIngestionFound = scan(.tendIngestion, sameNameIngestion, table)
+        #expect(sameNameIngestionFound.count == 3 && sameNameIngestionFound.allSatisfy {
+            $0.rule == .rule4 && $0.check == "bare host outside the provider table"
+        }, "\(sameNameIngestionFound)")
+        let sameNameAI = "Packages/TendAI/Sources/TendAI/Cloud/CloudProviderTable.swift"
+        let sameNameAIFound = scan(.tendAI, sameNameAI, table)
+        #expect(sameNameAIFound.count == 3 && sameNameAIFound.allSatisfy {
+            $0.rule == .rule4 && $0.check == "bare host outside TendIngestion"
+        }, "\(sameNameAIFound)")
+        let prefixed = "Packages/TendIngestion/Sources/TendIngestion/Payload/OldCloudProviderTable.swift"
+        #expect(scan(.tendIngestion, prefixed, table).count == 3, "a longer name ending in the table's name")
         for file in [PlanPaths.transport, PlanPaths.failureMapping, PlanPaths.keychain] {
             let found = scan(.tendAI, file, """
                 let a = "https://api.openai.com"
@@ -464,7 +495,7 @@ struct IngestionSourceRulesTests {
 
     // MARK: Positives and near-misses
 
-    @Test("AC-M2-09 Rule 1 positive: Foundation + TendCore imports, Locale(identifier: \"en_US_POSIX\"), append(contentsOf:), a bare host")
+    @Test("AC-M2-09 Rule 1 positive: Foundation + TendCore imports, Locale(identifier: \"en_US_POSIX\"), append(contentsOf:), a bare host (in the provider table, R1-F6)")
     func rule1Positive() {
         let code = """
             import Foundation
@@ -487,8 +518,14 @@ struct IngestionSourceRulesTests {
                 static let loggerName = "x"
             }
             """
-        let found = scan(.tendIngestion, PlanPaths.ingestionFile, code)
+        let found = scan(.tendIngestion, PlanPaths.providerTable, code)  // the bare host: provider table only (R1-F6)
         #expect(found.isEmpty, "unexpected: \(found)")
+        // R28-N1: the same code without the bare host is clean in a general TendIngestion file (Rule 1 does not
+        // depend on the path inside TendIngestion).
+        let general = code.replacingOccurrences(of: "    static let hosts = [\"api.openai.com\"]\n", with: "")
+        #expect(general != code)
+        let generalFound = scan(.tendIngestion, PlanPaths.ingestionFile, general)
+        #expect(generalFound.isEmpty, "unexpected: \(generalFound)")
     }
 
     @Test("AC-M2-09 Rule 2 positive: allowed imports; media types in the speech adapter files only")

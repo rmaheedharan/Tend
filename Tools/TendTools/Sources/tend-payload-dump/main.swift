@@ -1,4 +1,4 @@
-// tend-payload-dump: print a cloud request body for a recording (WI-M2-M6). A stub until WI-M2-10.
+// tend-payload-dump: print a cloud request body for a recording (WI-M2-M6), built by the WI-M2-10 payload builder.
 import Foundation
 import TendToolsSupport
 
