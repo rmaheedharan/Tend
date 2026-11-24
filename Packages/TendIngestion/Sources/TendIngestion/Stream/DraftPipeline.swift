@@ -3,9 +3,9 @@
 //
 // `events(from:)` returns an `AsyncSequence` whose `Failure` is `Never`: it never throws. It is lazy (the model is
 // asked when iteration starts) and each iteration is a fresh parse. It holds exactly one routed model, so it never
-// re-routes, never retries and queues nothing (the single cloud retry of AC-M2-22/23 lives in the cloud transport,
-// WI-M2-14). It has no repository and writes nothing: commit (WI-M2-08) is the only write path, and takes confirmed
-// drafts in ascending `draftID` (D6).
+// re-routes, never retries and queues nothing (the single cloud retry of AC-M2-22/23 lives in the cloud adapter's
+// `CloudResponseBody`, WI-M2-14). It has no repository and writes nothing: commit (WI-M2-08) is the only write path,
+// and takes confirmed drafts in ascending `draftID` (D6).
 //
 // Cancellation is cooperative (Swift structured concurrency). When the consuming task is cancelled, the next call to
 // `next()` drops any buffered events, releases the model's stream (which ends the model's work through its

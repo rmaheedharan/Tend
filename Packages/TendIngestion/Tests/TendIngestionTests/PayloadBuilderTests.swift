@@ -82,6 +82,7 @@ struct PayloadBuilderTests {
         var gen = DupHouseholdGenerator(rnd: DupRandom(seed: seed))
         var queries = 0, titles = 0, capped = 0
         for h in 0..<200 {
+            await Task.yield()  // do not hold a cooperative-pool thread for the whole loop (review R30-F3)
             let household = gen.household()
             for q in 0..<6 {
                 let capture = gen.query(household)

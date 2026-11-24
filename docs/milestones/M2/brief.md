@@ -827,7 +827,11 @@ stay calm when the cloud isn't there, so that saying yes to the cloud never cost
     other header than the provider's headers (AC-M2-20) and the transport-set headers named in the allowed lists
     (PO 2026-11-23, WI-M2-10).
   - **Timeouts (T-17; Q22).** Each capture has a cloud deadline of 10.0 s, measured on an injected clock from the
-    moment the pipeline receives the input.
+    moment the pipeline receives the input. The deadline covers the whole capture, including a response body that is
+    still arriving: nothing seen at or after the deadline is read, and the capture ends with the neutral timeout
+    reason, as `interrupted` if a draft was emitted (emitted drafts kept, the item still in progress discarded, the
+    input returned) or as `noModel` with the input and the plain-note offer if none was. It never ends `completed` (PO
+    2026-11-24, WI-M2-14 Q2).
     - Each attempt sets `timeoutIntervalForResource` to the time left before the deadline, and
       `timeoutIntervalForRequest` to min(time left, 4.0 s).
     - **Retry rule (one rule, also in Q22; T-28).**
@@ -847,6 +851,10 @@ stay calm when the cloud isn't there, so that saying yes to the cloud never cost
     only for 429/5xx, and only within the AC-M2-22 deadline rule. This is tested with an injected clock (T-18).
   - The same plain-note offer exists when the route is `none`.
   - No outcome or reason name contains a banned token.
+  - A request refused before sending (AC-M2-22: another host, a redirect to another host, or a non-HTTPS URL) and any
+    other HTTP status or transport error each end like the failures above (`noModel` with the plain-note offer before
+    any draft, `interrupted` after one), are never retried, and share one neutral outcome reason. The transport keeps a
+    separate neutral reason for the refusal, so tests can show that nothing was sent (PO 2026-11-24, WI-M2-14 Q3).
   - **"None blames the user" (T-18)** is checked by Reviewer inspection of the outcome and reason case names. The
     user-facing copy is designed and reviewed by the Designer in M3.
   *Verification:* unit + Reviewer  *Environment:* Linux for the outcome, plain note and retry decisions over a neutral
