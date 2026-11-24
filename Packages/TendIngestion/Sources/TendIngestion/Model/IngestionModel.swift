@@ -149,16 +149,23 @@ public struct IngestionSnapshot: Hashable, Sendable {
     }
 }
 
-/// What a model is asked to read: the one capture and the household's room names (ADR-0005 Decision 3 allows both).
+/// What a model is asked to read: the one capture, the household's room names and, for a cloud model under Q12 = yes,
+/// the duplicate shortlist's titles (ADR-0005 Decision 3 allows exactly these).
 public struct IngestionRequest: Hashable, Sendable {
     /// The finished text, or the final on-device transcript (brief Definitions "Brain-dump input").
     public var input: String
     /// The household's room names as the user wrote them (Q19).
     public var roomNames: [String]
+    /// Cloud only, Q12 = yes: the titles of the duplicate shortlist for `input`, in rank order (index n = position
+    /// n), as the duplicate rules will read the model's index claims (`DraftDuplicateCheck.sentShortlistTitles`). Empty
+    /// on device (the model asks the duplicate `Tool`) and under Q12 = no. The cloud adapters pass the three values to
+    /// the payload builder (`CloudPayloadInput(_:)`, WI-M2-10).
+    public var shortlistTitles: [String]
 
-    public init(input: String, roomNames: [String]) {
+    public init(input: String, roomNames: [String], shortlistTitles: [String] = []) {
         self.input = input
         self.roomNames = roomNames
+        self.shortlistTitles = shortlistTitles
     }
 }
 

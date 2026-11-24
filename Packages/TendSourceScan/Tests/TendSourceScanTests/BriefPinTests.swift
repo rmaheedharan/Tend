@@ -400,15 +400,19 @@ struct BriefPinTests {
         #expect(scan(.tendIngestion, PlanPaths.ingestionFile, "import Foundation\nimport TendCore").isEmpty)
     }
 
-    @Test("Hand-written host plants: only the three brief hosts pass (T-30)")
+    @Test("Hand-written host plants: only the three brief hosts pass (T-30), bare only in the provider table (R1-F6)")
     func hostPlants() {
         for host in ["api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com"] {
-            #expect(scan(.tendIngestion, PlanPaths.ingestionFile, "let h = \"\(host)\"").isEmpty, "\(host)")
+            #expect(scan(.tendIngestion, PlanPaths.providerTable, "let h = \"\(host)\"").isEmpty, "\(host)")
+            #expect(scan(.tendIngestion, PlanPaths.ingestionFile, "let h = \"\(host)\"")
+                .contains { $0.check == "bare host outside the provider table" }, "\(host)")
             #expect(scan(.tendAI, PlanPaths.transport, "let h = \"https://\(host)\"").isEmpty, "\(host)")
         }
         for host in ["api.example.org", "api.openai.co", "openai.com", "api.anthropic.ai", "googleapis.com",
                      "api.openai.com.evil.io"] {
             #expect(scan(.tendIngestion, PlanPaths.ingestionFile, "let h = \"\(host)\"")
+                .contains { $0.rule == .rule4 }, "\(host)")
+            #expect(scan(.tendIngestion, PlanPaths.providerTable, "let h = \"\(host)\"")
                 .contains { $0.rule == .rule4 }, "\(host)")
             #expect(scan(.tendAI, PlanPaths.transport, "let h = \"https://\(host)\"")
                 .contains { $0.rule == .rule4 }, "\(host)")

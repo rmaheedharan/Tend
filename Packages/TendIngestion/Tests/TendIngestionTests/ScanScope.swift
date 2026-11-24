@@ -44,6 +44,8 @@ enum ScanScope {
         ],
         speechPermissionFile: "Packages/TendAI/Sources/TendAI/Speech/SpeechPermission.swift",
         speechPermissionExceptionEnabled: speechPermissionExceptionEnabled,
-        resultsWriterFile: "Apps/TendEval/Sources/Results/EvalResultsWriter.swift"
+        resultsWriterFile: "Apps/TendEval/Sources/Results/EvalResultsWriter.swift",
+        // Rule 4 (review R1-F6, WI-M2-10): the payload builder's provider table, the only file with bare hosts.
+        providerTableFile: "Packages/TendIngestion/Sources/TendIngestion/Payload/CloudProviderTable.swift"
     )
 }

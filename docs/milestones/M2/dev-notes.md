@@ -3214,6 +3214,460 @@ The merge changes no file under `Eval/`, no eval test and no self-test fixture, 
 | 2026-11-23 | Reviewer (via Orchestrator) | Developer | returned (round 1) | CHANGES REQUIRED: R27-F1 and F2 Major; F3–F5 Minor; N1–N3. PO `po-m2-wi15.md` answered Q1–Q3. |
 | 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1–F4 fixed, F5 is owner ticket HM-1b, N1 done, N2 declined with a reason, N3 recorded. The brief amendment is inserted word for word, and Q1–Q3 are closed. origin/main `aa38472` and then `03e98c6` are merged. All four packages are green with 0 warnings on the merged tree (TendIngestion 401). 30/30 mutants killed. The review file is committed with the fix. |
 
+---
+
+## WI-M2-10 — context selector and payload builder for the three providers: provider table, canonical body, headers, key placement, opt-outs, sampling, curated models (Q18), input type, recording mock transport, 3 × 3 golden requests, allowed key-path lists with roles
+
+- **Owner:** Developer  ·  **Branch:** `m2/payload-builder`, from `origin/main` at `6fd1bf4` (PRs up to #27 merged:
+  routing and consent, stream reader, eval scorer)  ·  **PR:** not opened (the Orchestrator opens it)  ·  **ADRs:** none
+  new. Follows [ADR-0005](../../architecture/adr/0005-cloud-ai-providers.md) Decisions 3–6 and
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md): new files under `TendIngestion/Sources/TendIngestion/Payload/`,
+  Foundation and TendCore only, no I/O, no network, no logging, no new dependency.
+- **Requirements:** FR-A1, P-2, P-3, P-4, UX-3. **○ AC-M2-20** ([plan.md](plan.md) WI-M2-10): the selector, the
+  builder, the input type and its `Mirror` test, the recording mock transport, the golden requests and the allowed lists.
+  **WI-M2-11 owns AC-M2-20 (●)**: the ≥ 500-household byte-level sentinels (a) and the structural check (b). The golden
+  bytes are repeated on the owner-run Mac in MS-2. The allowed lists feed AC-M2-26 (`ds2-gated`) and the AC-M2-28
+  harness.
+- **Binding inputs:** brief Definitions ("Cloud request", "Duplicate shortlist", "Item completion"), AC-M2-20, Q12,
+  Q16–Q19; plan WI-M2-10 (provider shapes, Q18 models and the five conditions, N-3), R-6, R-15; PO WI-M2-12 ruling 2
+  (no `null` in rule-(a) fields; blank room → `none`, blank `sourcePhrase` → nil); PO WI-M2-15 ruling 2 (key-path form,
+  pattern test); review ticket R1-F6 (name the provider-table file and narrow Rule 4); WI-M2-12 J1 (schema from
+  `StructuredOutputKey`); WI-M2-15 `tend-payload-dump` stub.
+- **Q12, Q16, Q17 are still open with the owner. Built on the PO defaults** (`owner-decisions.md`): Q12 yes (up to 10
+  shortlist titles), Q16 all three providers, Q17 Gemini kept (its consent-screen warning is M3 copy). The selector
+  takes the Q12 answer (`CloudTitleSharing`); under Q12 = no it selects no title, so only the golden G2/G3 bytes change.
+  A later owner answer is R-15: regenerate the goldens and lists under a PO decision before the freeze (see the fixtures
+  README).
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED`, M2 `IN-BUILD`; WI-M2-07 (the dependency) is merged.
+
+### What changed
+- **New, `Packages/TendIngestion/Sources/TendIngestion/Payload/`** (scanned by AC-M2-09 Rule 1 and the AC-M2-12
+  vocabulary scan):
+  - `CloudPayloadInput.swift`: `CloudPayloadInput` (stored properties `capture: String`, `roomNames: [String]`,
+    `shortlistTitles: [String]`, nothing else) and `CloudContextSelector.input(capture:household:titleSharing:)`.
+  - `CloudProviderTable.swift`: **the provider table**, the only file with the three bare hosts (R1-F6). `CloudModel`
+    (the curated, pinned model IDs, Q18), `CloudProviderEndpoint` (host, auth header and prefix, fixed headers, query,
+    path), `CloudProviderTable` (hosts, `Content-Type`, `anthropic-version`, the output cap).
+  - `CloudRequest.swift`: `CloudRequest` (provider, model, method, bare host, path, query items, headers, body bytes),
+    `CloudRequestHeader` (the key is held as an `APIKey`, read through `withValue`), `CloudQueryItem`.
+  - `CloudOutputSchema.swift`: `CloudInstructions.text` (the fixed instructions) and the output schema in two dialects,
+    written from `StructuredOutputKey` and the Swift enums.
+  - `CloudPayloadBuilder.swift`: `request(_:model:key:)`, `body(_:model:)`, `userContent(_:)`.
+  - `CloudRequestKeyPaths.swift`: `CloudRequestKeyPaths.leafPaths(ofBody:)` (the one key-path function for the harness,
+    `ds2-gated` and WI-M2-11) and `CloudAllowedKeyPaths.list(for:)` (derives an allowed list with roles).
+- **Changed (wiring, small):** `IngestionRequest` gains `shortlistTitles` (default `[]`); `DraftDuplicateCheck` gains
+  `sentShortlistTitles` (default `[]`, implemented by `DraftDuplicateRules` for cloud Q12 = yes); `DraftPipeline` puts
+  the rules' titles into the request. No behaviour of the stream, the marker or the router changes.
+- **Changed, `TendSourceScan` (R1-F6):** `IngestionScanConfiguration.providerTableFile`; Rule 4 now allows bare hosts
+  only in that file (`"bare host outside the provider table"` elsewhere in TendIngestion; other modules keep
+  `"bare host outside TendIngestion"`). `ScanScope.swift` names the file. Plan "Named files" gains its row.
+- **Changed, `Tools/TendTools`:** `tend-payload-dump --provider <p> --outcome-sample` is real: it prints the builder's
+  body for the Outcome sentence with an empty household (no rooms, no titles), exit 0, and the method, host, path and
+  query on standard error. Exit 3 ("not built yet") is gone. It never takes or prints a key.
+- **New fixtures, `Fixtures/M2/payload/`:** `golden/` (9 × `.head.txt` + `.body.json`), `allowed-key-paths-<provider>.json`
+  (3), `README.md`, `.gitattributes` (`* -text`, exact bytes).
+- **Tests (written first; the first build failed with "cannot find 'CloudPayloadInput' in scope" and ~40 similar; the
+  scanner tests first failed with "extra argument 'providerTableFile'"):** `PayloadTestSupport.swift` (golden
+  households, fake key, the recording mock transport, independent `JSONSerialization` oracles),
+  `PayloadBuilderTests.swift`, `PayloadGoldenTests.swift`; `TendSourceScan` Rule 4 tests; `TendToolsTests`.
+- Not changed: `TendCore`, every protected path, every dependency.
+
+### The requests as built (each line is tested; bodies are canonical JSON)
+| | OpenAI | Anthropic | Gemini |
+|---|---|---|---|
+| Line | `POST api.openai.com /v1/chat/completions` | `POST api.anthropic.com /v1/messages` | `POST generativelanguage.googleapis.com /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse` |
+| Headers (order) | `Authorization: Bearer <key>`, `Content-Type: application/json` | `x-api-key: <key>`, `anthropic-version: 2023-06-01`, `Content-Type: application/json` | `x-goog-api-key: <key>`, `Content-Type: application/json` |
+| Model (Q18, pinned) | `gpt-4.1-mini-2025-04-14` (body `model`) | `claude-haiku-4-5-20251001` (body `model`) | `gemini-2.5-flash` (path) |
+| Instructions | `messages[0]` (system, string) | `system` | `systemInstruction.parts[0].text` |
+| User content | `messages[1].content[0].text` | `messages[0].content[0].text` | `contents[0].parts[0].text` |
+| Structured output | `response_format` json_schema `tend_capture`, `strict: true` | one tool `record_items`, `tool_choice` forced | `responseMimeType: application/json`, `responseSchema` |
+| Streaming | `stream: true` | `stream: true` | `:streamGenerateContent?alt=sse` |
+| Sampling, reasoning | `temperature: 0` (not a reasoning model) | `temperature: 0`, no `thinking` member | `temperature: 0`, `thinkingConfig.thinkingBudget: 0` |
+| Opt-outs (AC-M2-20) | `store: false` | none offered | none offered (Q17) |
+| Output cap (fixed) | `max_completion_tokens: 4096` | `max_tokens: 4096` (required) | `maxOutputTokens: 4096` |
+
+User content (all three): the canonical JSON text
+`{"capture":"…","existingTasks":[{"index":1,"title":"…"},…],"rooms":["…",…]}`. Instructions, schema and every fixed
+number hold no decimal string 600…729 (N-3, tested).
+
+### Decisions the Reviewer should know (technical; product-meaning readings are flagged)
+- **D1, the user content is one JSON text.** Capture, room names and titles go into one user text as canonical JSON. A
+  quote, brace, newline or key-like text in a capture or label stays a JSON string value: it can never change the
+  structure the model reads, or the body's key paths (tested with 7 hostile texts). The plan allows a templated user
+  string ("the slots are compared after the template is removed"); here removing the template means parsing that JSON
+  and checking its exact shape (`PayloadOracle.slots`). The instructions tell the model to treat it as data.
+- **D2, roles (N-3) need two more names.** Because the three slots share one string, the outer list has two roles,
+  `fixed` and `userContent` (one path, with its concrete path in `at`), and a second layout list
+  (`userContentKeyPaths`) gives the slot roles `capture`, `roomName`, `shortlistTitle`, plus `shortlistIndex` (the
+  1…n numbers) and `emptyList` (an empty `rooms` or `existingTasks`). The Tester reviews this in WI-M2-16 (open
+  question 4).
+- **D3, a key path is a leaf path.** The path of every scalar and of every empty array or object, in the results-file
+  form, sorted and unique (`CloudRequestKeyPaths.leafPaths`). Containers are not listed: their leaves are. So the
+  outer key-path set of a body is the same for every household (tested on all goldens and the hostile texts), and an
+  added member or empty object is caught. The harness (AC-M2-28), `ds2-gated` (AC-M2-26) and WI-M2-11 must use this
+  function. An independent `JSONSerialization` oracle agrees on every golden.
+- **D4, `null` and rule (a) (PO WI-M2-12 ruling 2).** Every member is required in all three dialects (OpenAI strict
+  mode needs it; the others are asked the same). The rule-(a) fields `title`, `kind`, `room`, `effort`, the three
+  flags, `time.anchor` and `sourcePhrase` are never nullable; `""` means none for `room` and `sourcePhrase`, and
+  `anchor: "none"` means no time. The other hint members and both claims may be `null` (`anyOf […, {"type":"null"}]`;
+  Gemini `nullable: true`). Tests: a strict-mode item with `room: ""`, `sourcePhrase: ""`, `anchor: "none"` meets
+  `hasValueForEveryField`; a blank (`""`, spaces, tab/newline) room maps to room `none` and a blank phrase to nil
+  through `DraftMapper`. **No gap found for any provider** in the shapes as written; WI-M2-M6 confirms on the wire.
+  The mapper's repair log still records `roomDefaulted` / `sourcePhraseDropped` for a blank value (diagnostic only;
+  no draft field differs).
+- **D5, member order: the canonical order.** The body must be canonical (sorted keys), and strict structured output
+  writes members in schema order, so every provider writes `effort, isCritical, isDeepClean, isWeatherDependent, kind,
+  room, sameAsExisting, sameAsItem, sourcePhrase, time, title`. Gemini gets the same order through
+  `propertyOrdering`. Consequences: the claims come before the last rule-(a) field, so a duplicate marker is set
+  before `emitted` (no `updated` just for a claim); the time hint finishes before the item completes; the title comes
+  last, which WI-M2-12 J2 already handles (one `emitted`, whole title). Whether writing the title last costs accuracy
+  is an R-2 watch item for the dev-set run (open question 2).
+- **D6, one shortlist.** The cloud request's titles come from the duplicate rules' own shortlist
+  (`DraftDuplicateRules.sentShortlistTitles`), so the titles sent and the index claims accepted cannot differ.
+  `CloudContextSelector` computes the same values from the household; tests check selector = rules = what the router's
+  cloud model sends, for every golden and provider, and selector = the WI-M2-07 independent oracle over 3,600
+  seeded captures.
+- **D7, the key never formats.** `CloudRequest` and `CloudRequestHeader` show the auth header as `(hidden)` and the
+  body as a byte count in `description`, `debugDescription` and `dump`; the capture and room names never appear there
+  either (P-4). The transport reads header values only through `withValue`.
+- **D8, fixed protocol members beyond the plan's list.** `max_completion_tokens` / `max_tokens` / `maxOutputTokens`
+  4096 (Anthropic requires one; it also bounds cost and response size, cf. R26-F2), the Anthropic tool name and
+  description, the OpenAI schema name, and Gemini `format: "enum"` and `propertyOrdering`. None carries household data
+  or varies per request. I read ADR-0005's "a new request field needs a new ADR" as household-data fields; the
+  Reviewer should confirm (open question 3).
+- **D9, R1-F6.** Two existing scanner tests placed a bare host in a generic TendIngestion file and expected it to pass.
+  They now place it in the provider-table path, and new assertions show the same text elsewhere is caught. The rule is
+  stricter; no assertion was removed.
+- **D10, golden households live in test code** (`PayloadGolden`, fixed version-4 UUIDs, dates and states that are never
+  sent). The test can regenerate the files into a directory named by `TEND_PAYLOAD_GOLDEN_OUT`, never into the
+  repository; it always compares with the committed bytes.
+- **D11, empty or blank room names are sent as written** (Q19, most literal reading). The selector does not filter or
+  de-duplicate room names.
+
+### AC coverage
+| AC (part) | Test(s) | Result |
+|---|---|---|
+| AC-M2-20 media (input type) | "AC-M2-20 media: the builder's input type stores exactly capture: String, roomNames: [String], shortlistTitles: [String] (Mirror)"; "the builder input from a pipeline request …" | PASS (Linux) |
+| AC-M2-20 shortlist (selector) | "… selector gives the capture, the room names as written in household order, and the shortlist titles in rank order (G2 hand-derived)"; "… at most 10 titles; completed tasks are never sent; titles are trimmed (G3)"; "AC-M2-20 Q12 = no …"; property "3 seeds × 200 households × 6 queries …" (seeds `0x0A1D20100001…03`, against the WI-M2-07 oracle) | PASS (Linux): 3,600 captures, 0 mismatches; 11,140 titles; 327 captures cut at 10 |
+| AC-M2-20 shortlist (wiring) | "… through the router: a cloud capture's request carries the selector's titles …" (per provider, 3 goldens through `ModelRouter`, the request equals the golden request); "wiring: the pipeline's request holds the cloud rules' shortlist titles under Q12 = yes, none under Q12 = no, none on device" | PASS (Linux) |
+| AC-M2-20 provider table, headers | "the provider table: bare hosts, method, path, query, header names in order, and the curated pinned model per provider"; "the curated list is closed …"; "AC-M2-20 headers: every header value except the auth header is fixed" | PASS (Linux) |
+| AC-M2-20 key placement | "AC-M2-20 key placement: the key appears only in the provider's auth header … Gemini never uses key="; "requests with different keys differ only in the auth header value"; "P-3: a request, its headers and its body never show the key or the body in description, debugDescription or dump" | PASS (Linux) |
+| AC-M2-20 canonical body, opt-outs, sampling | "AC-M2-20: the body is canonical JSON …" (9 goldens); "AC-M2-20 opt-outs and sampling …"; "ADR-0005 Decision 3: the instructions are fixed …"; "AC-M2-20: the user content is one text in the user slot whose three slots are exactly the selector's values"; "the user content is canonical JSON …"; "a capture, room name or title cannot change the user content's structure …" (7 texts) | PASS (Linux) |
+| N-3 numbers | "N-3: no decimal string 600…729 occurs in any fixed part …" | PASS (Linux) |
+| Schema (WI-M2-12 J1; PO WI-M2-12 ruling 2) | "the schema's root is {items: [item]} … all required"; "the enum values equal the Swift cases …; rule-(a) fields are never nullable; the others are"; "… meets completion rule (a) with no null in a rule-(a) field"; "… a blank room (\"\", spaces) maps to room none; a blank sourcePhrase maps to nil" (3 blanks); "… the instructions ask for \"\" … and never ask the model to invent one" | PASS (Linux) |
+| AC-M2-20 golden bytes (Linux half) | "AC-M2-20 golden bytes: 3 households × 3 providers, the captured request equals the committed head and body files exactly"; "the G1 golden body is the tend-payload-dump --outcome-sample body"; "AC-M2-20 (a), golden households: no task or room ID, no non-shortlisted title, no date … appears" | PASS (Linux). Mac repeat: MS-2 (B2) |
+| Allowed key-path lists (N-3; PO WI-M2-15 ruling 2) | "key paths: the leaf paths …" (4 cases) and "… not strict JSON gives nil" (4); "key paths of every golden body equal the independent oracle"; "N-3: each committed allowed key-path list equals the list derived from the golden requests …, byte for byte"; "N-3: the allowed paths equal the key paths of all three golden bodies; exactly one path has role userContent …"; "PO WI-M2-15 ruling 2: every path in each allowed list, and in the user-content layout, passes the results-v1 keyPaths pattern" (53 / 53 / 64 paths; 6 bad paths refused); "the user-content layout … names the four slot roles" | PASS (Linux) |
+| `tend-payload-dump` (plan "Real provider recordings") | TendTools: "tend-payload-dump (WI-M2-10): each provider's body equals the committed G1 golden body …" (3 cases); "tend-payload-dump: usage errors exit 64 and print no body" | PASS (Linux, local; CI runs no TendTools tests until HM-1b) |
+| AC-M2-09 Rule 4 narrowing (R1-F6) | TendSourceScan: planted "bare host outside the provider table" ×2; "AC-M2-09 Rule 4: bare hosts pass only in the provider table (R1-F6) …"; "Hand-written host plants … bare only in the provider table (R1-F6)" | PASS (Linux) |
+| AC-M2-09, AC-M2-12 (regression) | "AC-M2-09: Rules 1–6 hold …": `46 files in total, 0 violations`; the AC-M1-02 vocabulary scan over the module roots: 0 violations | PASS (Linux) |
+
+### Test runs (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, own scratch paths, 0 warnings in every package)
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 437 tests in 51 suites passed after 109.437 seconds.` (401 on `main` + 36 new) |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 3.449 seconds.` (same count; Rule 4 cases added inside existing tests and plant tables) |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 147.313 seconds.` (unchanged package) |
+| Tools/TendTools | `✔ Test run with 8 tests in 1 suite passed after 0.193 seconds.` (7 − 1 stub test + 2) |
+
+Golden fixture SHA-256 (`sha256sum`, Linux): the three `.head.txt` files per provider are identical across households
+(OpenAI `82582c2d…`, Anthropic `1c7eda46…`, Gemini `16de52de…`). Bodies: g1 OpenAI `8859c0df…`, Anthropic `266f52e9…`,
+Gemini `ae7c6980…`; g2 `97fe378c…`, `137884f5…`, `f80aa910…`; g3 `e9cd972c…`, `3b54b5b9…`, `eb2022ee…`. Allowed lists:
+OpenAI `c6ac48eb…`, Anthropic `0b3a88b2…`, Gemini `4cdaf9c6…`.
+
+### Mutation check
+Each mutant was applied alone by a script to a scratch copy of the worktree (`/tmp/claude-b10/mut`, never this
+branch), built with `-warnings-as-errors` in `swift:6.2-noble` and run with `--filter "Payload|WI-M2-10"`
+(TendSourceScan: `"Rule 4|host"`; TendTools: `payloadDump`), then restored. Afterwards the copy's `Packages` and
+`Tools/TendTools/Sources` were identical to the branch. **28 of 28 killed; every mutant built.**
+
+| # | Mutant | Killed by (count) |
+|---|---|---|
+| S1 | selector ignores Q12 = no | Q12 = no; pipeline wiring (2) |
+| S2 | room names sorted | golden bytes, router wiring, selector property, G3 selector (6) |
+| S3 | shortlist cut at 9 | golden bytes, router wiring, selector property, G3 selector (4) |
+| W1 | pipeline request drops the titles | router wiring, pipeline wiring (2) |
+| W2 | rules give no titles | router wiring, pipeline wiring (2) |
+| T1 | Anthropic key value prefixed `Bearer ` | golden bytes, key placement (2) |
+| T2 | Gemini key also in the query (`key=`) | golden bytes, key placement, formatting, provider table (4) |
+| T3 | header order swapped | golden bytes, both list tests, provider table (4) |
+| T4 | Gemini moving alias `gemini-flash-latest` | golden bytes, list bytes, provider table (3) |
+| T5 | output cap 6500 (holds "650") | golden bytes, opt-outs, N-3 numbers (3) |
+| B1 | OpenAI `store: true` | golden bytes, opt-outs (2) |
+| B2 | OpenAI `temperature: 1` | golden bytes, opt-outs (2) |
+| B3 | Gemini thinking budget dropped | golden bytes, opt-outs, both list tests (4) |
+| B4 | user-content index from 0 | golden bytes, slots, hostile texts, shape (4) |
+| B5 | Anthropic `stream: false` | golden bytes, opt-outs (2) |
+| C1 | `room` nullable (a rule-(a) field) | golden bytes, both list tests, schema values (4) |
+| C2 | anchor offers `unrecognized` | golden bytes, schema values (2) |
+| C3 | Gemini `propertyOrdering` in declaration order | golden bytes, schema keys (2) |
+| C4 | no `additionalProperties: false` | golden bytes, both list tests, schema keys (4) |
+| C5 | Gemini `nullable` dropped | golden bytes, both list tests, schema values (4) |
+| C6 | `daypart` not nullable | golden bytes, both list tests, schema values (4) |
+| F1 | auth value shown in `description` | formatting (1) |
+| F2 | request `description` shows the body | formatting (1) |
+| K1 | empty arrays are not leaves | key-path function table (1) |
+| K2 | allowed list keeps indices on the `userContent` path | list bytes (1) |
+| K3 | transport-set headers not listed | list bytes (1) |
+| R4 | Rule 4 narrowing reverted (bare host anywhere in TendIngestion) | host plants (1) |
+| D1 | `tend-payload-dump` adds a trailing newline | tool body = G1 golden (1) |
+
+Single-test kills (F1, F2, K1–K3, R4, D1) each have a dedicated test for exactly that property, as designed.
+
+### Verification environment
+| Check | Linux (container, `swift:6.2-noble`) | macOS / owner-run Mac | Simulator | Device |
+|---|---|---|---|---|
+| Selector, builder, schema, key paths, goldens, lists, wiring | ✔ | not run (MS-2 B2 repeats the golden bytes) | n.a. | n.a. |
+| Scanner narrowing | ✔ | not run | n.a. | n.a. |
+| `tend-payload-dump` | ✔ (local) | not run | n.a. | n.a. |
+| Real provider accepts each request (shape, model IDs, `propertyOrdering`, `format: enum`, caps) | **not verified** (no network, no web lookups, by instruction) | WI-M2-M6 recordings | — | DS-2 |
+
+### Things the reviewer should look at closely
+- The schema dialects against the providers' current docs (R-6): OpenAI strict-mode `anyOf` with `null`, Anthropic
+  `input_schema` with `anyOf`, Gemini `nullable` / `format: "enum"` / `propertyOrdering`.
+- D1/D2: the user content as one JSON text and the two extra roles.
+- D5: the canonical member order puts `title` last for every provider.
+- `CloudRequest` formatting (D7) and that `withValue` is the only way to read the key.
+- The wiring change in four existing files (D6) does not alter stream, marker or router behaviour (all 401 earlier
+  TendIngestion tests are unchanged and green).
+
+### Known limitations / tickets
+| Item | Severity | Ticket |
+|---|---|---|
+| Transport-set headers: on Darwin, `URLSession` adds `User-Agent` (app and OS build) and `Accept-Language` (the user's languages) unless set. ADR-0005 Decision 3 forbids location, device identifiers and similar; the languages and OS build are borderline. | concern (P-3) | WI-M2-M4: set `User-Agent` to a fixed value and send no `Accept-Language` (or a fixed one), prove it in the `URLProtocol` test, and add them to the lists' `headers` as fixed. PO/Reviewer to confirm. |
+| Model IDs and API shapes not re-checked against current provider docs (no web) | watch (R-6) | WI-M2-M6 re-checks the five Q18 conditions; Reviewer checks against current docs |
+| WI-M2-13 fixtures should use this schema's shape: `room: ""`, `sourcePhrase: ""`, `anchor: "none"`, members in canonical order (title last) | — | WI-M2-13 (PO WI-M2-12 ticket: a no-room item completes by (a) before the next item) |
+| The ≥ 500-household sentinel and structural proof | — | WI-M2-11 (uses `CloudRequestKeyPaths`, the lists and the user-content layout) |
+| The harness records `CloudRequestKeyPaths.leafPaths(ofBody:)` per request | — | WI-M2-M7 |
+| TendTools tests are not in CI | Minor | HM-1b (owner) |
+
+### Open questions (built to the most literal reading; work continues)
+1. **PO (R-6, Q18 conditions 1 and 2):** I could not re-check the curated models in this container (no web, by
+   instruction). (a) Are `gpt-4.1-mini-2025-04-14` and `claude-haiku-4-5-20251001` still current and not announced for
+   removal in November 2026? (b) Gemini 2.5 Flash has, to my knowledge, no **dated** snapshot; its stable version ID
+   `gemini-2.5-flash` is fixed (not a `-latest` alias). Does a stable version ID meet condition 2, or should the PO name
+   a replacement? Is 2.5 Flash still current? I did not pick a different model (plan: "never picks a different model
+   alone").
+2. **Tester / Planner (R-2 watch, D5):** the canonical order makes every provider write `title` last. If the dev-set
+   eval shows lower accuracy or TTFI misses (AC-M2-27), the fix is technical (rename schema keys so the sorted order
+   is better), under the freeze rules.
+3. **Reviewer / PO (D8):** confirm that fixed protocol members (output caps, tool name, schema name, Gemini schema
+   keywords) are not "new request fields" in the ADR-0005 sense.
+4. **Tester (WI-M2-16, D2):** confirm the roles and the user-content layout are reviewable as written.
+5. **PO (P-3, ticket above):** transport-set `User-Agent` and `Accept-Language` on Darwin.
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface; the builder only shapes a request. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | The instructions hold no banned token (tested, and the AC-M2-12 vocabulary scan: 0 violations); they ask for the person's words and never to invent anything. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Routing is unchanged; on-device requests carry no titles (tested). |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | Pure functions, no networking (Rule 1: 0 violations); bare hosts only in the provider table (Rule 4 narrowed). No dependency. |
+| P-3 Cloud AI opt-in, minimised | pass (one concern ticketed) | The input type holds only capture, room names and ≤ 10 titles (Mirror test); no ID, date, state or other title reaches a golden request (tested); the key only in the auth header, never `key=`; `store: false`; requests never format the key or the body. Concern: Darwin's default `User-Agent` / `Accept-Language` (WI-M2-M4 ticket). |
+| P-4 Media not persisted | pass | Text only, in memory; the input type cannot hold media. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-23 | Orchestrator | Developer | accepted (H2) | WI-M2-10 Ready (WI-M2-07 merged; `main` at `6fd1bf4`). PO defaults for Q12/Q16/Q17 stand. Tickets: PO WI-M2-12 ruling 2, PO WI-M2-15 ruling 2, R1-F6, the `tend-payload-dump` stub. |
+| 2026-11-23 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red builds confirmed). TendIngestion 437, TendSourceScan 63, TendCore 141, TendTools 8 green, 0 warnings, Linux. AC-M2-09 46 files, 0 violations; AC-M2-12 vocabulary 0. 28/28 mutants killed. Built on the PO defaults for Q12/Q16/Q17. Five open questions (R-6 model currency and Gemini snapshot; title-last watch; fixed protocol members; roles review; Darwin default headers). Pushed; no PR opened. |
+
+### Round 2 (review round 1: APPROVE with 7 Minor and 3 Nit, `review-WI-M2-10.md`; PO `po-m2-wi10.md` rulings 1–7, ruling 7 final; L1/L1b notes `l1-model-check-2026-11-23.md`)
+`origin/main` had not moved (still `6fd1bf4` when fetched on 2026-11-24), so there was no merge. The review file is
+committed with this round, unchanged.
+
+**AC coverage:** unchanged from round 1 (this PR is the ○ part of AC-M2-20; WI-M2-11 owns the full proof). Round 2
+adds: the builder-level ≤ 10 cap (AC-M2-20 "n ≤ 10", F3), the ruling-7 members in the golden bytes (AC-M2-20 "Golden
+bytes", "Opt-outs"), the exact-path Rule 4 plants (AC-M2-09), and the brief's new AC-M2-22 **Headers** bullet, which is
+WI-M2-M4's to prove (F4 ticket).
+
+| Finding / ruling | Change |
+|---|---|
+| **PO ruling 7 (models and fixed members)** | Provider table: `gpt-6-luna`, `claude-haiku-4-5-20251001` (unchanged), `gemini-3.5-flash-lite`. OpenAI: no `temperature`; new fixed members `reasoning_effort: "none"` and `stream_options: {"include_usage": true}`; `store: false` and `max_completion_tokens: 4096` kept. Gemini: no `temperature`, no `thinkingBudget`; `thinkingConfig: {"thinkingLevel": "minimal"}`; the schema moves from `responseSchema` (OpenAPI subset) to `responseJsonSchema` (JSON Schema: lower-case types, `type` arrays with `"null"`, plain `enum`, no `nullable`, no `format`, no `propertyOrdering`); `maxOutputTokens: 4096` kept. Anthropic: unchanged, byte for byte. |
+| **R28-F7 Minor** | The model is now the unit of configuration. `CloudRequestProfile` (in `CloudProviderTable.swift`) holds sampling, reasoning member and value, usage member, schema dialect and schema member; `CloudProviderTable.profile(for:)` gives one per `CloudModel`. The builder reads the profile; it branches on the provider only for the provider's protocol shape. Case names are neutral (`openAIDefault`, `anthropicDefault`, `geminiDefault`), and the header comment no longer states model facts. `curated(for:)` is "default first, then any listed fallback". Tests read their expectations from a hand-written per-model table (`PayloadExpectedModel.all`, from ruling 7's text, never from production): `providerTable`, `fixedHeaderValues`, `requestMembers` (present and absent members, for all 3 golden households), `curatedModels`, `noMovingAlias`, `schemaKeywords`. `profileDrivesBody` builds bodies from hypothetical profiles (never shipped) to show a same-provider swap needs no builder change. |
+| **R28-F1 Minor** | Rule 4 plants: a bare host in `Packages/TendIngestion/Sources/TendIngestion/Duplicates/CloudProviderTable.swift` gives "bare host outside the provider table"; in `Packages/TendAI/Sources/TendAI/Cloud/CloudProviderTable.swift` it gives "bare host outside TendIngestion"; in `…/Payload/OldCloudProviderTable.swift` it is caught too. Mutant M-A (`hasSuffix("CloudProviderTable.swift")`) is now killed. |
+| **R28-F3 Minor** | The builder enforces the Q12 cap itself. `CloudPayloadBuilder.userContent`, `body` and `request` throw `CloudPayloadError.tooManyShortlistTitles(count:)` for more than `CloudPayloadInput.maximumShortlistTitles` (= `DuplicateShortlist.limit`, 10) titles, so no bytes are made. Test `builderTitleCap` (all 3 providers): 11 titles are refused by all three entry points; 10 are sent with indices 1…10. |
+| R28-F2 Minor | **Ticket WI-M2-11:** the selector is not on the production path (the pipeline takes the titles from the duplicate rules). WI-M2-11 either makes one derivation path, or adds an equivalence property between `CloudContextSelector.input` and `CloudPayloadInput(pipeline.request)`, and proves AC-M2-20 through the production path. It also adds the D11 blank-room test the review suggests. |
+| R28-F4 Minor | **Ticket WI-M2-M4 (PO ruling 4):** the transport sets `User-Agent: Tend` and `Accept-Language: en-US` explicitly on every request; `URLProtocol` test; a mutant that drops either is killed; both go into the allowed lists' `headers` as `fixed`, and `Accept`, `Accept-Encoding` and `Connection` are added as transport-set (`CloudAllowedKeyPaths.transportSetHeaders`). Not done here: the builder's headers are the provider's headers only, as the coordinator directed. |
+| R28-F5 Minor | **Ticket WI-M2-M5 / WI-M2-M4:** a key with leading or trailing whitespace or a control character. The PO decides between trim and refuse; the key store or transport then enforces it with a test. |
+| R28-F6 Minor | **Ticket WI-M2-11:** `[]` paths do not count array elements, so a path set alone cannot see an extra element. WI-M2-11 adds a structural check on concrete indices. **Tester / PO question:** should `ds2-gated` also compare element counts? |
+| R28-N1 Nit | Done: `rule1Positive` also runs the same code, without the bare host, at a general TendIngestion path. |
+| R28-N2 Nit | Recorded for the Tester: watch room accuracy in the DS-2 dev-set run (AC-M2-26); a rewording goes under the freeze rules. |
+| R28-N3 Nit | Planner: confirm the "Named files" row in the next plan edit. |
+| PO rulings 3, 4, 7: brief | Applied word for word to `brief.md`: Q18 row (the ruling 7 sentence, which replaces ruling 1's never-applied sentence), the `interrupted` bullet (cap stop counts as truncated), the Cloud request sub-bullet (fixed header values and fixed protocol members), and the AC-M2-22 **Headers** bullet. No AC is deleted or weakened; AC-M2-22 gains a stricter clause. |
+| PO ruling 7: plan | Applied word for word to `plan.md`: amendment 1 (Q18 model list and fallbacks), 2 (conditions 2, 4 and 5 replaced; the old condition 2 sentence "The exact ID is written in the provider table and in the golden requests" goes with it, and AC-M2-20 still requires the golden requests), 3 (live check L2a paragraph after the condition list) and 4 (R-5 mitigation). |
+
+#### The requests as built after round 2 (each member is tested against the hand-written table)
+- **OpenAI** `POST api.openai.com /v1/chat/completions`; headers `Authorization: Bearer <key>`, `Content-Type`. Body:
+  `max_completion_tokens: 4096`, `messages`, `model: "gpt-6-luna"`, `reasoning_effort: "none"`, `response_format`
+  (`json_schema`: `name: "tend_capture"`, `schema` with `anyOf` nulls, `strict: true`), `store: false`, `stream: true`,
+  `stream_options: {"include_usage": true}`. No `temperature`.
+- **Anthropic**: unchanged from round 1 (`temperature: 0`, no `thinking`, forced `record_items` tool). The three
+  Anthropic golden requests and the Anthropic list are byte-identical to round 1.
+- **Gemini** `POST generativelanguage.googleapis.com /v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse`;
+  headers `x-goog-api-key`, `Content-Type`. Body: `contents`, `generationConfig` = {`maxOutputTokens: 4096`,
+  `responseJsonSchema`, `responseMimeType: "application/json"`, `thinkingConfig: {"thinkingLevel": "minimal"}`},
+  `systemInstruction`. No `temperature`, no `thinkingBudget`.
+
+#### Decisions (round 2; technical)
+- **D12 Profile shape.** The reasoning and usage members are provider-specific enum cases
+  (`openAIReasoningEffort`, `geminiThinkingLevel`, `geminiThinkingBudget`, `openAIStreamOptionsIncludeUsage`), so a
+  profile cannot name a member the provider does not have without `fits(_:)` saying so. `curatedModels` checks that
+  every curated profile fits its provider. The builder ignores a member that has no place in the provider's body.
+- **D13 No fallback is listed yet.** `curated(for:)` allows fallbacks after the default, but none is listed. Ruling 7
+  says a switch needs a PO ruling, and `claude-haiku-5-5`'s lowest documented `effort` value and request member are
+  not in the notes I have. A fallback is added with its own case, profile and table row when the PO rules.
+- **D14 Gemini type-array dialect.** `additionalProperties: false` is kept on every object, as ruling 7 directs (L2a
+  checks it; if Gemini rejects it, it is dropped for Gemini only and recorded). A nullable enum lists `null` in its
+  `enum` as well as in `type` (`{"enum": [..., null], "type": ["string", "null"]}`). In JSON Schema `enum` constrains
+  every value, so without `null` there a `null` would fail the enum. L2a confirms Gemini accepts it. If Gemini rejects
+  it, the Developer removes `null` from the enum: it is a non-retention protocol member, which ruling 7 allows.
+- **D15 Gemini schema member `responseJsonSchema` — to be confirmed by L2a.** The name comes from the L1b notes
+  (structured-output page, Go example `ResponseJsonSchema`). It was **not** quoted from the Gemini REST reference:
+  this container has no web access, and I was told not to browse. Ruling 7's ticket asks the Developer to quote the
+  REST reference. That quote is open (open question 1 below). If the reference names another member, only
+  `schemaMember` in the Gemini profile changes, and the Gemini goldens and list are regenerated.
+- **D16 Cap enforcement by typed error, not truncation.** Silent truncation would hide an adapter bug and could
+  separate the indices the model sees from the shortlist the duplicate rules check. The input initialiser stays
+  non-failable, so the selector and pipeline code is unchanged. `CloudPayloadError` replaces `CanonicalJSONError` in
+  the three public builder signatures (`json(_:)` wraps the writer's error, which cannot occur with fixed, distinct
+  member names). Callers: `tend-payload-dump` (unchanged, generic `catch`) and the tests.
+- **D17 PO ruling 3's six-part test for the new fixed members.**
+
+| Member | (1) constant | (2) no household, person or device data | (3) protocol member or schema keyword | (4) no added reach | (5) `fixed` in the lists | (6) N-3 |
+|---|---|---|---|---|---|---|
+| `reasoning_effort: "none"` | yes | yes | OpenAI protocol | lowers reasoning; nothing more is sent or stored | yes (`$.reasoning_effort`) | no digits |
+| `stream_options.include_usage: true` | yes | yes | OpenAI protocol | the provider only adds its token counts to the stream | yes | no digits |
+| `thinkingConfig.thinkingLevel: "minimal"` | yes | yes | Gemini protocol | lowers thinking | yes | no digits |
+| `responseJsonSchema` and its keywords (`type` arrays, `null` in `enum`, `additionalProperties: false`) | yes | yes | schema member and keywords | none | yes (Gemini list: 41 paths, 40 `fixed`, 1 `userContent`) | no number in the schema |
+
+`noIntervalSentinelDigits` (all providers) passes on the regenerated bodies, the model IDs and the paths.
+
+#### Independent checks of the regenerated files
+- Regenerated with `TEND_PAYLOAD_GOLDEN_OUT=/tmp/b10/gold` (outside the repository), then copied in. Exactly the
+  expected files changed: the 3 OpenAI bodies (heads unchanged), the 3 Gemini heads (model in the path) and bodies,
+  and the OpenAI and Gemini lists. The 6 Anthropic files and the Anthropic list are byte-identical.
+- Oracle 1 (Python, separate from the Swift code): it took the **round-1** committed goldens from `f1f6baf`, applied
+  ruling 7's changes by hand (OpenAI: drop `temperature`, add the two members, new model; Gemini: drop
+  `temperature`/`thinkingBudget`, add `thinkingLevel`, rename the member, rewrite the schema: lower-case types, drop
+  `format`/`nullable`/`propertyOrdering`, `type` arrays with `"null"`, `null` in nullable enums, `additionalProperties`
+  on objects; head: new model in the path), and wrote canonical JSON. All 12 files match byte for byte. It also found
+  no `nullable`, `format`, `propertyOrdering`, upper-case type, `temperature`, `thinkingBudget`, `responseSchema` or
+  fake key in any of the six bodies, and no 600…729 in the G1 bodies.
+- Oracle 2 (Python): derived each list from the regenerated G2 body (leaf paths, roles, `at`) on top of the round-1
+  list's other members. All 3 lists match byte for byte, and all three golden bodies of each provider have the same
+  path set. OpenAI: added `$.reasoning_effort`, `$.stream_options.include_usage`; removed `$.temperature`.
+
+#### Round 2 test runs (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, own scratch paths `/tmp/b10/{ing,scan,core,tools}`, 0 warnings in every package)
+Final run on the committed tree, after the brief and plan amendments (`BriefPinTests` reads the brief):
+
+| Package | Summary line |
+|---|---|
+| TendIngestion | `✔ Test run with 441 tests in 51 suites passed after 48.946 seconds.` (437 in round 1: `optOutsAndSampling` became `requestMembers`; new `noMovingAlias`, `profileDrivesBody`, `builderTitleCap`, `schemaKeywords`.) AC-M2-09: `46 files in total, 0 violations`. AC-M2-12 vocabulary scan: `46 files, 9 exempted (the list), 0 violations`. |
+| TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 1.681 seconds.` (the F1 and N1 plants are inside existing tests) |
+| TendCore | `✔ Test run with 141 tests in 18 suites passed after 86.871 seconds.` |
+| Tools/TendTools | `✔ Test run with 8 tests in 1 suite passed after 0.074 seconds.` (`payloadDump` Gemini target now `…/gemini-3.5-flash-lite:streamGenerateContent?alt=sse`) |
+
+Order of work, stated plainly: in this round I changed the production code and the table-driven tests in the same
+step, before the first run, so there was no red run of the new tests against the old code. The first run failed only
+in the golden-bytes and allowed-list tests for OpenAI and Gemini (17 issues; Anthropic passed), because the committed
+files were stale, as expected. I then regenerated the goldens, checked them with the two oracles above, and copied
+them in. The evidence that the new tests detect real defects is the mutant table below (F1 M-A, F3, F7 and ruling 7).
+
+#### Mutation check (round 2)
+Scratch copy `/tmp/claude-b10/mut` (made from the worktree with `tar --exclude=.git`), one mutant at a time,
+`-Xswiftc -warnings-as-errors`, own scratch paths. Afterwards the copy's `Packages` and `Tools` were identical to the
+worktree (`diff -rq`), and the worktree was never edited. TendIngestion mutants ran with `--filter Payload` (the
+`PayloadBuilderTests` and `PayloadGoldenTests` suites). **48 of 48 killed.**
+
+Two run notes, stated honestly:
+- On the first pass, the TendSourceScan mutants ran with `--filter 'Rule 4|host|Rule 1'`. `swift test --filter`
+  matches test identifiers (`rule4AllowedPlacements`), not display names, so the F1 test was not selected and M-A
+  showed "survived". Rerun with no filter (all 63 tests): M-A killed by `rule4AllowedPlacements`, R4 killed by 3
+  tests.
+- F7-2 and F3-1 were first written so that they did not compile under `-warnings-as-errors` (an unused binding, and
+  a guard the compiler proves never fails). I rewrote them so they compile (F7-2: `case .geminiThinkingLevel:` with
+  `"minimal"` hard-coded; F3-1: the guard line replaced by `_ = count`). Both are then killed.
+
+| # | Mutant | Result (tests that failed) |
+|---|---|---|
+| S1–S3, W1, W2, T1–T5, B1, B4, B5, C1, C2, C4, C6, F1, F2, K1–K3, D1 | round-1 mutants, re-pointed at the round-2 code (T4: `geminiDefault = "gemini-flash-latest"`; C1: room as `anyOfNull`; C4: no `additionalProperties`) | all killed (2–6 tests each) |
+| B2, B3, C3, C5 (round 1) | replaced: the members they mutated no longer exist (OpenAI temperature, Gemini `thinkingBudget`, `propertyOrdering`, `nullable`); covered by R7-1, R7-4, R7-5, R7-6 | — |
+| R7-1 | `temperature` put back for OpenAI (profile `.temperatureZero`) | killed (4: golden bytes, `requestMembers`, lists) |
+| R7-2 | `temperature` put back for Gemini | killed (4) |
+| R7-3 | `reasoning_effort` dropped | killed (4) |
+| R7-4 | `thinkingLevel` dropped | killed (4) |
+| R7-5 | `propertyOrdering` put back for Gemini | killed (4, including `schemaKeywords`) |
+| R7-6 | `nullable: true` put back for Gemini | killed (4) |
+| R7-7 | `format: "enum"` put back for Gemini | killed (4) |
+| R7-8 | Gemini schema member back to `responseSchema` | killed (7) |
+| R7-9 | Gemini schema back to `anyOf` | killed (4) |
+| R7-10 | `null` dropped from a nullable enum | killed (2: golden bytes, `schemaValues`) |
+| R7-11 | OpenAI `stream_options` dropped | killed (4) |
+| R7-12 | OpenAI model back to `gpt-4.1-mini-2025-04-14` | killed (4) |
+| R7-13 | Anthropic `temperature` dropped | killed (4) |
+| R7-14 | Gemini nullable integer without `"null"` | killed (2) |
+| F7-1 | builder takes the schema member from the model, not the given profile | killed (`profileDrivesBody`) |
+| F7-2 | builder hard-codes Gemini `thinkingLevel: "minimal"` | killed (`profileDrivesBody`) |
+| F7-3 | builder ignores the given sampling | killed (`profileDrivesBody`) |
+| F7-4 | `fits` accepts `reasoning_effort` for any provider | killed (`profileDrivesBody`) |
+| F7-5 | `fits` accepts `stream_options` for any provider | killed (`profileDrivesBody`) |
+| F7-6 | `curated(for:)` leaves out the default | killed (`curatedModels`) |
+| F3-1 | builder cap removed | killed (`builderTitleCap`) |
+| F3-2 | builder cap `<` instead of `<=` (10 refused) | killed (9) |
+| F3-3 | cap constant 11 | killed (`builderTitleCap`) |
+| R4 | Rule 4: bare host anywhere in TendIngestion | killed (3) |
+| M-A | Rule 4: file-name match (`hasSuffix("CloudProviderTable.swift")`) | killed (`rule4AllowedPlacements`, R28-F1) |
+
+#### Verification environment (round 2)
+| Check | Linux (container, `swift:6.2-noble`) | macOS / owner-run Mac | Simulator | Device |
+|---|---|---|---|---|
+| Profiles, builder, schema dialects, cap, goldens, lists, scanner plants, `tend-payload-dump` | ✔ | not run (MS-2 B2 repeats the golden bytes) | n.a. | n.a. |
+| Regenerated goldens and lists (two Python oracles) | ✔ | n.a. | n.a. | n.a. |
+| Providers accept the requests (`gpt-6-luna` with `reasoning_effort: "none"` + strict `json_schema` + `stream` + `store: false` + `max_completion_tokens`; Anthropic unchanged; Gemini `responseJsonSchema` name, `additionalProperties`, `null` in `enum`, `thinkingLevel: "minimal"`) | **not verified** (no network, no web lookups, by instruction) | **L2a** (owner, real Outcome-sample recordings, before WI-M2-16) | — | DS-2 |
+| Served model ID and reasoning/thinking tokens per provider | not verifiable here | L2a, WI-M2-M6 recordings, DS-2 drift check | — | DS-2 |
+
+#### Tickets added in round 2
+| Item | Owner |
+|---|---|
+| R28-F2: one derivation path (or equivalence property) and the D11 blank-room test; AC-M2-20 through the production path | WI-M2-11 |
+| R28-F4: fixed `User-Agent: Tend`, `Accept-Language: en-US`; `Accept`, `Accept-Encoding`, `Connection` as transport-set in the lists; `URLProtocol` test and mutant | WI-M2-M4 |
+| R28-F5: key whitespace and control characters (PO: trim or refuse) | WI-M2-M5 / WI-M2-M4, PO |
+| R28-F6: concrete-index structural check; `ds2-gated` element-count question | WI-M2-11; Tester / PO |
+| Quote the Gemini REST reference for the JSON-Schema member (`responseJsonSchema`), and confirm `additionalProperties` and `null` in `enum` | Orchestrator or owner (web access), L2a |
+| WI-M2-13 Gemini stream fixtures use the new dialect; all providers' fixtures carry usage and served-model fields, ignored for drafts (ruling 7) | WI-M2-13 |
+| Plan WI-M2-10 "Proposed endpoints" bullets still say `temperature: 0` for OpenAI and Gemini and `responseSchema` for Gemini; ruling 1's L1 sentence and the WI-M2-16 DoR items (L1, L2a) are not applied (only ruling 7's amendments 1–4 were asked for) | Planner |
+| N2: room accuracy watch in the DS-2 dev-set run; N3: confirm the "Named files" row | Tester; Planner |
+
+#### Open questions (round 2; work is not blocked)
+1. **Orchestrator / owner (D15):** what member name does the current Gemini REST reference give for a JSON-Schema
+   response schema in `generationConfig`? I built `responseJsonSchema` from the L1b notes, as directed, and did not
+   look it up. L2a confirms it on the wire.
+2. **PO (D14), only if L2a shows a 4xx:** with `null` removed from a nullable enum, the schema would allow `null` by
+   `type` but not by `enum`. Gemini may still accept that and return `null`. I would record it and keep the
+   key-path check as the guard. No product meaning changes.
+3. **Tester (from round 1, open question 4):** the roles and user-content layout of the lists are unchanged; still
+   yours to confirm in WI-M2-16.
+
+#### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | Instructions unchanged; AC-M2-12 vocabulary scan 0 violations. The brief now says a cap stop counts as truncated (`interrupted` or `noModel`), so no chore is silently lost (ruling 3). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Routing unchanged. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | Same three hosts, only in the provider table (Rule 4 now pinned to the exact path, F1). No dependency. AC-M2-09: 0 violations. |
+| P-3 Cloud AI opt-in, minimised | pass (watch) | No new request content. The new fixed members pass ruling 3's six-part test (D17). `store: false` kept. The builder now enforces ≤ 10 titles itself (F3). The P-3 header values are ticketed to WI-M2-M4 (F4). Watch: real-provider acceptance is unverified until L2a. |
+| P-4 Media not persisted | pass | Text only, in memory; the input type is unchanged. |
+
+#### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Reviewer (via Orchestrator) | Developer | accepted (round 1: APPROVE) | 7 Minor, 3 Nit. PO `po-m2-wi10.md` rulings 1–7 (7 final) and L1/L1b notes. Coordinator: ruling 7 models, F7 profiles, F1, F3, the other Minors as tickets, regenerate, amend brief and plan. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (round 2) | Ruling 7 models and fixed members; F7 per-model request profiles with a hand-written expectation table; F1 exact-path plants (M-A killed); F3 builder cap with a typed error; F2, F4, F5, F6 ticketed; N1 done. OpenAI and Gemini goldens and lists regenerated and checked by two independent oracles; Anthropic byte-identical. Brief (ruling 3, 4, 7) and plan (ruling 7, 1–4) amendments applied word for word. TendIngestion 441, TendSourceScan 63, TendCore 141, TendTools 8 green, 0 warnings, Linux. AC-M2-09 and AC-M2-12: 46 files, 0 violations. Mutants 48 of 48 killed. Gemini `responseJsonSchema` and the other provider-side facts await L2a. |
+
 ## WI-M2-13 — the three provider stream dialects (OpenAI, Anthropic, Gemini) on top of WI-M2-12, with synthetic fixtures
 
 - **Owner:** Developer. **Branch:** `m2/provider-dialects`, from `origin/main` at `03e98c6` (PR #26, WI-M2-12, merged).
