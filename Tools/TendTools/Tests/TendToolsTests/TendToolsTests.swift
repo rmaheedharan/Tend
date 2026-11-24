@@ -3,6 +3,7 @@
 
 import Foundation
 import Synchronization
+import TendIngestion
 import Testing
 @testable import TendToolsSupport
 
@@ -47,6 +48,56 @@ enum Repo {
         ["--profile", profile, "--fixtures", path(selfTest), "--schema", path("Fixtures/M2/eval/results-v1.schema.json"),
          "--expected-fixtures-sha256", hash, "--results", path(selfTest + "/" + results), "--log", "/tmp/x.log"]
     }
+}
+
+/// A-F1 files built from the committed self-test files (in01 text, in02 voice (2 attempts), in03…in05 text, in06 voice,
+/// in07 text, in08 voice): input IDs renamed in the fixtures and the results file alike, and only `keep` left in the
+/// results file. The files are given to the tool in memory, under the self-test paths.
+enum SubsetFiles {
+    static func renamed(_ json: EvalJSON, _ names: [String: String]) -> EvalJSON {
+        switch json {
+        case let .string(value): .string(names[value] ?? value)
+        case let .array(values): .array(values.map { renamed($0, names) })
+        case let .object(members): .object(members.map { EvalJSON.Member($0.key, renamed($0.value, names)) })
+        default: json
+        }
+    }
+
+    static func keeping(_ results: EvalJSON, _ keep: Set<String>) -> EvalJSON {
+        guard case let .object(members) = results else { return results }
+        return .object(members.map { member in
+            guard member.key == "inputs", case let .array(inputs) = member.value else { return member }
+            return EvalJSON.Member("inputs", .array(inputs.filter {
+                guard case let .string(id)? = $0["inputID"] else { return false }
+                return keep.contains(id)
+            }))
+        })
+    }
+
+    static let resultsName = "results-subset.canonical.json"
+
+    static func overrides(rename names: [String: String] = [:], keep: Set<String>) throws -> [String: Data] {
+        var files: [String: Data] = [:]
+        for name in ["inputs.json", "golden.json"] {
+            let path = Repo.path(Repo.selfTest + "/" + name)
+            let root = try EvalJSONReader.parse(try #require(FileManager.default.contents(atPath: path)))
+            files[path] = try CanonicalJSONWriter.data(renamed(root, names).canonical)
+        }
+        let results = try EvalJSONReader.parse(try #require(FileManager.default.contents(
+            atPath: Repo.path(Repo.selfTest + "/results-selftest-1.canonical.json"))))
+        files[Repo.path(Repo.selfTest + "/" + resultsName)] =
+            try CanonicalJSONWriter.data(keeping(renamed(results, names), keep).canonical)
+        return files
+    }
+}
+
+/// One A-F1 command case: a profile, the renames, the inputs kept, and the scorer log line or the reason expected.
+struct SubsetCommandCase: Sendable, CustomTestStringConvertible {
+    var profile: String
+    var rename: [String: String] = [:]
+    var keep: Set<String>
+    var label: String
+    var testDescription: String { "\(profile): \(label)" }
 }
 
 @Suite("TendTools (WI-M2-15)")
@@ -102,6 +153,84 @@ struct TendToolsTests {
         #expect(EvalScoreCommand.run(Repo.scoreArguments(profile: "ds2-gated"), io: Repo.io(box)) == 64)
         #expect(box.err.contains("--allowed-key-paths is required"))
         #expect(EvalScoreCommand.run(["--help"], io: Repo.io(box)) == 0)
+    }
+
+    static let acceptedSubsets: [(SubsetCommandCase, String)] = [
+        (SubsetCommandCase(profile: "ds1-offline", rename: ["in06": "in10"], keep: ["in01", "in02", "in10"],
+                           label: "in01 (text), in02 (voice, 2 attempts), in10 (voice)"),
+         "check PASS: inputs in01 (text), in02 (voice), in10 (voice) (AC-M2-11): file has in01 (text), in02 (voice), "
+            + "in10 (voice)\n"),
+        (SubsetCommandCase(profile: "ds2-offline", rename: ["in06": "in16"], keep: ["in08", "in16"],
+                           label: "in08 (voice), in16 (voice)"),
+         "check PASS: inputs in08 (voice), in16 (voice) (AC-M2-25): file has in08 (voice), in16 (voice)\n"),
+        (SubsetCommandCase(profile: "ds2-online", rename: ["in06": "in16"], keep: ["in08", "in16"],
+                           label: "in08 (voice), in16 (voice)"),
+         "check PASS: inputs in08 (voice), in16 (voice) (AC-M2-25): file has in08 (voice), in16 (voice)\n"),
+    ]
+
+    @Test("tend-eval-score (A-F1): the fixed subset is scored (exit 0 or 1, not 2); the log prints its IDs and modes",
+          arguments: acceptedSubsets)
+    func subsetScored(_ c: SubsetCommandCase, line: String) throws {
+        let box = Captured()
+        let overrides = try SubsetFiles.overrides(rename: c.rename, keep: c.keep)
+        let code = EvalScoreCommand.run(Repo.scoreArguments(profile: c.profile, results: SubsetFiles.resultsName),
+                                        io: Repo.io(box, overrides: overrides))
+        #expect(code == 0 || code == 1, "\(code): \(box.err)")
+        #expect(box.out.contains(line), "\(box.out)")
+        #expect(box.written["/tmp/x.log"] == Data(box.out.utf8))
+    }
+
+    static let refusedSubsets: [(SubsetCommandCase, [String])] = [
+        // Right count, wrong ID.
+        (SubsetCommandCase(profile: "ds1-offline", keep: ["in01", "in02", "in06"],
+                           label: "right count, wrong ID: in06 (voice) for in10"),
+         ["exactly in01 (text), in02 (voice), in10 (voice)", "the file has in01 (text), in02 (voice), in06 (voice)",
+          "not in the subset: in06 (voice)", "not in the file: in10 (voice)"]),
+        (SubsetCommandCase(profile: "ds2-offline", keep: ["in06", "in08"],
+                           label: "right count, wrong ID: in06 (voice) for in16"),
+         ["exactly in08 (voice), in16 (voice)", "the file has in06 (voice), in08 (voice)",
+          "not in the subset: in06 (voice)", "not in the file: in16 (voice)"]),
+        (SubsetCommandCase(profile: "ds2-online", keep: ["in02", "in06"],
+                           label: "right count, wrong ID: in02 (voice), in06 (voice)"),
+         ["exactly in08 (voice), in16 (voice)", "the file has in02 (voice), in06 (voice)",
+          "not in the subset: in02 (voice), in06 (voice)", "not in the file: in08 (voice), in16 (voice)"]),
+        // Right IDs, wrong mode (the fixtures say text too).
+        (SubsetCommandCase(profile: "ds1-offline", rename: ["in03": "in10"], keep: ["in01", "in02", "in10"],
+                           label: "wrong mode: in10 (text)"),
+         ["the file has in01 (text), in02 (voice), in10 (text)", "in10 is text in the file, the subset takes it as voice"]),
+        (SubsetCommandCase(profile: "ds2-offline", rename: ["in03": "in16"], keep: ["in08", "in16"],
+                           label: "wrong mode: in16 (text)"),
+         ["the file has in08 (voice), in16 (text)", "in16 is text in the file, the subset takes it as voice"]),
+        (SubsetCommandCase(profile: "ds2-online", rename: ["in03": "in16"], keep: ["in08", "in16"],
+                           label: "wrong mode: in16 (text)"),
+         ["the file has in08 (voice), in16 (text)", "in16 is text in the file, the subset takes it as voice"]),
+        // The whole self-test file.
+        (SubsetCommandCase(profile: "ds1-offline", keep: ["in01", "in02", "in03", "in04", "in05", "in06", "in07", "in08"],
+                           label: "every self-test input"),
+         ["not in the subset: in03 (text), in04 (text), in05 (text), in06 (voice), in07 (text), in08 (voice)"]),
+    ]
+
+    @Test("tend-eval-score (A-F1): any other input set exits 2 with a plain reason naming the IDs and modes",
+          arguments: refusedSubsets)
+    func subsetRefused(_ c: SubsetCommandCase, parts: [String]) throws {
+        let box = Captured()
+        let overrides = try SubsetFiles.overrides(rename: c.rename, keep: c.keep)
+        let code = EvalScoreCommand.run(Repo.scoreArguments(profile: c.profile, results: SubsetFiles.resultsName),
+                                        io: Repo.io(box, overrides: overrides))
+        #expect(code == 2, "\(code): \(box.out)")
+        #expect(box.out.isEmpty && box.written.isEmpty)
+        #expect(box.err.hasPrefix("tend-eval-score: file rejected: the inputs are not the fixed \(c.profile) subset ("))
+        for part in parts { #expect(box.err.contains(part), "\(part) in \(box.err)") }
+        let words = Set(box.err.lowercased().split { !$0.isLetter }.map(String.init))
+        #expect(words.isDisjoint(with: ["overdue", "late", "missed", "failed", "behind", "penalty"]), "\(box.err)")
+    }
+
+    @Test("tend-eval-score (A-F1): the whole-set profiles take any input set (info over the 3-input file)")
+    func wholeSetProfiles() throws {
+        let box = Captured()
+        let overrides = try SubsetFiles.overrides(keep: ["in01", "in02", "in06"])
+        #expect(EvalScoreCommand.run(Repo.scoreArguments(profile: "info", results: SubsetFiles.resultsName),
+                                     io: Repo.io(box, overrides: overrides)) == 0, "\(box.err)")
     }
 
     @Test("allowed key-path lists: an array of strings, or keyPaths of strings or {path} objects")

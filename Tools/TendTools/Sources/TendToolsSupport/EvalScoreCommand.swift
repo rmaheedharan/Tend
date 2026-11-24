@@ -2,7 +2,8 @@
 // `TendIngestion` scorer with `Data`, writes the scorer log, and returns the exit code:
 //   0 = scored and the profile passes, 1 = scored and the profile does not pass,
 //   2 = file rejected (not v1, not conforming, not canonical, inconsistent, or the fixtures hash does not match; also
-//       unreadable or unusable fixtures and schema), 64 = usage error.
+//       unreadable or unusable fixtures and schema; also, for ds1-offline, ds2-offline and ds2-online, input IDs or
+//       modes other than the profile's fixed subset, A-F1), 64 = usage error.
 // The fixtures hash is the SHA-256 of the `MANIFEST.sha256` bytes, computed by the caller (`sha256sum`) and compared
 // with the file's `run.fixturesSHA256`; the manifest itself is checked with `sha256sum -c` first (plan command).
 
@@ -18,6 +19,8 @@ public enum EvalScoreCommand {
           <dir> holds inputs.json, household.json, golden.json and (unless --schema) results-v1.schema.json.
           --allowed-key-paths: the provider's allowed key-path list (ds2-gated): a JSON array of path strings, or an
           object whose "keyPaths" member is such an array or an array of objects with a "path" member.
+        fixed subsets (PO ruling F3): ds1-offline takes exactly in01 (text), in02 (voice), in10 (voice);
+          ds2-offline and ds2-online take exactly in08 (voice), in16 (voice). Any other input set is rejected.
         exit: 0 profile passes, 1 profile does not pass, 2 file rejected, 64 usage error
 
         """
@@ -121,6 +124,7 @@ public enum EvalScoreCommand {
             "does not conform to results-v1.schema.json:\n  " + issues.prefix(20).map(\.description).joined(separator: "\n  ")
         case let .rejected(.notJSON(reason)): "not JSON: \(reason)"
         case let .rejected(.inconsistent(reason)): "a cross-field rule does not hold: \(reason)"
+        case let .subsetMismatch(mismatch): mismatch.reason
         }
     }
 }
