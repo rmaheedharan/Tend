@@ -6,17 +6,23 @@ import Testing
 import TendCore
 @testable import TendIngestion
 
-/// A synthetic eval: n inputs (odd numbers voice, even text), k golden create items each, one seeded task.
+/// A synthetic eval: n inputs with the frozen eval fixtures' modes (A-F1: in01 text, in02 voice, … in10 voice, …
+/// in16 voice, in17 voice, in18 text, in19 text, in20 voice), k golden create items each, one seeded task. `flipped`
+/// inverts the mode of those inputs in the fixtures and the default attempts (the wrong-mode files of A-F1).
 enum Synthetic {
     static let hash = String(repeating: "a", count: 64)
+    /// The voice inputs of `Fixtures/M2/eval/inputs.json` on `m2/eval-fixtures-freeze`; every other input is text.
+    static let voiceInputs: Set<Int> = [2, 4, 6, 8, 10, 12, 14, 16, 17, 20]
 
     static func inputID(_ i: Int) -> String { "in" + (i < 10 ? "0" : "") + String(i) }
     static func token(_ i: Int, _ j: Int) -> String { "item\(i)x\(j)" }
-    static func mode(_ i: Int) -> EvalInputMode { i % 2 == 1 ? .voice : .text }
+    static func mode(_ i: Int, flipped: Set<Int> = []) -> EvalInputMode {
+        voiceInputs.contains(i) != flipped.contains(i) ? .voice : .text
+    }
 
-    static func fixtures(inputs n: Int, items k: Int) throws -> (Data, Data, Data) {
+    static func fixtures(inputs n: Int, items k: Int, flipped: Set<Int> = []) throws -> (Data, Data, Data) {
         let inputs = EvalJSON.object([.init("schemaVersion", .integer(1)), .init("inputs", .array((1...n).map { i in
-            .object([.init("id", .string(inputID(i))), .init("mode", .string(mode(i).rawValue)),
+            .object([.init("id", .string(inputID(i))), .init("mode", .string(mode(i, flipped: flipped).rawValue)),
                      .init("text", .string("Say the items of input \(i)"))])
         }))])
         let household = EvalJSON.object([
@@ -70,16 +76,17 @@ enum Synthetic {
 
     static func attempt(
         _ i: Int, drafts: [DraftRecord], route: EvalRoute = .onDevice, outcome: EvalOutcome = .completed,
-        ttfi: Int = 300, total: Int = 1000, cloud: [EvalResultsFileV1.CloudRequestRecord] = []
+        ttfi: Int = 300, total: Int = 1000, cloud: [EvalResultsFileV1.CloudRequestRecord] = [],
+        flipped: Set<Int> = []
     ) -> EvalResultsFileV1.InputAttempt {
         var events: [EvalResultsFileV1.Event] = []
         for (index, d) in drafts.enumerated() {
             events.append(.init(type: .emitted, draftID: d.draftID, tMs: min(total, ttfi + index)))
         }
         events.append(.init(type: .finished, draftID: nil, tMs: total))
-        let voice = mode(i) == .voice
+        let voice = mode(i, flipped: flipped) == .voice
         return .init(
-            inputID: inputID(i), mode: mode(i), attempt: 1, retakeReason: nil,
+            inputID: inputID(i), mode: mode(i, flipped: flipped), attempt: 1, retakeReason: nil,
             transcript: voice ? "Say the items of input \(i)" : nil, transcriber: voice ? .speechTranscriber : nil,
             route: route, outcome: outcome, ttfiMs: drafts.isEmpty ? nil : ttfi, totalMs: total, events: events,
             drafts: drafts, committed: drafts.filter { !$0.duplicate.isMarked }.map(\.draftID), cloudRequests: cloud
@@ -98,20 +105,44 @@ enum Synthetic {
     }
 
     /// 20 right inputs with k items each, with `edit` applied per input (nil keeps it out of the file).
-    static func run(
+    static func request(
         _ profile: EvalProfile, inputs n: Int = 20, items k: Int = 3, provider: EvalProvider? = nil,
-        allowedKeyPaths: Set<String>? = nil,
+        allowedKeyPaths: Set<String>? = nil, flipped: Set<Int> = [],
         edit: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 }
-    ) throws -> EvalProfileResult {
+    ) throws -> EvalScoringRequest {
         let route = provider.flatMap { EvalRoute(rawValue: $0.rawValue) } ?? .onDevice
-        let attempts = (1...n).compactMap { i in edit(i, attempt(i, drafts: rightDrafts(i, items: k), route: route)) }
-        let (inputs, household, golden) = try fixtures(inputs: n, items: k)
-        let request = EvalScoringRequest(
+        let attempts = (1...n).compactMap { i in
+            edit(i, attempt(i, drafts: rightDrafts(i, items: k), route: route, flipped: flipped))
+        }
+        let (inputs, household, golden) = try fixtures(inputs: n, items: k, flipped: flipped)
+        return EvalScoringRequest(
             results: try CanonicalJSONWriter.data(file(provider: provider, attempts).canonicalJSON),
             schema: try EvalSelfTest.data(EvalSelfTest.schemaPath), inputs: inputs, household: household,
             golden: golden, expectedFixturesSHA256: hash, profile: profile, allowedKeyPaths: allowedKeyPaths
         )
-        return try EvalScorer.run(request).profileResult
+    }
+
+    static func run(
+        _ profile: EvalProfile, inputs n: Int = 20, items k: Int = 3, provider: EvalProvider? = nil,
+        allowedKeyPaths: Set<String>? = nil, flipped: Set<Int> = [],
+        edit: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 }
+    ) throws -> EvalProfileResult {
+        try EvalScorer.run(try request(profile, inputs: n, items: k, provider: provider,
+                                       allowedKeyPaths: allowedKeyPaths, flipped: flipped, edit: edit)).profileResult
+    }
+
+    /// The scoring error for a run, or nil when it is scored.
+    static func rejection(
+        _ profile: EvalProfile, provider: EvalProvider? = nil, flipped: Set<Int> = [],
+        edit: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 }
+    ) throws -> EvalScoringError? {
+        let request = try request(profile, provider: provider, flipped: flipped, edit: edit)
+        do throws(EvalScoringError) {
+            _ = try EvalScorer.run(request)
+            return nil
+        } catch {
+            return error
+        }
     }
 
     static func failing(_ result: EvalProfileResult) -> [String] { result.checks.filter { !$0.holds }.map(\.name) }
@@ -274,48 +305,180 @@ struct EvalProfileTests {
 
     // MARK: ds1-offline (AC-M2-11), ds2-offline / ds2-online (AC-M2-25), info
 
-    @Test("ds1-offline (AC-M2-11): 3 inputs, 2 voice, each completed with every item, no extra, valid, calm, no duplicate")
+    /// The fixed subsets (PO ruling F3, po-m2-wi16.md; A-F1): the input numbers of each profile.
+    static let ds1Subset: Set<Int> = [1, 2, 10]
+    static let ds2Subset: Set<Int> = [8, 16]
+
+    @Test("ds1-offline (AC-M2-11): in01 (text), in02 (voice), in10 (voice), each completed with every item, no extra, valid, calm, no duplicate")
     func ds1Offline() throws {
-        let three: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { i, a in i <= 3 ? a : nil }
-        #expect(try Synthetic.run(.ds1Offline, edit: three).passes)
+        let three: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { i, a in
+            Self.ds1Subset.contains(i) ? a : nil
+        }
+        let right = try Synthetic.run(.ds1Offline, edit: three)
+        #expect(right.passes, "\(Synthetic.failing(right))")
+        #expect(right.checks.map(\.name).contains("inputs in01 (text), in02 (voice), in10 (voice) (AC-M2-11)"))
         let extra = try Synthetic.run(.ds1Offline) { i, a in
-            guard i <= 3 else { return nil }
+            guard Self.ds1Subset.contains(i) else { return nil }
             return i == 2 ? Synthetic.attempt(i, drafts: Synthetic.rightDrafts(i, items: 3)
                 + [Synthetic.draft(4, title: "Unrelated")]) : a
         }
         #expect(Synthetic.failing(extra) == ["in02: parses cleanly (AC-M2-11)"])
         let interrupted = try Synthetic.run(.ds1Offline) { i, a in
-            guard i <= 3 else { return nil }
+            guard Self.ds1Subset.contains(i) else { return nil }
             return i == 1 ? Synthetic.attempt(i, drafts: Synthetic.rightDrafts(i, items: 3), outcome: .interrupted) : a
         }
         #expect(Synthetic.failing(interrupted) == ["in01: parses cleanly (AC-M2-11)"])
-        let four = try Synthetic.run(.ds1Offline) { i, a in i <= 4 ? a : nil }
-        #expect(Synthetic.failing(four) == ["3 inputs, 2 voice (AC-M2-11)"])
+        let four = try Synthetic.rejection(.ds1Offline) { i, a in Self.ds1Subset.contains(i) || i == 3 ? a : nil }
+        guard case let .subsetMismatch(mismatch)? = four else {
+            Issue.record("4 inputs under ds1-offline are not rejected: \(String(describing: four))")
+            return
+        }
+        #expect(mismatch.found.map(\.description) == ["in01 (text)", "in02 (voice)", "in03 (text)", "in10 (voice)"])
     }
 
-    @Test("ds2-offline (AC-M2-25): 2 voice inputs, each noModel with nothing committed")
+    @Test("ds2-offline (AC-M2-25): in08 (voice), in16 (voice), each noModel with nothing committed")
     func ds2Offline() throws {
         let offline: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { i, _ in
-            [1, 3].contains(i) ? Synthetic.attempt(i, drafts: [], route: .gemini, outcome: .noModel) : nil
+            Self.ds2Subset.contains(i) ? Synthetic.attempt(i, drafts: [], route: .gemini, outcome: .noModel) : nil
         }
-        #expect(try Synthetic.run(.ds2Offline, provider: .gemini, edit: offline).passes)
-        let parsed = try Synthetic.run(.ds2Offline, provider: .gemini) { i, a in [1, 3].contains(i) ? a : nil }
-        #expect(Synthetic.failing(parsed) == ["in01: noModel, no task created (AC-M2-25)",
-                                              "in03: noModel, no task created (AC-M2-25)"])
+        let right = try Synthetic.run(.ds2Offline, provider: .gemini, edit: offline)
+        #expect(right.passes, "\(Synthetic.failing(right))")
+        let parsed = try Synthetic.run(.ds2Offline, provider: .gemini) { i, a in Self.ds2Subset.contains(i) ? a : nil }
+        #expect(Synthetic.failing(parsed) == ["in08: noModel, no task created (AC-M2-25)",
+                                              "in16: noModel, no task created (AC-M2-25)"])
     }
 
-    @Test("ds2-online (AC-M2-25): 2 voice inputs through the provider, each parsed cleanly")
+    @Test("ds2-online (AC-M2-25): in08 (voice), in16 (voice) through the provider, each parsed cleanly; a text input is refused")
     func ds2Online() throws {
-        let two: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { i, a in [1, 3].contains(i) ? a : nil }
-        #expect(try Synthetic.run(.ds2Online, provider: .openai, edit: two).passes)
-        let missing = try Synthetic.run(.ds2Online, provider: .openai) { i, a in
-            guard [1, 3].contains(i) else { return nil }
-            return i == 3 ? Synthetic.attempt(i, drafts: Array(Synthetic.rightDrafts(i, items: 3).prefix(2)),
-                                              route: .openai) : a
+        let two: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { i, a in
+            Self.ds2Subset.contains(i) ? a : nil
         }
-        #expect(Synthetic.failing(missing) == ["in03: parses cleanly (AC-M2-25)"])
-        let textInput = try Synthetic.run(.ds2Online, provider: .openai) { i, a in [1, 2].contains(i) ? a : nil }
-        #expect(Synthetic.failing(textInput) == ["2 inputs, 2 voice (AC-M2-25)"])
+        let right = try Synthetic.run(.ds2Online, provider: .openai, edit: two)
+        #expect(right.passes, "\(Synthetic.failing(right))")
+        let missing = try Synthetic.run(.ds2Online, provider: .openai) { i, a in
+            guard Self.ds2Subset.contains(i) else { return nil }
+            return i == 16 ? Synthetic.attempt(i, drafts: Array(Synthetic.rightDrafts(i, items: 3).prefix(2)),
+                                               route: .openai) : a
+        }
+        #expect(Synthetic.failing(missing) == ["in16: parses cleanly (AC-M2-25)"])
+        let textInput = try Synthetic.rejection(.ds2Online, provider: .openai) { i, a in [1, 8].contains(i) ? a : nil }
+        guard case .subsetMismatch? = textInput else {
+            Issue.record("a text input under ds2-online is not rejected: \(String(describing: textInput))")
+            return
+        }
+    }
+
+    // MARK: A-F1: the subset profiles take exactly their fixed input IDs and modes (PO ruling F4)
+
+    /// One A-F1 case: a profile, the input numbers in the file and the inputs whose mode is flipped in the fixtures.
+    struct SubsetCase: Sendable, CustomTestStringConvertible {
+        var profile: EvalProfile
+        var inputs: Set<Int>
+        var flipped: Set<Int> = []
+        var label: String
+        var testDescription: String { "\(profile.rawValue): \(label)" }
+
+        var provider: EvalProvider? {
+            switch profile {
+            case .ds2Offline: .gemini
+            case .ds2Online: .openai
+            default: nil
+            }
+        }
+
+        /// The attempt each kept input gets: the right one for the profile (noModel for ds2-offline).
+        func edit(_ i: Int, _ a: EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? {
+            guard inputs.contains(i) else { return nil }
+            guard profile == .ds2Offline else { return a }
+            return Synthetic.attempt(i, drafts: [], route: .gemini, outcome: .noModel, flipped: flipped)
+        }
+    }
+
+    static let pinned: [(EvalProfile, [String])] = [
+        (.ds1Offline, ["in01 (text)", "in02 (voice)", "in10 (voice)"]),
+        (.ds2Offline, ["in08 (voice)", "in16 (voice)"]),
+        (.ds2Online, ["in08 (voice)", "in16 (voice)"]),
+    ]
+
+    @Test("A-F1: the subsets are pinned in the profiles (PO ruling F3); the whole-set profiles have none")
+    func pinnedSubsets() {
+        for (profile, inputs) in Self.pinned {
+            #expect(profile.subset?.map(\.description) == inputs, "\(profile.rawValue)")
+        }
+        for profile in [EvalProfile.ds1Gated, .ds2Gated, .info] { #expect(profile.subset == nil) }
+    }
+
+    static let rightCases: [SubsetCase] = [
+        SubsetCase(profile: .ds1Offline, inputs: ds1Subset, label: "in01, in02, in10"),
+        SubsetCase(profile: .ds2Offline, inputs: ds2Subset, label: "in08, in16"),
+        SubsetCase(profile: .ds2Online, inputs: ds2Subset, label: "in08, in16"),
+    ]
+
+    @Test("A-F1: the fixed subset is scored and passes", arguments: rightCases)
+    func rightSubset(_ c: SubsetCase) throws {
+        let result = try Synthetic.run(c.profile, provider: c.provider, edit: c.edit)
+        #expect(result.passes, "\(Synthetic.failing(result))")
+    }
+
+    static let refusedCases: [SubsetCase] = [
+        // Right count, right modes, wrong IDs.
+        SubsetCase(profile: .ds1Offline, inputs: [1, 2, 4], label: "right count, wrong ID: in04 (voice) for in10"),
+        SubsetCase(profile: .ds1Offline, inputs: [3, 2, 10], label: "right count, wrong ID: in03 (text) for in01"),
+        SubsetCase(profile: .ds1Offline, inputs: [1, 8, 16], label: "right count, wrong ID: the DS-2 voice inputs"),
+        SubsetCase(profile: .ds2Offline, inputs: [2, 10], label: "right count, wrong ID: the DS-1 voice inputs"),
+        SubsetCase(profile: .ds2Offline, inputs: [8, 14], label: "right count, wrong ID: in14 (voice) for in16"),
+        SubsetCase(profile: .ds2Online, inputs: [2, 10], label: "right count, wrong ID: the DS-1 voice inputs"),
+        SubsetCase(profile: .ds2Online, inputs: [17, 16], label: "right count, wrong ID: in17 (voice) for in08"),
+        // Right IDs, wrong mode (the fixtures say so too, so the file is otherwise consistent).
+        SubsetCase(profile: .ds1Offline, inputs: ds1Subset, flipped: [10], label: "wrong mode: in10 (text)"),
+        SubsetCase(profile: .ds1Offline, inputs: ds1Subset, flipped: [1], label: "wrong mode: in01 (voice)"),
+        SubsetCase(profile: .ds2Offline, inputs: ds2Subset, flipped: [16], label: "wrong mode: in16 (text)"),
+        SubsetCase(profile: .ds2Online, inputs: ds2Subset, flipped: [8], label: "wrong mode: in08 (text)"),
+        // Wrong count.
+        SubsetCase(profile: .ds1Offline, inputs: [1, 2], label: "too few: in10 absent"),
+        SubsetCase(profile: .ds1Offline, inputs: [1, 2, 10, 4], label: "too many: in04 added"),
+        SubsetCase(profile: .ds2Offline, inputs: [8], label: "too few: in16 absent"),
+        SubsetCase(profile: .ds2Online, inputs: [8, 16, 2], label: "too many: in02 added"),
+        SubsetCase(profile: .ds2Online, inputs: Set(1...20), label: "the whole set"),
+    ]
+
+    @Test("A-F1: any other file is refused (exit 2) with a plain reason naming the IDs and modes", arguments: refusedCases)
+    func refusedSubset(_ c: SubsetCase) throws {
+        let error = try Synthetic.rejection(c.profile, provider: c.provider, flipped: c.flipped, edit: c.edit)
+        guard case let .subsetMismatch(mismatch)? = error else {
+            Issue.record("not refused as a subset mismatch: \(String(describing: error))")
+            return
+        }
+        let required = try #require(c.profile.subset)
+        let found = c.inputs.sorted().map { EvalSubsetInput(Synthetic.inputID($0), Synthetic.mode($0, flipped: c.flipped)) }
+        #expect(mismatch == EvalSubsetMismatch(profile: c.profile, required: required, found: found))
+        let reason = mismatch.reason
+        #expect(reason.contains(c.profile.rawValue))
+        for input in required + found { #expect(reason.contains(input.description), "\(input)") }
+        let words = Set(reason.lowercased().split { !$0.isLetter }.map(String.init))
+        #expect(words.isDisjoint(with: ["overdue", "late", "missed", "failed", "behind", "penalty"]), "\(reason)")
+    }
+
+    @Test("A-F1: the profile check also holds the subset (second control) when the reader is bypassed")
+    func profileCheckSecondControl() throws {
+        let request = try Synthetic.request(.info) { i, a in [1, 2, 4].contains(i) ? a : nil }
+        let report = try EvalScorer.run(request)
+        let fixtures = try EvalFixtures(inputs: request.inputs, household: request.household, golden: request.golden)
+        let result = EvalProfileChecks.evaluate(.ds1Offline, file: report.file, score: report.score,
+                                                fixtures: fixtures, allowedKeyPaths: nil)
+        #expect(Synthetic.failing(result) == ["inputs in01 (text), in02 (voice), in10 (voice) (AC-M2-11)"])
+        let detail = result.checks.first { !$0.holds }?.detail
+        #expect(detail == "file has in01 (text), in02 (voice), in04 (voice)")
+    }
+
+    @Test("A-F1: the scorer log prints the input IDs and modes of a subset run")
+    func subsetLog() throws {
+        let report = try EvalScorer.run(try Synthetic.request(.ds2Online, provider: .openai) { i, a in
+            Self.ds2Subset.contains(i) ? a : nil
+        })
+        #expect(report.log.contains(
+            "check PASS: inputs in08 (voice), in16 (voice) (AC-M2-25): file has in08 (voice), in16 (voice)\n"))
+        #expect(report.log.contains("input in08: voice,") && report.log.contains("input in16: voice,"))
     }
 
     @Test("info has no pass rule: even a poor run passes")

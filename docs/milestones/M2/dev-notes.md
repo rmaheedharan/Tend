@@ -4757,3 +4757,68 @@ now evidence.
 |---|---|---|---|---|
 | 2026-11-24 | Reviewer (via Orchestrator) | Developer | accepted (round 1: APPROVE) | 2 Minor (F1 auth value, F2 encoded forms), 4 Nit (N1–N3 here, N4 to WI-M2-M6). Re-check the mutants: a `tar`/`mv` restore keeps old mtimes. |
 | 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1 and F2 fixed (both options for F2), N1–N3 fixed, N4 and the F2 gap sentence ticketed to WI-M2-M6. Round-1 mutant table withdrawn as evidence; rerun with `touch` and M0 baselines: 26 of 26 killed (M1–M21 again, plus M22–M26, which include the review's RM2 and RM3). Merged `main` `e4bcdeb`. TendIngestion 484 green on the merged tree, 0 warnings; AC-M2-09 and AC-M2-12 0 violations. |
+
+---
+
+## A-F1 fix: subset profiles take exactly their fixed input IDs and modes (PO ruling F4)
+Branch `m2/scorer-subset-ids` (from `main` `1d1caa3`). Defect A-F1 (Tester, `m2/eval-fixtures-freeze` acceptance draft,
+AQ-2), severity Minor. Rulings F3 and F4 in `po-m2-wi16.md` ("Follow-up rulings (PR #32 and acceptance)").
+Requirement IDs: AC-M2-11, AC-M2-25, AC-M2-14 (scorer log as evidence), FR-A1.
+
+### What changed
+- `TendIngestion/Eval/EvalProfile.swift`: new `EvalSubsetInput` (ID + mode) and `EvalProfile.subset`, which pins the
+  subsets in the profiles (not an argument): `ds1-offline` = in01 (text), in02 (voice), in10 (voice) (AC-M2-11);
+  `ds2-offline` and `ds2-online` = in08 (voice), in16 (voice) (AC-M2-25); `ds1-gated`, `ds2-gated`, `info` = none.
+  `EvalScorer.run` compares the file's distinct (input ID, mode) pairs with the subset after the file is read and
+  before scoring; any difference throws the new `EvalScoringError.subsetMismatch(EvalSubsetMismatch)`. Its `reason`
+  names the profile, the AC, the subset and the file's inputs, then what is not in the subset, what is not in the file,
+  and each mode difference. A voice retake (attempt 2) does not count as another input.
+- The old count-only check (`3 inputs, 2 voice` / `2 inputs, 2 voice`) is replaced by a second control in the profile:
+  `inputs in01 (text), in02 (voice), in10 (voice) (AC-M2-11): file has …`. It prints the IDs and modes in the scorer
+  log for every subset run, and fails if `evaluate` is reached without the `run` check.
+- `TendTools/EvalScoreCommand.swift`: the mismatch exits 2 as `file rejected: <reason>`; usage text lists the subsets.
+  `Package.swift`: the test target also depends on `TendIngestion` (to build the A-F1 files; no new package).
+- Checked by hand against the Tester's frozen fixtures (`origin/m2/eval-fixtures-freeze`,
+  `Fixtures/M2/eval/inputs.json`): in01 text, in02 voice, in10 voice, in08 voice, in16 voice. Matches AC-M2-11
+  ("3 eval inputs … 2 voice, 1 text") and AC-M2-25 ("2 voice inputs"). `Fixtures/M2/eval/` not touched.
+
+### AC → test
+| Item | Test |
+|---|---|
+| Subsets pinned, whole-set profiles have none | `EvalProfileTests` "A-F1: the subsets are pinned in the profiles (PO ruling F3) …" |
+| Fixed subset scored and passes (3 profiles) | "A-F1: the fixed subset is scored and passes" (3 cases) |
+| Right count, wrong ID; wrong mode; too few; too many; whole set → refused with the exact mismatch and a calm reason | "A-F1: any other file is refused (exit 2) …" (16 cases: 7 wrong-ID right-count, 4 wrong-mode, 5 count) |
+| Second control in the profile | "A-F1: the profile check also holds the subset (second control) …" |
+| Scorer log prints IDs and modes | "A-F1: the scorer log prints the input IDs and modes of a subset run" |
+| AC-M2-11 / AC-M2-25 per-input rules on the fixed IDs | `ds1Offline`, `ds2Offline`, `ds2Online` (same assertions as before, now on in01/in02/in10 and in08/in16; the 4-input and text-input files are now refusals) |
+| Tool exit codes and messages | `TendToolsTests` "tend-eval-score (A-F1): the fixed subset is scored (exit 0 or 1, not 2) …" (3 cases), "… any other input set exits 2 with a plain reason …" (7 cases: wrong ID right count and wrong mode for each profile, plus the whole self-test file), "… the whole-set profiles take any input set" |
+
+The synthetic eval in `EvalProfileTests` now uses the frozen fixtures' modes (was: odd numbers voice); `flipped` makes
+the wrong-mode fixtures. No test was removed, skipped or loosened; the count-only failures became exit-2 refusals.
+Mutation check: with the `run` guard disabled (`|| true`), 18 issues in `EvalProfileTests` (every refusal case, the
+4-input and text-input refusals); restored and rerun green.
+
+### Verification environment
+| Check | Linux (container, `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`) | macOS CI | Simulator | Device |
+|---|---|---|---|---|
+| TendIngestion (incl. AC-M2-09 and AC-M2-12 source scans) | ✔ `Test run with 539 tests in 64 suites passed` (5 new tests), 0 warnings | not run | n.a. | n.a. |
+| TendTools | ✔ `Test run with 11 tests in 1 suite passed` (3 new tests), 0 warnings | not run | n.a. | n.a. |
+| Mutation (guard off) | ✔ killed | n.a. | n.a. | n.a. |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Tool only. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No app copy. Reason text checked by test for the banned words. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Scorer is Linux-side; AC-M2-11 subset identity now proven by the tool. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | No dependency, no network; the test target dependency is an in-repo package. |
+| P-3 Cloud AI opt-in, minimised | n.a. | No request change. |
+| P-4 Media not persisted | n.a. | Text files only. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | PO (via Orchestrator) | Developer | accepted | F4: fix the tool for A-F1. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent | Subsets pinned; other files exit 2 with a plain reason; log prints IDs and modes. Only the Tester closes A-F1; S5/S7 stay as second controls. No PR opened (Orchestrator to open). |

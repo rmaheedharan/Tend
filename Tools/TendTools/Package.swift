@@ -24,7 +24,11 @@ let package = Package(
         ),
         .executableTarget(name: "tend-eval-score", dependencies: ["TendToolsSupport"], path: "Sources/tend-eval-score"),
         .executableTarget(name: "tend-payload-dump", dependencies: ["TendToolsSupport"], path: "Sources/tend-payload-dump"),
-        .testTarget(name: "TendToolsTests", dependencies: ["TendToolsSupport"], path: "Tests/TendToolsTests"),
+        .testTarget(
+            name: "TendToolsTests",
+            dependencies: ["TendToolsSupport", .product(name: "TendIngestion", package: "TendIngestion")],
+            path: "Tests/TendToolsTests"
+        ),
     ],
     swiftLanguageModes: [.v6]
 )
