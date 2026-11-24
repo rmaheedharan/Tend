@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-13 provider stream dialects: OpenAI, Anthropic, Gemini (PR #29, `m2/provider-dialects`, head `ed4b1ad`)
 
-- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 2 (round 1 APPROVE at `ed4b1ad`; round 2 CHANGES REQUIRED at `ac991d1`, see "Round 2")
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 3 (round 1 APPROVE at `ed4b1ad`; round 2 CHANGES REQUIRED at `ac991d1`; round 3 APPROVE at `f876e97`, see "Round 3")
 - **Requirements:** FR-A1, P-3; ○ AC-M2-24 (Linux part: the three provider stream parsers and the synthetic fixtures);
   the AC-M2-05 bullet "This holds … for every cloud provider parser"; regression AC-M2-09 (scan) and AC-M2-12
   (vocabulary); review ticket R26-F2 (response size cap).
@@ -381,3 +381,64 @@ restore. The filter was `Provider|Dialect` for V1–V3 and `Dialect` for the oth
 |---|---|---|---|---|
 | 2026-11-24 | Orchestrator | Reviewer | accepted | Round 2 at `ac991d1` (merge `2f26834` of `main` `f1b6458`; fixes `0a39ba5`, `c32f370`; notes `ac991d1`). The round 1 review file is committed on the branch; the worktree was checked out detached. |
 | 2026-11-24 | Reviewer | Orchestrator → Developer | returned | **CHANGES REQUIRED.** All round 1 findings closed (R29-F1…F3, N1…N3), the `po-m2-wi13.md` tickets delivered, and brief amendments 1–2 word for word. The snapshot-once change is equivalent. New Major R29-R2-F1: `splitChunks` pipeline comparison narrowed from 42 to 5 cut sets and the dev-notes say otherwise; restoring all 42 is green (172.5 s). Nit R29-R2-N1. PR #30: only the dev-notes append conflicts; no code overlap. Tests: 491 / 141 / 63 green, 0 warnings. 7 of 7 reviewer mutants killed. |
+
+## Round 3 — head `f876e97` (merge `9684a38` of `main` `e4bcdeb` (PR #30), then fix commit `f876e97`)
+
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 3
+- **Requirements:** AC-M2-24 (split chunks, Linux part), AC-M2-05, FR-A1; review R29-R2-F1 and R29-R2-N1.
+- **Milestone lock:** `STATUS.md` still shows M1 `ACCEPTED`, M2 `IN-BUILD`. Allowed.
+
+### Summary
+- **The merge `9684a38` of PR #30 is clean.**
+  - `git diff ac991d1 9684a38 -- Packages Fixtures` equals PR #30's own diff
+    (`git diff f1b6458 e4bcdeb -- Packages Fixtures`).
+  - `git diff e4bcdeb 9684a38 -- Packages Fixtures` equals this PR's own diff
+    (`git diff f1b6458 ac991d1 -- Packages Fixtures`), ignoring `index` lines.
+  - So no code was changed by the merge, and no code conflicted. `git show --cc` shows a hand resolution only in
+    `dev-notes.md`.
+  - A line-level check found no line of either parent's `dev-notes.md` missing from the merge (0 of 4,106 for this
+    PR, 0 of 3,977 for PR #30), and no conflict markers. The WI-M2-14 section (line 3671) and the WI-M2-13 section
+    (line 3979) are both whole.
+  - `brief.md` merged automatically. Both K2 amendments (`WI-M2-13 K2`, 2 occurrences) and both PR #30 amendments
+    (`WI-M2-14 Q2` and `Q3`) are present, with no markers.
+- **The fix commit `f876e97`** changes two test files and the dev-notes, and the review file is now committed. No
+  source file is changed.
+
+### Findings (round 2 → round 3)
+| # | Severity | Round 3 evidence | Status |
+|---|---|---|---|
+| R29-R2-F1 | Major | **Fixed.** `ProviderStreamFixtureTests.splitChunks` again runs the pipeline comparison (emitted titles, final drafts and outcome against the one-shot run) for **every** cut set. The `if index < 5` gate is removed, and the loop body is the round 1 code plus the round 2 reader-level `steps.last` check. The test name now says "(reader and pipeline: all 42)". In my run it passed 33 cases in about 135 s. **Dev-notes correction:** the false sentence is corrected in place. The correction says the test was narrowed, why, and that it broke CLAUDE.md §6. I checked its claim that no other existing test was narrowed in round 2 against the round 2 test diff, and it holds. `sizeCapBoundary` replaced its one-byte-over case with a padding-before-the-end case and added checks. Its `receivedByteCount` expectation changed on purpose with the R29-F1 behaviour (4 → 10). The Gemini `parts` test and the Anthropic and Gemini `unexpectedStructure` tables only gained members or rows. The other changes are `.serialized` and `Task.yield()`, which remove no coverage. | Closed |
+| R29-R2-N1 | Nit | **Fixed.** The `ChunkedProviderModel` producer loop returns on `Task.isCancelled` before each `append` (test support only). After termination the continuation is already ended, so returning without `finish` is fine. | Closed |
+
+There are no open Blocker, Major or Minor findings in this PR. Open tickets elsewhere: R29-N2 (WI-M2-M4: feed buffered
+chunks) and the K9 re-check list (WI-M2-M6).
+
+### Tests run (reviewer, round 3, merged tree)
+All runs used the worktree at `f876e97` (detached), in `swift:6.2-noble` with `-Xswiftc -warnings-as-errors`, at load
+average about 4 to 5.
+
+| Command | Result |
+|---|---|
+| `swift test --scratch-path /tmp/rev29-TendIngestion --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | `✔ Test run with 525 tests in 63 suites passed after 161.327 seconds.` 0 warnings. `splitChunks` "(reader and pipeline: all 42)": 33 cases passed. AC-M2-09 scan: "TendIngestion (required) Packages/TendIngestion/Sources: 55 files scanned". AC-M2-12 vocabulary scan: 55 files. The PR #30 time-limited tests are all green in the same run. |
+| `swift test --scratch-path /tmp/rev29-TendCore --package-path Packages/TendCore -Xswiftc -warnings-as-errors` | `✔ Test run with 141 tests in 18 suites passed after 127.171 seconds.` 0 warnings. |
+| `swift test --scratch-path /tmp/rev29-TendSourceScan --package-path Packages/TendSourceScan -Xswiftc -warnings-as-errors` | `✔ Test run with 63 tests in 4 suites passed after 4.466 seconds.` 0 warnings. |
+
+The 525 tests are 491 from round 2 plus 34 from PR #30, and match the dev-notes.
+
+### Law check (round 3)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No source change in this round. The vocabulary scan is green over 55 files. The restored test again proves through the pipeline, for every cut set, that drafts are kept the same way. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | n.a. | Parsing only. |
+| P-2 No data leaves device (except user iCloud / P-3 request) | pass | AC-M2-09: 55 files, 0 violations. No dependency. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | No request change. The merge brings in PR #30's reviewed transport unchanged. |
+| P-4 Media not persisted without consent | n.a. | Text only, in memory. |
+
+### Handoff log (round 3)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Reviewer | accepted | Round 3 at `f876e97` (merge `9684a38` of `main` `e4bcdeb`; fix `f876e97`). The round 2 review file is committed on the branch; the worktree was checked out detached. |
+| 2026-11-24 | Reviewer | Orchestrator → Merge Gatekeeper | sent | **APPROVE.** R29-R2-F1 closed: all 42 pipeline comparisons are back, and the dev-notes correction is accurate. R29-R2-N1 closed. The PR #30 merge is clean: the code diffs equal each side's own, both dev-notes sections are kept whole, and there are no markers. Tests: 525 / 141 / 63 green, 0 warnings, scans 55 files with 0 violations. No open Blocker, Major or Minor. |
