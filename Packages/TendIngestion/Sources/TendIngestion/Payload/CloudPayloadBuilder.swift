@@ -15,8 +15,8 @@
 //
 // Bodies (members in the canonical order the bytes have). Members marked (profile) come from the model's request
 // profile (`CloudProviderTable.profile(for:)`, review R28-F7; PO WI-M2-10 ruling 7), never from a provider branch:
-// - OpenAI `POST /v1/chat/completions`: `max_completion_tokens`, `messages` = [system: instructions,
-//   user: [{text: user content, type: text}]], `model`, (profile) `reasoning_effort`, `response_format` = json_schema
+// - OpenAI `POST /v1/chat/completions`: `max_completion_tokens`, `messages` = [system: [{text: instructions,
+//   type: text}], user: [{text: user content, type: text}]] (both text-part arrays, GR-5), `model`, (profile) `reasoning_effort`, `response_format` = json_schema
 //   (`name`, (profile) schema member, `strict: true`), `store: false`, `stream: true`, (profile) `stream_options`,
 //   (profile) `temperature`.
 // - Anthropic `POST /v1/messages`: `max_tokens`, `messages` = [user: [{text, type: text}]], `model`, `stream: true`,
@@ -91,6 +91,9 @@ public enum CloudPayloadBuilder {
         let schema = CanonicalJSON.Member(profile.schemaMember, CloudOutputSchema.root(profile.schemaDialect))
         let maxTokens = CanonicalJSON.integer(CloudProviderTable.maxOutputTokens)
         let textPart: CanonicalJSON = .object([.init("type", .string("text")), .init("text", .string(user))])
+        // OpenAI's system content is a text-part array like the user's (GR-5): no key path is both a leaf and a
+        // container, so the device's key-path subset check sees a content that turned into a plain string.
+        let instructionsPart: CanonicalJSON = .object([.init("type", .string("text")), .init("text", instructions)])
         let temperature: [CanonicalJSON.Member] = switch profile.sampling {
         case .temperatureZero: [.init("temperature", .integer(0))]
         case .providerDefault: []
@@ -109,7 +112,7 @@ public enum CloudPayloadBuilder {
             return .object([
                 .init("model", .string(model.rawValue)),
                 .init("messages", .array([
-                    .object([.init("role", .string("system")), .init("content", instructions)]),
+                    .object([.init("role", .string("system")), .init("content", .array([instructionsPart]))]),
                     .object([.init("role", .string("user")), .init("content", .array([textPart]))]),
                 ])),
                 .init("response_format", .object([
