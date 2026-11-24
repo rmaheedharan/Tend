@@ -114,6 +114,13 @@ func yieldUntil(_ condition: @Sendable () -> Bool) async -> Bool {
     return condition()
 }
 
+/// A counter shared with a task.
+final class SharedCount: Sendable {
+    private let count = Mutex(0)
+    var value: Int { count.withLock { $0 } }
+    func add() { count.withLock { $0 += 1 } }
+}
+
 // MARK: - Scripted transport
 
 /// One step of a scripted attempt, run when the reader asks for the next body chunk.

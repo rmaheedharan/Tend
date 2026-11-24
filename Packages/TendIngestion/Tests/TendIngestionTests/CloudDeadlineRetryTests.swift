@@ -475,20 +475,26 @@ struct CloudResponseBodyTests {
         #expect(done.sends.count == 1)
         #expect(transport.sends.count == 1)
 
-        // 2. A consumer that stops reading mid-body (cancel) ends the transport's stream (its termination handler).
+        // 2. A consumer cancelled mid-body (after its first chunk, while the transport is still open) ends with
+        //    `CancellationError`, never a normal end (review R30-F1), and the transport's stream is ended (its
+        //    termination handler).
         let holding = HoldingTransport(chunks: [T.bytes("first")])
         let heldBody = Self.body(holding, ManualClock())
-        let consumer = Task {
-            var count = 0
+        let received = SharedCount()
+        let consumer = Task { () -> (count: Int, end: String) in
             do {
-                for try await _ in heldBody { count += 1 }
-            } catch {}
-            return count
+                for try await _ in heldBody { received.add() }
+                return (received.value, "normal end")
+            } catch {
+                return (received.value, error is CancellationError ? "CancellationError" : "\(error)")
+            }
         }
-        let started = await yieldUntil { holding.sends == 1 }
-        #expect(started)
+        let readFirst = await yieldUntil { received.value == 1 }
+        #expect(readFirst)
         consumer.cancel()
-        _ = await consumer.value
+        let outcome = await consumer.value
+        #expect(outcome.count == 1)
+        #expect(outcome.end == "CancellationError")
         let ended = await yieldUntil { holding.terminations == 1 }
         #expect(ended)
         #expect(holding.sends == 1)
@@ -502,6 +508,7 @@ struct CloudResponseBodyTests {
         var generator = SplitMix64(seed: seed)
         let reasons = CloudFailureReason.allCases
         for index in 0..<4_000 {
+            await Task.yield()  // do not hold a cooperative-pool thread for the whole loop (review R30-F3)
             let startAt = Int64.random(in: 0...5_000, using: &generator)                       // ms on the clock
             let lead = Int64.random(in: 0...12_000, using: &generator)                         // ms from receipt to the read
             let firstTime = Int64.random(in: 0...11_000, using: &generator)                    // ms to the answer

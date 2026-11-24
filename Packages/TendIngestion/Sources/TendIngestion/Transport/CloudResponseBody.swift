@@ -14,7 +14,8 @@
 //   the pause). With a pause it sleeps on the injected clock, checks the 3.0 s rule again with the clock's time after
 //   the pause, and sends the same request once more. Otherwise it throws the failure's `ModelStopReason`;
 // - maps any other error to `otherModelError` (adapter contract rule 1); `CancellationError` passes through, and a
-//   read in an already cancelled task sends nothing (IngestionModel contract rule 3);
+//   read in an already cancelled task sends nothing (IngestionModel contract rule 3). A transport stream that ends
+//   while the reading task is cancelled ends the body with `CancellationError`, never as a normal end (review R30-F1);
 // - after it throws or ends, returns nil and sends nothing more. Nothing is queued, stored or retried in the
 //   background (AC-M2-23, ADR-0005 Decision 7): when the iterator is released, the transport stream is released and
 //   its termination handler cancels the network task.
@@ -109,6 +110,9 @@ public struct CloudResponseBody<C: Clock>: AsyncSequence, Sendable where C.Durat
                     } catch {
                         throw ModelStopReason.otherModelError
                     }
+                    // A transport stream ends with nil when the reading task is cancelled; that is never a normal end
+                    // of the body (review R30-F1).
+                    if chunk == nil { try Task.checkCancellation() }
                     guard timeLeft > .zero else { throw ModelStopReason.timedOut }
                     guard let chunk else {
                         state = .ended

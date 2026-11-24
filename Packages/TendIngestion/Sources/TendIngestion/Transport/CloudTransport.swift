@@ -92,10 +92,13 @@ public struct CloudTransportFailure: Error, Hashable, Sendable {
 /// **Contract** (WI-M2-M4 conforms, on the owner-run Mac):
 /// 1. Each call is one attempt: one HTTPS request for `request`, with `timeouts` applied to that attempt only.
 /// 2. With a 2xx status, yield the body bytes in order, in chunks cut anywhere, then finish normally.
-/// 3. Otherwise finish by throwing a `CloudTransportFailure`: the status or transport error mapped to its reason, and
-///    for 429 and 5xx the `Retry-After` field value as received. Never retry, queue or store anything: the one allowed
-///    retry is decided by `CloudResponseBody`.
+/// 3. Otherwise (except a cancelled attempt, point 5) finish by throwing a `CloudTransportFailure`: the status or
+///    transport error mapped to its reason, and for 429 and 5xx the `Retry-After` field value as received. Never retry,
+///    queue or store anything: the one allowed retry is decided by `CloudResponseBody`.
 /// 4. Cancel the network task in the stream's `onTermination`, so a released stream sends and reads nothing more.
+/// 5. A cancelled attempt (the reading task cancelled, or `onTermination` ran) is not a failure: finish the stream
+///    without an error, or throw `CancellationError`. Never map `URLError.cancelled` (or any other cancellation) to a
+///    `CloudFailureReason`; `CloudResponseBody` reports the cancellation itself (review R30-F2).
 public protocol CloudTransport: Sendable {
     func send(_ request: CloudRequest, timeouts: CloudAttemptTimeouts) -> AsyncThrowingStream<[UInt8], any Error>
 }

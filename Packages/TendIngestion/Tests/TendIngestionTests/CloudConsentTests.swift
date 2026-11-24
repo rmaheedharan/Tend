@@ -59,6 +59,7 @@ final class SuspendingKeyStore: APIKeyStore {
     /// After `release()` the store is open: later reads do not wait, so a rule that reads again cannot hang a test.
     private let waiting = Mutex<(open: Bool, list: [CheckedContinuation<Void, Never>])>((false, []))
     private let keyReads = Mutex(0)
+    private let keyReadsReturned = Mutex(0)
     private let heldHasKey = Mutex(0)
     private let armedHasKey: Mutex<Bool>
     let stored: [CloudProvider: APIKey]
@@ -75,6 +76,8 @@ final class SuspendingKeyStore: APIKeyStore {
 
     /// How many `key(for:)` calls are waiting or have waited.
     var keyCalls: Int { keyReads.withLock { $0 } }
+    /// How many `key(for:)` calls have returned (review R30-F3: an event to wait on instead of a timer).
+    var returnedKeyCalls: Int { keyReadsReturned.withLock { $0 } }
     /// How many `hasKey` calls are waiting or have waited.
     var heldHasKeyCalls: Int { heldHasKey.withLock { $0 } }
 
@@ -88,6 +91,7 @@ final class SuspendingKeyStore: APIKeyStore {
 
     private func hold(counting counter: borrowing Mutex<Int>) async {
         counter.withLock { $0 += 1 }
+        StateChanges.shared.changed()
         await withCheckedContinuation { continuation in
             let resumeNow = waiting.withLock { state in
                 if state.open { return true }
@@ -105,6 +109,10 @@ final class SuspendingKeyStore: APIKeyStore {
     }
     func key(for provider: CloudProvider) async throws(CloudStoreError) -> APIKey? {
         if holdKeyRead { await hold(counting: keyReads) }
+        defer {
+            keyReadsReturned.withLock { $0 += 1 }
+            StateChanges.shared.changed()
+        }
         return stored[provider]
     }
     func save(_ key: APIKey, for provider: CloudProvider) async throws(CloudStoreError) {}
@@ -142,6 +150,7 @@ final class SuspendingConsentStore: CloudConsentStore {
         if hold {
             await withCheckedContinuation { continuation in
                 state.withLock { $0.waiting.append(continuation); $0.held += 1 }
+                StateChanges.shared.changed()
             }
         }
         state.withLock { _ = $0.consents.insert(provider) }
@@ -423,6 +432,8 @@ struct CloudTurnOffTests {
 
     @Test("AC-M2-18: a capture the user cancels while its request is being prepared (key being read) sends nothing", .timeLimit(.minutes(1)))
     func cancelWhilePreparing() async {
+        let began = ContinuousClock.now
+        defer { print("R30-F3 body time, cancelWhilePreparing: \(ContinuousClock.now - began)") }
         let all = Set(CloudProvider.allCases)
         let keyStore = SuspendingKeyStore(keys: Dictionary(uniqueKeysWithValues: all.map {
             ($0, StoredState.fixtureKey($0))
@@ -437,10 +448,10 @@ struct CloudTurnOffTests {
         #expect(!neededCancel)
         #expect(run.events == [.finished(.cancelled(route: .cloud(.openAI)))])
         keyStore.release()
-        // Give the released preparation time (bounded, about 200 ms) to (wrongly) start the request.
-        for _ in 0..<200 where transport.requestCount == 0 {
-            try? await Task.sleep(nanoseconds: 1_000_000)
-        }
+        // The released preparation returns from the key read (an event), then gets a window to (wrongly) start the
+        // request; no polling timer (review R30-F3).
+        #expect(await eventually { keyStore.returnedKeyCalls == 1 }, "the key read never returned")
+        #expect(await staysFalse { transport.requestCount > 0 }, "a request started after the cancel")
         #expect(transport.requestCount == 0)
         #expect(await router.cloudStatus() == .on(.openAI))
     }
