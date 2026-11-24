@@ -524,4 +524,39 @@ struct PayloadBuilderTests {
         #expect(text.contains("Never invent"))
         #expect(BannedTokens.tokens(in: text).isEmpty, "UX-3: no banned token in the instructions")
     }
+
+    /// The exact item-meaning lines of PO WI-M2-16 rulings 3 (GR-1), 4 (GR-2), 5 and 9, word for word.
+    static let wi16MeaningLines = [
+        #"- room: the name from "rooms" where the chore is done, when the person named that room or the thing they named clearly sits in it; a place the person named that is not in "rooms"; otherwise "". Buying, paying, booking and errands get "" unless the person named a room."#,
+        #"- effort: "low" for a quick errand or touch-up, "high" for a deep clean or a long job, otherwise "normal"."#,
+        "- isCritical: true when waiting has a real cost: a bill, tax or other payment, a renewal with a date, food that will expire, or a home safety check. Routine servicing, appointments and other chores are false.",
+        "- isDeepClean: true for a deep clean.",
+        "- isWeatherDependent: true only when the person ties the chore to the weather, such as rain, dry or sun; otherwise false.",
+    ]
+
+    @Test("PO WI-M2-16 rulings 3, 4, 5, 9 (GR-1, GR-2; FR-B2, FR-A1): the room, effort, critical, deep-clean and weather lines of the instructions are the PO's exact sentences, each on its own line, in that order, after kind and before time; the replaced wording is gone")
+    func instructionsItemMeanings() throws {
+        let lines = CloudInstructions.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        var previous = try #require(lines.firstIndex { $0.hasPrefix("- kind: ") })
+        for expected in Self.wi16MeaningLines {
+            let found = lines.firstIndex(of: expected)
+            let index = try #require(found, "missing exact line: \(expected)")
+            #expect(index == previous + 1, "\(expected.prefix(24)) is not right after the line before it")
+            previous = index
+        }
+        #expect(lines[previous + 1].hasPrefix("- time: "))
+        for gone in ["safety or health", "when the chore belongs there", "when the chore depends on the weather",
+                     #"- effort: "low", "normal" or "high"."#] {
+            #expect(!CloudInstructions.text.contains(gone), "\(gone)")
+        }
+        // Each field is described on exactly one line.
+        for field in ["room", "effort", "isCritical", "isDeepClean", "isWeatherDependent"] {
+            #expect(lines.filter { $0.hasPrefix("- " + field + ":") }.count == 1, "\(field)")
+        }
+        // The new lines hold no digit at all (N-3, PO WI-M2-16 ruling 3) and no banned token (UX-3).
+        for line in Self.wi16MeaningLines {
+            #expect(!line.contains { $0.isASCII && $0.isNumber }, "\(line.prefix(24))")
+            #expect(BannedTokens.tokens(in: line).isEmpty, "\(line.prefix(24))")
+        }
+    }
 }
