@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-14 cloud deadline and single 429/5xx retry over a neutral transport (PR #30, `m2/cloud-deadline-retry`, head `2d626a2`)
 
-- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE (round 2, head `1c15b90`; round 1 was APPROVE at `2d626a2`)  ·  **Round:** 2
 - **Requirements:** FR-A1, P-2, P-3, P-4, UX-3. This PR delivers the Linux parts (○) of **AC-M2-22** (the "Timeouts"
   bullet: deadline, per-attempt timeouts, retry rule; T-17, T-28, Q22) and **AC-M2-23** (outcome, plain note and retry
   decisions over a neutral failure reason; T-18). WI-M2-M4 owns both (●) on the owner-run Mac. Regression: AC-M2-09
@@ -110,3 +110,88 @@ With the developer's 23 mutants (all killed), the rule is pinned at every bounda
 |---|---|---|---|---|
 | 2026-11-24 | Orchestrator | Reviewer | accepted | PR #30 at `2d626a2` (base `f1b6458`), fresh context. Mid-review FYI: `po-m2-wi14.md` (Q2, Q3 confirmed; Q1 to the Planner). |
 | 2026-11-24 | Reviewer | Orchestrator → Developer (F1, F2 optional now), Planner (F2, F5, D3, Q3 tickets), WI-M2-09 owner (F3), Merge Gatekeeper | accepted (round 1: **APPROVE**) | 0 Blocker, 0 Major, 3 Minor (F1 cancel reported as a normal end; F2 transport contract silent on cancellation; F3 WI-M2-09 wall-clock flake risk, pre-existing), 2 Nit. TendIngestion 475 / TendCore 141 / TendSourceScan 63 green, 0 warnings, Linux. Reviewer mutants 5/5 killed, 1 probe. Open questions 2 and 3 closed by `po-m2-wi14.md`; 1 to the Planner (WI-M2-M6). Linux only: no Mac or device claim. |
+
+## Round 2 — head `1c15b90` (`main` still `f1b6458`, no merge)
+
+- **Verdict: APPROVE.** No Blocker or Major. R30-F1, F2 and F3 are closed and verified. F4 (Nit) stays open as
+  optional. F5 is ticketed to WI-M2-M4. Two new Minors (F6, F7) concern WI-M2-09 code and the new test helper; they are
+  tickets and do not block PR #30.
+- **Scope of the round** (`git diff --stat 2d626a2 1c15b90`): `CloudResponseBody.swift` (+1 code line, comments),
+  `CloudTransport.swift` (contract text), WI-M2-09 test support and tests (`RoutingSupport.swift`,
+  `CloudConsentTests.swift`, `CloudConsentRaceTests.swift`), one `await Task.yield()` per outer loop in four property
+  tests, `brief.md` (2 PO amendments), `dev-notes.md`, and this file (round 1, committed unchanged; I checked it equal
+  to my round 1 text). No protected path is touched, and the milestone lock is unchanged (M2 `IN-BUILD`).
+
+### Test runs (round 2, this review; `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, worktree at `1c15b90`, scratch `/tmp/rev30r2-ing`)
+| Run | Result | WI-M2-09 body times (the test prints them; the time limit counts from the body start) |
+|---|---|---|
+| Full 1 (incl. build; my mutant and probe builds ran in parallel on the same 4 cores) | "Test run with 475 tests in 57 suites passed after 180.376 seconds", 0 warnings, exit 0 | `cancelWhilePreparing` 1.88 s; `actionDuringKeyRead` 1.82 / 1.85 / 1.85 s |
+| Full 2 | "Test run with 475 tests in 57 suites passed after 137.680 seconds", 0 warnings, exit 0 | `cancelWhilePreparing` 2.95 s; `actionDuringKeyRead` 2.95 / 2.95 / 2.95 s |
+
+In round 1 the same test reported "passed after 94.452 seconds". Now the body takes under 3 s against the 60 s limit,
+even with extra load from my builds.
+
+### Verification of the round 1 findings
+| # | Check | Result |
+|---|---|---|
+| R30-F1 | `CloudResponseBody.swift:115`: `if chunk == nil { try Task.checkCancellation() }`. It runs before the deadline check, so a cancelled read never becomes a normal end or `timedOut`. A read that has not been cancelled is unchanged. `nothingAfterward` part 2 now waits on an event (the first chunk received), cancels, and asserts `count == 1` and the end `CancellationError`. My mutant R2-M1 (the line removed, scratch copy, `touch`ed after restore) is **killed** at `CloudDeadlineRetryTests.swift:497`. The file header is updated. | **Closed** |
+| R30-F2 | `CloudTransport.swift` contract point 5: a cancelled attempt is not a failure. The transport finishes without an error or throws `CancellationError`, and must never map `URLError.cancelled` or any other cancellation to a `CloudFailureReason`. Point 3 points to the exception. This matches what `CloudResponseBody` does (D8 plus F1). WI-M2-M4 ticket with a `URLProtocol` test is recorded in the dev-notes. | **Closed** |
+| R30-F3 | The waits are event-driven. `StateChanges` (a generation counter, so a change between check and wait is not lost) is signalled by every double the waits read. `eventually` checks again on each change, with a 10 s wall-clock bound (was 5,000 × ≥ 1 ms). `staysFalse` keeps the 200 ms "must not start" window, now **after** an event-driven wait that the released key read has returned (`returnedKeyCalls`). That is stricter: it proves the released step ran. **Nothing weakened:** removed `-` lines are only the polling loops, the old `settle` and the old `eventually`. `.timeLimit` count 25 → 25; `#expect` count 1,611 → 1,616 (new assertions: `readFirst`, the end type, `returnedKeyCalls` twice, `staysFalse`). Seeds, `householdsPerSeed` and every iteration count are unchanged (I diffed every seed and `0..<n` line: only the three polling loops are gone). The new yields in four property loops change no input or assertion. The full-run evidence is above. | **Closed** (see F7 for one race in the new helper) |
+| R30-F4 | Kept as is, as optional. | Open (Nit, optional) |
+| R30-F5 | WI-M2-M4 ticket recorded in the dev-notes (silent stub ends `timedOut` at the resource timeout). | Ticketed |
+
+### R2-M3: is it truly equivalent? **No.**
+The developer's mutant R2-M3 removes `!Task.isCancelled` from the guard in `ConsentCheckedCloudModel.snapshots(for:)`
+(`Routing/ModelRouter.swift:317-320`, WI-M2-09 code, not in this diff). It survives the suite, so the developer
+called it "likely equivalent". I tested that claim with a probe on the scratch copy
+(`ReviewerProbeR2Tests.swift`, deleted afterwards). A `CloudModelSource` double cancels the consumer task from
+inside `model(for:key:)`, which is after `beginRequest`'s last re-read of the capture. The probe ran 300 captures per
+arm and counted the requests `MockCloudModel` recorded:
+
+| Build | Consumer cancel during the model build | Turn-off started during the model build |
+|---|---|---|
+| HEAD `1c15b90` (guard present) | **8 / 300** requests started | 300 / 300 (the turn-off reaches the router actor only after the request has started; it is then cancelled as in-flight, which AC-M2-18 allows) |
+| R2-M3 (guard removed) | **298 / 300** requests started | 298 / 300 |
+
+So the guard does real work. In 97 % of these interleavings it is the only thing that stops a request after a cancel
+that landed while the request was being prepared. R2-M3 is a **surviving, non-equivalent mutant**, which means the
+WI-M2-09 tests have a gap. The probe also shows that HEAD itself still starts a request in about 3 % of these runs:
+the consumer's cancellation reaches the forwarding task only when the pipeline's stream ends, which can be after the
+guard. The transport stream is then cancelled at once. → R30-F6.
+
+### Brief amendments vs `po-m2-wi14.md` (word for word)
+I extracted the quoted text of "Brief amendment 1" and "Brief amendment 2" from the PO note and the brief at
+`1c15b90`, normalised only the whitespace (line wrapping), and compared them as strings. **Both match exactly** (434 and
+454 characters). Both are in the right places: amendment 1 directly after "…from the moment the pipeline receives
+the input." in AC-M2-22 "Timeouts", and amendment 2 as a new bullet directly after "No outcome or reason name contains
+a banned token." in AC-M2-23. The only removed brief line is the re-wrapped "moment the pipeline receives the input.".
+No AC text is deleted or weakened.
+
+### Findings, round 2
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| R30-F6 | Minor (WI-M2-09 code, not in this diff; ticket) | `Packages/TendIngestion/Sources/TendIngestion/Routing/ModelRouter.swift:317-320`; tests `CloudConsentTests.swift`, `CloudConsentRaceTests.swift` | R2-M3 is not equivalent (probe above: 8/300 → 298/300). No test kills it, so a later change could drop the `!Task.isCancelled` guard unnoticed. That would break AC-M2-18 "a capture the user cancels while its request is being prepared sends nothing" in the common interleaving. Separately, HEAD still starts a request (then cancels it at once) in about 3 % of cancels that land during the model build. That is the residual window between the consumer's cancel and the forwarding task seeing it. | WI-M2-09 owner (via the Planner): (1) add a test that kills R2-M3, for example a `CloudModelSource` double that cancels the consumer inside `model(for:key:)`, or a seam that makes the cancellation visible to the forwarding task deterministically; (2) decide whether the ~3 % residual window must close for AC-M2-18 (for example, the forwarding task re-checks after the model is built and before `snapshots(for:)`, or the adapter honours IngestionModel contract rule 3 in WI-M2-M6) and record it. Ask the PO only if the reading of AC-M2-18 for a cancel at the very moment the request starts is unclear. Do not mark R2-M3 equivalent. | Open (ticket) |
+| R30-F7 | Minor (test helper; liveness only, never a false pass) | `Packages/TendIngestion/Tests/TendIngestionTests/RoutingSupport.swift:302-322` (`StateChanges.wait`) | A timeout can be lost. The `bound` task may fire `resume(id)` before the waiter has registered its continuation (for example, when the limit passes between `eventually`'s `now >= limit` check and the registration). `resume` then finds nothing, and the waiter waits for the next `changed()` from any test. If none comes, the test hangs to its 60 s limit and fails. The window is microseconds, but it is the same class of flake that F3 removed. | Record an "expired" flag per id in `resume` when no waiter is registered yet, and resume at once on registration if it is set (as `ManualClock` does with `sleepCancelled`). Next touch of the file; not blocking. | Open (ticket) |
+
+### Checklist (round 2)
+- [x] Correctness vs ACs (F1 end type; contract point 5; brief amendments match the PO note word for word)  - [x] Tests meaningful (R2-M1 killed; no assertion, seed, count or time limit weakened)  - [x] Swift 6 concurrency safe (0 warnings; F7 is a test-helper liveness race)
+- [x] No force unwraps / try! in product code paths  - [x] Privacy (P-1…P-4; F6 ticketed for WI-M2-09)  - [x] UX-2/UX-3 enforced in engine
+- [x] Accessibility (UI) n.a.  - [x] Performance (WI-M2-09 bodies < 3 s under full parallel load)  - [x] No new dependency without ADR
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | A cancelled read now ends as cancellation, never as a finished body (F1), so no outcome claims what did not happen. Brief amendment 1 makes the deadline end calm, with the words kept. Case names are unchanged; AC-M2-12 scan 0. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Routing unchanged. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | No networking in `TendIngestion`; no dependency. |
+| P-3 Cloud AI opt-in, minimised | pass (watch F6) | This PR's code sends nothing after cancel or deadline, and the cancellation contract is now explicit (F2). F6: in WI-M2-09's forwarding path, a cancel that lands during the model build can still start a request that is cancelled at once (~3 % in the probe), and the guard that prevents most of these has no killing test. Ticketed, not this PR's code. |
+| P-4 Media not persisted without consent | pass | Nothing queued or stored. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Reviewer | accepted | Round 2 at `1c15b90` (`main` `f1b6458`): verify F1, F2, F3, R2-M3 equivalence, brief amendments; two full runs. |
+| 2026-11-24 | Reviewer | Orchestrator → Merge Gatekeeper; Planner (F6, F7, F5 and round 1 tickets); WI-M2-09 owner (F6) | accepted (round 2: **APPROVE**) | F1, F2, F3 closed with evidence. Two full TendIngestion runs: 475/475, 0 warnings; WI-M2-09 bodies 1.8–2.9 s. R2-M1 killed. R2-M3 **not equivalent** (probe 8/300 vs 298/300) → F6 ticket. F7 helper race ticket. Brief amendments 1–2 match `po-m2-wi14.md` word for word. Linux only. |
