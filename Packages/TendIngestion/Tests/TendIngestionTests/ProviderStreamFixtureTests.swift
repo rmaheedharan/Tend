@@ -1,11 +1,13 @@
 // The synthetic provider stream fixtures (plan WI-M2-13; AC-M2-24 "Fixtures (T-19)", AC-M2-05). FR-A1, P-3, UX-3.
 //
-// Ten synthetic fixtures per provider, built from each provider's documented streaming format (OpenAI Chat
+// Eleven synthetic fixtures per provider, built from each provider's documented streaming format (OpenAI Chat
 // Completions, Anthropic Messages with one forced tool, Gemini `streamGenerateContent?alt=sse`), all for the brief's
 // Outcome sample sentence (no household data). They cover happy paths, out-of-order fields and noise events, split
 // chunks (every fixture is also read byte by byte, one event per chunk and at seeded random cuts), a truncated stream,
-// a length cut, invalid output JSON, an invalid event, schema-violating fields, unknown enum values, a refusal and an
-// in-stream provider error. The real recordings (one per provider) are WI-M2-M6 on the owner-run Mac.
+// a length cut, invalid output JSON, an invalid event, schema-violating fields, unknown enum values, a refusal, an
+// in-stream provider error, and finished output with no provider end (PO `po-m2-wi13.md`: truncated, K2). They carry
+// the PO WI-M2-10 ruling-7 shapes: the served model IDs, OpenAI's `include_usage` chunk with `reasoning_tokens`,
+// Gemini's `thoughtsTokenCount`, a `thoughtSignature` part member and the sorted-key `responseJsonSchema` output. The real recordings (one per provider) are WI-M2-M6 on the owner-run Mac.
 //
 // Each fixture runs through the public `DraftPipeline` on its cloud route with a test adapter
 // (`ChunkedProviderModel`), and the exact outcome, emitted titles and skips are checked. Per the PO tickets
@@ -68,6 +70,8 @@ struct ProviderFixtureCase: Sendable, CustomTestStringConvertible {
             make("refusal-before-draft", refusal, [], .noModel(.refusal)),
             make("provider-error-after-first-draft", .providerError(.serviceUnavailable), [titles[0]],
                  .interrupted(.serviceUnavailable, discarded: false)),
+            // PO `po-m2-wi13.md` (K2 confirmed): finished output JSON without the provider's normal end is truncated.
+            make("finished-output-no-end", .cutShort(.noFinish), titles, .interrupted(.outputCutShort, discarded: false)),
         ]
     }
 
@@ -78,11 +82,12 @@ struct ProviderFixtureCase: Sendable, CustomTestStringConvertible {
 struct ProviderStreamFixtureTests {
     typealias F = ProviderFixtures
 
-    @Test("AC-M2-24: the fixture list is exactly the table: 10 synthetic fixtures per provider, none untested")
+    @Test("AC-M2-24: the fixture list is exactly the table: 11 synthetic fixtures per provider, none untested")
     func fixtureList() throws {
         for provider in CloudProvider.allCases {
             let expected = ProviderFixtureCase.all.filter { $0.provider == provider }.map(\.name).sorted()
             let onDisk = try F.names(on: provider)
+            #expect(onDisk.count == 11)
             print("AC-M2-24 fixtures \(F.folder(provider)): \(onDisk.count) synthetic: \(onDisk.joined(separator: ", "))")
             #expect(onDisk == expected)
         }
@@ -127,8 +132,8 @@ struct ProviderStreamFixtureTests {
         }
     }
 
-    @Test("AC-M2-24: every fixture gives the same result one shot, one event per chunk, byte by byte and at 40 seeded random cut sets",
-          arguments: ProviderFixtureCase.all)
+    @Test("AC-M2-24: every fixture gives the same result one shot, one event per chunk, byte by byte and at 40 seeded random cut sets (reader: all 42; pipeline: 5)",
+          .serialized, arguments: ProviderFixtureCase.all)
     func splitChunks(_ fixture: ProviderFixtureCase) async throws {
         let bytes = try F.load(fixture.provider, fixture.name)
         let oneShot = ProviderRead.read(bytes, provider: fixture.provider)
@@ -140,20 +145,26 @@ struct ProviderStreamFixtureTests {
             cutSets.append((0..<count).map { _ in Int.random(in: 0...bytes.count, using: &rng) })
         }
         for (index, cuts) in cutSets.enumerated() {
+            // Every cut set at the reader level: the same end, and the same last snapshot yielded before it.
             let read = ProviderRead.read(bytes, provider: fixture.provider, cuts: cuts)
             #expect(read.end == oneShot.end, "cut set \(index)")
-            let events = await ProviderPipeline.events(bytes, provider: fixture.provider, cuts: cuts)
-            #expect(ProviderPipeline.emitted(events).map(\.title) == ProviderPipeline.emitted(oneShotEvents).map(\.title),
-                    "cut set \(index)")
-            #expect(ProviderPipeline.finalDrafts(events) == ProviderPipeline.finalDrafts(oneShotEvents),
-                    "cut set \(index)")
-            #expect(ProviderPipeline.outcome(events) == ProviderPipeline.outcome(oneShotEvents), "cut set \(index)")
+            #expect(read.steps.last == oneShot.steps.last, "cut set \(index)")
+            // Through the pipeline for 5 cut sets (per event, byte by byte, 3 random): the pipeline runs are the
+            // costly part, and the time-limited cancellation tests share the cooperative pool (round 2).
+            if index < 5 {
+                let events = await ProviderPipeline.events(bytes, provider: fixture.provider, cuts: cuts)
+                #expect(ProviderPipeline.emitted(events).map(\.title)
+                        == ProviderPipeline.emitted(oneShotEvents).map(\.title), "cut set \(index)")
+                #expect(ProviderPipeline.finalDrafts(events) == ProviderPipeline.finalDrafts(oneShotEvents),
+                        "cut set \(index)")
+                #expect(ProviderPipeline.outcome(events) == ProviderPipeline.outcome(oneShotEvents), "cut set \(index)")
+            }
             await Task.yield()
         }
     }
 
     @Test("AC-M2-05 / AC-M2-24: no step of any fixture, read byte by byte, shows part of a title (only finished values)",
-          arguments: ProviderFixtureCase.all)
+          .serialized, arguments: ProviderFixtureCase.all)
     func neverAPartTitle(_ fixture: ProviderFixtureCase) throws {
         let bytes = try F.load(fixture.provider, fixture.name)
         let read = ProviderRead.read(bytes, provider: fixture.provider, cuts: ProviderRead.everyByte(bytes))
@@ -174,6 +185,44 @@ struct ProviderStreamFixtureTests {
             let read = ProviderRead.read(try F.load(provider, name), provider: provider)
             #expect(try read.end.get() == expected, "\(name)")
         }
+        // The same output with no provider end: every item was read, then the stream is truncated (K2).
+        let noEnd = ProviderRead.read(try F.load(provider, "finished-output-no-end"), provider: provider)
+        #expect(noEnd.steps.last == expected)
+        #expect(noEnd.error == .cutShort(.noFinish))
+        if provider == .gemini {
+            for name in ["happy-path", "finished-output-no-end"] {
+                #expect(try F.geminiOutputText(try F.load(provider, name)) == F.geminiHappyOutput, "\(name)")
+            }
+            #expect(try StructuredOutputReader.parse(F.geminiHappyOutput) == expected)
+        }
+    }
+
+    /// PO WI-M2-10 ruling 7 ticket: "All three providers get usage and served-model fields in the fixtures, and the
+    /// parsers ignore those fields for drafts" (review R29-F2).
+    @Test("AC-M2-24: the happy paths carry the ruling-7 usage and served-model fields, and the reader ignores them for drafts",
+          arguments: CloudProvider.allCases)
+    func rulingSevenShapes(_ provider: CloudProvider) throws {
+        let bytes = try F.load(provider, "happy-path")
+        let text = String(decoding: bytes, as: UTF8.self)
+        switch provider {
+        case .openAI:
+            #expect(text.contains(#""model":"gpt-6-luna""#))
+            // Every chunk carries "usage":null, then one include_usage chunk with no choices, before [DONE].
+            let events = text.components(separatedBy: "\n\n").filter { $0.hasPrefix("data: {") }
+            #expect(events.dropLast().allSatisfy { $0.contains(#""usage":null"#) })
+            let last = try #require(events.last)
+            #expect(last.contains(#""choices":[]"#) && last.contains(#""reasoning_tokens":"#))
+            #expect(text.hasSuffix(last + "\n\ndata: [DONE]\n\n"))
+        case .anthropic:
+            #expect(text.contains(#""model":"claude-haiku-4-5-20251001""#))
+            #expect(text.contains(#""usage":{"input_tokens""#) && text.contains(#""usage":{"output_tokens""#))
+        case .gemini:
+            #expect(text.contains(#""modelVersion":"gemini-3.5-flash-lite""#))
+            #expect(text.contains(#""thoughtsTokenCount":"#))
+            #expect(text.contains(#""thoughtSignature":"#))
+        }
+        let read = ProviderRead.read(bytes, provider: provider)
+        #expect(try read.end.get() == StructuredOutputReader.parse(F.happyOutput))
     }
 
     @Test("AC-M2-24 / AC-M2-04: the happy path's drafts: no room, an existing room, a proposed room; kinds and flags as sent",
@@ -217,7 +266,7 @@ struct ProviderStreamFixtureTests {
 
     /// PO tickets `po-q21-q22.md` (PR #22, PR #26) and `po-m2-wi12.md`: title arrives last, per provider.
     @Test("AC-M2-05 / AC-M2-24: in each provider's happy and out-of-order fixtures the title-last item gives exactly one emitted with the whole title, by rule (a) before the end, and no updated",
-          arguments: CloudProvider.allCases, ["happy-path", "out-of-order-fields"])
+          .serialized, arguments: CloudProvider.allCases, ["happy-path", "out-of-order-fields"])
     func titleArrivesLast(_ provider: CloudProvider, _ name: String) async throws {
         let bytes = try F.load(provider, name)
         for cuts in [ProviderRead.eventBoundaries(bytes), ProviderRead.everyByte(bytes)] {
@@ -265,6 +314,22 @@ struct ProviderStreamFixtureTests {
         #expect(drafts.map(\.kind) == [.oneOff, .oneOff])
         #expect(drafts.map(\.effort) == [.normal, .normal])
         #expect(drafts.map(\.room) == [.existing(MappingFixtures.kitchen.id), .none])
+    }
+
+    /// PO `po-m2-wi13.md` ticket: a fixture per provider where the output is finished but the provider's end is missing.
+    @Test("AC-M2-24 / AC-M2-05: finished output with no provider end keeps all 3 drafts, skips nothing and ends interrupted(outputCutShort) for any chunking",
+          .serialized, arguments: CloudProvider.allCases)
+    func finishedOutputNoEnd(_ provider: CloudProvider) async throws {
+        let bytes = try F.load(provider, "finished-output-no-end")
+        for cuts in [[], ProviderRead.eventBoundaries(bytes), ProviderRead.everyByte(bytes)] {
+            let events = await ProviderPipeline.events(bytes, provider: provider, cuts: cuts)
+            #expect(ProviderPipeline.finalDrafts(events).map(\.title) == F.happyTitles)
+            #expect(ProviderPipeline.skippedCount(events) == 0)
+            #expect(events.filter { if case .finished = $0 { true } else { false } }.count == 1)
+            #expect(ProviderPipeline.outcome(events) == .interrupted(route: .cloud(provider), reason: .outputCutShort,
+                                                                    discardedItem: nil, input: F.input))
+            await Task.yield()
+        }
     }
 
     @Test("AC-M2-24: the largest fixture is far below the response byte limit (1 MiB)")

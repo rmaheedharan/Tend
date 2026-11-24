@@ -46,7 +46,7 @@ public enum ProviderUnreadableCause: Hashable, Sendable {
     case outputNotJSON(JSONSyntaxIssue, byteOffset: Int)
     /// The provider ended normally with no output text at all.
     case noOutput
-    /// The body passed `ProviderStreamReader.responseByteLimit` (review R26-F2).
+    /// The body went past `ProviderStreamReader.responseByteLimit` before the provider's end (reviews R26-F2, R29-F1).
     case responseTooLarge
 }
 

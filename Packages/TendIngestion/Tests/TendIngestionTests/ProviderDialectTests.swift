@@ -265,21 +265,111 @@ struct ProviderStreamReaderTests {
 
     // MARK: R26-F2, the response size cap
 
-    @Test("R26-F2 / AC-M2-24: a body of exactly the limit is read; one byte more ends unreadable (responseTooLarge) at the chunk that passes it, for any chunking",
+    @Test("R26-F2 / R29-F1 / AC-M2-24: a body of exactly the limit is read; one byte more before the provider's end ends unreadable (responseTooLarge); bytes after the end are not counted; for any chunking",
           arguments: CloudProvider.allCases)
     func sizeCapBoundary(_ provider: CloudProvider) throws {
         let body = Array(B.body(provider, [B.output]).utf8)
         let expected = try StructuredOutputReader.parse(B.output)
         for cuts in [[], ProviderRead.everyByte(body), ProviderRead.eventBoundaries(body)] {
             #expect(ProviderRead.read(body, provider: provider, cuts: cuts, limit: body.count).end == .success(expected))
-            let over = ProviderRead.read(body + [0x0A], provider: provider, cuts: cuts, limit: body.count)
+            // Bytes before the end (a leading comment line) push the end past the limit. (One byte is not enough for
+            // Gemini: its body ends with CRLF CRLF, and a lone CR still ends the last event.)
+            let over = ProviderRead.read(Array(": padding padding.\n".utf8) + body, provider: provider, cuts: cuts,
+                                         limit: body.count)
             #expect(over.end == .failure(.unreadable(.responseTooLarge)))
+            // Bytes after the provider's end are dropped and not counted (R29-F1 (b)).
+            let tail = Array("data: {\"after\":\"the end\"}\n\n".utf8)
+            let after = ProviderRead.read(body + tail + tail, provider: provider, cuts: cuts, limit: body.count)
+            #expect(after.end == .success(expected))
         }
+        // The chunk that crosses the limit is read up to the limit; the part past it is not counted (R29-F1 (a)).
         var reader = ProviderStreamReader(provider: provider, responseByteLimit: 10)
         _ = try reader.append(Array("0123456789".utf8.prefix(4)))
         #expect(reader.receivedByteCount == 4)
         #expect(throws: ProviderStreamError.unreadable(.responseTooLarge)) { try reader.append(Array("0123456".utf8)) }
-        #expect(reader.receivedByteCount == 4)
+        #expect(reader.receivedByteCount == 10)
+        // After the end, append reads nothing and counts nothing.
+        var ended = ProviderStreamReader(provider: provider, responseByteLimit: body.count)
+        _ = try ended.append(body)
+        #expect(try ended.append(Array(repeating: 0x61, count: 50)) == nil)
+        #expect(ended.receivedByteCount == body.count)
+        #expect(try ended.finish() == expected)
+    }
+
+    /// Review R29-F1 (a): the cap must not make the result depend on the transport's chunk cuts.
+    @Test("R29-F1 / AC-M2-05 / AC-M2-24: a body past the limit whose first item completes under it gives the same drafts and outcome one shot, per event, byte by byte and at 8 random cut sets",
+          .serialized, arguments: CloudProvider.allCases)
+    func sizeCapChunkIndependence(_ provider: CloudProvider) async throws {
+        let longTitle = String(repeating: "a", count: 200)
+        let pieces = [#"{"items":["#, B.item, #",{"title":""#] + Array(repeating: longTitle, count: 30)
+        let body = Array(B.body(provider, pieces).utf8)
+        let limit = 2_048
+        #expect(body.count > limit + 1_000)
+        var rng = SplitMix64(seed: 0x29F1 &+ UInt64(body.count))
+        var cutSets = [[], ProviderRead.eventBoundaries(body), ProviderRead.everyByte(body)]
+        for _ in 0..<8 {
+            cutSets.append((0..<Int.random(in: 1...30, using: &rng)).map { _ in Int.random(in: 0...body.count, using: &rng) })
+        }
+        for (index, cuts) in cutSets.enumerated() {
+            let read = ProviderRead.read(body, provider: provider, cuts: cuts, limit: limit)
+            #expect(read.error == .unreadable(.responseTooLarge), "cut set \(index)")
+            let events = await ProviderPipeline.events(body, provider: provider, cuts: cuts, limit: limit,
+                                                      pipeline: StreamFixtures.pipeline(input: "mop"))
+            #expect(ProviderPipeline.emitted(events).map(\.title) == ["Mop the floor"], "cut set \(index)")
+            #expect(ProviderPipeline.outcome(events) == .interrupted(route: .cloud(provider), reason: .unreadableOutput,
+                                                                    discardedItem: .stoppedBeforeComplete, input: "mop"),
+                    "cut set \(index)")
+            await Task.yield()
+        }
+        // The draft is emitted even when the whole body arrives in one chunk: the hold rule (K3) returns the
+        // snapshot of the part under the limit first.
+        var reader = ProviderStreamReader(provider: provider, responseByteLimit: limit)
+        let snapshot = try #require(try reader.append(body))
+        #expect(snapshot.items.first?.hasValueForEveryField == true)
+        #expect(reader.receivedByteCount == limit)
+        #expect(throws: ProviderStreamError.unreadable(.responseTooLarge)) { try reader.finish() }
+    }
+
+    /// PO `po-m2-wi13.md` tickets: the two reader cases of "no provider end" (K2 confirmed).
+    @Test("AC-M2-24 / AC-M2-05: finished output with no provider end: a last item that only rule (c) could complete is discarded, the earlier draft kept, interrupted",
+          arguments: CloudProvider.allCases)
+    func noEndDiscardsTheLastItem(_ provider: CloudProvider) async throws {
+        let output = #"{"items":["# + B.item + #",{"title":"Wipe the table","kind":"oneOff"}]}"#
+        let body = Array(Self.unended(provider, output).utf8)
+        #expect(ProviderRead.read(body, provider: provider).error == .cutShort(.noFinish))
+        let events = await ProviderPipeline.events(body, provider: provider,
+                                                  pipeline: StreamFixtures.pipeline(input: "mop, wipe the table"))
+        #expect(ProviderPipeline.emitted(events).map(\.title) == ["Mop the floor"])
+        #expect(ProviderPipeline.outcome(events) == .interrupted(route: .cloud(provider), reason: .outputCutShort,
+                                                                discardedItem: .stoppedBeforeComplete,
+                                                                input: "mop, wipe the table"))
+    }
+
+    @Test("AC-M2-24: finished {\"items\":[]} with no provider end ends noModel with the plain-note offer, never completed",
+          arguments: CloudProvider.allCases)
+    func noEndEmptyItems(_ provider: CloudProvider) async throws {
+        let body = Array(Self.unended(provider, #"{"items":[]}"#).utf8)
+        #expect(ProviderRead.read(body, provider: provider).error == .cutShort(.noFinish))
+        let events = await ProviderPipeline.events(body, provider: provider,
+                                                  pipeline: StreamFixtures.pipeline(input: "mop"))
+        guard case let .noModel(route, reason, input, note)? = ProviderPipeline.outcome(events) else {
+            Issue.record("expected noModel, got \(events)")
+            return
+        }
+        #expect(events.count == 1)
+        #expect(route == .cloud(provider))
+        #expect(reason == .stoppedBeforeFirstDraft(.outputCutShort))
+        #expect(input == "mop")
+        #expect(note?.title == "mop")
+    }
+
+    /// A body with the whole output and no provider end, cut cleanly at an event boundary.
+    static func unended(_ provider: CloudProvider, _ output: String) -> String {
+        switch provider {
+        case .openAI: Body.openAI([output], finish: nil, done: false)
+        case .anthropic: Body.anthropic([output], end: false)
+        case .gemini: Body.gemini([output], finish: nil)
+        }
     }
 
     @Test("R26-F2 / AC-M2-24: a stream with no line end (or one endless output) stops at the limit; before a draft noModel, after one interrupted",
@@ -445,6 +535,17 @@ struct AnthropicDialectTests {
         expectStop(B.anthropic([B.output], stop: nil), provider, .cutShort(.noFinish))
     }
 
+    /// PO `po-m2-wi13.md` ticket: the Anthropic partial end.
+    @Test("AC-M2-24: a normal stop_reason without message_stop is cut short (noFinish), even with finished output")
+    func normalStopWithoutMessageStop() {
+        for reason in ["tool_use", "end_turn", "stop_sequence"] {
+            let body = B.anthropic([B.output], end: false)
+                + B.anthropicEvent("content_block_stop", #"{"type":"content_block_stop","index":0}"#)
+                + B.anthropicStop(reason)
+            expectStop(body, provider, .cutShort(.noFinish))
+        }
+    }
+
     @Test("AC-M2-24: a text block before the tool block is ignored; pings and unknown event types are ignored; the SSE event name is not trusted over the data type")
     func ignored() throws {
         let body = B.anthropicEvent("message_start", #"{"type":"message_start","message":{}}"#)
@@ -483,6 +584,13 @@ struct AnthropicDialectTests {
             Body.anthropicEvent("message_start", #"{"type":"message_start"}"#)
                 + Body.anthropicEvent("message_start", #"{"type":"message_start"}"#),
             Body.anthropicEvent("x", #"{"index":0}"#),
+            // Review R29-F3: R3 (message_delta or message_stop before message_start) and R5 (a stopped index restarted).
+            Body.anthropicEvent("message_delta", #"{"type":"message_delta","delta":{"stop_reason":"tool_use"}}"#),
+            Body.anthropicEvent("message_stop", #"{"type":"message_stop"}"#),
+            Body.anthropicStart + Body.anthropicEvent("content_block_stop", #"{"type":"content_block_stop","index":0}"#)
+                + Body.anthropicEvent(
+                    "content_block_start",
+                    #"{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","input":{}}}"#),
             Body.anthropicStart + Body.anthropicEvent("content_block_delta", #"{"type":"content_block_delta","delta":{}}"#),
           ])
     func unexpectedStructure(_ prefix: String) {
@@ -530,7 +638,7 @@ struct GeminiDialectTests {
     func parts() throws {
         let mid = B.output.index(B.output.startIndex, offsetBy: 20)
         let body = "data: " + #"{"candidates":[{"content":{"parts":[{"text":"x","thought":true},{"text":"#
-            + B.literal(String(B.output[..<mid])) + "},{\"text\":\"\"}]},\"index\":0}]}\r\n\r\n"
+            + B.literal(String(B.output[..<mid])) + ",\"thought\":null},{\"text\":\"\",\"thought\":false}]},\"index\":0}]}\r\n\r\n"
             + "data: " + #"{"usageMetadata":{"totalTokenCount":3}}"# + "\r\n\r\n"
             + "data: " + #"{"candidates":[{"content":null,"index":0}]}"# + "\r\n\r\n"
             + "data: " + #"{"candidates":[{"content":{"parts":[{"text":"#
@@ -548,6 +656,7 @@ struct GeminiDialectTests {
             #"{"candidates":[{"content":{"parts":[{"text":5}]},"index":0}]}"#,
             #"{"candidates":[{"content":{"parts":["x"]},"index":0}]}"#,
             #"{"candidates":[{"index":0,"finishReason":5}]}"#,
+            #"{"candidates":[{"content":{"parts":[{"text":"x","thought":"yes"}]},"index":0}]}"#,  // R29-N1
           ])
     func unexpectedStructure(_ event: String) {
         expectStop("data: \(event)\r\n\r\n" + B.gemini([B.output]), provider, .unreadable(.unexpectedStructure))
@@ -566,7 +675,7 @@ struct GeminiDialectTests {
 struct ProviderDialectPropertyTests {
 
     @Test("AC-M2-24: 3 seeds × 200 outputs × 3 providers; one shot and 2 random cut sets equal StructuredOutputReader.parse; snapshots only grow",
-          arguments: [UInt64(0x0D1A_1EC7_1301), 0x0D1A_1EC7_1302, 0x0D1A_1EC7_1303])
+          .serialized, arguments: [UInt64(0x0D1A_1EC7_1301), 0x0D1A_1EC7_1302, 0x0D1A_1EC7_1303])
     func randomBodies(seed: UInt64) async throws {
         var corpus = OutputCorpus(rng: SplitMix64(seed: seed))
         var writer = DialectWriter(rng: SplitMix64(seed: seed ^ 0xFFFF))
@@ -591,6 +700,8 @@ struct ProviderDialectPropertyTests {
                             #expect(item.isEarlierState(of: later), "seed \(seed) case \(index) \(provider)")
                         }
                     }
+                    // One read at a time on a pool thread: the time-limited cancellation tests share the pool.
+                    await Task.yield()
                 }
                 counts[provider, default: 0] += expected.items.count
             }

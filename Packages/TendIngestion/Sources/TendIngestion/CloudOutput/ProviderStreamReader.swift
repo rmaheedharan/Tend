@@ -19,13 +19,16 @@
 // - **The end** (`finish`): a body that stops inside an event is `bodyEndedInsideEvent`; one without the provider's
 //   normal end is `noFinish` (each dialect's `checkEnd`); a normal end with no output text is `noOutput`; with
 //   unfinished output JSON, `outputUnfinished`.
-// - **The response size cap (R26-F2).** A body longer than `responseByteLimit` bytes (default 1 MiB) ends with
-//   `unreadable(.responseTooLarge)` at the chunk that would pass the limit, and that chunk is not read. So the framer's
-//   line and data buffers, the event parser and the output text each stay within the limit, whatever the server sends.
-//   The 10.0 s deadline (WI-M2-14) bounds time; this bounds memory. One capture's output is a few kilobytes, and the
-//   largest synthetic fixture is under 30 KB.
-// - **Sticky.** After an error every call throws it again; after `finish` returns, `finish` returns the same snapshot
-//   and `append` reads nothing.
+// - **The response size cap (R26-F2, R29-F1).** A body that goes past `responseByteLimit` bytes (default 1 MiB) before
+//   the provider's end ends with `unreadable(.responseTooLarge)`. The chunk that crosses the limit is read up to the
+//   limit, and the stop follows the same hold rule as any other stop: if that part added output, `append` returns
+//   its snapshot and the next call throws. So exactly the first `responseByteLimit` bytes are read, whatever the
+//   chunk cuts, and the outcome does not depend on them. Bytes after the provider's end are dropped and not counted.
+//   The framer's line and data buffers, the event parser and the output text each stay within the limit, whatever
+//   the server sends. The 10.0 s deadline (WI-M2-14) bounds time; this bounds memory. One capture's output is a few
+//   kilobytes, and the largest synthetic fixture is under 30 KB.
+// - **Sticky.** After an error every call throws it again; after `finish` returns, or after the provider's end,
+//   `append` reads nothing, and `finish` returns the same snapshot every time.
 // Pure value type: no I/O, no clock, no logging, no network.
 
 import Foundation
@@ -44,14 +47,14 @@ public struct ProviderStreamReader: Sendable {
     public let provider: CloudProvider
     /// The most body bytes this reader accepts.
     public let responseByteLimit: Int
-    /// The body bytes read so far (a chunk refused by the cap is not counted).
+    /// The body bytes read so far: at most `responseByteLimit`; bytes past the limit or after the provider's end are not
+    /// counted.
     public private(set) var receivedByteCount = 0
 
     private var framer = ServerSentEventFramer()
     private var dialect: Dialect
     private var output = StructuredOutputReader()
     private var outputByteCount = 0
-    private var snapshot = IngestionSnapshot(items: [])
     private var error: ProviderStreamError?
     private var final: IngestionSnapshot?
 
@@ -69,13 +72,15 @@ public struct ProviderStreamReader: Sendable {
     /// nil. Throws the first stop; a stop that follows new output in the same chunk is thrown by the next call.
     public mutating func append(_ bytes: some Collection<UInt8>) throws(ProviderStreamError) -> IngestionSnapshot? {
         if let error { throw error }
-        guard final == nil else { return nil }
-        guard bytes.count <= responseByteLimit - receivedByteCount else {
-            throw fail(.unreadable(.responseTooLarge))
-        }
-        receivedByteCount += bytes.count
+        // After the provider's end (or `finish`), later bytes are dropped and not counted (review R29-F1 (b)).
+        guard final == nil, !hasEnded else { return nil }
+        // Only the part of the chunk that fits under the cap is read (review R29-F1 (a)); the rest is not counted.
+        let room = responseByteLimit - receivedByteCount
+        let accepted = bytes.prefix(room)
+        let overLimit = bytes.count > room
+        receivedByteCount += accepted.count
         var changed = false
-        for event in framer.append(bytes) where !hasEnded {
+        for event in framer.append(accepted) where !hasEnded {
             let step: DialectStep
             do throws(ProviderStreamError) {
                 step = try read(event)
@@ -88,7 +93,9 @@ public struct ProviderStreamReader: Sendable {
             }
             if let failure = step.stop { return try stop(failure, changed: changed) }
         }
-        return changed ? snapshot : nil
+        // The body goes past the cap before the provider's end: the same hold rule as any other stop (K3).
+        if overLimit, !hasEnded { return try stop(.unreadable(.responseTooLarge), changed: changed) }
+        return changed ? output.snapshot : nil
     }
 
     /// The body ended normally (the transport finished). Returns the final snapshot, or throws why the output is not
@@ -152,12 +159,13 @@ public struct ProviderStreamReader: Sendable {
         }
     }
 
-    /// Reads output text into the snapshot. On invalid JSON, the text before the bad byte is read, and the error is
-    /// returned.
+    /// Reads output text (no snapshot is built here: `append` builds one per call, not per event, so a chunk with many
+    /// events costs one snapshot; review R29-N2). On invalid JSON, the text before the bad byte is read, and the error
+    /// is returned.
     private mutating func readOutput(_ text: String) -> ProviderStreamError? {
         let before = output
         do throws(PartialJSONError) {
-            snapshot = try output.append(text)
+            try output.read(bytes: text.utf8)
             outputByteCount += text.utf8.count
             return nil
         } catch {
@@ -166,7 +174,7 @@ public struct ProviderStreamReader: Sendable {
             // Read again from the state before this piece, up to the bad byte (the prefix is valid, so this succeeds).
             output = before
             let valid = text.utf8.prefix(max(0, offset - outputByteCount))
-            if let prefixSnapshot = try? output.append(bytes: valid) { snapshot = prefixSnapshot }
+            try? output.read(bytes: valid)
             outputByteCount += valid.count
             return .unreadable(.outputNotJSON(issue, byteOffset: offset))
         }
@@ -176,7 +184,7 @@ public struct ProviderStreamReader: Sendable {
     private mutating func stop(_ failure: ProviderStreamError, changed: Bool) throws(ProviderStreamError)
         -> IngestionSnapshot? {
         error = failure
-        if changed { return snapshot }
+        if changed { return output.snapshot }
         throw failure
     }
 

@@ -64,6 +64,39 @@ enum ProviderFixtures {
         + #""sourcePhrase":"deep clean the balcony this weekend","title":"Deep clean the balcony"}"#
     static let happyOutput = #"{"items":["# + item1 + "," + item2 + "," + item3 + "]}"
     static let happyTitles = ["Service the AC", "Buy dishwasher pods", "Deep clean the balcony"]
+
+    /// Gemini's happy-path output in the `responseJsonSchema` dialect (PO WI-M2-10 ruling 7): every member, in sorted
+    /// key order (so `title` is last in every item), `null` for the nullable hint members and claims.
+    static let geminiHappyOutput = #"{"items":["#
+        + #"{"effort":"normal","isCritical":false,"isDeepClean":false,"isWeatherDependent":false,"kind":"oneOff","#
+        + #""room":"","sameAsExisting":null,"sameAsItem":null,"sourcePhrase":"The AC needs servicing before summer","#
+        + #""time":{"anchor":"beforeSeason","count":null,"daypart":null,"month":null,"repeatEvery":null,"#
+        + #""repeatUnit":null,"season":"summer","weekday":null},"title":"Service the AC"},"#
+        + #"{"effort":"low","isCritical":false,"isDeepClean":false,"isWeatherDependent":false,"kind":"restock","#
+        + #""room":"Kitchen","sameAsExisting":null,"sameAsItem":null,"sourcePhrase":"almost out of dishwasher pods","#
+        + #""time":{"anchor":"none","count":null,"daypart":null,"month":null,"repeatEvery":null,"repeatUnit":null,"#
+        + #""season":null,"weekday":null},"title":"Buy dishwasher pods"},"#
+        + #"{"effort":"high","isCritical":false,"isDeepClean":true,"isWeatherDependent":true,"kind":"oneOff","#
+        + #""room":"Balcony","sameAsExisting":null,"sameAsItem":null,"#
+        + #""sourcePhrase":"deep clean the balcony this weekend","#
+        + #""time":{"anchor":"thisWeekend","count":null,"daypart":null,"month":null,"repeatEvery":null,"#
+        + #""repeatUnit":null,"season":null,"weekday":null},"title":"Deep clean the balcony"}"#
+        + "]}"
+
+    /// The output text a Gemini body carries: the non-thought part texts joined in order (read with Foundation's
+    /// `JSONSerialization`, independently of the reader under test).
+    static func geminiOutputText(_ bytes: [UInt8]) throws -> String {
+        var text = ""
+        for line in String(decoding: bytes, as: UTF8.self).components(separatedBy: "\r\n") where line.hasPrefix("data: ") {
+            let object = try JSONSerialization.jsonObject(with: Data(line.dropFirst(6).utf8)) as? [String: Any]
+            let candidates = object?["candidates"] as? [[String: Any]] ?? []
+            for candidate in candidates {
+                let parts = (candidate["content"] as? [String: Any])?["parts"] as? [[String: Any]] ?? []
+                for part in parts where part["thought"] as? Bool != true { text += part["text"] as? String ?? "" }
+            }
+        }
+        return text
+    }
     /// The text of the invalid-JSON fixtures up to the bad byte (`r` of the bare word `restock`).
     static let invalidPrefix = #"{"items":["# + item1 + #",{"title":"Buy dishwasher pods","kind":"#
 
@@ -141,9 +174,12 @@ struct ProviderRead {
 struct ChunkedProviderModel: IngestionModel {
     let provider: CloudProvider
     let chunks: [[UInt8]]
+    let limit: Int
 
-    init(provider: CloudProvider, bytes: [UInt8], cuts: [Int]) {
+    init(provider: CloudProvider, bytes: [UInt8], cuts: [Int],
+         limit: Int = ProviderStreamReader.defaultResponseByteLimit) {
         self.provider = provider
+        self.limit = limit
         var chunks: [[UInt8]] = []
         var start = 0
         for cut in cuts.sorted() + [bytes.count] where cut >= start {
@@ -154,19 +190,24 @@ struct ChunkedProviderModel: IngestionModel {
     }
 
     func snapshots(for request: IngestionRequest) -> AsyncThrowingStream<IngestionSnapshot, any Error> {
-        let provider = provider
-        let chunks = chunks
+        let (provider, chunks, limit) = (provider, chunks, limit)
         return AsyncThrowingStream { continuation in
-            var reader = ProviderStreamReader(provider: provider)
-            do throws(ProviderStreamError) {
-                for chunk in chunks {
-                    if let snapshot = try reader.append(chunk) { continuation.yield(snapshot) }
+            // A producer task that yields every 256 chunks, so a byte-by-byte body does not hold a cooperative-pool
+            // thread for long (the time-limited cancellation tests share the pool; WI-M2-12 J9).
+            let producer = Task {
+                var reader = ProviderStreamReader(provider: provider, responseByteLimit: limit)
+                do throws(ProviderStreamError) {
+                    for (index, chunk) in chunks.enumerated() {
+                        if let snapshot = try reader.append(chunk) { continuation.yield(snapshot) }
+                        if index % 256 == 255 { await Task.yield() }
+                    }
+                    continuation.yield(try reader.finish())
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error.stopReason)
                 }
-                continuation.yield(try reader.finish())
-                continuation.finish()
-            } catch {
-                continuation.finish(throwing: error.stopReason)
             }
+            continuation.onTermination = { _ in producer.cancel() }
         }
     }
 }
@@ -174,8 +215,9 @@ struct ChunkedProviderModel: IngestionModel {
 enum ProviderPipeline {
     /// The draft stream events for a body on the provider's cloud route, through the public pipeline.
     static func events(_ bytes: [UInt8], provider: CloudProvider, cuts: [Int] = [],
+                       limit: Int = ProviderStreamReader.defaultResponseByteLimit,
                        pipeline: DraftPipeline = ProviderFixtures.pipeline()) async -> [DraftStreamEvent] {
-        let model = ChunkedProviderModel(provider: provider, bytes: bytes, cuts: cuts)
+        let model = ChunkedProviderModel(provider: provider, bytes: bytes, cuts: cuts, limit: limit)
         var events: [DraftStreamEvent] = []
         for await event in pipeline.events(from: .cloud(provider, model)) { events.append(event) }
         return events

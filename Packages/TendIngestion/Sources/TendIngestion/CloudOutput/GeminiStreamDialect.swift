@@ -1,10 +1,15 @@
-// The Gemini stream dialect: `streamGenerateContent?alt=sse` with `responseMimeType: application/json` and a
-// `responseSchema` (plan WI-M2-10 endpoint; WI-M2-13; AC-M2-24). FR-A1, P-3.
+// The Gemini stream dialect: `streamGenerateContent?alt=sse` with `responseMimeType: application/json` and the output
+// schema in `responseJsonSchema` (plan WI-M2-10 endpoint; WI-M2-13; AC-M2-24). FR-A1, P-3.
 //
+// The request (WI-M2-10, PO WI-M2-10 ruling 7): model `gemini-3.5-flash-lite`, the output schema in the JSON-Schema
+// member `responseJsonSchema` (`type` arrays with `"null"`; members in sorted key order), and
+// `thinkingConfig.thinkingLevel: "minimal"`, the lowest documented level, which is not documented as zero thinking.
 // The documented format, as read here (synthetic fixtures; real recordings are WI-M2-M6):
 // - every event is `data: <GenerateContentResponse JSON>` with no event name and no end sentinel;
-// - the output text is the `text` of each part of `candidates[0].content.parts`, in order; a part with
-//   `"thought": true` is not output (the request sets the thinking budget to 0, so none is expected);
+// - the output text is the `text` of each part of `candidates[0].content.parts`, in order. A part with
+//   `"thought": true` is not output (none is expected without `includeThoughts`, but minimal thinking is not zero). A
+//   `thought` that is not a Boolean is `unexpectedStructure`. Other part members (`thoughtSignature`) and
+//   `usageMetadata` (`thoughtsTokenCount`) are ignored for drafts;
 // - `candidates[0].finishReason`: `STOP` is the normal finish; `MAX_TOKENS` cuts the output; `SAFETY`,
 //   `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII` and `IMAGE_SAFETY` are safety stops; `LANGUAGE` is an
 //   unsupported language; anything else (`OTHER`, `MALFORMED_FUNCTION_CALL`, `FINISH_REASON_UNSPECIFIED`, a new one) is
@@ -37,7 +42,7 @@ struct GeminiStreamDialect: Sendable {
             guard (try candidate.wholeNumber("index") ?? 0) == 0 else { throw .unreadable(.unexpectedStructure) }
             for part in try candidate.object("content")?.array("parts") ?? [] {
                 let part = try part.requireObject()
-                if part["thought"] == .bool(true) { continue }
+                if try part.bool("thought") == true { continue }
                 if let text = try part.string("text") { step.output += text }
             }
             if let reason = try candidate.string("finishReason") {

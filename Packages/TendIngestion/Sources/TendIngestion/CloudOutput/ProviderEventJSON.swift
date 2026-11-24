@@ -38,6 +38,13 @@ extension PartialJSONValue {
         return text
     }
 
+    /// A Boolean member; nil when missing or `null` (review R29-N1).
+    func bool(_ key: String) throws(ProviderStreamError) -> Bool? {
+        guard let value = present(key) else { return nil }
+        guard case let .bool(flag) = value else { throw .unreadable(.unexpectedStructure) }
+        return flag
+    }
+
     /// An object member; nil when missing or `null`.
     func object(_ key: String) throws(ProviderStreamError) -> PartialJSONValue? {
         guard let value = present(key) else { return nil }

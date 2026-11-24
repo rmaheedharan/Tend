@@ -1,6 +1,10 @@
 // The OpenAI stream dialect: Chat Completions with `stream: true` and a strict JSON-schema `response_format` (plan
 // WI-M2-10 endpoint; WI-M2-13; AC-M2-24). FR-A1, P-3.
 //
+// The request (WI-M2-10, PO WI-M2-10 ruling 7): model `gpt-6-luna`, `reasoning_effort: "none"` and
+// `stream_options: {"include_usage": true}`. So every chunk carries `"usage": null`, and one more chunk with
+// `"choices": []` and the usage (`completion_tokens_details.reasoning_tokens`) comes after the finish chunk, before
+// `[DONE]`. The served `model` and the usage are ignored for drafts (the drift check reads them, WI-M2-M6).
 // The documented format, as read here (synthetic fixtures; real recordings are WI-M2-M6):
 // - every event is `data: <chat.completion.chunk JSON>` with no event name; the body ends with `data: [DONE]`;
 // - the output text is `choices[0].delta.content`, in pieces; a `null` or empty piece adds nothing;

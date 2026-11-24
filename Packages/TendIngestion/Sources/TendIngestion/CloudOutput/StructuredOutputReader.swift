@@ -58,6 +58,15 @@ public struct StructuredOutputReader: Sendable {
         return Self.snapshot(of: parser.value)
     }
 
+    /// Reads the next byte chunk without building a snapshot (`ProviderStreamReader` builds one per body chunk, not per
+    /// event; review R29-N2).
+    mutating func read(bytes: some Sequence<UInt8>) throws(PartialJSONError) {
+        try parser.append(bytes)
+    }
+
+    /// The snapshot of the text read so far.
+    var snapshot: IngestionSnapshot { Self.snapshot(of: parser.value) }
+
     /// Ends the text and returns the final snapshot; throws `cutShort` if the JSON is not finished.
     public mutating func finish() throws(PartialJSONError) -> IngestionSnapshot {
         Self.snapshot(of: try parser.finish())

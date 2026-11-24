@@ -1,6 +1,9 @@
 // The Anthropic stream dialect: Messages with `stream: true` and structured output by one forced tool (plan WI-M2-10
 // endpoint; WI-M2-13; AC-M2-24). FR-A1, P-3.
 //
+// The request (WI-M2-10, PO WI-M2-10 ruling 7): model `claude-haiku-4-5-20251001`, `anthropic-version: 2023-06-01`,
+// the forced tool, no `thinking` member. The served `message.model` and the usage in `message_start` and
+// `message_delta` are ignored for drafts (the drift check reads them, WI-M2-M6).
 // The documented format, as read here (synthetic fixtures; real recordings are WI-M2-M6):
 // - named events whose data carries the same `type`; the data's `type` is what counts (the event name is not used);
 // - `message_start`, then content blocks: `content_block_start` (`index`, `content_block.type`),
