@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-10 context selector and cloud payload builder (PR #28, `m2/payload-builder`, head `f1f6baf`)
 
-- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE (round 2, head `dda1929`; round 1 was APPROVE at `f1f6baf`)  ·  **Round:** 2
 - **Requirements:** FR-A1, P-1, P-2, P-3, P-4, UX-3. This PR delivers part of AC-M2-20; WI-M2-11 owns the AC and
   delivers the ≥ 500-household sentinel and structural proof. Also covered: AC-M2-09 Rule 4 narrowing (review R1-F6)
   and regression runs of AC-M2-09 and AC-M2-12. Inputs to AC-M2-21 (formatting), AC-M2-26 (`ds2-gated` allowed lists)
@@ -164,3 +164,139 @@ No Blocker or Major is open. F1–F7 are Minor tickets with named owners and do 
 | 2026-11-23 | Reviewer | Orchestrator → Merge Gatekeeper; tickets to Developer (WI-M2-11, M4, M5), Tester, PO, Planner | accepted (APPROVE, round 1) | 4 packages green, 0 warnings (437/63/141/8). No Blocker/Major. Minor tickets: F1 Rule 4 exact-path plant; F2 one derivation path or equivalence property + D11 test, WI-M2-11 proof through the production path; F3 builder-level ≤ 10 cap; F4 Darwin default headers (WI-M2-M4, PO); F5 key whitespace/control characters (WI-M2-M5/M4); F6 concrete-index structural check (WI-M2-11) and the `ds2-gated` element-count question (Tester/PO). PO: R-6 live check of models, shapes and opt-outs and the Gemini stable-ID question before the WI-M2-16 freeze; confirm D8. Planner: confirm the plan "Named files" row. |
 | 2026-11-24 | Orchestrator | Reviewer | accepted | Mid-review: PO rulings `po-m2-wi10.md` (1–4, 6, 7) and live check `l1-model-check-2026-11-23.md`. Direction: do not block on model IDs; note what makes a model swap hard. |
 | 2026-11-24 | Reviewer | Orchestrator → Merge Gatekeeper; Developer (ruling-7 regeneration PR), PO, Tester, Planner | accepted (APPROVE, round 1, updated) | Verdict unchanged. Added F7 (model-dependent members hard-coded per provider; Gemini dialect fixed; tests pin models; `curated == [default]` forbids fallbacks). The OpenAI and Gemini goldens and lists are known stale under ruling 7 and must be regenerated before WI-M2-16 and the freeze. F4 is aligned with PO ruling 4. D8 is confirmed under ruling 3. Open questions 1, 2, 3 and 5 are closed by the PO; 4 stays with the Tester. |
+
+## Round 2 — head `dda1929` (code `1ccd82e`, brief and plan `838ea54`, dev-notes `dda1929`; `main` still `6fd1bf4`, no merge)
+
+- **Verdict:** APPROVE. No Blocker or Major is open. F1, F3 and F7 are closed. F2, F4, F5 and F6 stay open as tickets
+  with named owners, as in round 1.
+- **Inputs added this round:** PO `po-m2-wi10.md` rulings 3, 4 and 7 (ruling 7 is final). Live check
+  `l1-model-check-2026-11-23.md` (L1, L1b, and the 2026-11-24 "Gemini request shape check"). The coordinator directed
+  me to treat the Gemini member names as open, not as a finding.
+- **Milestone lock:** M1 `ACCEPTED`, M2 `IN-BUILD`. No protected path is touched: `git diff --stat f1f6baf..dda1929`
+  lists Fixtures/M2/payload, Packages/TendIngestion, the TendSourceScan tests, the TendTools test,
+  `docs/milestones/M2/{brief,plan,dev-notes,review-WI-M2-10}.md`. The committed review file is byte-identical to my
+  round-1 file.
+
+### Test runs (round 2, this review; `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, worktree at `dda1929` mounted read-only)
+| Package | Summary line | Warnings |
+|---|---|---|
+| Packages/TendIngestion | `✔ Test run with 441 tests in 51 suites passed after 48.766 seconds.` (AC-M2-09: `46 files in total, 0 violations`; AC-M2-12 vocabulary scan: `46 files, 9 exempted (the list), 0 violations`) | 0 |
+| Packages/TendSourceScan | `✔ Test run with 63 tests in 4 suites passed after 1.284 seconds.` | 0 |
+| Packages/TendCore | `✔ Test run with 141 tests in 18 suites passed after 76.193 seconds.` | 0 |
+| Tools/TendTools | `✔ Test run with 8 tests in 1 suite passed after 0.076 seconds.` | 0 |
+
+### Ruling 7 applied exactly (`po-m2-wi10.md`, "FINAL model list" and "Exact fixed request members per provider")
+I checked the regenerated golden bodies against ruling 7's text member by member, in Python, outside the Swift code.
+
+| Provider | Ruling 7 | Golden G2 body (all three goldens agree) | Match |
+|---|---|---|---|
+| OpenAI | `model: gpt-6-luna`; `messages`, `response_format` as built; `stream: true`; `stream_options.include_usage: true`; `reasoning_effort: "none"`; `store: false`; `max_completion_tokens: 4096`; **no** `temperature` | exactly these. Compared with round 1: `messages` and `response_format` are unchanged, the members `stream_options` and `reasoning_effort` are added, and `temperature` is removed | yes |
+| Anthropic | unchanged from PR #28 round 1 | all 6 golden files and the list are SHA-256-identical to `f1f6baf` (`0b3a88b2…`, `266f52e9…`, `137884f5…`, `3b54b5b9…`, heads `1c7eda46…`) | yes |
+| Gemini | path `/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse`; `generationConfig` = `responseMimeType`, the JSON-Schema member (`responseJsonSchema`), `maxOutputTokens: 4096`, `thinkingConfig.thinkingLevel: "minimal"`; **no** `temperature` or `thinkingBudget`; `type` arrays with `"null"`; plain `enum`; no `nullable`, `format` or `propertyOrdering`; rule-(a) members never nullable | exactly these. No banned keyword anywhere in the schema. `room` is `{"type":"string"}`, `kind` is a non-null enum, `daypart` is `{"type":["string","null"],"enum":[…,null]}`, and `additionalProperties: false` is on every object | yes (member name open, see below) |
+
+Headers are unchanged: the provider's headers only. `User-Agent: Tend` and `Accept-Language: en-US` (ruling 4) belong
+to the transport and are ticket F4 for WI-M2-M4, as ruling 4 assigns. The user-content string in all 9 goldens is
+identical to round 1.
+
+### Regenerated goldens and lists, checked independently again
+- **Canonical form.** All 9 bodies and 3 lists pass my round-1 Python oracle: no duplicate keys, keys sorted by UTF-8,
+  no floats, byte-identical after re-serialisation, no `\/`, no trailing newline.
+- **Key paths.** For each provider, the 3 goldens have the same leaf-path set, and it equals the committed list:
+  OpenAI 48 paths, Anthropic 47, Gemini 41. Header roles are unchanged.
+- **N-3.** No decimal string 600…729 occurs outside the user slot.
+- **Agreement with the developer.** The developer's own two Python oracles (dev-notes round 2) agree. Mine was written
+  separately in round 1 and reused unchanged.
+
+### Findings, round 2
+| # | Severity | Round-2 change | Verification | Status |
+|---|---|---|---|---|
+| R28-F1 | Minor | `rule4AllowedPlacements` adds 3 plants: the table's file name in `…/Duplicates/` (TendIngestion), in `TendAI/Cloud/`, and as `OldCloudProviderTable.swift`. | I re-ran my mutant **M-A** (`hasSuffix("CloudProviderTable.swift")`) on a fresh scratch copy: **killed** (2 issues). | **Closed** |
+| R28-F2 | Minor | Ticket to WI-M2-11 is recorded in dev-notes with the D11 test. | The ticket text matches the round-1 required change. | Open (ticket, WI-M2-11) |
+| R28-F3 | Minor | `CloudPayloadError.tooManyShortlistTitles(count:)` is thrown in `userContent` (`CloudPayloadBuilder.swift:72-73`), and `request` and `body` reach it. The limit is `DuplicateShortlist.limit`. `builderTitleCap` tests the 3 entry points × 3 providers with 11 titles refused, and 10 titles sent with indices 1…10. | I read the code. Dev mutants F3-1…3 are killed. A typed error instead of truncation (D16) is the right choice, because truncation could separate the indices sent from the shortlist the rules check. | **Closed** |
+| R28-F4 | Minor | Ticket to WI-M2-M4 is restated per PO ruling 4, with the exact values and the transport-set list. | Matches ruling 4. | Open (ticket, WI-M2-M4) |
+| R28-F5 | Minor | Ticket to WI-M2-M5/M4, PO decides trim or refuse. | — | Open (ticket) |
+| R28-F6 | Minor | Ticket to WI-M2-11, plus the Tester/PO question. | — | Open (ticket) |
+| R28-F7 | Minor | `CloudRequestProfile` holds sampling, reasoning, usage, schema dialect and schema member per `CloudModel`, in `CloudProviderTable.swift:62-118, 164-185`. The builder reads the profile and branches on provider only for the protocol shape. Case names are neutral. The comments no longer state model facts. `curated(for:)` puts the default first and allows fallbacks. The tests read the hand-written `PayloadExpectedModel.all` (`PayloadTestSupport.swift`, written from ruling 7's text, with present **and** absent members, such as `$.temperature`, `$.user`, `$.metadata` and `$.safety_identifier`). `profileDrivesBody` proves that a same-provider profile needs no builder change. | I read it all. The table is not derived from production: it uses literals only, including `$.max_completion_tokens: 4096` and the absent lists. My mutants **R2-G** (Gemini `room` made nullable in the type-array dialect: 8 issues) and **R2-H** (`include_usage: false`: 6 issues) are both **killed**. The developer reports 48 of 48 mutants killed (R7-1…14, F7-1…6, F3-1…3, M-A). | **Closed** |
+| R28-N1 | Nit | `rule1Positive` also runs the code at a general path, without the host. | Read. | Closed |
+| R28-N2 | Nit | Recorded as a Tester watch item. | — | Closed (noted) |
+| R28-N3 | Nit | Still the Planner's to confirm. | — | Open (Planner) |
+| R28-N4 | Nit (new) | `CloudPayloadBuilder.swift:100-103, 148-154` (D12) | If a profile's reasoning member has no place in the provider's body, the builder drops it **silently**. Only the `curatedModels` test (`fits`) guards this, for curated models. A mistaken profile would send the provider's default reasoning, which goes against revised Q18 condition 5. The test covers every curated model, so this is safe today. | Optional: make the builder refuse a profile that does not `fit` (a typed error), so the guard does not depend on a test alone. | — |
+| R28-N5 | Nit (new) | `docs/milestones/M2/plan.md` (commit `838ea54`) | The PO addressed ruling 7's plan amendments to the Planner ("Planner applies, word for word"), but the Developer applied them. They match word for word (below). The Developer's dev-notes ticket names the leftovers for the Planner: the "Proposed endpoints" bullets still say `temperature: 0` and `responseSchema`; ruling 1's L1 sentence (moot now that L1 has run); and the WI-M2-16 DoR items L1/L2a. | Planner: confirm the applied text and do the leftovers. | — |
+
+### Brief and plan amendments, word for word; no AC weakened
+I compared ruling 7's and ruling 3/4's quoted text with the committed files in Python (whitespace-normalised substring
+check):
+- **Brief.** All 4 amendments match exactly:
+  - `interrupted` (cap stop counts as truncated);
+  - the Cloud request sub-bullet (fixed header values and fixed protocol members);
+  - AC-M2-22 **Headers**;
+  - the Q18 row sentence from ruling 7, which replaces ruling 1's never-applied sentence, as ruling 7 says.
+- **Plan.** Ruling 7's amendments 1–4 match exactly: the model list and fallbacks, conditions 2/4/5, the L2a paragraph,
+  and the R-5 mitigation.
+- **Not applied, and correctly so.** Ruling 1's separate L1 sentence is not applied. Ruling 7 replaces only ruling 1's
+  condition-2 text, so this one sentence is a Planner leftover (N5), not a mismatch.
+- **No AC weakened.** In the brief diff, only the `interrupted` bullet and the Q18 row are modified, and two bullets
+  are added. AC-M2-22 gains a stricter clause. AC-M2-20, 26 and 27 are untouched. The conditions that were revised are
+  PO plan conditions, not ACs. The dropped plan sentence ("The exact ID is written in the provider table and in the
+  golden requests") is replaced by the PO's own text, and AC-M2-20 still requires the golden requests.
+
+### Decisions D12–D17
+| Decision | Reviewer view |
+|---|---|
+| D12 (provider-specific reasoning/usage cases, `fits`) | Accepted. `fits` blocks most mistakes; N4 is optional hardening. |
+| D13 (no fallback model listed yet) | Accepted. Ruling 7 says a switch needs a PO ruling, and `claude-haiku-5-5`'s member is not specified. Adding a fallback is one case, one profile and one table row. |
+| D14 (`null` in nullable enums; `additionalProperties: false` kept) | Accepted. This is the "D13 null in enum" the coordinator asked about; it is numbered D14 in the dev notes. It is correct JSON Schema: without `null` in `enum`, a `null` value fails the enum. Google documents null only through type arrays, and `null` inside `enum` is undocumented (2026-11-24 check), so this is a real L2a risk. It is **not** a hard failure without a fallback. (a) A 400 at runtime maps to the calm `noModel` outcome (AC-M2-10, 23), with no data loss. L2a catches it before any user sees it. (b) There are two ready fallbacks. One is profile-only: set the Gemini profile's `schemaDialect` to `.jsonSchemaNullAnyOf`, if Gemini accepts `anyOf`. The other is a one-line change in the type-array branch of `CloudOutputSchema.choice`: drop `null` from `enum`. That keeps rule-(a) members non-null, and the claims and time members are integers or enums the mapper already treats leniently. No finding. |
+| D15 (`responseJsonSchema`, to be confirmed) | Open, as the coordinator directed. See "Gemini request shape" below. |
+| D16 (cap by typed error, not truncation) | Accepted (F3). |
+| D17 (ruling 3's six-part test for the new fixed members) | Agreed. Each member is constant, carries no person or device data, is a protocol or schema member, gives the provider no added reach, has the `fixed` role in the lists, and meets N-3. `stream_options.include_usage` only adds token counts to the response. |
+
+### Gemini request shape: how easy the change is once L2a settles it (no finding)
+The 2026-11-24 check could not confirm the member names. Current REST examples put the schema under
+`generationConfig.responseFormat.text` (`mimeType` + `schema`). Thinking is documented only on the Interactions API
+(`generation_config.thinking_level`). How each possible L2a outcome lands in this code:
+
+| L2a outcome | Change needed | Effort |
+|---|---|---|
+| A different single member name under `generationConfig` (e.g. `responseSchema` with JSON Schema) | `schemaMember` in the Gemini profile; regenerate 3 Gemini goldens + list; one row in `PayloadExpectedModel` | profile only |
+| `null` in `enum` rejected | dialect → `.jsonSchemaNullAnyOf` (profile only) or the one-line `choice` change (D14) | profile / one line |
+| `additionalProperties` rejected | drop it for the type-array dialect (`CloudOutputSchema.object`), as ruling 7 allows | small, schema file |
+| Nested `generationConfig.responseFormat.text {mimeType, schema}` | builder change in the Gemini branch (`CloudPayloadBuilder.swift:163-167`): `responseMimeType` is hard-coded there, and `schemaMember` is one key, not a path. Plus the test row's `schemaPath`/`present` | small (about 10 lines + table row). Optional: turn the profile's schema member into a location (path + where the MIME type goes), so this also becomes profile-only. |
+| `thinkingConfig.thinkingLevel` not accepted on `generateContent` (thinking only on the Interactions API) | this is a different endpoint and body shape (path, `generation_config`, input format) plus a different stream (WI-M2-13 parser). It is an API change, not a model swap, so no profile could absorb it. It needs a PO ruling (same host, new path; ADR-0005 hosts unchanged; ruling 3 test for any new member) | larger, but outside what F7 asked for |
+
+So F7 holds for the likely outcomes: member renames, dialect choice, and the null-in-enum fallback are profile-only or
+one-line changes. Only a structural API change needs builder work, which is expected.
+
+**Tickets (round 2) for L2a and WI-M2-M6** (owner run / Orchestrator; record each as quoted, dated evidence in dev-notes):
+1. **L2a Gemini, before WI-M2-16:** send the G1 golden as built.
+   - On success: record the served `modelVersion` and `thoughtsTokenCount`.
+   - On a 4xx: try, in this order and with one change at a time, (i) `responseFormat.text {mimeType, schema}`,
+     (ii) the `anyOf` dialect, (iii) `null` removed from `enum`, (iv) `additionalProperties` removed. Record which
+     variant was accepted. The Developer applies it as a profile change or a small builder change and regenerates.
+   - If `thinkingLevel` is only accepted on the Interactions API, stop and take it to the PO (endpoint change; ruling 3
+     test for any new member; WI-M2-13 stream dialect).
+2. **L2a OpenAI:** `gpt-6-luna` accepts `strict` `json_schema` + `stream` + `store: false` + `max_completion_tokens` +
+   `reasoning_effort: "none"` + `stream_options` together. Record the served `model` and the reasoning-token count.
+3. **L2a Anthropic:** `anthropic-version: 2023-06-01` + `temperature: 0` + forced `tool_choice` are still accepted.
+   Record `message.model`.
+4. **WI-M2-M6 (L2):** repeat 1–3 before the recordings. The parsers ignore the usage and served-model fields for
+   drafts. A cap stop (`finish_reason: length` / `max_tokens` / `MAX_TOKENS`) gives `interrupted` or `noModel` (PO
+   ruling 3). The Gemini parser follows whichever request shape L2a settled.
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | Instructions are unchanged; AC-M2-12 scan 0. A cap stop is now truncated in the brief (`interrupted`/`noModel`), so no chore is lost silently. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | Routing is unchanged. |
+| P-2 No data leaves device (except user iCloud) | pass | Same three hosts, at one exact path only (F1 closed). No dependency. AC-M2-09: 0 violations. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass (watch) | Request content is unchanged (user slot identical to round 1). The new fixed members pass ruling 3's test (D17). `store: false` is kept. The builder enforces ≤ 10 titles itself (F3 closed). Watch: provider acceptance of the Gemini shape and `gpt-6-luna` members is unverified until L2a. Fixed headers are ticketed to WI-M2-M4 (F4). |
+| P-4 Media not persisted without consent | pass | Text only, in memory. The input type is unchanged. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Reviewer | accepted | Round 2 at `dda1929`. Verify ruling 7, F7, F1, F3, the regenerated goldens, the amendments and D12–D17. Gemini member names are open, not a finding. |
+| 2026-11-24 | Orchestrator | Reviewer | accepted | Gemini request shape check (2026-11-24). Judge how easy the change is; ticket L2a/WI-M2-M6; raise a finding only if the change is hard or D14 (null in enum) has no fallback. |
+| 2026-11-24 | Reviewer | Orchestrator → Merge Gatekeeper; owner (L2a); Developer (WI-M2-11, M4, M5, M6); Planner; Tester; PO | accepted (APPROVE, round 2) | 4 packages green, 0 warnings (441/63/141/8). F1, F3, F7 closed (my mutants M-A, R2-G, R2-H all killed). Anthropic is byte-identical to round 1. OpenAI and Gemini goldens are independently verified against ruling 7. Amendments are word for word; no AC weakened. New Nits N4 (builder could refuse a profile that does not fit) and N5 (Planner leftovers). L2a/M6 tickets written for the Gemini shape, D14 fallbacks, and the OpenAI/Anthropic member checks. Open tickets F2, F4, F5, F6. |
