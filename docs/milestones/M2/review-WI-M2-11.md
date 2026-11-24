@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-11 payload proof: sentinels and structure (PR #31, `m2/payload-sentinels`, head `bb006e8`)
 
-- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE (round 2, head `fd5bd6e`; round 1 was APPROVE at `bb006e8`)  ·  **Round:** 2
 - **Requirements:** ● AC-M2-20 (a) and (b), P-2, P-3, P-4, FR-A1. Also closes review tickets R28-F2 (prove it through
   the path that sends, plus the D11 blank-room test) and R28-F6 (compare concrete indices). Regression runs of AC-M2-09
   and AC-M2-12.
@@ -134,8 +134,90 @@ both after `touch`. The results below are from the clean re-runs.
 | P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | This PR is the minimisation proof. Over 3,120 requests, no ID, date (four forms), interval, non-shortlisted title, `now`, time zone or calendar reaches any part of the request. Every byte except the auth value equals the golden, or is exactly the capture, the room names and ≤ 10 oracle titles. F1 and F2 tighten the proof but are not leaks. |
 | P-4 Media not persisted without consent | pass | Text only, in memory. Nothing is written. |
 
+## Round 2 (head `fd5bd6e`; PR commit `1eb0e56`, then `main` `e4bcdeb` merged at `9fa7916`)
+
+**Verdict: APPROVE.** There are no open Blocker or Major findings. Both Minors and N1–N3 are closed in the new diff.
+N4 is closed here: PO ruling 3 sends it to WI-M2-M6. I add three new Nits (N5–N7). None of them blocks.
+
+### What I checked
+- **Checkout.** I checked out `fd5bd6e`. The round-1 review file on the branch (`1eb0e56`) is byte-identical to the
+  one I wrote.
+- **PR changes.** `git diff bb006e8 1eb0e56 -- Packages` shows that only the two WI-M2-11 test files change. No file
+  under `Sources` changes and no fixture changes.
+- **The merge.** `git show --cc 9fa7916` has one conflict, in `dev-notes.md`, resolved by keeping both sections. All
+  other merged changes are PR #30's own (WI-M2-14: `Transport/`, a comment in `DraftPipeline.swift`, test support, the
+  brief and `review-WI-M2-14.md`). `self.request = IngestionRequest(input: input, …)`, the line the payload mutants
+  target, is unchanged.
+- **Not included.** PR #29 (`main` at `330fc8e`) is not on this branch. The coordinator said it need not be.
+- **PO rulings.** `po-m2-wi11.md` (2026-11-24) answers the open questions. See "Open questions" below.
+
+### Findings, round 2
+| # | Severity | Verification in the new diff | Status |
+|---|---|---|---|
+| R31-F1 | Minor | `PayloadStructure.problems` (`PayloadSentinelSupport.swift` ~598-608) now compares every header value with G1's head, the auth value included, using the fixed `PayloadFixture.fakeKey`. My RM3 (`"Bearer  "`) on the merged tree is now **killed** by the (b) property, the golden control, R28-F6 and D11. The dev's M22 shows the same. D5 is corrected in the round-2 notes. | **Closed** |
+| R31-F2 | Minor | **Option (i):** `encodedVariants` adds JSON-escaped forms (with and without `\/`, and `\u` for non-ASCII) and percent- and form-encoded forms. The scanner and the hygiene check compare ASCII letters without case. Every date also gets ISO minute and date-only forms in UTC and local time. The new test `encodedSentinelsAreFound` plants 16 forms in the body and in a header value for each provider. The scanner test adds caseless cases and checks that `É` and `é` are not treated as equal. **Option (ii):** the file header states what (a) still misses (other date layouts, base64 or hashes, split or reworded values) and that (b) covers those. The WI-M2-M6 ticket repeats it. My RM2 (date-only `lastTendedAt`) is now **killed by (a)** as well as (b). My new RM6 (time-zone ID upper-cased and percent-encoded into the capture) is killed by (a) ("time-zone identifier percent-encoded Pacific%2FChatham in body") and by (b). | **Closed** |
+| R31-N1 | Nit | The calendar table holds the Swift case names as literals (`islamicCivil`, `ethiopicAmeteMihret`). A name is added only when it differs from the CLDR form, so the "calendar identifier" count falls from 2,080 to 1,220. That is expected. | Closed |
+| R31-N2 | Nit | A missing zone now gives `Issue.record` instead of falling back to `GMT`. | Closed |
+| R31-N3 | Nit | `import Synchronization` is removed. | Closed |
+| R31-N4 | Nit | PO ruling 3: "header values" includes the auth value. AC-M2-20 always runs with the fixed fake key, which holds no sentinel and no 600…729 run. WI-M2-M6 carries rules 1–3, and the round-2 ticket names N4. No change is needed in this PR. The interval scan already covers the auth value and passes with the fake key. | Closed (ruling 3; rules carried to WI-M2-M6) |
+| R31-N5 | Nit (new) | `PayloadSentinelSupport.swift` `encodedVariants`: the percent form uses `CharacterSet.alphanumerics`, which contains non-ASCII letters. On Linux (`swift:6.2-noble`, checked by me), `"Wipe\tCafé counter"` gives `Wipe%09Caf%C3%A9%20counter`. On Darwin, `addingPercentEncoding` leaves characters that are in the set unencoded, so the result is likely `Caf\u{E9}`. I have not verified that on a Mac. If the suite runs on the owner-run Mac, the `encodedSentinelsAreFound` plant `Caf%C3%A9` could then **fail** there. That would be a false failure, not a false pass, so it does not weaken the Linux proof. | Optional: use an explicit ASCII allowed set (`A–Z a–z 0–9 -._~`), so the variant is the same on both platforms. |
+| R31-N6 | Nit (new) | The user content is JSON inside a JSON string, so a value that needs escaping appears in the body escaped twice (a tab becomes `\\t`). The single-escape variants do not match that form. In practice nothing is missed: titles carry the letters-only token, and IDs, dates, zone IDs and calendar IDs contain no character the canonical writer escapes (it does not escape `/`). (b) pins those bytes anyway. | Optional: one sentence in the header comment. |
+| R31-N7 | Nit (new) | `dev-notes.md`: the round-2 section opens with "`origin/main` had not moved … so there was no merge", but its merge note says `main` `e4bcdeb` was merged. The round-1 "Mutation check" table (21 of 21) is withdrawn only in the round-2 section, with no pointer at the table itself. | Optional: reword the first sentence and add "(withdrawn as evidence; see Round 2)" beside the round-1 table. |
+
+### Mutants, round 2
+- **The Developer's rerun.** I read `/tmp/claude-0/b11/run2.sh` and `results2.txt`:
+  - Before each run it deletes `Packages`, extracts it fresh, `touch`es every `.swift` file, then applies the mutant.
+  - It records how many files differ from the worktree: 0 for M0 and 1 for every mutant.
+  - M0 passes first and last, and the final `diff -rq` is clean.
+  - Result: **26 of 26 killed**, every one built, and the killing tests match the table in dev-notes.
+  - The rerun was made before the merge. That is acceptable, because the merge does not change the mutated lines and
+    the suite passes on the merged tree.
+  - I accept the withdrawal of the round-1 table and the rerun as evidence.
+- **My own runs on the merged tree.** Scratch copy `/tmp/claude-0/rev31mut2`, made from `fd5bd6e`. Each restore was
+  followed by `touch`. Each run used `--filter PayloadSentinelTests` and `-warnings-as-errors`.
+
+| # | Mutant | (a) | (b) | Others | Result |
+|---|---|---|---|---|---|
+| RM2 | date-only `lastTendedAt` appended to the capture | **killed** (round 1: survived) | killed | — | killed |
+| RM3 | OpenAI auth prefix `"Bearer  "` | n.a. | **killed** (round 1: survived) | golden control, R28-F6, D11 | killed |
+| RM6 (new) | time-zone ID upper-cased with `/` → `%2F`, appended to the capture | killed (the percent variant, matched caseless) | killed | D11 | killed |
+| M0 | none, after `touch` on every file | pass | pass | — | `✔ Test run with 9 tests in 1 suite passed` |
+
+After the runs, `diff -rq` against the worktree's `Packages` is clean, apart from the build directory.
+
+### Test run on the merged tree (`fd5bd6e`, `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, scratch `/tmp/rev31r2-ing`)
+| Package | Result |
+|---|---|
+| TendIngestion | `✔ Test run with 484 tests in 58 suites passed after 85.945 seconds.` 0 warnings, rc 0. AC-M2-09: `49 files in total, 0 violations`. AC-M2-12: `49 files, 9 exempted (the list), 0 violations`. The (a) log for each provider shows 520 households, 1,040 requests, 1,115,215 string sentinels, 2,972 titles sent, 136 shortlists cut at 10 and 130 distinct intervals. These match the dev-notes. |
+| TendCore, TendSourceScan | Not rerun. Neither this PR nor the merged PR #30 changes them, and both were green in round 1 (141 and 63 tests). |
+
+### Open questions (PO `po-m2-wi11.md`, 2026-11-24)
+1. **Ruling 1 (R28-F6 carried): yes.** `ds2-gated` will record value-free counts for each array and check them against
+   the golden, the room count and the cap of 10 (0 under Q12 = no). This is a later ticket, assigned by the Planner,
+   due before the first DS-2 run, with an AC-M2-26/28 brief amendment. It is not in PR #31. This closes the open
+   question for this PR.
+2. **Ruling 2: yes.** `deferred(until:)` and a task's `roomID` (including one that names no room) will be named in the
+   AC-M2-20 (a) list in a later docs PR, with the four date forms applying to the deferred date. PR #31 already tests
+   both (labels "deferred until …" and "task room ID"). Nothing changes here.
+3. **Ruling 3 (R31-N4): yes.** Header values include the auth value, the tests use only the fixed fake key, and the
+   rules go to WI-M2-M6. This is recorded as N4 above.
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | n.a. | No copy change. The AC-M2-12 scan has 0 violations on the merged tree. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | Routing is unchanged. |
+| P-2 No data leaves device (except user iCloud) | pass | Test code only. Mock transport, fake key, no dependency. AC-M2-09 has 0 violations. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | (b) now pins every byte of the request, the auth value included. (a) also finds case-changed and encoded leaks, and coarser ISO forms. 26 of 26 dev mutants and my 3 mutants are killed. |
+| P-4 Media not persisted without consent | pass | Text only, in memory. |
+
 ## Handoff log
 | Date | From | To | Result (accepted / returned) | Notes |
 |---|---|---|---|---|
 | 2026-11-24 | Orchestrator | Reviewer | accepted | PR #31 at `bb006e8` (base `f1b6458`), detached worktree. Focus: AC-M2-20 (a)/(b) literally, R28-F2, R28-F6, oracle independence, encodings, controls, determinism, CI cost, open questions 1–2. |
 | 2026-11-24 | Reviewer | Orchestrator → Merge Gatekeeper; Developer (F1, F2, N1–N3); Tester/PO (open question 1, N4); PO (open question 2) | sent: **APPROVE** (round 1) | 0 Blocker, 0 Major, 2 Minor, 4 Nit. R28-F2 and R28-F6 (WI-M2-11 part) closed. My 5 mutants: 4 killed by this suite, RM3 only by WI-M2-10 tests (F1). TendIngestion 449, TendSourceScan 63, TendCore 141 green, 0 warnings, Linux. The golden bytes repeat on the owner-run Mac stays MS-2 B2. |
+| 2026-11-24 | Orchestrator | Reviewer | accepted (round 2) | Head `fd5bd6e` (PR commit `1eb0e56`, `main` `e4bcdeb` merged at `9fa7916`). Check F1, F2 (both options), N1–N3, N4 → WI-M2-M6, the withdrawn round-1 mutant table and the 26/26 rerun, and the merge. PO `po-m2-wi11.md` rulings 1–3. |
+| 2026-11-24 | Reviewer | Orchestrator → Merge Gatekeeper; Developer (optional N5–N7); Planner (PO ruling 1 ticket); PO (docs PR for rulings 1–3) | sent: **APPROVE** (round 2) | F1, F2 and N1–N4 closed; 3 new Nits. My RM2, RM3 and RM6 are killed on the merged tree, and M0 passes. TendIngestion 484 green on the merged tree, 0 warnings, AC-M2-09 and AC-M2-12 0 violations. Golden bytes on the Mac stay MS-2 B2. |
