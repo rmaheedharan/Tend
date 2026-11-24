@@ -71,11 +71,13 @@ final class RecordingTransport: Sendable {
                 @unknown default: "unknown"
                 }
                 self.state.withLock { $0.ends.append(text) }
+                StateChanges.shared.changed()
             }
             state.withLock {
                 $0.requests.append(request)
                 if case .hold = mode { $0.open.append(continuation) }
             }
+            StateChanges.shared.changed()
             if case .answerOneItem = mode {
                 continuation.yield(IngestionSnapshot(items: [StreamFixtures.full("Buy dishwasher pods")]))
                 continuation.finish()
@@ -268,20 +270,89 @@ func collectBounded(_ sequence: RoutedDraftEvents, onEvent: @Sendable (Ev) -> Vo
     return BoundedRun(events: events, afterFinished: nil, hitCap: events.count >= BoundedRun.cap)
 }
 
-/// Waits until `condition` holds, for at most about 5 seconds (5,000 × 1 ms), so a broken rule fails instead of
-/// hanging. The logic under test has no clock; this only paces the test's own polling.
-func eventually(_ condition: @Sendable () -> Bool) async -> Bool {
-    for _ in 0..<5_000 {
-        if condition() { return true }
-        try? await Task.sleep(nanoseconds: 1_000_000)
+/// Wakes the tests' waits when a test double's observable state changes (review R30-F3). Every double whose state a
+/// wait reads calls `changed()` after the change (`RecordingTransport`, `SeenEvents`, `SuspendingKeyStore`,
+/// `SuspendingConsentStore`). A wait then needs one resumption per change, not one per millisecond, so it stays fast
+/// while CPU-heavy suites run in parallel on the cooperative pool. Changes from other tests only cause an extra check.
+final class StateChanges: Sendable {
+    static let shared = StateChanges()
+
+    private struct State {
+        var generation: UInt64 = 0
+        var nextID: UInt64 = 0
+        var waiters: [UInt64: CheckedContinuation<Void, Never>] = [:]
     }
-    return condition()
+
+    private let state = Mutex(State())
+
+    /// The number of changes so far; read it before checking a condition, so a change in between is not lost.
+    var generation: UInt64 { state.withLock { $0.generation } }
+
+    func changed() {
+        let waiters = state.withLock { state -> [CheckedContinuation<Void, Never>] in
+            state.generation &+= 1
+            defer { state.waiters = [:] }
+            return Array(state.waiters.values)
+        }
+        for waiter in waiters { waiter.resume() }
+    }
+
+    /// Returns after the next change once `generation` has moved past `seen` (at once if it already has), or at
+    /// `limit`, whichever comes first.
+    func wait(after seen: UInt64, until limit: ContinuousClock.Instant) async {
+        let id = state.withLock { state -> UInt64 in
+            state.nextID &+= 1
+            return state.nextID
+        }
+        let bound = Task { [self] in
+            try? await Task.sleep(until: limit, clock: .continuous)
+            resume(id)
+        }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let resumeNow = state.withLock { state -> Bool in
+                if state.generation != seen { return true }
+                state.waiters[id] = continuation
+                return false
+            }
+            if resumeNow { continuation.resume() }
+        }
+        bound.cancel()
+    }
+
+    private func resume(_ id: UInt64) {
+        let waiter = state.withLock { $0.waiters.removeValue(forKey: id) }
+        waiter?.resume()
+    }
+}
+
+/// Waits until `condition` holds, for at most `bound` of wall-clock time (10 s), so a broken rule fails instead of
+/// hanging. The condition is checked again at every change of a test double (`StateChanges`), never on a polling
+/// timer (review R30-F3). The logic under test has no clock; the bound only ends a wait for a rule that is broken.
+func eventually(within bound: Duration = .seconds(10), _ condition: @Sendable () -> Bool) async -> Bool {
+    let limit = ContinuousClock.now.advanced(by: bound)
+    while true {
+        let seen = StateChanges.shared.generation
+        if condition() { return true }
+        if ContinuousClock.now >= limit { return condition() }
+        await StateChanges.shared.wait(after: seen, until: limit)
+    }
+}
+
+/// For a step that must **not** happen: true when `condition` stays false for the whole window (200 ms, the window the
+/// earlier 200 × 1 ms loop gave). Event-driven (review R30-F3): a wrong change wakes the wait at once through
+/// `StateChanges`, and an unchanged state costs one timer resumption, not one per millisecond. Use it after an
+/// event-driven wait has shown that the released step has returned.
+func staysFalse(for window: Duration = .milliseconds(200), _ condition: @Sendable () -> Bool) async -> Bool {
+    !(await eventually(within: window, condition))
 }
 
 /// Events seen so far by a consumer running in another task.
 final class SeenEvents: Sendable {
     private let events = Mutex<[Ev]>([])
-    func append(_ event: Ev) { events.withLock { $0.append(event) } }
+    func append(_ event: Ev) {
+        events.withLock { $0.append(event) }
+        StateChanges.shared.changed()
+    }
     var all: [Ev] { events.withLock { $0 } }
 }
 

@@ -3668,6 +3668,314 @@ Two run notes, stated honestly:
 | 2026-11-24 | Reviewer (via Orchestrator) | Developer | accepted (round 1: APPROVE) | 7 Minor, 3 Nit. PO `po-m2-wi10.md` rulings 1–7 (7 final) and L1/L1b notes. Coordinator: ruling 7 models, F7 profiles, F1, F3, the other Minors as tickets, regenerate, amend brief and plan. |
 | 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (round 2) | Ruling 7 models and fixed members; F7 per-model request profiles with a hand-written expectation table; F1 exact-path plants (M-A killed); F3 builder cap with a typed error; F2, F4, F5, F6 ticketed; N1 done. OpenAI and Gemini goldens and lists regenerated and checked by two independent oracles; Anthropic byte-identical. Brief (ruling 3, 4, 7) and plan (ruling 7, 1–4) amendments applied word for word. TendIngestion 441, TendSourceScan 63, TendCore 141, TendTools 8 green, 0 warnings, Linux. AC-M2-09 and AC-M2-12: 46 files, 0 violations. Mutants 48 of 48 killed. Gemini `responseJsonSchema` and the other provider-side facts await L2a. |
 
+## WI-M2-14 — cloud deadline and retry: the neutral `CloudTransport` (N-2), per-attempt timeouts from the 10.0 s deadline on an injected clock, the single 429/5xx retry with `Retry-After` delta-seconds, neutral failure reasons to outcomes, no background queue
+
+- **Owner:** Developer  ·  **Branch:** `m2/cloud-deadline-retry`, from `origin/main` at `f1b6458` (WI-M2-06 pipeline,
+  WI-M2-09 router, WI-M2-10 payload builder merged)  ·  **PR:** not opened (the Orchestrator opens it)  ·  **ADRs:** none
+  new. Follows [ADR-0005](../../architecture/adr/0005-cloud-ai-providers.md) Decisions 6 and 7 and
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md): new files under `TendIngestion/Sources/TendIngestion/Transport/`,
+  Foundation and TendCore only, no I/O, no network, no `Date`, no ambient clock, no logging, no new dependency.
+- **Requirements:** FR-A1, P-2, P-3, P-4, UX-3. **○ AC-M2-22** (Linux part: the deadline and retry arithmetic, T-17,
+  T-28, Q22) and **○ AC-M2-23** (Linux part: the outcome, plain note and retry decisions over a neutral failure reason,
+  T-18). **WI-M2-M4 owns both (●)** on the owner-run Mac: `CloudHTTPTransport` (ephemeral session, HTTPS and routed host
+  only, redirect refusal, the AC-M2-22 Headers bullet per PO WI-M2-10 ruling 4) and `CloudFailureMapping` (each
+  `URLError` and HTTP status to a `CloudFailureReason`), with `URLProtocol` tests.
+- **Binding inputs:** brief AC-M2-22 (incl. "Timeouts" and the Headers bullet, which is WI-M2-M4's), AC-M2-23, Definitions
+  ("Draft stream events": `noModel`, `interrupted`, plain note), Q15, Q22, T-17, T-18, T-25, T-28; plan WI-M2-14 row and
+  detailed section, N-2, named files (`CloudHTTPTransport.swift`, `CloudFailureMapping.swift`, `RecordingTransport.swift`);
+  PO rulings `po-m2-wi06.md` (ruling 1, 4), `po-m2-wi09.md` (ruling 3), `po-m2-wi10.md` (ruling 3 cap stop =
+  truncated; ruling 4 fixed headers = WI-M2-M4). `po-q21-q22.md` holds no WI-M2-14 ticket (its Q22 is M1's weather
+  question; the M2 Q22 numbers are in the brief). WI-M2-13 (PR #29) owns the provider stream readers and the R26-F2
+  response size cap; no `CloudOutput/` file is touched.
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED`, M2 `IN-BUILD`; WI-M2-06 and WI-M2-10 (the dependencies) are merged.
+
+### What changed
+- **New, `Packages/TendIngestion/Sources/TendIngestion/Transport/`** (scanned by AC-M2-09 Rule 1 and the AC-M2-12
+  vocabulary scan):
+  - `CloudTransport.swift`: the protocol `CloudTransport` (`send(_ request: CloudRequest, timeouts:
+    CloudAttemptTimeouts) -> AsyncThrowingStream<[UInt8], any Error>`) with its four-point contract;
+    `CloudAttemptTimeouts` (`resource`, `request`, plain `Double` seconds); `CloudFailureReason` (9 neutral cases,
+    `stopReason`, `allowsRetry`); `CloudTransportFailure` (reason + the raw `Retry-After` field value).
+  - `CloudTiming.swift`: `CloudTiming` (the Q22 numbers as `Duration`, `timeouts(timeLeft:)`, `seconds(_:)`),
+    `RetryAfterField.delaySeconds(_:)` (delta-seconds only), `CloudRetryRule.pause(after:attempt:bodyStarted:timeLeft:)`.
+  - `CloudResponseBody.swift`: `CloudResponseBody<C: Clock>` (`C.Duration == Duration`), an `AsyncSequence` of body
+    chunks for one capture: the attempts, timeouts, the one retry and the deadline, on the injected clock.
+- **Changed:** `DraftPipeline.swift` header comment only (the retry lives in `CloudResponseBody`). No behaviour of the
+  stream, router, builder or scanner changes.
+- **Tests (written first; the first build failed with "cannot find 'CloudTiming' in scope" and ~110 similar):**
+  `TransportTestSupport.swift` (`ManualClock`, a `Clock` whose `sleep` moves its own time at once, optionally late, or
+  blocks until cancelled; `ScriptedTransport`, pull-based, moving the clock as the body is read; `HoldingTransport`;
+  `TransportCloudModel`, a test-only stand-in for the WI-M2-M6 adapter over `StructuredOutputReader`) and
+  `CloudDeadlineRetryTests.swift` (6 suites, 34 tests).
+- Not changed: `TendCore`, `TendSourceScan`, `Tools/TendTools`, every `CloudOutput/` file, every protected path, every
+  dependency.
+
+### The rule as built (each line is tested)
+| Step | Rule | Where |
+|---|---|---|
+| Deadline | `start + 10.0 s`, `start` = the clock instant the pipeline received the input (passed in by the adapter) | `CloudResponseBody.deadline` |
+| Before each attempt | cancelled task → `CancellationError`, nothing sent; time left ≤ 0 → `timedOut`, nothing sent | `Iterator.step` |
+| Timeouts | resource = time left; request = min(time left, 4.0 s); read from the clock just before `send` | `CloudTiming.timeouts(timeLeft:)` |
+| Body | chunks passed on in order; a chunk or a normal end seen at or after the deadline → `timedOut` (not read) | `Iterator.step` |
+| Retry | only `rateLimited` (429) / `serviceUnavailable` (5xx), only after attempt 1, only before any body byte; p = max(0.5 s, `Retry-After`); only if time left − p ≥ 3.0 s; then sleep p on the clock and check ≥ 3.0 s again with the clock's time; then send the same request once more | `CloudRetryRule.pause`, `Iterator.retry` |
+| `Retry-After` | SP/HTAB trimmed at both ends, then 1+ ASCII digits; else 0 (missing, empty, HTTP-date, fraction, sign, `1e2`, non-ASCII digits, inner space, newline); values > 999,999,999 read as 999,999,999 (no retry either way) | `RetryAfterField` |
+| Failure → outcome | `CloudFailureReason.stopReason` → the existing pipeline: `noModel(stoppedBeforeFirstDraft)` with input and plain note before a draft, `interrupted` with input after one | `CloudTransport.swift`; WI-M2-06 |
+| Afterwards | after a throw or a normal end, `next()` is nil and nothing is sent; releasing the iterator releases the transport stream (its `onTermination` cancels the task) | `Iterator` |
+
+| `CloudFailureReason` | Brief case (AC-M2-23) | `ModelStopReason` | Retry |
+|---|---|---|---|
+| `offline` | offline | `offline` | no |
+| `timedOut` | timeout | `timedOut` | no |
+| `hostNotFound` | DNS failure | `hostNotFound` | no |
+| `secureConnectionUnavailable` | TLS failure | `secureConnectionUnavailable` | no |
+| `keyNotAccepted` | 401 or 403 | `keyNotAccepted` | no |
+| `rateLimited` | 429 | `rateLimited` | once, by the rule |
+| `serviceUnavailable` | 5xx | `serviceUnavailable` | once, by the rule |
+| `requestNotSent` | refused before sending (other host, redirect to another host, non-HTTPS; AC-M2-22) | `otherModelError` | no |
+| `unexpectedResponse` | any other status or transport error | `otherModelError` | no |
+| (body, not transport) | malformed body; provider refusal | `unreadableOutput`; `refusal` (WI-M2-13 reader) | no |
+
+### Decisions the Reviewer should know (technical; product-meaning readings are flagged)
+- **D1, where the retry lives.** In `CloudResponseBody` (neutral, Linux-tested), not in the transport. The transport
+  contract forbids it to retry, queue or store. So the `TendEval` `RecordingTransport` (N-2) wraps one attempt and sees
+  both attempts of a retried capture, and WI-M2-M4 has no timing logic to get wrong.
+- **D2, the clock.** The standard library `Clock` protocol, generic, with `Duration`. The app passes a
+  `ContinuousClock` from `TendAI` (that name is on the AC-M1-23 clock list, which Rule 1 applies to `TendIngestion`,
+  so it may not appear here). All arithmetic is in `Duration`, exact for every Q22 number and every whole-second
+  `Retry-After`; only the timeouts handed to the transport are `Double` seconds.
+- **D3, the deadline start is an input.** "From the moment the pipeline receives the input" needs a clock read at
+  receipt. `IngestionModel.snapshots(for:)` and `CloudModelSource.model(for:key:)` carry no instant, so the adapter
+  passes `start`. Ticket for WI-M2-M6 (open question 1).
+- **D4, no wait when the retry cannot happen.** The 3.0 s rule is checked before the pause with the planned pause (no
+  needless wait), and again after the pause with the clock's time (the literal "after the pause, ≥ 3.0 s are left": a
+  late wake-up that leaves less than 3.0 s ends with the original reason).
+- **D5, no retry once body bytes were read.** A 429/5xx arrives with the status line, before any body byte, so in
+  practice this only guards against a faulty transport; a retry after bytes would restart a body the reader has
+  already read (duplicate drafts).
+- **D6, the deadline also holds on the body.** A chunk or normal end seen at or after the deadline is `timedOut`. The
+  transport's resource timeout should fire first; this makes the deadline true on the injected clock as well and is
+  Linux-testable. *Product reading (literal):* a body whose end arrives at exactly 10.0 s counts as timed out, not
+  completed (open question 2).
+- **D7, a transport failure after the deadline keeps its own reason** (for example `rateLimited`), with no retry
+  (less than 3.0 s left). Only the iterator's own deadline checks produce `timedOut`.
+- **D8, errors the transport may throw.** `CloudTransportFailure` → its reason; `CancellationError` → passed on (the
+  pipeline reads cancellation); anything else, including a `ModelStopReason`, → `otherModelError` (adapter contract
+  rule 1; the transport is not trusted to name a model-level reason such as `guardrail`).
+- **D9, `requestNotSent` and `unexpectedResponse` map to the existing `otherModelError`.** No new `ModelStopReason`
+  case, so WI-M2-06's outcome table and the calm-names test are unchanged (open question 3).
+- **D10, `Retry-After` cap.** Digits are accumulated with a cap at 999,999,999 (no overflow for any length); any capped
+  value is far past the deadline, so it gives no retry, as the uncapped value would.
+
+### AC coverage
+| AC (part) | Test(s) (`CloudDeadlineRetryTests.swift`) | Environment |
+|---|---|---|
+| AC-M2-22 numbers (Q22) | "AC-M2-22 / Q22: the deadline is 10.0 s, the idle cap 4.0 s, the shortest pause 0.5 s, the retry floor 3.0 s" | Linux |
+| AC-M2-22 resource / request timeouts | "AC-M2-22: resource timeout = time left; request timeout = min(time left, 4.0 s)" (8 cells); "… seconds conversion …"; "… a first attempt that answers … (10, 4) …"; "… the deadline runs from receipt of the input …"; "… with no time left at the start nothing is sent …" | Linux |
+| AC-M2-22 `Retry-After` (T-28) | "AC-M2-22 / T-28: Retry-After field values" (36 cells) | Linux |
+| AC-M2-22 / 23 retry rule | "… the pause before the one retry, or no retry" (25 cells); "… only 429 … and 5xx … allow the retry"; "429 at 1.0 s …"; "503 at 1.0 s with Retry-After 2 …"; "… a second 429/5xx ends the body …" (4); boundary 6.5 s / 6.501 s; "Retry-After 7 … 8 …" (4); "… checked again after the pause …"; "… after body bytes is not retried …" | Linux |
+| AC-M2-22 deadline on the body | "… a chunk that arrives at or after the deadline …" (2); "… a normal end at or after the deadline …" (2) | Linux |
+| AC-M2-22 / 23 property | "… 4,000 seeded scripts keep the rule …" (seed `0x7E9D001400220023`, independent integer-millisecond oracle, seed printed in every failure message) | Linux |
+| AC-M2-23 failure → reason | "… each transport failure maps to one neutral stop reason …" (9); "… the mapping table covers every reason"; "… every other transport failure ends the body at once …" (7) | Linux |
+| AC-M2-23 outcomes and plain note | "AC-M2-23: each transport failure before any draft …" (27 = 3 providers × 9: `noModel`, input, plain note, 2 sends for 429/5xx); "… after a draft …" (27: `interrupted`, input, no plain note, draft kept, 1 send); "429 then a good answer …" (3); "… a malformed body …"; "… an answer cut by the deadline …" | Linux |
+| AC-M2-23 no background queue | "… after the body ends nothing more is sent, and a stopped read releases the transport stream"; "… cancelling during the pause …"; "… read inside an already cancelled task, nothing is sent"; "… a CancellationError from the transport …"; "… a foreign error is otherModelError …" | Linux |
+| AC-M2-23 calm names (T-18, AC-M2-12) | "… no failure reason or transport type name contains a banned token …"; AC-M2-12 vocabulary scan | Linux; Reviewer inspects the case names |
+| AC-M2-23 route `none` plain note; refusal | unchanged WI-M2-06 tests ("AC-M2-23: the same plain-note offer exists when the route is none"; `CloudOutcomeTests` with `.refusal`); refusal from a body is WI-M2-13's reader | Linux |
+| AC-M2-22 ephemeral session, HTTPS, host, redirect, Headers; AC-M2-23 `URLError`/status mapping | — | **WI-M2-M4, owner-run Mac** (not in this item) |
+
+### Test runs (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, own scratch paths `/tmp/b14-*`, 0 warnings in every package)
+| Package | Result |
+|---|---|
+| `Packages/TendIngestion` | 475 tests in 57 suites passed (441 before; +34 in 6 new suites). One earlier full run, while two other agents' containers were building, had the existing WI-M2-09 test "AC-M2-18: a capture the user cancels while its request is being prepared … sends nothing" hit its 60 s time limit; that suite alone passed in 0.26 s and the next full run passed (watch item for the WI-M2-09 owner: wall-clock time limit under load) |
+| `Packages/TendCore` | 141 tests in 18 suites passed |
+| `Packages/TendSourceScan` | 63 tests in 4 suites passed |
+| `Tools/TendTools` | 8 tests in 1 suite passed |
+| AC-M2-09 scan | `TendIngestion` (required) 49 files scanned, 0 violations (`TendAI`, `TendEval` not present, optional) |
+| AC-M2-12 vocabulary scan | 0 violations |
+
+### Mutation check (scratch copy `/tmp/b14mut`, one mutant at a time, `--filter` on the 6 new suites; the worktree was never touched)
+23 of 23 killed.
+
+| # | Mutant | Killed by |
+|---|---|---|
+| M1 | deadline 10 → 11 s | numbers; "429 at 1.0 s …" |
+| M2 | no 4.0 s idle cap | timeouts table |
+| M3 | shortest pause 0 | numbers; re-check after the pause |
+| M4 | retry floor `>=` → `>` | retry-rule table; boundary 6.5 s |
+| M5 | 401/403 retried | "every other transport failure …" |
+| M6 | three attempts | retry-rule table; numbers |
+| M7 | retry after body bytes | "… after body bytes is not retried …" |
+| M8 | `Retry-After` ignored | retry-rule table |
+| M9 | `Retry-After` not trimmed | `Retry-After` table |
+| M10 | `Retry-After` read as a `Double` (fractions, `1e2`, `inf`) | `Retry-After` table |
+| M11 | no 3.0 s re-check after the pause | "… checked again after the pause …" |
+| M12 | send with no time left | "… with no time left at the start nothing is sent …" |
+| M13 | no deadline check on chunks | "… a chunk that arrives at or after the deadline …" |
+| M14 | chunk at exactly the deadline read | "… a normal end at or after the deadline …"; chunk test |
+| M15 | foreign error passed through | "… a foreign error is otherModelError …" |
+| M16 | no cancellation check before send | "… read inside an already cancelled task …" |
+| M17 | a normal end restarts an attempt | "… after the body ends nothing more is sent …" (1b) |
+| M18 | `requestNotSent` → `offline` | mapping table |
+| M19 | timeouts from the full 10 s, not the time left | "503 … Retry-After 2 …"; "429 at 1.0 s …" |
+| M20 | pause `min` instead of `max` | boundary tests |
+| M21 | no cap on a huge `Retry-After` | `Retry-After` table (arithmetic-overflow trap) |
+| M22 | transport `CancellationError` → `otherModelError` | "… a CancellationError from the transport …" |
+| M23 | no pause before the retry | "429 then a good answer …" (sleeps) |
+
+### Verification environment
+| Check | Linux (container, `swift:6.2-noble`) | macOS / owner-run Mac | Simulator | Device |
+|---|---|---|---|---|
+| Deadline, timeouts, `Retry-After`, retry rule, failure → outcome, no queue | ✔ | not run (MS-2 repeats the `TendIngestion` suite) | n.a. | n.a. |
+| `URLSession` timeouts actually applied, ephemeral config, host/redirect refusal, Headers bullet, `URLError`/status mapping | **not verified here** | WI-M2-M4 (`URLProtocol`, Simulator host) | WI-M2-M4 | DS-2 |
+| Real `ContinuousClock` passed by the adapter; deadline start at receipt | **not verified here** | WI-M2-M6 | WI-M2-M6 | DS-2 (AC-M2-27 total ≤ 10 s) |
+
+### Things the reviewer should look at closely
+- `CloudResponseBody.Iterator.step`: the state machine (`beforeAttempt` → `reading` → `ended`), that every throw ends it,
+  and that the retry path never sends a third time.
+- D4 (two checks of the 3.0 s rule) and D6 (deadline on the body, a product reading).
+- The test clock and transports: `ScriptedTransport` is pull-based (`AsyncThrowingStream(unfolding:)`), so the clock
+  moves exactly when the reader waits; `ManualClock`'s blocking mode resumes only on cancellation. No test waits on the
+  wall clock (`yieldUntil` only yields).
+- The property oracle is integer milliseconds, written independently of `CloudRetryRule`.
+- The `CloudFailureReason` case names (T-18 "none blames the user").
+
+### Known limitations / tickets
+| Item | Severity | Ticket |
+|---|---|---|
+| The adapter must pass the instant the pipeline received the input as `start` (no current API carries it) | — | WI-M2-M6 (open question 1) |
+| `CloudHTTPTransport` must set `timeoutIntervalForResource`/`timeoutIntervalForRequest` from `CloudAttemptTimeouts` per attempt (a new session configuration per attempt, or per-request `timeoutInterval` plus the resource timeout; their choice), throw only `CloudTransportFailure`, put the raw `Retry-After` value in it for 429/5xx, and never retry | — | WI-M2-M4 |
+| The `TendEval` `RecordingTransport` (N-2) wraps `CloudTransport`; it sees each attempt | — | WI-M2-M7 |
+| `ProviderStreamReader` (PR #29) reads the chunks in the real adapter; the test stand-in uses `StructuredOutputReader` | — | WI-M2-M6 |
+| The test doubles `PayloadRecordingTransport` and `RecordingTransport` keep their own shapes (comments say WI-M2-14 will define the protocol); not changed, to keep this PR small | Nit | next touch of those files |
+
+### Open questions (built to the most literal reading; work continues)
+1. **Planner / WI-M2-M6 (technical, D3):** where the adapter reads the deadline start. The most literal point is
+   `ModelRouter.events(input:…)` (the pipeline receives the input there); `snapshots(for:)` is called when iteration
+   starts, normally at once. Either keeps the 10.0 s inside the AC-M2-27 total.
+2. **Closed (PO 2026-11-24, `po-m2-wi14.md` ruling Q2: confirmed as built, incl. the "at or after" boundary; brief
+   amendment 1 applied in round 2).** ~~**PO (product reading, D6):** a body that is still arriving at 10.0 s is ended as `timedOut` (drafts already emitted
+   stay, `interrupted`; none, `noModel` with the plain note). Built as the literal deadline. Confirm, or say the
+   deadline applies only to starting attempts and to the transport's timeouts.~~
+3. **Closed (PO 2026-11-24, `po-m2-wi14.md` ruling Q3: one outcome reason is enough; the transport keeps
+   `requestNotSent` apart, binding; brief amendment 2 applied in round 2).** ~~**PO / Reviewer (D9):** "refused before sending" (other host, redirect, non-HTTPS) and "any other status" report
+   `otherModelError`. A separate neutral `ModelStopReason` is possible if M3 copy needs to tell them apart.~~
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | Every failure ends in a calm typed outcome with the input kept and, before a draft, the plain note (tested per reason and provider). Case names hold no banned token (test + AC-M2-12 scan: 0). No user-facing copy (M3). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Routing unchanged; the retry is on the same cloud route only; an on-device error never reaches this code. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | No networking in `TendIngestion` (AC-M2-09 Rule 1: 49 files, 0 violations); the protocol is neutral, the real transport is WI-M2-M4's allowlisted file. No dependency. |
+| P-3 Cloud AI opt-in, minimised | pass | At most two sends of the same built request per capture, both inside the 10.0 s deadline; no new request content; cancellation (turn-off, WI-M2-09) stops the pause and the retry (tested). |
+| P-4 Media not persisted | pass | No background queue, no store, nothing written; after the body ends nothing more is sent (tested). Bytes are passed on, never kept. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Developer | accepted (H2) | WI-M2-14 Ready (WI-M2-06, 09, 10 merged; `main` at `f1b6458`). Do not touch `CloudOutput/` (WI-M2-13, PR #29). Owner confirmed the Q12/Q16/Q17 defaults (Orchestrator FYI; no effect on this item). |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). TendIngestion 475, TendCore 141, TendSourceScan 63, TendTools 8 green, 0 warnings, Linux. AC-M2-09 49 files 0 violations; AC-M2-12 0. 23/23 mutants killed. Three open questions (deadline start plumbing; deadline on the body; `otherModelError` for refused/other). Pushed; no PR opened. |
+
+### Round 2 (review round 1: APPROVE with 3 Minors and 2 Nits, `review-WI-M2-14.md`; PO rulings `po-m2-wi14.md`)
+`origin/main` had not moved (still `f1b6458`), so nothing was merged. The review file is committed with this round.
+
+#### Findings and what was done
+| Finding | Severity | Done |
+|---|---|---|
+| R30-F1 a cancelled read ended as a normal end | Minor | `CloudResponseBody`: after the transport iterator returns nil, `try Task.checkCancellation()` before the deadline check, so a read cancelled mid-body ends with `CancellationError`, never a normal end. File header updated. `nothingAfterward` part 2 now waits for the first chunk (event), cancels, and asserts `count == 1` and the end type `CancellationError`. Mutant R2-M1 (the line removed) is killed by it. |
+| R30-F2 the contract did not say how a cancelled attempt ends | Minor | `CloudTransport` contract point 5: a cancelled attempt is not a failure: finish without an error or throw `CancellationError`; never map `URLError.cancelled` (or any cancellation) to a `CloudFailureReason`. Point 3 refers to it. Also a WI-M2-M4 ticket (below). |
+| R30-F3 the WI-M2-09 liveness waits polled with `Task.sleep(1 ms)` and starved under load | Minor (flake risk) | See "R30-F3" below. No assertion changed, no time limit raised. |
+| R30-F4 the property test's `Double` timeout check reuses the formula | Nit | Kept (optional); the literal table test covers the conversion. |
+| R30-F5 a silent attempt relies on the transport's resource timeout | Nit | Ticket for WI-M2-M4 (below). |
+| N4 | — | Optional; not done. |
+
+#### R30-F3: waits on events, not on a polling timer
+- **Cause (confirmed).** The waits needed one cooperative-pool resumption per millisecond, while the CPU-heavy property
+  suites held every pool thread. My first attempt replaced the two 200 ms "must not start" loops with 500
+  `Task.yield()`s. That was **worse**: under the full run both tests hit the 60 s limit. Each yield re-queues behind the
+  heavy suites' work, so resumptions, not wall-clock time, are what cost. So the fix reduces resumptions.
+- **`StateChanges` (test support, `RoutingSupport.swift`).** A shared change signal with a generation counter, so a
+  change between "check" and "wait" is never lost. Every double whose state a wait reads calls `changed()` after the
+  change: `RecordingTransport` (request recorded, stream ended), `SeenEvents.append`, `SuspendingKeyStore` (a call
+  held, a key read returned) and `SuspendingConsentStore` (a call held).
+- **`eventually`** checks its condition again at each change, not every millisecond. Its bound for a broken rule is now
+  10 s of wall-clock time, with one timer resumption. Before, 5,000 sleeps of at least 1 ms each, unbounded in real time
+  under load. A condition that is true at the bound still returns true.
+- **The two negative settles** ("a request must not start after the key read is released": `cancelWhilePreparing`,
+  and `CloudConsentRaceTests.settle` in `actionDuringKeyRead`) now (1) wait, on an event, until the held key read has
+  **returned** (`SuspendingKeyStore.returnedKeyCalls`, new), and then (2) use `staysFalse`. That is the same 200 ms window
+  as the old 200 × 1 ms loop, but event-driven: a wrong request wakes it at once, and otherwise it costs one timer
+  resumption. So the check is stricter than before: step (1) proves the released step ran.
+- **Cooperative yields in the heavy loops that had none:** one `await Task.yield()` per outer iteration in the WI-M2-06/07
+  integration property (`DraftStreamDuplicateTests`), the WI-M2-08 commit property, the WI-M2-10 selector property and
+  this item's property test. This follows the AC-M2-24 suites, which already do it. Inputs, seeds, iteration counts and
+  assertions are unchanged.
+- **Evidence (full TendIngestion run, 475 tests, all suites in parallel, 4 cores):** the two tests print their **body**
+  time (the time limit counts from body start): `actionDuringKeyRead` 2.63 s (each of the 3 cases),
+  `cancelWhilePreparing` 2.75 s, against the 60 s limit. Alone they take 0.03 s. Before this round, the same test
+  reported "passed after 94.5 s" in the reviewer's run and hit the 60 s limit once in mine. The reported "passed after"
+  (about 52 s) still includes queueing before the body starts. Two more full runs were green.
+- **Mutants for the reworked waits (scratch copy, `--filter CloudConsent|CloudResponseBodyTests`):** R2-M2
+  (`beginRequest` ignores a capture ended during the key read) is killed by "R24-F1: beginRequest reads the capture
+  again …". R2-M3 (the forwarding task ignores its own cancellation) survives, and it survives **the same way with the
+  original `main` waits** (checked on a copy with `f1b6458`'s three test files). So it is not a regression. It is likely
+  equivalent: after a cancel, the router has already released or ended the capture, so `beginRequest` returns nil.
+  Recorded for the WI-M2-09 owner.
+
+#### PO rulings applied (`po-m2-wi14.md`)
+- Open questions 2 and 3 are closed above (Q2: deadline on the body confirmed as built; Q3: one outcome reason, the
+  transport keeps `requestNotSent` apart, binding).
+- **Brief amendment 1** (AC-M2-22 "Timeouts") and **brief amendment 2** (AC-M2-23, after the banned-token bullet) are applied
+  to `brief.md` word for word (only the line wrapping is new).
+- Open question 1 (D3) moves to the Planner (WI-M2-M6), per the PO note.
+
+#### Tickets (for the Planner to put in the DoD lines; none is built here)
+| For | Ticket | Source |
+|---|---|---|
+| WI-M2-M4 | `CloudHTTPTransport` follows contract point 5: a cancelled task finishes without an error or throws `CancellationError`, and `URLError.cancelled` is never mapped to a `CloudFailureReason`. Add a `URLProtocol` test: cancel mid-body, and the `CloudResponseBody` ends with `CancellationError`. | R30-F2 |
+| WI-M2-M4 | One `URLProtocol` test where the stub never answers: the attempt ends `timedOut` at the resource timeout (`timeoutIntervalForResource` really applied per attempt, so AC-M2-27's total ≤ 10.0 s holds while an attempt is silent). | R30-F5 |
+| WI-M2-M4 | The refusal tests assert `requestNotSent` **and** zero requests reaching the `URLProtocol` stub, for each of the three refusal kinds (other host, redirect to another host, non-HTTPS). | PO Q3 |
+| WI-M2-M4 | Set both timeouts per attempt from `CloudAttemptTimeouts`; throw only `CloudTransportFailure`, with the raw `Retry-After` for 429/5xx; never retry (round 1 ticket, unchanged). | round 1 |
+| WI-M2-M6 | DoD: "adapter passes the deadline start (D3) read at receipt, with a test". Reviewer fact: `ConsentCheckedCloudModel.snapshots(for:)` (`Routing/ModelRouter.swift`) calls the provider model's `snapshots(for:)` only after `beginRequest`, which comes after the cloud-status and **Keychain** reads. So `start` must be read **before the Keychain read**, no later than when the routed capture is created and handed through `model(for:key:)` or the request. An adapter that reads a fresh clock in its own `snapshots(for:)`, or one per attempt, starts the deadline late. | PO Q1 note; review open question 1 |
+| WI-M2-M6 | Read the chunks with `ProviderStreamReader`; on `CancellationError` from `CloudResponseBody`, finish without calling the reader's `finish()` (R30-F1). | round 1; R30-F1 |
+| WI-M2-M7 | The `RecordingTransport` (N-2) sees each attempt. It may record the transport-level `CloudFailureReason` **case name** per attempt (permitted, not required; Planner's choice). | PO Q3 |
+| WI-M2-09 owner | R2-M3 (forwarding ignores its own cancellation) survives with both the old and the new waits; it is likely equivalent. Confirm, or add a test. | this round |
+
+#### Test runs (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, own scratch paths `/tmp/b14-*`, 0 warnings in every package)
+| Package | Result |
+|---|---|
+| `Packages/TendIngestion` | 475 tests in 57 suites passed (the same count; the changes are inside existing tests) |
+| `Packages/TendCore` | 141 tests in 18 suites passed |
+| `Packages/TendSourceScan` | 63 tests in 4 suites passed |
+| `Tools/TendTools` | 8 tests in 1 suite passed |
+| AC-M2-09 scan | 49 files, 0 violations |
+| AC-M2-12 vocabulary scan | 0 violations |
+
+#### Verification environment (round 2)
+| Check | Linux | Owner-run Mac | Simulator | Device |
+|---|---|---|---|---|
+| R30-F1 end type, contract text, R30-F3 waits | ✔ | not run (MS-2 repeats the suite) | n.a. | n.a. |
+| `URLError.cancelled` handling, silent-attempt resource timeout, refusal with zero requests | **not verified here** | WI-M2-M4 | WI-M2-M4 | — |
+
+#### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | A cancelled read is reported as cancellation, never as a finished body (R30-F1), so no outcome claims something that did not happen. The brief now says the deadline ends calmly with the words kept (amendment 1). Case names unchanged; AC-M2-12: 0. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | pass | Routing unchanged. |
+| P-2 Data leaves only via iCloud or a P-3 request | pass | No networking in `TendIngestion` (AC-M2-09: 0 violations); no dependency. |
+| P-3 Cloud AI opt-in, minimised | pass | The negative tests for "nothing sent after a turn-off or cancel" are now stricter (they first prove the released step ran). The refusal guard stays separately provable (`requestNotSent`, amendment 2, WI-M2-M4 ticket). |
+| P-4 Media not persisted | pass | Nothing queued or stored; unchanged. |
+
+#### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Reviewer (via Orchestrator) | Developer | accepted (round 1: APPROVE) | 3 Minor, 2 Nit. PO `po-m2-wi14.md`: Q2 and Q3 confirmed, 2 brief amendments, Q1 to the Planner. Coordinator: F1 and F2 fixed here, F3 fixed in the WI-M2-09 tests, F5 and the PO tickets recorded, N4 optional. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1 (code + test), F2 (contract), F3 (event-driven waits; body time about 2.7 s under the full run, against the 60 s limit; a failed yield-only attempt is recorded). Brief amendments 1 and 2 applied word for word. Open questions 2 and 3 closed. TendIngestion 475, TendCore 141, TendSourceScan 63, TendTools 8 green, 0 warnings. AC-M2-09 49 files 0 violations; AC-M2-12 0. Round-2 mutants: R2-M1 and R2-M2 killed; R2-M3 survives on `main` too (likely equivalent, ticketed). |
+
 ## WI-M2-13 — the three provider stream dialects (OpenAI, Anthropic, Gemini) on top of WI-M2-12, with synthetic fixtures
 
 - **Owner:** Developer. **Branch:** `m2/provider-dialects`, from `origin/main` at `03e98c6` (PR #26, WI-M2-12, merged).

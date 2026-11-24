@@ -488,6 +488,7 @@ struct DraftStreamDuplicatePropertyTests {
         var counts: [String: Int] = [:]
         var mismatches = 0, invariantMisses = 0
         for h in 0..<Self.householdsPerSeed {
+            await Task.yield()  // do not hold a cooperative-pool thread for the whole loop (review R30-F3)
             let household = gen.household()
             let plan = Self.plan(household, &rnd)
             let input = plan.map(\.title).joined(separator: ", and ")

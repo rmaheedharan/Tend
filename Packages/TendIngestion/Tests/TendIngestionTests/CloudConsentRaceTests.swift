@@ -52,15 +52,17 @@ struct CloudConsentRaceTests {
         return (router, transport)
     }
 
-    /// Waits about 200 ms (bounded) for a request that must not start.
-    func settle(_ transport: RecordingTransport) async {
-        for _ in 0..<200 where transport.requestCount == 0 {
-            try? await Task.sleep(nanoseconds: 1_000_000)
-        }
+    /// Gives a released key read the chance to (wrongly) start a request: waits for the read to return (an event), then
+    /// for a request that must not start (event-driven window, `staysFalse`). No polling timer (review R30-F3).
+    func settle(_ transport: RecordingTransport, after keys: SuspendingKeyStore) async {
+        #expect(await eventually { keys.returnedKeyCalls == keys.keyCalls }, "the key read never returned")
+        _ = await staysFalse { transport.requestCount > 0 }
     }
 
     @Test("R24-F1, R24-F2: a Settings action while the key is being read for the request ends the capture at once (before the key read returns) with cancelled, and no request is sent", .timeLimit(.minutes(1)), arguments: EndingAction.allCases)
     func actionDuringKeyRead(action: EndingAction) async {
+        let began = ContinuousClock.now
+        defer { print("R30-F3 body time, actionDuringKeyRead \(action): \(ContinuousClock.now - began)") }
         let keys = SuspendingKeyStore(keys: Self.allKeys)
         let (router, transport) = router(keys: keys)
         let events = await router.events(for: StreamFixtures.pipeline(), preference: .alwaysCloud)
@@ -79,7 +81,7 @@ struct CloudConsentRaceTests {
         #expect(!neededCancel)
         #expect(run.events == [.finished(.cancelled(route: .cloud(.openAI)))])
         #expect(run.afterFinished == nil)
-        await settle(transport)
+        await settle(transport, after: keys)
         #expect(transport.requestCount == 0, "a request started after \(action)")
     }
 
