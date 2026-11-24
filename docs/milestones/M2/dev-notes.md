@@ -4267,3 +4267,22 @@ now evidence.
 | P-2 Data leaves only via iCloud or a P-3 request | pass | Test code only; the mock transport records; no dependency; fake key only. |
 | P-3 Cloud AI opt-in, minimised | pass | (b) now pins every request byte (auth value included). (a) also finds encoded and case-changed leaks. 26 of 26 mutants killed, with clean rebuilds. |
 | P-4 Media not persisted | pass | Text only, in memory. |
+
+#### Merge of `main` and test run on the merged tree
+- `main` moved to `e4bcdeb` (PR #30, WI-M2-14) during this round. I merged it with `git merge --no-ff` (no rebase, no
+  force-push). The only conflict was `dev-notes.md`: I took main's file and appended this section at the end.
+- PR #30 changed `DraftPipeline.swift` in a comment only. The code lines that M1, M2, M10, M12–M15, M23, M25 and M26
+  mutate are unchanged, so the mutant results above (run before the merge) still apply to the payload path. PR #30
+  also changed `RoutingSupport.swift`, which the harness uses, so I reran the whole TendIngestion suite on the merged
+  tree.
+- TendIngestion on the merged tree (`swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, scratch `/tmp/b11-ing-r2`):
+  `✔ Test run with 484 tests in 58 suites passed after 148.965 seconds.` (main's tests plus WI-M2-11's 9), 0 warnings. AC-M2-09: `49 files in total, 0 violations`.
+  AC-M2-12 vocabulary: `49 files, 9 exempted (the list), 0 violations`.
+- Not rerun in this round: TendSourceScan, TendCore and TendTools. This round changed none of them; they were green in
+  round 1, and PR #30's own checks cover its changes.
+
+#### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Reviewer (via Orchestrator) | Developer | accepted (round 1: APPROVE) | 2 Minor (F1 auth value, F2 encoded forms), 4 Nit (N1–N3 here, N4 to WI-M2-M6). Re-check the mutants: a `tar`/`mv` restore keeps old mtimes. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (round 2) | F1 and F2 fixed (both options for F2), N1–N3 fixed, N4 and the F2 gap sentence ticketed to WI-M2-M6. Round-1 mutant table withdrawn as evidence; rerun with `touch` and M0 baselines: 26 of 26 killed (M1–M21 again, plus M22–M26, which include the review's RM2 and RM3). Merged `main` `e4bcdeb`. TendIngestion 484 green on the merged tree, 0 warnings; AC-M2-09 and AC-M2-12 0 violations. |
