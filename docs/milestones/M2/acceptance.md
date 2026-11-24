@@ -1,7 +1,8 @@
 # M2 Acceptance Report
 
 - **Owner:** Acceptance Tester  ·  **Build / commit:** not yet (M2 is IN-BUILD; base of this text `95491ed`, branch
-  `m2/eval-fixtures-freeze`)  ·  **Date:** 2026-11-24
+  `m2/eval-fixtures-freeze`; v2 adds the PO follow-up rulings F3/F4 and the PR #32 `02f944e` golden-request
+  verification)  ·  **Date:** 2026-11-24
 - **Overall:** NOT YET ASSESSED. M2 is `IN-BUILD` (`docs/milestones/STATUS.md`). This first version holds only:
   1. the AC-M2-14 independent re-score of the scorer self-test file (WI-M2-16);
   2. the device scripts **DS-1** (WI-M2-D1: AC-M2-11, 15, 16, 17) and **DS-2** (WI-M2-D2: AC-M2-25, 26, 27), drafted
@@ -15,12 +16,12 @@
 | AC | Status (PASS / FAIL / AWAITING-DEVICE) | Evidence | Environment | Notes |
 |---|---|---|---|---|
 | AC-M2-01…10, 12, 13, 18…24, 28 | not yet assessed | — | Linux / owner-run Mac | Verified after the Reviewer's APPROVE on the M2 merge commit. |
-| AC-M2-11 | **AWAITING-DEVICE** | DS-1 Part B (below) | Device, iPhone 15 Pro | Subset fixed: **in01 (text), in02 (voice), in10 (voice)**. |
-| AC-M2-14 | OPEN (not frozen) | Re-score: "AC-M2-14 independent re-score" below (agrees with the scorer log). Composition approved by the PO at `95491ed` (`eval-composition.md`, "PO approval"). | Linux + Tester review | Still open: GR-1 (Major) and GR-2 verification on the regenerated golden bodies, GR-3, L2a, the Developer's composition check, `MANIFEST.sha256`, the freeze. |
+| AC-M2-11 | **AWAITING-DEVICE** | DS-1 Part B (below) | Device, iPhone 15 Pro | Subset fixed: **in01 (text), in02 (voice), in10 (voice)** (PO F3, 2026-11-24; a change needs a DECISIONS.md entry). |
+| AC-M2-14 | OPEN (not frozen) | Re-score: "AC-M2-14 independent re-score" below (agrees with the scorer log). Composition approved by the PO at `95491ed` (`eval-composition.md`, "PO approval"). | Linux + Tester review | GR-1, GR-2, GR-3, GR-5 verified and CLOSED at PR #32 head `02f944e` (`eval-composition.md`, "Verification of the regenerated golden requests", V1–V8); they hold if PR #32 merges with those golden files. Still open: PR #32 merge, L2a (GR-4) on those bodies, the Developer's composition check, `MANIFEST.sha256`, the freeze. |
 | AC-M2-15 | **AWAITING-DEVICE** | DS-1 Part A | Device, iPhone 15 Pro; scoring on Linux | |
 | AC-M2-16 | **AWAITING-DEVICE** | DS-1 Part A | Device, iPhone 15 Pro | |
 | AC-M2-17 | **AWAITING-DEVICE** | DS-1 Part A | Device, iPhone 15 Pro; scoring on Linux | |
-| AC-M2-25 | **AWAITING-DEVICE** | DS-2 Part B | Device, iPhone 13 | Subset fixed: **in08 (voice), in16 (voice)**. |
+| AC-M2-25 | **AWAITING-DEVICE** | DS-2 Part B | Device, iPhone 13 | Subset fixed: **in08 (voice), in16 (voice)** (PO F3, 2026-11-24; a change needs a DECISIONS.md entry). |
 | AC-M2-26 | **AWAITING-DEVICE** | DS-2 Part C | Device, iPhone 13; scoring on Linux | Q16 (owner, 2026-11-24): all three providers. |
 | AC-M2-27 | **AWAITING-DEVICE** | DS-2 Part C (gate) and Part D (information only) | Device, iPhone 13 (+ iPhone 15 Pro, info) | |
 
@@ -94,7 +95,7 @@ the named subset?"* Read the profile rules in the tool's usage and ran the score
 ## Defects
 | ID | Severity | AC | Steps | Expected | Actual | Owner |
 |---|---|---|---|---|---|---|
-| A-F1 | Minor | AC-M2-11, AC-M2-25 | Score any 3-input file (2 voice) that is not in01, in02, in10 with `--profile ds1-offline`. | The profile refuses inputs other than the subset named in this file (or the tool takes the subset as an argument). | Only the counts are checked. | Developer (suggestion; the manual check S5 keeps the ACs sound meanwhile) |
+| A-F1 | Minor | AC-M2-11, AC-M2-25 | Score any 3-input file (2 voice) that is not in01, in02, in10 with `--profile ds1-offline`. | The profile refuses inputs other than the subset named in this file (or the tool takes the subset as an argument). | Only the counts are checked. | Developer, **OPEN (Minor)**. PO F4: the Developer pins the IDs in the profiles (`ds1-offline` = in01 text, in02 voice, in10 voice; `ds2-offline`/`ds2-online` = in08 voice, in16 voice), anything else exits 2 with a plain reason, the log prints input IDs and modes, plus a right-count wrong-ID self-test; due before DS-1/DS-2 scoring. DS-1 S5 and DS-2 S7 stay as a second control, recorded with the file's IDs. If the fix is not in before scoring, S5/S7 alone are accepted for that scoring and A-F1 stays open. Only I close A-F1. |
 
 ## Device test scripts (for the human owner)
 
@@ -288,14 +289,17 @@ swift run --package-path Tools/TendTools tend-payload-dump --provider openai --o
 read -rs TEND_KEY      # paste the key and press Return; nothing is shown
 curl -sS -N https://api.openai.com/v1/chat/completions \
   -H "Authorization: Bearer $TEND_KEY" -H 'Content-Type: application/json' \
+  -H 'User-Agent: Tend' -H 'Accept-Language: en-US' \
   --data-binary @"$TMPDIR/body.json" | grep -o '"model":"[^"]*"' | sort -u
 unset TEND_KEY; rm "$TMPDIR/body.json"
 ```
 - Anthropic: `--provider anthropic`; URL `https://api.anthropic.com/v1/messages`; headers
-  `-H "x-api-key: $TEND_KEY" -H 'anthropic-version: 2023-06-01' -H 'Content-Type: application/json'`; same `grep`.
+  `-H "x-api-key: $TEND_KEY" -H 'anthropic-version: 2023-06-01' -H 'Content-Type: application/json'
+  -H 'User-Agent: Tend' -H 'Accept-Language: en-US'`; same `grep`.
 - Gemini: `--provider gemini`; URL
   `'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse'`;
-  headers `-H "x-goog-api-key: $TEND_KEY" -H 'Content-Type: application/json'`; and `grep -o '"modelVersion":"[^"]*"'`.
+  headers `-H "x-goog-api-key: $TEND_KEY" -H 'Content-Type: application/json' -H 'User-Agent: Tend'
+  -H 'Accept-Language: en-US'`; and `grep -o '"modelVersion":"[^"]*"'`.
 - Write the printed model name in the run record, before and after. **If the before and after names differ, or differ
   from the curated model, that provider's run is void until a PO ruling** (plan condition 2): record it and tell the
   Orchestrator.
@@ -417,19 +421,21 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
 | UX-4 Design craft | n.a. | No product UI; TendEval is not judged against UX-4 (plan WI-M2-M7). |
 | P-1 On device first | pass | DS-1 runs with cloud off; AC-M2-11 runs in airplane mode with Wi-Fi and Bluetooth off; DS-2 proves the transcript is made on device while offline (AC-M2-25). |
 | P-2 No data leaves the device | pass | Only invented fixture data is used. Results files move by AirDrop to the owner's own Mac; TendEval never uploads (AC-M2-28). The fast.com speed test sends no household data. |
-| P-3 Cloud AI opt-in, minimised | pass | Cloud only after the owner pastes their own key and agrees to the consent; "Remove key" after each provider; sent key paths checked against the allowed lists (AC-M2-26). The Mac served-model check sends the fixed Outcome sample with an empty household. Keys never go into files or chat. GR-1…5 must close before the freeze. |
+| P-3 Cloud AI opt-in, minimised | pass | Cloud only after the owner pastes their own key and agrees to the consent; "Remove key" after each provider; sent key paths checked against the allowed lists (AC-M2-26). The Mac served-model check sends the fixed Outcome sample with an empty household. Keys never go into files or chat. GR-1, 2, 3, 5 closed at PR #32 `02f944e`; GR-4 (L2a) must close before the freeze. |
 | P-4 Media not persisted | pass | No audio is stored (brief device-run rules); TendEval writes only the results file (AC-M2-28); screenshots show no household data beyond the invented fixtures. |
 
 ## Open questions and needs (route through the Orchestrator)
 | ID | For | Question / need | Needed by |
 |---|---|---|---|
 | AQ-1 | Developer (WI-M2-M7) | The scripts need: a subset run of named inputs that exports its own results file (`ds1-offline`, `ds2-offline`, `ds2-online` require 3 or 2 inputs per file); on-screen model availability, speech-asset status with a download while online, the route preference, the selected provider and whether a key is stored; the device's `APP-COMMIT`. Please confirm these exist, and give the exact control labels so I can replace the bracketed names. | Before WI-M2-M7 review |
-| AQ-2 | Developer | A-F1 (Minor): let the subset profiles check input IDs (for example a `--inputs in01,in02,in10` option), or confirm the manual check S5/S7 is the accepted control. | Before DS-1 |
+| AQ-2 | Developer | A-F1 (Minor): let the subset profiles check input IDs (for example a `--inputs in01,in02,in10` option), or confirm the manual check S5/S7 is the accepted control. **ANSWERED (PO F4, `po-m2-wi16.md` follow-up, 2026-11-24):** the Developer fixes the tool (IDs pinned in the profiles, not a free argument; exit 2 otherwise; IDs and modes in the log; self-test), due before DS-1/DS-2 scoring; S5/S7 stay as manual controls with the file's IDs recorded. A-F1 stays open until I verify the fix. | Before DS-1 |
 | AQ-3 | Human owner (Q20, plan O-3) | Confirm the signing team: your free personal team is assumed in Appendix A. | Before MS-3 |
-| AQ-4 | PO | Confirm the AC-M2-11 subset (in01, in02, in10) and the AC-M2-25 subset (in08, in16). They are fixed now, before any device output exists. | Before the freeze |
+| AQ-4 | PO | Confirm the AC-M2-11 subset (in01, in02, in10) and the AC-M2-25 subset (in08, in16). They are fixed now, before any device output exists. **ANSWERED (PO F3, 2026-11-24):** confirmed and fixed: AC-M2-11 = in01 (text), in02 (voice), in10 (voice); AC-M2-25 = in08 (voice), in16 (voice). Any change after the freeze or a device run needs a DECISIONS.md entry; choosing a subset after seeing results is not allowed (governance PR records it). | Before the freeze |
 
 ## Handoff log
 | Date | From | To | Result (accepted / returned) | Notes |
 |---|---|---|---|---|
 | 2026-11-24 | Orchestrator | Acceptance Tester | accepted | WI-M2-16 remaining Tester items: independent re-score of `results-selftest-1`; DS-1 and DS-2 (WI-M2-D1, D2) with the AC-M2-11 and AC-M2-25 subsets. |
 | 2026-11-24 | Acceptance Tester | Orchestrator → PO, Developer, owner | sent | Re-score agrees with the scorer log on every number (S1, S4 confirmed). DS-1 and DS-2 drafted; all seven device ACs AWAITING-DEVICE. AQ-1…AQ-4 open. AC-M2-14 stays OPEN until GR-1/GR-2 verification and the freeze. |
+| 2026-11-24 | PO (via Orchestrator) | Acceptance Tester | answered | `po-m2-wi16.md` follow-up rulings: F3 fixes both subsets (AQ-4 answered); F4: Developer fixes A-F1 in the tool, S5/S7 stay (AQ-2 answered, A-F1 open). |
+| 2026-11-24 | Acceptance Tester | Orchestrator → PO, Developer, owner | sent | AQ-2, AQ-4 answered. GR-1, GR-2, GR-3, GR-5 verified and closed at PR #32 head `02f944e` (`eval-composition.md` v3). DS-2 Part A `curl` lines now send `User-Agent: Tend` and `Accept-Language: en-US` (GR-10). AC-M2-14 stays OPEN (PR #32 merge, L2a, composition check, manifest, freeze). AQ-1, AQ-3 open. |
