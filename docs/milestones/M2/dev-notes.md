@@ -3926,8 +3926,9 @@ Device ACs: none in this item.
 | The Darwin rerun of these tests | — | MS-2 |
 
 ### Open questions
-1. **PO (confirm, K2): a body that stops without the provider's end, even when its JSON is finished, counts as
-   truncated.** Built: `cutShort(.noFinish)` → `outputCutShort`. After a draft the outcome is `interrupted`, and an
+1. **Closed in round 2 (review R29-N3): the PO confirmed K2 as built in `po-m2-wi13.md` (2026-11-24).** The original
+   question follows. **PO (confirm, K2): a body that stops without the provider's end, even when its JSON is finished,
+   counts as truncated.** Built: `cutShort(.noFinish)` → `outputCutShort`. After a draft the outcome is `interrupted`, and an
    item still in progress is discarded. Before any draft it is `noModel` with the plain note. The other reading would
    complete the items (rule (c)) and give `completed` whenever the JSON is finished. That would treat a connection that
    dropped just before the provider said "done" as a normal finish. Work continues on the literal reading. A change
@@ -3950,3 +3951,156 @@ Device ACs: none in this item.
 |---|---|---|---|---|
 | 2026-11-23 | Orchestrator | Developer | accepted (H2) | WI-M2-13 Ready (WI-M2-12 merged as PR #26; `main` at `03e98c6`). PO tickets: per-provider title-arrives-last and no-room-by-(a) fixtures; R26-F2 here or in WI-M2-14. |
 | 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (H4) | Built test-first (red build confirmed). Merged `origin/main` `6fd1bf4`. TendIngestion 445, TendCore 141, TendSourceScan 63 green, 0 warnings, Linux. 29 of 29 mutants killed. R26-F2 closed (1 MiB cap). One PO question (K2). Pushed; no PR opened. |
+
+### Round 2 (PR #29 review round 1: APPROVE with R29-F1…F3 and R29-N1…N3; PO `po-m2-wi13.md`)
+Inputs: `review-WI-M2-13.md` (committed with this round), `po-m2-wi13.md` (K2 confirmed as built, tickets, two brief
+amendments), `po-m2-wi10.md` rulings 3 and 7. `origin/main` `f1b6458` (PR #28) merged in, with no rebase. The only
+conflict was this file: I took `main`'s copy and appended this section at the end.
+
+#### Findings
+| Finding | What changed | Evidence |
+|---|---|---|
+| R29-F1 (a) the cap depended on chunk cuts | `append` reads the part of the chunk that fits under the limit (`bytes.prefix(room)`) and counts only that part. If the chunk goes past the limit before the provider's end, the reader stops with `unreadable(.responseTooLarge)` through the same hold rule as every other stop (K3): if the part that fit added output, its snapshot is returned and the next call throws. So the drafts read before the limit no longer depend on the transport's cuts. | `sizeCapChunkIndependence` (3 providers): a body more than 1,000 bytes past a 2,048-byte limit, with item 1 complete under it. One shot, one event per chunk, byte by byte and 8 seeded random cut sets all give the reader error `responseTooLarge`, emitted `["Mop the floor"]` and `interrupted(unreadableOutput, stoppedBeforeComplete)` through the pipeline. In one shot, the first `append` returns the item-1 snapshot and `receivedByteCount == limit`. Mutant M23 (the round-1 behaviour) is killed. |
+| R29-F1 (b) bytes after the end were counted | Once the provider's end has arrived (or after `finish`), `append` drops later bytes, does not count them and returns nil. The cap applies only before the end. | `sizeCapBoundary` (3 providers × 3 chunkings): a body of exactly the limit is read, and one byte more before the end is `responseTooLarge`. A complete body followed by extra bytes past the limit still finishes normally, and `receivedByteCount` does not move after the end. With limit 10, the append that crosses it counts exactly 10. Mutants M30 and M30b are killed. |
+| R29-F2 ruling-7 fixture shapes | All 33 fixtures were regenerated. **OpenAI:** `model` `gpt-6-luna`, `"usage":null` on every chunk, and the `include_usage` chunk (`"choices":[]`, `usage` with `completion_tokens_details.reasoning_tokens`) after the finish chunk and before `[DONE]` in every fixture that reaches `[DONE]` (split over two `data:` lines in `out-of-order-fields`). **Anthropic:** `model` `claude-haiku-4-5-20251001`. **Gemini:** `modelVersion` `gemini-3.5-flash-lite`, `usageMetadata.thoughtsTokenCount`, a `thoughtSignature` on the first part of `happy-path` and `finished-output-no-end`, and full outputs in sorted key order (the `responseJsonSchema` order of ruling 7). The Gemini dialect header now names `responseJsonSchema` and `thinkingLevel: "minimal"`, and says `thoughtSignature` and `thoughtsTokenCount` are ignored. The OpenAI and Anthropic headers name the ruling-7 request too. | `rulingSevenShapes` (3 providers) reads those fields from the happy path and checks the reader still gives the intended snapshot. `fixtureOutcome`, `outputText` (the Gemini text equals `ProviderFixtures.geminiHappyOutput`, typed out again in Swift) and `splitChunks` are green on the new files. |
+| R29-F3 Anthropic R3, R5 and `message_stop` first | No code change (the rules were already built). New rows in `AnthropicDialectTests.unexpectedStructure`: `message_delta` with no `message_start` (R3), `message_stop` with no `message_start`, and block 0 started, stopped and started again (R5). Each is checked one shot and byte by byte. | Mutants M32 (R3), M33 (R5) and M34 (`message_stop` first) are killed. These are the reviewer's 2 survivors, plus one more. |
+| R29-N1 a non-Boolean Gemini `thought` | New strict accessor `ProviderEventJSON.bool(_:)`: missing or `null` gives nil, a Boolean is read, and any other type is `unexpectedStructure` (K6). Gemini reads `thought` with it. | A new `GeminiDialectTests.unexpectedStructure` row, `"thought":"yes"`. The parts test now also has `"thought":null` and `"thought":false` read as output. Mutant M35 (the round-1 comparison) is killed. |
+| R29-N2 snapshot cost per append | The note asked only for an adapter ticket (follow-ups below). I also made one code change, because the property test showed the cost. The snapshot is now built once per `append` call, never per event (`StructuredOutputReader.read(bytes:)` plus `snapshot`). In round 1, a chunk with many events rebuilt it once per event. The outputs and the hold rule are unchanged (all K3/K4 tests are green). The reason is below. | The full suite is green. The property test is now fast enough not to starve the time-limited cancellation tests that share the pool. |
+| R29-N3 open question 1 | Closed: the PO confirmed K2 as built (`po-m2-wi13.md`). Open question 1 above is marked closed, and the PO's tickets are mapped below. | — |
+
+**Why the R29-N2 code change.** In round 2, the new tests made the property suite and the other suites run together. The
+round-1 reader rebuilt the snapshot after every event with output. `DialectWriter` bodies have many small events per
+chunk, so the property's one-shot reads were quadratic in the output, and the suite took about 113 s of CPU. Under the
+container's load (other developers' runs, load average about 9), that starved three or four existing time-limited cancellation
+tests (`CloudConsentRaceTests` R24-F1/F2 and `CloudConsentTests`). They hit their 60 s `.timeLimit`, but pass alone in
+0.3 s. `main` alone was green under the same load. Building the snapshot once per `append` removes the quadratic cost
+without weakening, skipping or shrinking any test. `.serialized` on the heavy fixture and property tests and
+`await Task.yield()` in their loops also stay, so they share the pool fairly. The adapter ticket in R29-N2 still stands,
+because a 1-byte feed would still rebuild one snapshot per byte.
+
+#### PO rulings traced
+| Ruling | What it asks of WI-M2-13 | Where it is met |
+|---|---|---|
+| `po-m2-wi10.md` ruling 3 (fixed members; a stop at the fixed output cap is truncated, never `completed`) | One cap-stop fixture per provider → `interrupted` (or `noModel` with no draft) | `length-limit-after-first-draft` × 3 (OpenAI `length`, Anthropic `max_tokens`, Gemini `MAX_TOKENS`) → `interrupted(outputCutShort)`, 1 draft (`fixtureOutcome`). The `model_context_window_exceeded` row is in `AnthropicDialectTests`. |
+| `po-m2-wi10.md` ruling 7 (final models and fixed request members) | Usage and served-model fields in the fixtures, ignored for drafts | R29-F2 row above: the served-model IDs, OpenAI `include_usage` chunk with `reasoning_tokens`, Gemini `thoughtsTokenCount` and `thoughtSignature`, sorted keys. `rulingSevenShapes`, `fixtureOutcome`, `outputText`. |
+| `po-m2-wi13.md` (K2 confirmed: no provider normal end = truncated, even with finished JSON) | See the ticket table | below |
+
+#### `po-m2-wi13.md` tickets
+| Ticket | Where it is met |
+|---|---|
+| `finished-output-no-end` per provider: the whole happy output, a clean end at an event boundary, no normal end → `interrupted(outputCutShort)`, 3 drafts, no `itemSkipped`, exactly one `finished` | 3 new fixtures. OpenAI has no `finish_reason` and no `[DONE]`. Anthropic has `content_block_stop`, but no `message_delta` stop and no `message_stop`. Gemini's last chunk has no `finishReason`. `fixtureOutcome` rows (reader error `cutShort(.noFinish)`, all 3 titles emitted). `finishedOutputNoEnd`: through the pipeline one shot, per event and byte by byte, 3 final drafts, 0 skips, one `finished`, `interrupted(outputCutShort, discardedItem: nil)`. |
+| Anthropic normal `stop_reason` without `message_stop` → `cutShort(.noFinish)` | `AnthropicDialectTests.normalStopWithoutMessageStop` (finished output and `content_block_stop`, then each normal `stop_reason`: `tool_use`, `end_turn`, `stop_sequence`; no `message_stop`). The OpenAI `stop` without `[DONE]` case was already tested. |
+| Reader: a last item that only rule (c) could complete, no normal end → discarded, earlier draft kept, `interrupted` | `noEndDiscardsTheLastItem` (3 providers): item 2 has only `title` and `kind`. The result is emitted `["Mop the floor"]` and `interrupted(outputCutShort, discardedItem: stoppedBeforeComplete)`. |
+| Reader: finished `{"items":[]}`, no normal end → `noModel` with the plain-note offer | `noEndEmptyItems` (3 providers): one event, `noModel(stoppedBeforeFirstDraft(outputCutShort))`, input and note "mop". |
+| Mutant "finished output JSON counts as a normal end" is killed | M31, killed (table below). |
+| README (11 per provider, 33 in all) and `fixtureList` | Done. `fixtureList` logs 11 per provider. |
+| Brief amendments 1 and 2, word for word | `brief.md`: amendment 1 is inserted after the ruling-3 sentence of the `interrupted` bullet. In AC-M2-24, the last bullet's two sentences are replaced by the PO's text. Both are copied exactly; only the line breaks were reflowed. |
+
+#### K7, updated (supersedes the K7 text above)
+The response byte cap is 1 MiB (`defaultResponseByteLimit`; the tests can lower it). Only bytes before the provider's
+end count. A chunk that crosses the limit is read up to the limit, and then the reader stops with
+`unreadable(.responseTooLarge)` through the hold rule (K3). So the drafts emitted before the limit never depend on how
+the transport cut the body. The stop maps to `unreadableOutput`: `interrupted` after a draft, `noModel` with the plain
+note before one. Bytes after the provider's end are dropped and not counted, so a finished body is never refused for
+trailing bytes.
+
+#### Test runs (round 2, final head)
+| Command (in `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, scratch path `/tmp/b13-<pkg>` on a cache volume) | Summary line |
+|---|---|
+| `swift test --package-path Packages/TendIngestion` | `✔ Test run with 491 tests in 57 suites passed after 263.000 seconds.` (on `c32f370`; the machine was shared, and `0a39ba5` gave the same 491 in 170.8 s). That is 441 on `main` `f1b6458` plus 50 for WI-M2-13 (44 in round 1, plus 6 new: `sizeCapChunkIndependence`, `noEndDiscardsTheLastItem`, `noEndEmptyItems`, `normalStopWithoutMessageStop`, `rulingSevenShapes`, `finishedOutputNoEnd`). 0 warnings. |
+| `swift test --package-path Packages/TendCore` | `✔ Test run with 141 tests in 18 suites passed after 178.138 seconds.` (unchanged package; slow because the mutant run shared the machine) |
+| `swift test --package-path Packages/TendSourceScan` | `✔ Test run with 63 tests in 4 suites passed after 6.662 seconds.` (unchanged package) |
+| AC-M2-09 scan | `AC-M2-09 scan: 52 files in total, 0 violations` |
+| AC-M2-12 scan | `AC-M2-12 vocabulary scan: 52 files, 9 exempted (the list), 0 violations` |
+
+The largest fixture is now 44,238 bytes, still far below 1 MiB (`fixturesUnderTheLimit`).
+
+#### Mutation check (round 2)
+Each mutant was applied alone by a script to a scratch copy of the head (`git archive`, never this branch), with
+`touch` after each change and each restore so SwiftPM rebuilds. Each was built with `-warnings-as-errors`, run with
+`--filter "Provider|Dialect"` in a 900 s timeout, and then restored. M21–M23 were rewritten for the round-2 cap code,
+and M30–M35 are new (R29-F1 (b), the `po-m2-wi13.md` mutant, R29-F3, R29-N1).
+
+**36 of 36 killed.** M1–M29 ran on `0a39ba5`. On that head, **M30, M32 and M33 survived**:
+- the R3 and R5 rows were followed by a delta that failed on its own;
+- the after-end count check had no room left under its limit (the cap itself stopped the count).
+Commit `c32f370` makes each row a valid stream apart from the rule it tests, and gives the after-end reader room under
+its limit. M30–M35 were then run again on `c32f370`, and all were killed. That commit changes only tests, and only makes
+them stricter, so the M1–M29 results still hold.
+
+| # | Mutant | Killed by (first failing tests) |
+|---|---|---|
+| M1 | OpenAI: an empty refusal piece counts as a refusal | AC-M2-24: a refusal piece stops the stream (refusal); a null or empty … |
+| M2 | OpenAI: content_filter read as an unexpected finish | AC-M2-24: a stop in the same chunk as output that completes a draft is…; AC-M2-24: finish_reason stop then [DONE] is the only normal end; lengt… |
+| M3 | OpenAI: [DONE] alone is a normal end (no finish reason needed) | AC-M2-24: [DONE] without a finish reason, or a stop finish without [DO… |
+| M4 | OpenAI: content after the finish reason accepted | AC-M2-24: output text after finish_reason stop is unexpected structure |
+| M5 | OpenAI: choice index not checked | AC-M2-24: content after the finish reason, a second choice, or wrong-t… |
+| M6 | Anthropic: deltas of non-tool blocks read as output | AC-M2-05 / AC-M2-24: in each provider's happy and out-of-order fixture…; AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24: a text block before the tool block is ignored; pings and unk… … |
+| M7 | Anthropic: a second tool_use block replaces the first | AC-M2-24: deltas for a block never started or already stopped, a secon… |
+| M8 | Anthropic: stop_reason refusal read as a normal end | AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24: a stop in the same chunk as output that completes a draft is…; AC-M2-24: stop reasons tool_use, end_turn and stop_sequence end normal… |
+| M9 | Anthropic: max_tokens read as a normal end | AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24: stop reasons tool_use, end_turn and stop_sequence end normal… |
+| M10 | Anthropic: overloaded_error mapped to otherModelError | AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24: an error event stops the stream with a neutral reason |
+| M11 | Anthropic: a delta for a stopped block accepted | AC-M2-24: deltas for a block never started or already stopped, a secon… |
+| M12 | Gemini: thought parts read as output | AC-M2-05 / AC-M2-24: in each provider's happy and out-of-order fixture…; AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24: 3 seeds × 200 outputs × 3 providers; one shot and 2 random c… … |
+| M13 | Gemini: promptFeedback.blockReason ignored | AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24: a blocked prompt (promptFeedback.blockReason) is a refusal; … |
+| M14 | Gemini: LANGUAGE read as a safety stop | AC-M2-24: finishReason STOP ends normally; the others stop the stream |
+| M15 | Gemini: candidate index not checked | AC-M2-24: a second candidate or wrong-typed members are unexpected str… |
+| M16 | Gemini: finish reason read before the text of its chunk | AC-M2-24: a stop in the same chunk as output that completes a draft is… |
+| M17 | Reader: a stop after new output is thrown at once (no deferral) | AC-M2-05 / AC-M2-24: valid output before a bad byte in the same piece …; AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24: a stop in the same chunk as output that completes a draft is… … |
+| M18 | Reader: the valid text before a bad byte is not read | AC-M2-05 / AC-M2-24: valid output before a bad byte in the same piece … |
+| M19 | Reader: events after the provider end are read | AC-M2-24: events after the provider's end are ignored, including a par… |
+| M20 | Reader: a body that stops inside an event is not reported | AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24: a body that stops inside an event (no blank line) is cut sho… |
+| M21 | Reader: size cap off by one (a body of exactly the limit is refused) | R26-F2 / R29-F1 / AC-M2-24: a body of exactly the limit is read; one b…; R29-F1 / AC-M2-05 / AC-M2-24: a body past the limit whose first item c… |
+| M22 | Reader: no size cap | R26-F2 / AC-M2-24: a stream with no line end (or one endless output) s…; R26-F2 / R29-F1 / AC-M2-24: a body of exactly the limit is read; one b…; R29-F1 / AC-M2-05 / AC-M2-24: a body past the limit whose first item c… |
+| M23 | Reader: the whole crossing chunk is dropped (round-1 behaviour, R29-F1 (a)) | R26-F2 / R29-F1 / AC-M2-24: a body of exactly the limit is read; one b…; R29-F1 / AC-M2-05 / AC-M2-24: a body past the limit whose first item c… |
+| M24 | Reader: no noOutput check | AC-M2-24: a normal provider end with no output text at all is unreadab… |
+| M25 | Reader: unfinished output JSON reported as noFinish | AC-M2-24: a normal provider end with unfinished output JSON is cut sho… |
+| M26 | Reader: the step stop handled before the step output | AC-M2-24: a stop in the same chunk as output that completes a draft is… |
+| M27 | Error: declined mapped to guardrail | AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24: a stop in the same chunk as output that completes a draft is…; AC-M2-24: every error maps to exactly one neutral stop reason (the ada… |
+| M28 | Event JSON: a non-object root accepted | AC-M2-24: event data that is not a JSON object is unreadable (eventNot… |
+| M29 | Event JSON: null is not absent | AC-M2-05 / AC-M2-24: in each provider's happy and out-of-order fixture…; AC-M2-05 / AC-M2-24: in each provider's happy path (one event per chun…; AC-M2-05 / AC-M2-24: valid output before a bad byte in the same piece … … |
+| M30 | Reader: bytes after the provider end are counted (R29-F1 (b)) | R26-F2 / R29-F1 / AC-M2-24: a body of exactly the limit is read; one b… |
+| M30b | Reader: the cap applies after the provider end (R29-F1 (b)) | R26-F2 / R29-F1 / AC-M2-24: a body of exactly the limit is read; one b… |
+| M31 | Reader: finished output JSON counts as a normal end (K2, po-m2-wi13) | AC-M2-24 / AC-M2-05: each fixture gives its exact outcome, emitted tit…; AC-M2-24 / AC-M2-05: finished output with no provider end keeps all 3 …; AC-M2-24 / AC-M2-05: finished output with no provider end: a last item… … |
+| M32 | Anthropic R3: message_delta before message_start accepted | AC-M2-24: deltas for a block never started or already stopped, a secon… |
+| M33 | Anthropic R5: a stopped block index can start again | AC-M2-24: deltas for a block never started or already stopped, a secon… |
+| M34 | Anthropic: message_stop before message_start accepted | AC-M2-24: deltas for a block never started or already stopped, a secon… |
+| M35 | Gemini N1: a non-Boolean thought ignored (R29-N1) | AC-M2-24: a second candidate or wrong-typed members are unexpected str… |
+
+#### Verification environment (round 2)
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendIngestion 491 (the three dialects, 33 fixtures, cap, K2 tickets, property, scans) | ✔ container | — | — | — | Linux CI runs on the PR |
+| TendCore 141, TendSourceScan 63 | ✔ container | — | — | — | — |
+| Ruling-7 shapes against real `gpt-6-luna`, `claude-haiku-4-5-20251001`, `gemini-3.5-flash-lite` streams | — | — | — | — | WI-M2-M6 recordings and L2 (K9); no network here |
+| Each provider's normal end in a real stream (`po-m2-wi13.md` WI-M2-M6 ticket) | — | — | — | — | WI-M2-M6 |
+
+#### Follow-ups added in round 2
+| Item | Severity | Ticket |
+|---|---|---|
+| R29-N2: the adapter must feed buffered chunks, never single bytes | Nit | WI-M2-M4: feed `URLSession.AsyncBytes` in buffered chunks (for example up to each line end or 4 KB), never one byte per `append`. The reader builds one snapshot per `append` call (round 2), which costs time linear in the output so far, so a 1-byte feed of a near-1 MiB output would be quadratic within the 10 s deadline. |
+| `po-m2-wi13.md`: confirm each provider's normal end in L2 and the real recordings | — | WI-M2-M6. A mismatch is fixed in that dialect's `checkEnd`, with a test and a dev-notes record (the PO says no ruling is needed for that) |
+| `po-m2-wi13.md`: DECISIONS.md entry for K2 | — | PO, in the next human-merged governance PR (protected path; not touched here) |
+| `po-m2-wi13.md`: `interrupted` state copy | — | Designer, M3 |
+| Reviewer K9 re-check list (review "Re-check list for WI-M2-M6") | watch | WI-M2-M6 |
+
+#### Open questions (round 2)
+None. K2 is closed by `po-m2-wi13.md`.
+
+#### Law check (round 2)
+| Law | Status | Note |
+|---|---|---|
+| UX-1 | n.a. | No entry surface. |
+| UX-2 | n.a. | No selection surface. |
+| UX-3 | pass | A draft read before the cap is now never lost to how the body was cut (R29-F1). A finished output without the provider's end keeps all 3 drafts and returns the input (`interrupted`), and never claims `completed` (`po-m2-wi13.md`). The scan covers 52 files with 0 violations. |
+| UX-4 | n.a. | No UI. |
+| P-1 | n.a. | Parsing only. |
+| P-2 | pass | No network, file I/O or logging in Sources (AC-M2-09: 52 files, 0 violations). No dependency. The fixtures are synthetic, with no household data, key, header or host. |
+| P-3 | pass | Response reading only. The ruling-7 request members are only described in comments, and no request is built here. |
+| P-4 | n.a. | Text in memory only. Bytes after the end are dropped. |
+
+#### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-24 | Orchestrator | Developer | accepted | Round 2: R29-F1…F3, N1, N3; PO `po-m2-wi13.md` tickets and brief amendments; ruling-7 fixtures; merge `f1b6458`. |
+| 2026-11-24 | Developer | Reviewer (via Orchestrator) | sent (H4) | Round 2 done. R29-F1, F2, F3, N1 and N3 fixed; N2 is a WI-M2-M4 ticket (plus one snapshot per `append`). `po-m2-wi13.md` tickets and brief amendments 1–2 applied. Rulings 3 and 7 traced. TendIngestion 491, TendCore 141, TendSourceScan 63 green, 0 warnings, Linux. Scans: 52 files, 0 violations. 36 of 36 mutants killed. Review file committed. Pushed; no PR opened. |
