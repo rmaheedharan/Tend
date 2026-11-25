@@ -53,7 +53,7 @@ note, because AC-M2-09 scans these paths.
 | Cloud-adapter allowlist (closed list of 3 files) | `Packages/TendAI/Sources/TendAI/Cloud/CloudHTTPTransport.swift` (ephemeral `URLSession`, redirect refusal through `URLSessionTaskDelegate`, `bytes(for:delegate:)`, URL built with `URLComponents` from the builder's bare host and path)<br>`Packages/TendAI/Sources/TendAI/Cloud/CloudFailureMapping.swift` (`URLError` and `HTTPURLResponse` status to the neutral failure reason)<br>`Packages/TendAI/Sources/TendAI/Cloud/KeychainAPIKeyStore.swift` (the only file that imports `Security`) | AC-M2-09 Rule 3; Rule 4 (`https://` literals only here) |
 | Provider adapters (not allowlisted, no `URL*` types) | `Packages/TendAI/Sources/TendAI/Cloud/CloudIngestionModel.swift` and one file per provider, `OpenAIIngestionModel.swift`, `AnthropicIngestionModel.swift`, `GeminiIngestionModel.swift`. They use only the neutral transport protocol and the `TendIngestion` parsers. | Rule 2 |
 | Speech adapter files (the only `TendAI` files where media types may appear) | `Packages/TendAI/Sources/TendAI/Speech/SpeechTranscriptionAdapter.swift` (`SpeechAnalyzer` with `SpeechTranscriber`, falling back to `DictationTranscriber`)<br>`Packages/TendAI/Sources/TendAI/Speech/MicrophoneAudioSource.swift` (`AVAudioEngine` tap to `AnalyzerInput`, in memory only) | Rule 2, Rule 5 |
-| Speech-permission file | `Packages/TendAI/Sources/TendAI/Speech/SpeechPermission.swift`. The Rule 5 exception (`SFSpeechRecognizer.requestAuthorization(`, `SFSpeechRecognizer.authorizationStatus(`, `SFSpeechRecognizerAuthorizationStatus`) applies here **only if** the T-27 check in WI-M2-M1 confirms that iOS 26 needs it. Until WI-M2-M1 records the result, the scanner runs with **no exception**. | Rule 5 |
+| Speech-permission file | `Packages/TendAI/Sources/TendAI/Speech/SpeechPermission.swift`. The Rule 5 exception (`SFSpeechRecognizer.requestAuthorization(`, `SFSpeechRecognizer.authorizationStatus(`, `SFSpeechRecognizerAuthorizationStatus`) applies here **only if** the T-27 check in WI-M2-M1 confirms that iOS 26 needs it. **T-27 result (WI-M2-M1, 2026-11-25): not needed, so the exception stays off** and this file holds no `SFSpeech*` API. Apple's Speech documentation limits the speech-recognition permission to `SFSpeechRecognizer` and says `SpeechAnalyzer` modules send no audio to Apple's servers; on macOS `SpeechTranscriber` and `DictationTranscriber` transcribed audio while `SFSpeechRecognizer.authorizationStatus()` stayed `notDetermined` (dev-notes "WI-M2-M1"). Live capture still needs the microphone permission (`AVAudioApplication`), which is not an `SFSpeech*` API. | Rule 5 |
 | Results writer (the only `TendEval` file with write APIs) | `Apps/TendEval/Sources/Results/EvalResultsWriter.swift`. It writes only `EvalResultsFileV1` (the results-file type, defined in `TendIngestion` next to the scorer) as canonical JSON to the harness's Documents directory. | Rule 6 |
 | Fixtures loader (the only TendEval file allowed `Data(contentsOf:`, bundle resources named by string literals only; M2 Q23) | `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift` | Rule 6 |
 | Harness transport wrapper (N-2) | `Apps/TendEval/Sources/Run/RecordingTransport.swift`. It wraps the neutral `CloudTransport` protocol (plain request value in, byte-chunk stream out) and records only the byte count and key paths. It uses no `URL*` type. | Rule 6 |
@@ -523,6 +523,13 @@ swift build --package-path Tools/TendTools         -Xswiftc -warnings-as-errors
 
 ### Owner-run Mac (from the repo root, at the commit under test; each output is saved to a log)
 WI-M2-M1 confirms these on the Mac and corrects any scheme or destination name in the same PR.
+**Confirmed by WI-M2-M1 (2026-11-25)** on macOS 27.2.1 (26B131), Xcode 27.2 (27B52), Swift 6.4.2, XcodeGen 2.46.0 and
+the iOS 26.5 Simulator runtime (23F77): every scheme and destination name below exists as written (`TendAI` in the
+package; `Tend`, `TendEval`, `TendAIHostedTests` in the generated project; `iPhone 17 Pro`). B1, B3–B6 pass. B2 has two
+Havana tzdata failures on macOS (dev-notes "WI-M2-M1", owner of the fix: WI-M2-03). B6 gained one check: the `TendEval`
+scheme's Archive action is off. B7 is not run until MS-3. The brief names Xcode 26; the Mac has Xcode 27.2 with the
+iOS 26 SDK floor (deployment target 26.0) and the iOS 26.5 Simulator, and the evidence record names both.
+XcodeGen is installed as ADR-0003 says (pinned release binary, SHA-256 checked, wrapper on `PATH`).
 ```bash
 # B0 — evidence header (always first)
 git rev-parse HEAD && git status --porcelain        # the second must print nothing
@@ -557,6 +564,10 @@ xcodebuild archive -project Tend.xcodeproj -scheme Tend \
 find build/Tend.xcarchive -iname '*TendEval*'                     # must print nothing
 xcodebuild build -project Tend.xcodeproj -scheme TendEval -configuration Debug \
   -destination 'generic/platform=iOS' -derivedDataPath build/dd-eval CODE_SIGNING_ALLOWED=NO 2>&1 | tee mac-B6-eval-debug.log
+# B6 (added by WI-M2-M1): the TendEval scheme's Archive action is off. This must fail with
+# "Scheme TendEval is not currently configured for the archive action." (exit 66).
+xcodebuild archive -project Tend.xcodeproj -scheme TendEval -destination 'generic/platform=iOS' \
+  -archivePath build/TendEval.xcarchive CODE_SIGNING_ALLOWED=NO 2>&1 | tee mac-B6-eval-archive.log
 
 # B7 — install TendEval on an iPhone (MS-3; <UDID> from the first command, <TEAM_ID> from Q20)
 xcrun devicectl list devices
@@ -705,14 +716,14 @@ This rule is not in force until it is recorded as **D-032** in `DECISIONS.md` (a
 
 | ID | Risk | Likelihood | Impact | Mitigation | Owner |
 |---|---|---|---|---|---|
-| R-1 | On-device TTFI is ≥ 1.5 s on the iPhone 15 Pro (schema size, instructions, a `Tool` round trip before the first item) | M | H | Mac probe in MS-1; optional device spike SP-1 in MS-2; compact `@Generable` schema with `title` first; prewarm on capture start; measure the `Tool` call's cost and keep the shortlist small. AC-M2-16 is never relaxed; a miss goes back to the PO. | Developer |
+| R-1 | On-device TTFI is ≥ 1.5 s on the iPhone 15 Pro (schema size, instructions, a `Tool` round trip before the first item) | M | H | Mac probe in MS-1 (**done, information only:** on the M1 Mac mini (16 GB), macOS 27.2.1, a draft-sized 7-field schema with `title` first, no `Tool`, prewarmed: TTFI median 1.36 s, range 1.33–2.12 s over 5 runs, total median 4.46 s; the Mac is not the iPhone 15 Pro, so SP-1 stays useful); optional device spike SP-1 in MS-2; compact `@Generable` schema with `title` first; prewarm on capture start; measure the `Tool` call's cost and keep the shortlist small. AC-M2-16 is never relaxed; a miss goes back to the PO. | Developer |
 | R-2 | On-device accuracy falls below the Q3 thresholds (small model) | M | H | Tune instructions against a Developer dev set that is **not** the frozen eval; the Tester runs an exploratory charter with unseen inputs (R-19). | Developer; Acceptance Tester |
 | R-3 | Context window: long dumps + schema + instructions + tool output exceed the on-device limit | M | M | Eval inputs are ≤ 80 words (Q3); log token counts in dev notes; "context too long" maps to the calm `noModel` (AC-M2-10). | Developer |
 | R-4 | `PartiallyGenerated` snapshot order does not match the item-completion rules (fields arrive in declaration order; arrays grow) | M | M | WI-M2-06 is defined over neutral snapshots; WI-M2-M2 maps and tests every snapshot shape; Linux stream tests are the oracle. | Developer |
 | R-5 | Cloud TTFI ≥ 3.0 s (model reasoning or thinking tokens, structured-output warm-up, network) | M | H | Q18 models are approved only with no reasoning tokens (Gemini thinking budget 0) and temperature 0; the real recordings in MS-2 give an early timing; the run record holds a speed test (Q15). Q18 conditions 4 and 5 revised 2026-11-23 (PO WI-M2-10 ruling 7): lowest documented reasoning level, fixed; AC-M2-27 measured in the dev-set run. | Developer |
 | R-6 | Provider APIs, model names or data terms change before the device run | M | M | Curated list per release; the Developer re-checks at WI-M2-10 and the Reviewer against current docs; a change goes to the PO (golden bytes under a PO decision). | Developer; PO |
 | R-7 | `SpeechTranscriber` is not supported on A15, or speech assets are missing in airplane mode | M | M | `DictationTranscriber` fallback, with the transcriber recorded (AC-M2-25); DS-1 and DS-2 preconditions download the assets online first. | Developer; Acceptance Tester |
-| R-8 | The T-27 answer is unclear from the Simulator alone | M | L | MS-1 records the docs and the Simulator result; DS-1 and DS-2 confirm the permission prompt on device; if the rule changes, the scope table and this plan are updated. | Developer |
+| R-8 | The T-27 answer is unclear from the Simulator alone (**happened in MS-1:** the iOS 26.5 Simulator has no speech model, so it could not transcribe at all; the answer rests on Apple's documentation and the macOS run) | M | L | MS-1 records the docs and the Simulator result; DS-1 and DS-2 confirm the permission prompt on device; if the rule changes, the scope table and this plan are updated. | Developer |
 | R-9 | Keychain tests fail in the Simulator host (`errSecMissingEntitlement`, signing) | M | M | A dedicated `TendAITestHost` with a keychain access group, "Sign to Run Locally"; attributes read back with `kSecReturnAttributes`. | Developer |
 | R-10 | Linux and Darwin Foundation differ (string folding, sorting, JSON, `Calendar` DST) | M | H | Own canonical JSON writer; folding with fixed `en_US_POSIX`; B1 and B2 rerun every Linux suite on Darwin in MS-2 and MS-3; any difference is a defect, not a skip. | Developer |
 | R-11 | HM-1 is not merged, so G3 blocks every Phase A merge | H | H | HM-1 is the first owner item; work continues on branches meanwhile. | Orchestrator → owner |

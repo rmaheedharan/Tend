@@ -71,7 +71,7 @@ struct IngestionSourceScanTests {
         #expect(ScanScope.roots.map(\.module) == ScannedModule.allCases)
         #expect(ScanScope.roots.first { $0.module == .tendIngestion }?.state == .required)
         #expect(ScanScope.configuration.cloudAdapterAllowlist.count == 3)
-        #expect(ScanScope.configuration.speechPermissionExceptionEnabled == false)  // until WI-M2-M1 (T-27)
+        #expect(ScanScope.configuration.speechPermissionExceptionEnabled == false)  // T-27: not needed (WI-M2-M1)
     }
 
     @Test("AC-M2-09 negative (driver): one planted hit per rule, run through the same configuration, is caught")

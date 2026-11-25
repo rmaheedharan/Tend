@@ -1,0 +1,167 @@
+# Tend — XcodeGen spec (ADR-0003, accepted in WI-M2-M1).
+# Generate with `xcodegen generate --spec project.yml` (XcodeGen 2.46.0, pinned in ADR-0003).
+# The generated Tend.xcodeproj is git-ignored and always regenerated. Agents never hand-edit .pbxproj
+# (CLAUDE.md §3, §6): every project change is a diff of this file.
+#
+# Targets (M2 plan WI-M2-M1):
+#   Tend               the app skeleton, shipped later. It has no dependency on TendEval (AC-M2-28).
+#   TendEval           the debug-only eval harness: own bundle ID, Debug only, file sharing in Debug only,
+#                      the frozen eval fixtures bundled, its scheme's Archive action off (AC-M2-28).
+#   TendAITestHost     a blank, never-shipped iOS host app for the hosted tests.
+#   TendAIHostedTests  Packages/TendAI/HostedTests, hosted by TendAITestHost (AC-M2-13(b), 18(a), 21, 22, 23).
+
+name: Tend
+
+options:
+  minimumXcodeGenVersion: 2.46.0
+  bundleIdPrefix: com.tend
+  deploymentTarget:
+    iOS: "26.0"
+  developmentLanguage: en
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    TARGETED_DEVICE_FAMILY: "1,2"
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CODE_SIGN_STYLE: Automatic
+
+packages:
+  TendCore:
+    path: Packages/TendCore
+  TendIngestion:
+    path: Packages/TendIngestion
+  TendAI:
+    path: Packages/TendAI
+
+targets:
+  Tend:
+    type: application
+    platform: iOS
+    sources:
+      - path: Apps/Tend/Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tend.app
+        PRODUCT_NAME: Tend
+        INFOPLIST_KEY_CFBundleDisplayName: Tend
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    # No dependencies in M2. TendEval must never appear here (AC-M2-28).
+
+  TendEval:
+    type: application
+    platform: iOS
+    sources:
+      - path: Apps/TendEval/Sources
+      # The frozen eval (WI-M2-16), bundled at build time as a small fixed set of files at the bundle root, each
+      # loaded by its own literal `Bundle.main.url(forResource:` call (M2 Q23).
+      - path: Fixtures/M2/eval/inputs.json
+        buildPhase: resources
+      - path: Fixtures/M2/eval/household.json
+        buildPhase: resources
+      - path: Fixtures/M2/eval/golden.json
+        buildPhase: resources
+      - path: Fixtures/M2/eval/results-v1.schema.json
+        buildPhase: resources
+      - path: Fixtures/M2/eval/MANIFEST.sha256
+        buildPhase: resources
+    dependencies:
+      - package: TendCore
+      - package: TendIngestion
+      - package: TendAI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tend.eval
+        PRODUCT_NAME: TendEval
+        INFOPLIST_KEY_CFBundleDisplayName: TendEval
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+      configs:
+        Debug:
+          # File sharing in Debug only, so the owner can copy the results file off the iPhone (AC-M2-28).
+          # (Xcode has no INFOPLIST_KEY_ setting for UIFileSharingEnabled, so a Debug-only partial Info.plist
+          # is merged with the generated keys.)
+          INFOPLIST_FILE: Apps/TendEval/Support/Debug-Info.plist
+
+  TendAITestHost:
+    type: application
+    platform: iOS
+    sources:
+      - path: Apps/TendAITestHost/Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tend.aitesthost
+        PRODUCT_NAME: TendAITestHost
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+
+  TendAIHostedTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Packages/TendAI/HostedTests
+        group: TendAIHostedTests
+    dependencies:
+      - target: TendAITestHost
+      - package: TendAI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tend.aihostedtests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TendAITestHost.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TendAITestHost"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  # The shipped app. It builds and archives Tend only (AC-M2-28).
+  Tend:
+    build:
+      targets:
+        Tend: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+
+  # The eval harness. Debug for every action, and it is never built for archiving, so its Archive action is off
+  # (AC-M2-28).
+  TendEval:
+    build:
+      targets:
+        TendEval: [running, testing, profiling, analyzing]
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Debug
+    analyze:
+      config: Debug
+    archive:
+      config: Debug
+
+  # The iOS Simulator host-app tests (plan B5).
+  TendAIHostedTests:
+    build:
+      targets:
+        TendAITestHost: [running, testing]
+        TendAIHostedTests: [testing]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - TendAIHostedTests
+    archive:
+      config: Debug
