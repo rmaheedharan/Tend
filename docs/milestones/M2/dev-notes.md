@@ -5123,6 +5123,105 @@ case.
 | 2026-11-24 | Orchestrator | Developer | accepted | EC-Q8 pin, merge main `4e13164`. |
 | 2026-11-24 | Developer | Reviewer, Acceptance Tester (via Orchestrator) | sent | One-hash test change and the merge. 564 + 11 tests green. |
 
+## L2a live check result (GR-4; WI-M2-16 DoR; AC-M2-24, AC-M2-14) and the first real recording (Gemini)
+
+- **Owner:** Developer  ·  **Branch:** `m2/gemini-recording` (from `main` `52cba62`)  ·  **PR:** none yet  ·
+  **ADRs:** ADR-0005 (unchanged)
+
+### What happened (owner, 2026-11-25)
+The owner ran L2a (plan.md "Real provider recordings") with the committed golden bodies for the Outcome sentence and an
+empty household (`Fixtures/M2/payload/golden/g1-outcome-empty-<provider>.body.json`) and their golden headers, with the
+owner's own key typed at a hidden prompt. Only the response stream was saved.
+
+| Provider | L2a result | What it shows |
+|---|---|---|
+| Gemini | **PASS** | HTTP 200, `text/event-stream`, no 4xx. Body sent: `g1-outcome-empty-gemini.body.json` (SHA-256 `7be08e83…8207827` at `52cba62`). The stream is schema-valid: the joined output parses with `StructuredOutputReader` to 3 items, and a one-off Python check of the output against the body's `responseJsonSchema` (types, `enum`, `required`, `additionalProperties: false`, `maxItems`, string lengths; the schema uses no other keyword) found no error. Served model `gemini-3.5-flash-lite` (`modelVersion` in all 14 events). `usageMetadata` has no `thoughtsTokenCount` in any event: **0 reasoning tokens reported** (final usage: prompt 549, candidates 297, total 846 = 549 + 297). |
+| OpenAI | **NOT RUN** | The call returned only a billing error, HTTP 429 `insufficient_quota` (no credit). That proves nothing about the request. No response was saved. |
+| Anthropic | **NOT RUN** | The call returned only a billing error, HTTP 400 "credit balance" too low. That proves nothing about the request. No response was saved. |
+
+**What the Gemini PASS confirms (GR-4):** Google accepted, with no 4xx, the three request members that its pages do not
+document clearly (L1b note, 2026-11-24): `generationConfig.responseJsonSchema` on `streamGenerateContent`,
+`generationConfig.thinkingConfig.thinkingLevel: "minimal"`, and `null` inside `enum` (daypart, repeatUnit, season,
+weekday). Google also honoured the schema: the output keeps the sorted key order, has `null` for every unset hint member,
+and every enum value is in its list. So for Gemini the golden request needs no change. For OpenAI (including the array
+system content, F2) and Anthropic, L2a is still open. Those providers need credit on the owner's accounts, then the same
+commands.
+
+### What changed
+- **Fixture (new):** `Fixtures/M2/provider-streams/gemini/recorded-outcome-sample.sse` (owner's recording, the plan's
+  path; SHA-256 `1f5784a0…5109102f`, 6 551 bytes, 14 `data:` events, CRLF). Before committing I checked that it holds no
+  key, header or request. It contains no `x-goog-api-key`, `AIza`, `Authorization`, `Bearer`, the fake test key,
+  `contents`, `systemInstruction` or `generationConfig`, and every non-empty line is `data: {…}`. A test checks the same
+  thing. The only household-like text is the model's reply to the brief's fixed Outcome sentence.
+- **Tests (new):** `Packages/TendIngestion/Tests/TendIngestionTests/ProviderStreamRecordingTests.swift`, 6 tests.
+  The recording runs through the production path: `ProviderStreamReader(provider: .gemini)`, then `DraftPipeline` on
+  `.cloud(.gemini)` through the existing test adapter `ChunkedProviderModel`, exactly as the synthetic fixture tests do.
+- **Docs:** `Fixtures/M2/provider-streams/README.md` has a new "Recorded" section. It replaces the old `recorded/<provider>/`
+  path, which did not match the plan's path. This section is new.
+- **No production code changed.** The Gemini dialect already reads the trailing part correctly, so I found no defect.
+  That part is `{"text":"","thoughtSignature":"…"}`, in the only event that carries `finishReason: "STOP"`. Its empty
+  `text` adds nothing, the unknown member `thoughtSignature` is ignored, and `STOP` sets the normal end.
+
+### AC coverage
+| AC / item | Test (`ProviderStreamRecordingTests`) | Result (Linux) |
+|---|---|---|
+| AC-M2-24 / GR-4: response only, no key or request | "the Gemini recording holds the response body only: no request, no header, no key" | pass |
+| GR-4 request profile | "what the recording shows about the request profile: served model gemini-3.5-flash-lite, no thoughtsTokenCount, no thought part, a trailing empty-text part with thoughtSignature and STOP". It checks one `responseId`, that `totalTokenCount = prompt + candidates` in every event, that the joined output equals the typed text, and it prints the usage. | pass |
+| GR-4 trailing part | "the trailing empty-text part with thoughtSignature adds no output and gives the normal end (STOP)". The dialect reads the last event alone: output `""`, no stop, `hasEnded`. As a control, the body without the last event gives `cutShort(.noFinish)` with all 3 items read (K2). | pass |
+| AC-M2-24 / AC-M2-05: outcome | "the Gemini recording gives completed, the 3 titles in order and no skip …": reader end equals `StructuredOutputReader.parse` of the typed output; emitted titles `["The AC needs servicing", "dishwasher pods", "deep clean the balcony"]`; no `updated`; one `finished`; `.completed(route: .cloud(.gemini))` | pass |
+| AC-M2-24 / AC-M2-04: fields | "the recording's drafts …": rooms `[.none, .none, .proposed("balcony")]`, kinds `[oneOff, restock, oneOff]`, efforts `[normal, low, high]`, critical all false, deep clean `[f, f, t]`, weather `[f, f, t]`, no interval, source phrases as sent, no duplicates | pass |
+| AC-M2-24: split chunks | "the recording gives the same result one shot, one event per chunk, byte by byte and at 40 seeded random cut sets (reader and pipeline: all 42)". The seed is printed in every message. Each cut set must give the same reader end and last snapshot, no part title in any step, the same emitted titles and final drafts, 0 skips and `completed`. | pass |
+
+**The tests fail when the code breaks:** I briefly changed the dialect to reject a part that has a `thoughtSignature`.
+Three of the 6 tests then failed (trailing part, outcome, split chunks; 45 issues). I restored the file, and
+`git diff` shows no source change.
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| New recording tests (6) | pass (Docker `swift:6.2-noble`, `-warnings-as-errors`) | not run | n.a. | n.a. | — |
+| Full TendIngestion | exit 0, `Test run with 570 tests in 67 suites passed` (564 before + 6), 0 warnings | not run | n.a. | n.a. | — |
+| L2a Gemini live call | n.a. | n.a. | n.a. | owner's machine, 2026-11-25 (as reported by the owner; I did not see the HTTP status myself, only the saved body) | — |
+| L2a OpenAI, Anthropic | — | — | — | — | not run: billing errors, no credit |
+| Real adapter end to end over this body | — | — | — | — | WI-M2-M6 on the owner-run Mac |
+
+### Things the reviewer should look at closely
+- The real wording differs from the synthetic fixtures. The titles are the model's own ("The AC needs servicing",
+  "dishwasher pods"), the restock item has no room, and the balcony room is lower case. So these tests pin the
+  recording's own values. They do not reuse `ProviderFixtures.happyTitles`.
+- `thoughtSignature` now appears on the **last** part, with empty text, in the `STOP` event. The synthetic fixtures put
+  it on the first part. Both are now covered.
+- The synthetic Gemini fixtures carry `thoughtsTokenCount`. The real body under `thinkingLevel: "minimal"` has none, so
+  the synthetic shape claims more than the API sent. That does not affect drafts, because the field is ignored. I did
+  not change any synthetic fixture.
+- `fixtureList` still counts only `synthetic/<provider>/`. The recording sits outside that folder, as the plan says.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| L2a for OpenAI (incl. array system content, F2) and Anthropic | not blocking the freeze (owner decision "L2a outcome", 2026-11-25); gates those providers' DS-2 runs (acceptance.md P11) | Owner: add credit, rerun the L2a commands; then a recording each, same test pattern |
+| The schema check of the recorded output was a one-off Python script, not a committed test | Minor | Can become a Linux test once WI-M2-M6 adds a Foundation schema check for outputs |
+| Whether L2a for Gemini alone is enough to close GR-4 (GR-4 names only Gemini members) | answered | Owner decision "L2a outcome" (2026-11-25): freeze now with Gemini PASS; OpenAI/Anthropic deferred (review R37 N1) |
+| Recording tests use the shared test rooms, not the empty household the request was sent with (review R37 N2) | Minor | Ticket for WI-M2-M6 when real recordings per provider are added |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Tests and docs only; no entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No copy added; the recorded titles contain no banned word. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No routing change. The recording is the opt-in cloud path's reply. |
+| P-2 No data leaves device (except user iCloud / P-3) | pass | Nothing is sent by the tests. The owner's call sent only the golden body: the fixed Outcome sentence and an empty household. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | The key was never written to a file. I checked the recording for key and header strings, and a test checks it too. The request members are the ADR-0005 golden members; L2a shows Google accepts them. |
+| P-4 Media not persisted without consent | n.a. | Text only. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-25 | Orchestrator | Developer | accepted | Owner's L2a Gemini recording: test it through the production path, README note, L2a result. |
+| 2026-11-25 | Developer | Reviewer, Acceptance Tester (via Orchestrator) | sent | Tests, fixture, docs only. No defect found in the Gemini dialect. 570 tests green, 0 warnings (Linux). OpenAI and Anthropic L2a still open. |
+
 > **Update 2026-11-25 (Acceptance Tester, pointer only; the note above is kept as written):** the eval is now **frozen**
 > on `m2/eval-freeze` (PR #36): `Fixtures/M2/eval/MANIFEST.sha256` committed, `EvalFreeze.declaredFrozen = true`,
 > `eval-composition.md` v6. L2a (GR-4): Gemini PASS; OpenAI and Anthropic deferred by owner decision (DS-2 P11 in
