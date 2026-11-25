@@ -5221,3 +5221,8 @@ Three of the 6 tests then failed (trailing part, outcome, split chunks; 45 issue
 |---|---|---|---|---|
 | 2026-11-25 | Orchestrator | Developer | accepted | Owner's L2a Gemini recording: test it through the production path, README note, L2a result. |
 | 2026-11-25 | Developer | Reviewer, Acceptance Tester (via Orchestrator) | sent | Tests, fixture, docs only. No defect found in the Gemini dialect. 570 tests green, 0 warnings (Linux). OpenAI and Anthropic L2a still open. |
+
+> **Update 2026-11-25 (Acceptance Tester, pointer only; the note above is kept as written):** the eval is now **frozen**
+> on `m2/eval-freeze` (PR #36): `Fixtures/M2/eval/MANIFEST.sha256` committed, `EvalFreeze.declaredFrozen = true`,
+> `eval-composition.md` v6. L2a (GR-4): Gemini PASS; OpenAI and Anthropic deferred by owner decision (DS-2 P11 in
+> `acceptance.md`). The freeze-state test display name and header comment were updated to the frozen state (text only).
