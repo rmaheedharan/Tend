@@ -1,6 +1,6 @@
 # M2 Code Review — WI-M2-16: eval freeze, `MANIFEST.sha256` (PR #36, `m2/eval-freeze`, head `b600eca`)
 
-- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 1
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 2 (round 1 CHANGES REQUIRED at `b600eca`; round 2 APPROVE at `60c9293`, see "Round 2" at the end)
 - **Requirements:** AC-M2-14 ("committed, with a SHA-256 manifest, and frozen"), GR-4 (L2a), FR-A1, P-3; feeds
   AC-M2-11, 15, 16, 17, 25, 26, 27.
 - **Binding inputs checked:** `CLAUDE.md`; dev-notes "WI-M2-16 (Developer part 2)", "To freeze" steps;
@@ -109,3 +109,54 @@ provider (procedure Steps 2–4). The docs say "the committed golden body" (sing
 |---|---|---|---|---|
 | 2026-11-25 | Orchestrator | Reviewer | accepted | Review PR #36 at `b600eca` (freeze, AC-M2-14, GR-4, P11). |
 | 2026-11-25 | Reviewer | Orchestrator → Acceptance Tester | returned | CHANGES REQUIRED: M1 (P11 covers all DS-2 cloud runs incl. Part B / AC-M2-25; Part B provider; record field; pass rules cite P11). m1 rename can go in the same commit (Developer or Tester; display string only). m2, m3 ticketed (Tester / Documenter / PO). Manifest, fixtures, flag and tests verified: 564 passed, 0 skipped, 5/5 mutants killed. Only the Reviewer lifts M1. |
+
+## Round 2 — head `60c9293` (Tester fix commit on top of `48ffc7e`, which is my round-1 file)
+
+- **Owner:** Reviewer  ·  **Verdict:** **APPROVE**  ·  **Diff reviewed:** `b600eca..60c9293`. That covers
+  `EvalFreezeTests.swift` (comments and one `@Test` display string), `acceptance.md`, `eval-composition.md`,
+  `dev-notes.md` (a pointer), the new `l2a-real-call-check.md`, and this file. No file under `Fixtures/`, `Sources/` or
+  `Package.swift` changed (`git diff --stat b600eca..HEAD -- Fixtures Packages/*/Sources` is empty). No protected path
+  is touched. The milestone lock is unchanged: M1 `ACCEPTED`, M2 `IN-BUILD`.
+
+### Build and tests (my run, Linux, Docker `swift:6.2-noble`, `-warnings-as-errors`, scratch `/tmp/rev36-ing2`)
+Exit 0, `Test run with 564 tests in 66 suites passed after 132.720 seconds`, 0 `warning:`, 0 `✘`, 0 `➜` skips. Two
+tests matter most here: `✔ Test "AC-M2-14: MANIFEST.sha256 verifies against every file in Fixtures/M2/eval" passed` and
+`✔ Test "AC-M2-14 freeze state agrees: MANIFEST.sha256 exists exactly when EvalFreeze.declaredFrozen, and the composition
+Status says "Not frozen" exactly when not" passed`. The assertions, fixtures and manifest have the same bytes as in
+round 1, so the five round-1 mutants (M1–M5) still apply unchanged. I did not re-run them.
+
+### Findings re-checked
+| # | Round 1 | Verified in `60c9293` | Status |
+|---|---|---|---|
+| M1 | Major | (1) P11 (`acceptance.md` DS-2 preconditions) now names **Parts B, C and D** and **AC-M2-25, 26, 27**. A run whose provider's L2a row is not PASS "does not count for any DS-2 AC". This matches the owner's "L2a outcome" wording ("before their DS-2 runs count"). (2) Part B now uses "only one whose L2a row is PASS … today that is Gemini", and step 1 checks P11. Part C checks P11 per provider and runs Gemini first while the others are pending. Part D defaults to Gemini. (3) "What to record" has an L2a row per provider: Gemini PASS with date, `HTTP/2 200`, schema-valid, evidence file; OpenAI 429 and Anthropic 400 are "not verified (pending)". (4) The AC-M2-25/26/27 pass rules each start with "P11 holds …" and list "P11 L2a row(s)" under "Read from". The AC-M2-25 and AC-M2-27 Results rows cite P11. No AC text changed. | **CLOSED** |
+| m1 | Minor | The display name is now state-neutral (quoted above) and describes the symmetric assertion. The header comment describes the frozen state. Only the `@Test` string and `//` comments changed. `freezeStateAgrees` has the same body, so no test is weakened. | **CLOSED** |
+| m2 | Minor | `docs/milestones/M2/l2a-real-call-check.md` equals the owner's procedure: Steps 1–4 match byte for byte, Step 5 only changes the hand-over wording, and the file adds a provenance comment and a "Pass rule and record" section. The pass rule matches my round-1 check (200, event-stream, joined text valid against the g1 body's schema, normal finish). It treats billing errors as "not verified" and a 4xx refusal as "stop, PO decision". No `.status` file is committed, and the reason (Anthropic account IDs) is stated. The cited evidence `Fixtures/M2/provider-streams/gemini/recorded-outcome-sample.sse` is **not in this PR**. It is on `origin/m2/gemini-recording` (`f3cc00d`, PR #37), and I confirmed it is **byte-identical** (`cmp`) to the owner's `gemini.sse`. It is not on `origin/main` (`52cba62`) yet. See r2-1. | **CLOSED** (residual r2-1) |
+| m3 | Minor | Left open for the governance PR (DECISIONS.md "L2a outcome" entry and PO acknowledgment). The GR-4 row and the handoff logs say so. It does not block. | Open (ticket, Documenter/PO) |
+| n1 | Nit | `eval-composition.md` header gives "2026-11-24, v6 2026-11-25". `acceptance.md` header moves to 2026-11-25. `dev-notes.md` has a forward pointer to the freeze. The historical note is kept. | **CLOSED** |
+
+### New in round 2
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| r2-1 | Minor | `docs/milestones/M2/acceptance.md` P11 and L2a row; `docs/milestones/M2/l2a-real-call-check.md` "Results so far" | The Gemini L2a evidence path names a file that arrives with PR #37. If #36 merges first, the link points at nothing on `main` until #37 merges. The content is verified identical to the owner's stream, so the evidence exists. Only the order of merges matters. | Merge PR #37 before or right after #36. Or, if #37 is dropped, commit the stream in a follow-up. The Orchestrator or Merge Gatekeeper tracks this. | Open (ticket) |
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No fixture or UI copy changed. The banned-token composition rule still passes. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On device first | n.a. | No inference path changed. |
+| P-2 No data leaves device (except user iCloud / P-3 request) | pass | Invented fixtures only. No account identifiers are committed (`.status` files withheld). |
+| P-3 Cloud AI opt-in, BYOK, minimised, per ADR-0005 | pass | The round-1 concern is resolved. Every DS-2 cloud run (Parts B, C, D) needs a recorded L2a PASS for its provider, and only Gemini has one today. |
+| P-4 Media not persisted without consent | n.a. | No media. |
+
+### Verdict
+**APPROVE.** No open Blocker or Major. Minor m3 and r2-1 are open as tickets. This is a merge decision on PR #36 only.
+It does not accept AC-M2-14 (overall verdict at the M2 merge commit) or any `AWAITING-DEVICE` criterion.
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-25 | Orchestrator | Reviewer | accepted | Round 2 at `60c9293`. |
+| 2026-11-25 | Reviewer | Orchestrator → Merge Gatekeeper, Acceptance Tester, Documenter | sent | APPROVE. M1, m1, m2, n1 closed. m3 open (governance PR). r2-1: merge order with PR #37 (evidence path). 564 tests passed, 0 warnings, 0 skips. |
