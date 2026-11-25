@@ -11,7 +11,8 @@
 //   exactly when it is not. Writing the manifest without flipping the flag (or the reverse) fails;
 // - the manifest verifier, on manifests rendered in memory from the real files, with negative controls;
 // - the documented command (`EvalManifest.command`) writes the same bytes as the in-memory render, where `sha256sum`
-//   exists (Linux; recorded as skipped elsewhere);
+//   exists: the first executable in /usr/bin (Linux), /sbin (macOS 27), /usr/sbin, /bin, /opt/homebrew/bin,
+//   /usr/local/bin, then each PATH directory (recorded as skipped, naming those places, only if none has it);
 // - when the manifest exists, it verifies against every file in `Fixtures/M2/eval` (it exists since the freeze; the
 //   test reports skipped, with the reason, only if the manifest is absent).
 // The freeze was done by running `EvalManifest.command`, setting `declaredFrozen = true`, and updating the composition
@@ -44,7 +45,23 @@ enum EvalFreeze {
 
     static var manifestExists: Bool { FileManager.default.fileExists(atPath: manifestURL.path) }
 
-    static let sha256sum = "/usr/bin/sha256sum"
+    /// Fixed places searched for `sha256sum` before `PATH`, in order (Linux keeps it in /usr/bin; macOS 27 in /sbin).
+    static let sha256sumFixedDirectories = [
+        "/usr/bin", "/sbin", "/usr/sbin", "/bin", "/opt/homebrew/bin", "/usr/local/bin",
+    ]
+
+    /// The first executable `sha256sum` in `sha256sumFixedDirectories`, then in each `PATH` directory; nil if none.
+    static func resolveSHA256Sum(
+        path: String? = ProcessInfo.processInfo.environment["PATH"],
+        isExecutable: (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }
+    ) -> String? {
+        let pathDirectories = (path ?? "").split(separator: ":").map(String.init).filter { !$0.isEmpty }
+        return (sha256sumFixedDirectories + pathDirectories)
+            .map { $0 + "/sha256sum" }
+            .first(where: isExecutable)
+    }
+
+    static let sha256sum: String? = resolveSHA256Sum()
 
     /// Every file a manifest must list, with its bytes.
     static func listedFiles() throws -> [(name: String, data: Data)] {
@@ -63,6 +80,25 @@ struct EvalFreezeTests {
                 == "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1")
         #expect(SHA256Hex.hex(Data(repeating: 0x61, count: 1_000_000))
                 == "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0")
+    }
+
+    static let resolverCases: [(name: String, present: Set<String>, path: String?, expected: String?)] = [
+        ("Linux: /usr/bin", ["/usr/bin/sha256sum", "/sbin/sha256sum"], "/usr/bin:/bin", "/usr/bin/sha256sum"),
+        ("macOS 27: /sbin", ["/sbin/sha256sum"], "/usr/bin:/bin:/usr/sbin:/sbin", "/sbin/sha256sum"),
+        ("Homebrew before PATH", ["/opt/homebrew/bin/sha256sum", "/home/u/bin/sha256sum"], "/home/u/bin",
+         "/opt/homebrew/bin/sha256sum"),
+        ("PATH only, first PATH entry wins", ["/home/u/bin/sha256sum", "/nix/bin/sha256sum"], "/nix/bin::/home/u/bin",
+         "/nix/bin/sha256sum"),
+        ("none anywhere", [], "/home/u/bin", nil),
+        ("none and no PATH", [], nil, nil),
+    ]
+
+    @Test("AC-M2-13(b) / AC-M2-14: sha256sum is found in the fixed places in order, then PATH; nil only if absent everywhere",
+          arguments: resolverCases.indices)
+    func sha256sumResolver(_ index: Int) {
+        let c = Self.resolverCases[index]
+        #expect(EvalFreeze.resolveSHA256Sum(path: c.path, isExecutable: { c.present.contains($0) }) == c.expected,
+                "\(c.name)")
     }
 
     @Test("PO ruling 1: inputs.json, household.json and golden.json have the PO-approved SHA-256 (any change goes back to the PO)",
@@ -130,9 +166,10 @@ struct EvalFreezeTests {
     }
 
     @Test("AC-M2-14: the documented manifest command writes exactly the in-memory render (stdout only; nothing written)",
-          .enabled(if: FileManager.default.isExecutableFile(atPath: EvalFreeze.sha256sum),
-                   "sha256sum is not installed here (Linux has it)"))
+          .enabled(if: EvalFreeze.sha256sum != nil,
+                   "no executable sha256sum in /usr/bin, /sbin, /usr/sbin, /bin, /opt/homebrew/bin, /usr/local/bin or PATH"))
     func documentedCommandMatchesRender() throws {
+        let sha256sum = try #require(EvalFreeze.sha256sum)
         // The command is `cd <dir> && LC_ALL=C sha256sum <names> > MANIFEST.sha256`; run it without the redirection.
         #expect(EvalManifest.command.hasPrefix("cd " + EvalFixtureFiles.directory + " && LC_ALL=C sha256sum "))
         #expect(EvalManifest.command.hasSuffix(" > " + EvalManifest.name))
@@ -142,7 +179,7 @@ struct EvalFreezeTests {
             .split(separator: " ").map(String.init)
         #expect(names == (try EvalManifest.listedNames(in: EvalFreeze.directory)))
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: EvalFreeze.sha256sum)
+        process.executableURL = URL(fileURLWithPath: sha256sum)
         process.arguments = names
         process.currentDirectoryURL = EvalFreeze.directory
         process.environment = ["LC_ALL": "C"]
