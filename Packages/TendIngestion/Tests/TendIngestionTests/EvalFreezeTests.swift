@@ -20,9 +20,10 @@ import Testing
 @testable import TendIngestion
 
 enum EvalFreeze {
-    /// The declared freeze state of `Fixtures/M2/eval`. Not frozen: L2a (GR-4) and the composition-check condition (e)
-    /// of PO ruling 1 are still open at this commit.
-    static let declaredFrozen = false
+    /// The declared freeze state of `Fixtures/M2/eval`. Frozen 2026-11-25 by the Acceptance Tester (WI-M2-16,
+    /// AC-M2-14): PO ruling 1 conditions met; L2a (GR-4) Gemini PASS, OpenAI and Anthropic L2a deferred by the owner's
+    /// decision ("L2a outcome", 2026-11-25) and required before their DS-2 runs count.
+    static let declaredFrozen = true
 
     /// PO ruling 1 (approved at `95491ed`), recorded in `eval-composition.md` "PO approval". `golden.json` is
     /// re-approved under PO EC-Q8 (`po-m2-wi16.md`, 2026-11-24): its only change from `882c2906…` is `g16-carservice`
