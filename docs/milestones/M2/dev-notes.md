@@ -5229,8 +5229,8 @@ Three of the 6 tests then failed (trailing part, outcome, split chunks; 45 issue
 
 ## Havana DST fixtures moved to the 2025 transitions (AC-M2-03 Q6(e), Q11; PO Havana tz fixtures, 2026-11-25)
 
-- **Owner:** Developer  ·  **Branch:** `m2/havana-tz-fixtures` (from `main` `20c40ea`)  ·  **PR:** none yet (local
-  commit only)  ·  **ADRs:** none
+- **Owner:** Developer  ·  **Branch:** `m2/havana-tz-fixtures` (from `main` `20c40ea`)  ·  **PR:** #39 (pushed
+  2374aad)  ·  **ADRs:** none
 
 ### Why
 On the owner's Mac (tzdata 2026f) 2 Havana tests in `TimeResolverTests.swift` fail: IANA tz 2026f (2026-10-27) says
