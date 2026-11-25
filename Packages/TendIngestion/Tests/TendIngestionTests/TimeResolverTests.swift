@@ -585,34 +585,63 @@ struct TimeResolverTests {
                  dayparts: [.night], clock: cl),
     ]
 
-    // America/Havana (tzdata): 2026-03-08 00:00 CST does not exist (the day starts at 01:00 CDT = 05:00Z), and on
-    // 2026-11-01 clocks go from 01:00 CDT back to 00:00 CST, so local midnight occurs twice (04:00Z and 05:00Z).
+    // America/Havana (tzdata): 2025-03-09 00:00 CST does not exist (the day starts at 01:00 CDT = 05:00Z), and on
+    // 2025-11-02 clocks go from 01:00 CDT back to 00:00 CST, so local midnight occurs twice (04:00Z and 05:00Z).
     // Q11: a repeated time takes its first occurrence.
+    // These are settled past transitions (PO Havana tz fixtures, 2026-11-25, option C): tzdata 2026f removed the
+    // 2026-11-01 fall-back, so the fixtures moved from 2026-03-08 / 2026-11-01 to 2025, which every tzdata release
+    // through 2026f agrees on. Expected instants are computed by hand from the Cuba rules (Mar Sun>=8 0:00s,
+    // Nov Sun>=1 0:00s; standard offset -5), not from Foundation.
     static let cu = TestClock("America/Havana")
     static let havanaCases: [TimeCase] = [
         TimeCase(id: "CU today before a repeated midnight: its first occurrence", hint: TimeHint(anchor: .today),
-                 now: cu.local(2026, 10, 31, 10), start: utc("2026-10-31T14:00Z"), end: utc("2026-11-01T04:00Z"),
+                 now: cu.local(2025, 11, 1, 10), start: utc("2025-11-01T14:00Z"), end: utc("2025-11-02T04:00Z"),
                  clock: cu),
         TimeCase(id: "CU tomorrow on the 25 h day", hint: TimeHint(anchor: .tomorrow),
-                 now: cu.local(2026, 10, 31, 10), start: utc("2026-11-01T04:00Z"), end: utc("2026-11-02T05:00Z"),
+                 now: cu.local(2025, 11, 1, 10), start: utc("2025-11-02T04:00Z"), end: utc("2025-11-03T05:00Z"),
                  clock: cu),
         TimeCase(id: "CU tomorrow on the 23 h day (midnight gap)", hint: TimeHint(anchor: .tomorrow),
-                 now: cu.local(2026, 3, 7, 10), start: utc("2026-03-08T05:00Z"), end: utc("2026-03-09T04:00Z"),
+                 now: cu.local(2025, 3, 8, 10), start: utc("2025-03-09T05:00Z"), end: utc("2025-03-10T04:00Z"),
                  clock: cu),
     ]
 
+    /// The Havana transitions the cases above assume: (last instant before, first instant after, offset before,
+    /// offset after). If a tzdata release rewrites them, the fixture is stale and must be moved, never loosened.
+    static let havanaTransitions: [(before: String, after: String, from: Int, to: Int)] = [
+        ("2025-03-09T04:59:59Z", "2025-03-09T05:00:00Z", -5 * 3600, -4 * 3600),
+        ("2025-11-02T04:59:59Z", "2025-11-02T05:00:00Z", -4 * 3600, -5 * 3600),
+    ]
+
+    static func expectHavanaFixture(sourceLocation: SourceLocation = #_sourceLocation) {
+        let zone = cu.timeZone
+        #expect(zone.identifier == "America/Havana", "stale fixture: Havana tzdata changed (zone missing)",
+                sourceLocation: sourceLocation)
+        for t in havanaTransitions {
+            #expect(zone.secondsFromGMT(for: utc(t.before)) == t.from,
+                    "stale fixture: Havana tzdata changed (offset before \(t.after) is not \(t.from) s)",
+                    sourceLocation: sourceLocation)
+            #expect(zone.secondsFromGMT(for: utc(t.after)) == t.to,
+                    "stale fixture: Havana tzdata changed (offset from \(t.after) is not \(t.to) s)",
+                    sourceLocation: sourceLocation)
+        }
+    }
+
     @Test("AC-M2-03 Q6(e) / Q11: a repeated and a missing local midnight (America/Havana)", arguments: havanaCases)
     func havana(_ c: TimeCase) {
+        Self.expectHavanaFixture()
         check(c)
     }
 
-    @Test("AC-M2-03 Q6(e): tzdata sanity for the Havana cases")
+    @Test("AC-M2-03 Q6(e): tzdata sanity for the Havana cases (stale fixture if this fails)")
     func havanaTzdata() {
+        Self.expectHavanaFixture()
         let zone = Self.cu.timeZone
-        #expect(zone.secondsFromGMT(for: utc("2026-11-01T04:59Z")) == -4 * 3600)
-        #expect(zone.secondsFromGMT(for: utc("2026-11-01T05:00Z")) == -5 * 3600)
-        #expect(zone.secondsFromGMT(for: utc("2026-03-08T04:59Z")) == -5 * 3600)
-        #expect(zone.secondsFromGMT(for: utc("2026-03-08T05:00Z")) == -4 * 3600)
+        #expect(zone.secondsFromGMT(for: utc("2025-11-02T04:59Z")) == -4 * 3600, "stale fixture: Havana tzdata changed")
+        #expect(zone.secondsFromGMT(for: utc("2025-11-02T05:00Z")) == -5 * 3600, "stale fixture: Havana tzdata changed")
+        #expect(zone.secondsFromGMT(for: utc("2025-03-09T04:59Z")) == -5 * 3600, "stale fixture: Havana tzdata changed")
+        #expect(zone.secondsFromGMT(for: utc("2025-03-09T05:00Z")) == -4 * 3600, "stale fixture: Havana tzdata changed")
+        #expect(Self.cu.calendar.startOfDay(for: utc("2025-03-09T12:00Z")) == utc("2025-03-09T05:00Z"),
+                "stale fixture: Havana tzdata changed (the 23 h day starts at 01:00 CDT)")
     }
 
     @Test("AC-M2-03 Q6(e): a DST change at local midnight (America/Santiago)", arguments: santiagoCases)

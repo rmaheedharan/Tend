@@ -5226,3 +5226,90 @@ Three of the 6 tests then failed (trailing part, outcome, split chunks; 45 issue
 > on `m2/eval-freeze` (PR #36): `Fixtures/M2/eval/MANIFEST.sha256` committed, `EvalFreeze.declaredFrozen = true`,
 > `eval-composition.md` v6. L2a (GR-4): Gemini PASS; OpenAI and Anthropic deferred by owner decision (DS-2 P11 in
 > `acceptance.md`). The freeze-state test display name and header comment were updated to the frozen state (text only).
+
+## Havana DST fixtures moved to the 2025 transitions (AC-M2-03 Q6(e), Q11; PO Havana tz fixtures, 2026-11-25)
+
+- **Owner:** Developer  ·  **Branch:** `m2/havana-tz-fixtures` (from `main` `20c40ea`)  ·  **PR:** none yet (local
+  commit only)  ·  **ADRs:** none
+
+### Why
+On the owner's Mac (tzdata 2026f) 2 Havana tests in `TimeResolverTests.swift` fail: IANA tz 2026f (2026-10-27) says
+"Cuba will not fall back to -05 on 2026-11-01 and instead plans to maintain -04 through 2027-11-07". The fixtures used
+the 2026-03-08 spring-forward and the 2026-11-01 fall-back. Linux CI (tzdata 2026e) still passes, but would fail when it
+updates. PO ruling "PO Havana tz fixtures, 2026-11-25": **option C**. Keep America/Havana (a midnight change), move the
+cases to a settled past transition that both old and new tzdata agree on, and add a fixture guard. Option B
+(expected values from `nextDaylightSavingTimeTransition`) is rejected.
+
+### What changed (test file only; no product code)
+`Packages/TendIngestion/Tests/TendIngestionTests/TimeResolverTests.swift`:
+
+| Case (same ids, same count: 3) | Old `now` / window (UTC) | New `now` / window (UTC) |
+|---|---|---|
+| CU today before a repeated midnight (Q11 first occurrence) | Sat 2026-10-31 10:00 CDT; 2026-10-31T14:00Z to 2026-11-01T04:00Z | Sat 2025-11-01 10:00 CDT; 2025-11-01T14:00Z to 2025-11-02T04:00Z |
+| CU tomorrow on the 25 h day | same now; 2026-11-01T04:00Z to 2026-11-02T05:00Z | same now; 2025-11-02T04:00Z to 2025-11-03T05:00Z |
+| CU tomorrow on the 23 h day (midnight gap) | Sat 2026-03-07 10:00 CST; 2026-03-08T05:00Z to 2026-03-09T04:00Z | Sat 2025-03-08 10:00 CST; 2025-03-09T05:00Z to 2025-03-10T04:00Z |
+
+- Same weekday (Saturday) and same hour for `now`, same anchors, same Q11 rule (a repeated midnight takes its first
+  occurrence, 04:00Z). Window lengths are unchanged in kind: 25 h on 2025-11-02, 23 h on 2025-03-09.
+- Expected instants are computed by hand from the Cuba rules (`Mar Sun>=8 0:00s`, `Nov Sun>=1 0:00s`, standard -5):
+  2025-03-09 is the second Sunday of March, 00:00 CST = 05:00Z becomes 01:00 CDT. 2025-11-02 is the first Sunday of
+  November, 01:00 CDT = 05:00Z becomes 00:00 CST, so local midnight is 04:00Z (CDT) and again 05:00Z (CST).
+- **Fixture guard (new, PO ruling item 3):** `havanaTransitions` + `expectHavanaFixture()` assert the offset 1 s before
+  and at each transition (-5 h to -4 h at 2025-03-09T05:00Z; -4 h to -5 h at 2025-11-02T05:00Z). Every parameterised
+  Havana case runs the guard before `check(c)`, and the sanity test `havanaTzdata` runs it plus the four minute-level
+  offset checks and `startOfDay(2025-03-09) == 05:00Z`. Every guard message starts "stale fixture: Havana tzdata
+  changed". Nothing was removed, skipped or loosened; the change only adds checks.
+
+### tzdata findings
+| Source | 2025-03-09 05:00Z | 2025-11-02 05:00Z | 2026-11-01 05:00Z |
+|---|---|---|---|
+| tzdata 2026e (Linux container `swift:6.2-noble`, `tzdata 2026e-0ubuntu0.24.04.1`; also host python `zoneinfo`) | -5 to -4 | -4 to -5 | -4 to -5 (still falls back) |
+| tzdata 2026f (`northamerica` at tag `2026f`, compiled with `zic`, read with `zdump -v`) | -5 to -4 | -4 to -5 | no change; next fall-back 2027-11-07 |
+
+- 2026f `northamerica` Cuba rules: `2012 2025 Nov Sun>=1 0:00s`, `2013 2026 Mar Sun>=8 0:00s`, then `2027 max Nov`
+  and `2028 max Mar`. So 2026f only ends the November rule after 2025 (and the March rule after 2026). 2025 is unchanged.
+- tz NEWS for 2026a to 2026f: only 2026f mentions Cuba, and only as a change to future timestamps. Its "Changes to past
+  timestamps" section is about Brazil 1965/1966. Nothing before 2026 changed for Cuba.
+- Note: the 2026-03-08 spring case would not have failed on 2026f, but the PO ruling moves the Havana fixtures to a
+  transition at least a year old, so it moved to 2025 too.
+
+### AC coverage
+| AC | Test | Result |
+|---|---|---|
+| AC-M2-03 Q6(e) / Q11 | `TimeResolverTests.havana` ("AC-M2-03 Q6(e) / Q11: a repeated and a missing local midnight (America/Havana)"), 3 cases | pass (Linux) |
+| AC-M2-03 Q6(e) | `TimeResolverTests.havanaTzdata` ("AC-M2-03 Q6(e): tzdata sanity for the Havana cases (stale fixture if this fails)") | pass (Linux) |
+
+Break check: I set the 2025-11-02 guard's "after" offset to -4 h and one expected end to 04:00Z. The run failed with
+"stale fixture: Havana tzdata changed (offset from 2025-11-02T05:00:00Z is not -14400 s)" on all 3 cases and the
+sanity test, plus the end mismatch. Then I restored the file (byte-identical, `cmp`).
+
+### Verification environment
+| Check | Linux (swift:6.2-noble, tzdata 2026e) | macOS / Xcode (tzdata 2026f) | Simulator | Device |
+|---|---|---|---|---|
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | **570 tests in 67 suites passed**, 0 warnings | **not verified: owner Mac rerun still needed** | not verified | not verified |
+| 2025 Havana offsets under 2026f | `zdump` of 2026f compiled with `zic` (Linux host) | not verified in Foundation on 2026f | n.a. | n.a. |
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| Owner must rerun the TendIngestion tests on the Mac (tzdata 2026f) to confirm all 570 pass there | gates closing this item | Owner |
+| DECISIONS.md entry "PO Havana tz fixtures, 2026-11-25" | Minor | Next human-merged governance PR (PO) |
+| Tester to confirm the replaced cases still prove AC-M2-03 (same assertions, guard present) | required by ruling | Acceptance Tester |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Test fixtures only. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | Correct day bounds keep items on the right day. No copy added. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No AI path change. |
+| P-2 No data leaves device | n.a. | Tests only; zone data is local. |
+| P-3 Cloud escalation per ADR | n.a. | No change. |
+| P-4 Media not persisted | n.a. | No media. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-25 | PO (via Orchestrator) | Developer | accepted | Ruling C: keep Havana, move to the 2025 transitions, add the stale-fixture guard. |
+| 2026-11-25 | Developer | Reviewer, Acceptance Tester, owner (via Orchestrator) | sent | Test-only change, local commit, not pushed. 570 green on Linux. Mac rerun on 2026f still needed. |
