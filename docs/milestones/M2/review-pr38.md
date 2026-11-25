@@ -1,6 +1,7 @@
 # M2 Code Review — WI-M2-M1: XcodeGen project, `TendAI` scaffold, T-27 check (PR #38, `m2/xcodegen-project`, head `02c1d84`)
 
-- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 1 (head `02c1d84`, base `origin/main` `20c40ea`)
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE (round 2, head `b1f57d3`; round 1 was CHANGES REQUIRED)  ·
+  **Round:** 1 (head `02c1d84`, base `origin/main` `20c40ea`); 2 (head `b1f57d3`), see "Round 2" below
 - **Requirements:** ○ AC-M2-09 (Rule 5 / T-27 decision; `TendAI` and `TendEval` scan roots to `required`),
   ○ AC-M2-13 (the Mac lane exists: B4, B5), ○ AC-M2-28 (the target and scheme structure its `project.yml` scan will
   check; owner WI-M2-M7), T-27, R-1, R-8; P-1, P-2, P-4; CLAUDE.md §3 (project generation, "no warnings"), §6 (no
@@ -135,3 +136,82 @@ CLAUDE.md §3 "no warnings". See m1.
 |---|---|---|---|---|
 | 2026-11-25 | Developer (via Orchestrator) | Reviewer | accepted | PR #38, head `02c1d84`, evidence for `0065664`. |
 | 2026-11-25 | Reviewer | Developer | returned | CHANGES REQUIRED: M1 (personal path in committed evidence). With it, docs-only: m1(b) README warning sentence, m3 zip hash, n1. Tickets: m1(a) orientations (MS-2), m2 Release guard (WI-M2-M7), m4 T-27 in SP-1 (Planner/Tester). Questions Q1 (PO/owner, D-032), Q2 (PO, Xcode 27.2), Q3 (Documenter). Re-review: I check `grep -rn <handle> docs/` is empty, the 22 hashes, and that the fix commit touches only `docs/`. |
+
+## Round 2 (head `b1f57d3`, fix commit on top of `02c1d84`)
+
+- **Verdict:** **APPROVE**. No open Blocker or Major. M1 is closed; the docs-only parts of m1(b), m3 and n1 are closed;
+  m1(a), m2, m4 and n2 are tracked as tickets. Requirements unchanged from round 1: ○ AC-M2-09, ○ AC-M2-13,
+  ○ AC-M2-28, T-27; P-1, P-2, P-4. An APPROVE still accepts no AC (they are taken at the M2 merge commit).
+- **Merge route:** unchanged, D-032 (owner merges a Mac-only PR). Q1 below still decides whether the docs-only delta on
+  top of `0065664` stays covered by the MS-1 record.
+
+### What I checked (Linux container, worktree detached at `b1f57d3`)
+1. **Scope.** `git diff --name-only 02c1d84 b1f57d3` lists 13 files, all under `docs/`: ADR-0003, `dev-notes.md`, the
+   MS-1 README, 8 logs, `run-evidence.sh`, and this review file (round 1, first committed here). No product code, no
+   test, no `project.yml`, no protected path. The Mac record therefore still covers `0065664` on the same reading as
+   round 1 (Q1).
+2. **M1, handle gone.** I took the handle from `git show 02c1d84:…/run-evidence.sh` line 3 and ran
+   `git grep -i -c <handle> b1f57d3 -- .` over the whole tree: no match (exit 1). `git grep` for `/Users/`,
+   `/var/folders`, `-projects` and `$HOME/<lowercase>` finds only this review file's placeholder text `<handle>`.
+   No hostname, `.local` name or user name appears; the only machine string is the model ID `Macmini9,1`
+   (README:9, `mac-B0-header.log:20`), which is not personal.
+3. **M1, logs are a pure substitution.** For each of the 8 changed logs I took the `02c1d84` version, replaced the
+   bytes `$HOME/<handle>-projects/Tend` with `$REPO` (binary-safe, so the `\r\n` and U+2028 test parameters in B2
+   stay intact), and compared with `b1f57d3` using `cmp`: **all 8 byte-identical**. Counts agree with the README:
+   2,247 occurrences in the logs plus 1 in `run-evidence.sh` = 2,248; `$REPO` lines 1,497 + 1 = 1,498.
+4. **`run-evidence.sh`.** The hard-coded `cd` is now `: "${REPO:?…}"` then `cd "$REPO" || exit 1`, with a usage
+   comment. The rest of the script is unchanged. The README says the run itself used the literal path (true; the
+   logs were substituted afterwards).
+5. **SHA-256.** `sha256sum -c` on the 22 lines in README:86-107: **22/22 OK**. The folder holds exactly those 22
+   files plus the README; none is unlisted.
+6. **m1(b).** The README "Warnings" paragraph now names the orientation warning and its three lines. I checked them:
+   `mac-B6-release.log:356` (`Tend`), `mac-B6-archive.log:246` (`Tend`), `mac-B6-eval-debug.log:1114` (`TendEval`).
+   Across all logs the only `warning:` lines are those 3 and 6 `appintentsmetadataprocessor` notices, as written.
+7. **m3 and the ADR-0003 size change.** README:13 and :48 now give the full zip digest
+   `4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806`, equal to ADR-0003:51 and the ADR's install
+   command (:60). I downloaded the exact URL in ADR-0003:50
+   (`https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip`) into an empty scratch directory:
+   **4,278,764 bytes, SHA-256 `4d9e34b6…f0196806`**. So the old size (5,738,697) was wrong and the new size is right.
+   `xcodegen/bin/xcodegen` inside the zip hashes to `8774da746668bc18fe74e54cbaf10f2631a1fb05947cd374179aa912f14f99db`,
+   equal to ADR-0003:52 and B0. (The GitHub API for the asset's published digest was not reachable from this session,
+   so I did not re-check the ADR's "matches the digest GitHub publishes" clause; the download itself agrees.)
+   The pin (version, URL, digests) is unchanged in substance; only the size note was corrected. CLAUDE.md §6 is met.
+8. **n1 and tickets.** `dev-notes.md` WI-M2-M1 header now says "PR: #38". A "Tickets (from review round 1)" table
+   carries m1(a) → MS-2 (orientation keys; iPad set is the Designer's, CLAUDE.md §9 Q1), m2 → WI-M2-M7 (Release
+   guard asserted by the AC-M2-28 scan test), m4 → MS-2 SP-1 on the iPhone 15 Pro (Planner / Tester), n2 → next Mac
+   run. Each matches the round 1 required change. Two Handoff-log rows were added.
+9. **Nothing else.** No other line in the five non-log files changed in substance.
+
+### Round 2 findings
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| M1 | Major | evidence logs, `run-evidence.sh:3-5` | Fixed as asked (checks 2-5). | — | **Closed** (verified in `b1f57d3`) |
+| m1 | Minor | `evidence/mac/MS-1/README.md` "Warnings"; `project.yml` | (b) fixed (check 6). (a) ticketed for MS-2 in dev-notes. | (a) as round 1, in MS-2. | (b) **Closed**; (a) Open (ticket, MS-2) |
+| m2 | Minor | `project.yml` `TendEval` | Ticketed for WI-M2-M7 in dev-notes. | As round 1. | Open (ticket, WI-M2-M7) |
+| m3 | Minor | README:13, :48; ADR-0003:50-51 | Fixed; digest and new size verified by download (check 7). | — | **Closed** |
+| m4 | Minor | T-27 | Ticketed for MS-2 SP-1 in dev-notes. | As round 1. | Open (ticket, Planner / Tester) |
+| n1 | Nit | `dev-notes.md` WI-M2-M1 header | Fixed ("PR: #38"). | — | **Closed** |
+| n2 | Nit | `plan.md` B6 | Ticketed for the next Mac run. | Optional. | Open (ticket) |
+| n3 | Nit | `dev-notes.md` last Handoff-log row | Says "Not pushed", but `b1f57d3` is the PR head under review, so it has been pushed. | Optional: say "pushed as `b1f57d3`" the next time dev-notes is edited. Not a merge condition. | Open |
+
+**Questions carried from round 1:** Q1 (PO / human owner, D-032: docs-only delta on top of `0065664` counts as
+covered) is still open and is the owner's call at merge; this review treats it as covered, as in round 1. Q2 (PO,
+Xcode 27.2 vs "Xcode 26") and Q3 (Documenter, CLAUDE.md §7) are unchanged and do not block this PR.
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Docs-only delta. |
+| UX-2 Rule of Three | n.a. | Docs-only delta; no engine change. |
+| UX-3 Zero-Guilt | pass | No UI copy changed; no banned token added. |
+| UX-4 Design craft | n.a. | No product UI. Orientation question stays with the Designer (m1(a)). |
+| P-1 On device first | pass | No code change; T-27 decision (no `SFSpeech*` exception) unchanged. |
+| P-2 No data leaves device except allowed routes | pass | No dependency added; XcodeGen pin re-verified (check 7). The personal path is removed from the public record (M1). |
+| P-3 Cloud AI per ADR-0005 | n.a. | No cloud code. |
+| P-4 Media not persisted without consent | pass | No change; no audio or media committed. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-25 | Developer (via Orchestrator) | Reviewer | accepted | Fix commit `b1f57d3` on `02c1d84`, docs only. |
+| 2026-11-25 | Reviewer | Orchestrator → owner merge under D-032 (Merge Gatekeeper review), Acceptance Tester | sent | APPROVE. M1, m1(b), m3, n1 closed and verified; m1(a), m2, m4, n2 tickets; n3 optional nit. Q1 for the PO / owner at merge. |
