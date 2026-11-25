@@ -2,8 +2,9 @@
 // hash"; PO `po-m2-wi16.md` ruling 1: approval holds for the files with the hashes b32e45af…, 089a22bd…, 882c2906…;
 // golden.json re-approved as 0e819a89… under PO EC-Q8, g16-carservice effort normal → low).
 //
-// The freeze waits for the owner's live check L2a (GR-4) and the other ruling 1 conditions, so this branch writes no
-// manifest. What is tested now:
+// Frozen 2026-11-25 (Acceptance Tester, PR #36): the ruling 1 conditions are met or covered by the owner's decision
+// ("L2a outcome": Gemini L2a PASS; OpenAI and Anthropic L2a deferred to DS-2 precondition P11), and MANIFEST.sha256 is
+// committed. What is tested:
 // - the three Tester files still have the PO-approved hashes (any byte change fails here first);
 // - the freeze state is declared in one place (`EvalFreeze.declaredFrozen`) and must agree with the repository: the
 //   manifest exists exactly when the eval is declared frozen, and the Tester's composition status says "Not frozen"
@@ -11,9 +12,10 @@
 // - the manifest verifier, on manifests rendered in memory from the real files, with negative controls;
 // - the documented command (`EvalManifest.command`) writes the same bytes as the in-memory render, where `sha256sum`
 //   exists (Linux; recorded as skipped elsewhere);
-// - when the manifest exists, it verifies against every file in `Fixtures/M2/eval` (skipped, with the reason, until
-//   then).
-// To freeze: run `EvalManifest.command`, set `declaredFrozen = true`, and update the composition status, in one commit.
+// - when the manifest exists, it verifies against every file in `Fixtures/M2/eval` (it exists since the freeze; the
+//   test reports skipped, with the reason, only if the manifest is absent).
+// The freeze was done by running `EvalManifest.command`, setting `declaredFrozen = true`, and updating the composition
+// status, in one commit. A later data change needs a PO decision in DECISIONS.md and a pin and manifest update.
 
 import Foundation
 import Testing
@@ -76,7 +78,7 @@ struct EvalFreezeTests {
         #expect(SHA256Hex.hex(data) != EvalFreeze.approvedSHA256["golden.json"])
     }
 
-    @Test("AC-M2-14 freeze state: NOT frozen yet — no MANIFEST.sha256, and the Tester's composition status says \"Not frozen\" (flip EvalFreeze.declaredFrozen when freezing)")
+    @Test("AC-M2-14 freeze state agrees: MANIFEST.sha256 exists exactly when EvalFreeze.declaredFrozen, and the composition Status says \"Not frozen\" exactly when not")
     func freezeStateAgrees() throws {
         #expect(EvalFreeze.manifestExists == EvalFreeze.declaredFrozen,
                 "MANIFEST.sha256 exists: \(EvalFreeze.manifestExists), declared frozen: \(EvalFreeze.declaredFrozen)")

@@ -5122,3 +5122,8 @@ case.
 |---|---|---|---|---|
 | 2026-11-24 | Orchestrator | Developer | accepted | EC-Q8 pin, merge main `4e13164`. |
 | 2026-11-24 | Developer | Reviewer, Acceptance Tester (via Orchestrator) | sent | One-hash test change and the merge. 564 + 11 tests green. |
+
+> **Update 2026-11-25 (Acceptance Tester, pointer only; the note above is kept as written):** the eval is now **frozen**
+> on `m2/eval-freeze` (PR #36): `Fixtures/M2/eval/MANIFEST.sha256` committed, `EvalFreeze.declaredFrozen = true`,
+> `eval-composition.md` v6. L2a (GR-4): Gemini PASS; OpenAI and Anthropic deferred by owner decision (DS-2 P11 in
+> `acceptance.md`). The freeze-state test display name and header comment were updated to the frozen state (text only).

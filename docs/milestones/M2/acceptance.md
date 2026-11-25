@@ -2,7 +2,7 @@
 
 - **Owner:** Acceptance Tester  ·  **Build / commit:** not yet (M2 is IN-BUILD; base of this text `95491ed`, branch
   `m2/eval-fixtures-freeze`; v2 adds the PO follow-up rulings F3/F4 and the PR #32 `02f944e` golden-request
-  verification)  ·  **Date:** 2026-11-24
+  verification; v3 (2026-11-25, `m2/eval-freeze`) records the freeze and DS-2 precondition P11)  ·  **Date:** 2026-11-25
 - **Overall:** NOT YET ASSESSED. M2 is `IN-BUILD` (`docs/milestones/STATUS.md`). This first version holds only:
   1. the AC-M2-14 independent re-score of the scorer self-test file (WI-M2-16);
   2. the device scripts **DS-1** (WI-M2-D1: AC-M2-11, 15, 16, 17) and **DS-2** (WI-M2-D2: AC-M2-25, 26, 27), drafted
@@ -17,13 +17,13 @@
 |---|---|---|---|---|
 | AC-M2-01…10, 12, 13, 18…24, 28 | not yet assessed | — | Linux / owner-run Mac | Verified after the Reviewer's APPROVE on the M2 merge commit. |
 | AC-M2-11 | **AWAITING-DEVICE** | DS-1 Part B (below) | Device, iPhone 15 Pro | Subset fixed: **in01 (text), in02 (voice), in10 (voice)** (PO F3, 2026-11-24; a change needs a DECISIONS.md entry). |
-| AC-M2-14 | **Frozen 2026-11-25** (re-score clause met; overall AC verdict at the M2 merge commit) | Re-score: "AC-M2-14 independent re-score" below (agrees with the scorer log). Composition approved by the PO at `95491ed`, `golden.json` re-approved (EC-Q8). `Fixtures/M2/eval/MANIFEST.sha256` committed (freeze commit on `m2/eval-freeze`); `EvalFreezeTests` "AC-M2-14: MANIFEST.sha256 verifies against every file in Fixtures/M2/eval" now runs and passes (Linux, Docker `swift:6.2-noble`, `-warnings-as-errors`). | Linux + Tester review | Ruling 1 conditions: GR-1, GR-2, GR-3, GR-5 CLOSED at `02f944e` (PR #32 merged with those golden files); composition check passes; L2a (GR-4): Gemini PASS; OpenAI and Anthropic deferred by owner decision (2026-11-25), see the DS-2 precondition P11. |
+| AC-M2-14 | **Frozen 2026-11-25** (re-score clause met; overall AC verdict at the M2 merge commit) | Re-score: "AC-M2-14 independent re-score" below (agrees with the scorer log). Composition approved by the PO at `95491ed`, `golden.json` re-approved (EC-Q8). `Fixtures/M2/eval/MANIFEST.sha256` committed (freeze commit on `m2/eval-freeze`); `EvalFreezeTests` "AC-M2-14: MANIFEST.sha256 verifies against every file in Fixtures/M2/eval" now runs and passes (Linux, Docker `swift:6.2-noble`, `-warnings-as-errors`). | Linux + Tester review | Ruling 1 conditions: GR-1, GR-2, GR-3, GR-5 CLOSED at `02f944e` (PR #32 merged with those golden files); composition check passes; L2a (GR-4): Gemini PASS; OpenAI and Anthropic deferred by owner decision (2026-11-25), see the DS-2 precondition P11 and `l2a-real-call-check.md`. Open (m3, governance PR): a `DECISIONS.md` entry for the owner's "L2a outcome" decision. |
 | AC-M2-15 | **AWAITING-DEVICE** | DS-1 Part A | Device, iPhone 15 Pro; scoring on Linux | |
 | AC-M2-16 | **AWAITING-DEVICE** | DS-1 Part A | Device, iPhone 15 Pro | |
 | AC-M2-17 | **AWAITING-DEVICE** | DS-1 Part A | Device, iPhone 15 Pro; scoring on Linux | |
-| AC-M2-25 | **AWAITING-DEVICE** | DS-2 Part B | Device, iPhone 13 | Subset fixed: **in08 (voice), in16 (voice)** (PO F3, 2026-11-24; a change needs a DECISIONS.md entry). |
-| AC-M2-26 | **AWAITING-DEVICE** | DS-2 Part C | Device, iPhone 13; scoring on Linux | Q16 (owner, 2026-11-24): all three providers. **Precondition (owner decision, L2a outcome 2026-11-25):** OpenAI and Anthropic L2a (GR-4) was deferred (billing errors, nothing verified); an OpenAI or Anthropic DS-2 run counts only after that provider's L2a passes on the committed golden body and is recorded here (DS-2 P11). Gemini L2a PASS. |
-| AC-M2-27 | **AWAITING-DEVICE** | DS-2 Part C (gate) and Part D (information only) | Device, iPhone 13 (+ iPhone 15 Pro, info) | |
+| AC-M2-25 | **AWAITING-DEVICE** | DS-2 Part B | Device, iPhone 13 | Subset fixed: **in08 (voice), in16 (voice)** (PO F3, 2026-11-24; a change needs a DECISIONS.md entry). Precondition DS-2 P11: the Part B provider's L2a is PASS (Gemini today; OpenAI and Anthropic deferred by owner decision 2026-11-25). |
+| AC-M2-26 | **AWAITING-DEVICE** | DS-2 Part C | Device, iPhone 13; scoring on Linux | Q16 (owner, 2026-11-24): all three providers. **Precondition (owner decision, L2a outcome 2026-11-25):** OpenAI and Anthropic L2a (GR-4) was deferred (billing errors, nothing verified); an OpenAI or Anthropic DS-2 run counts only after that provider's L2a passes on the committed golden body and is recorded (DS-2 P11, L2a rows). Gemini L2a PASS. |
+| AC-M2-27 | **AWAITING-DEVICE** | DS-2 Part C (gate) and Part D (information only) | Device, iPhone 13 (+ iPhone 15 Pro, info) | Precondition DS-2 P11 for every provider (and the Part D provider). |
 
 ## PRD §4 gate lines
 | Gate line | Met? | Evidence |
@@ -302,11 +302,15 @@ a file or this document. At the end of each provider, tap **[Remove key]**.
 - [ ] P7. Open TendEval. Check: the fixtures hash equals `FIXTURE-HASH`; the on-device model status reads **not
   eligible** (this is expected on iPhone 13); the speech status reads **ready / installed** (tap **[Download]** if
   offered and wait; this must happen **before** airplane mode, plan R-7). Screenshot: `ds2-p7-start.png`.
-- [ ] P11. **L2a done for this provider (GR-4; owner decision 2026-11-25).** Gemini: PASS (2026-11-25). OpenAI and
-  Anthropic: deferred until you add API credit. Before an OpenAI or Anthropic Part C run, run that provider's L2a
-  real-call check (`/mnt/project-files/owner/l2a-real-call-check.md`) on the committed golden body and record a PASS
-  (HTTP 200, schema-valid stream). Until it is recorded in this report, that provider's DS-2 run does not count for
-  AC-M2-26 or AC-M2-27. If L2a refuses a body, stop: the goldens change under a PO decision in `DECISIONS.md`.
+- [ ] P11. **L2a PASS recorded for the provider of every DS-2 cloud run (GR-4; owner decision "L2a outcome",
+  2026-11-25).** This covers **Parts B, C and D**, so **AC-M2-25, AC-M2-26 and AC-M2-27**. Status today: **Gemini PASS**
+  (2026-11-25; evidence `Fixtures/M2/provider-streams/gemini/recorded-outcome-sample.sse`, PR #37). **OpenAI and
+  Anthropic: not verified** (billing errors only), deferred until you add API credit. Before any Part B, C or D run with
+  OpenAI or Anthropic, run that provider's step of the L2a real-call check
+  ([`docs/milestones/M2/l2a-real-call-check.md`](l2a-real-call-check.md)) on the committed golden body; the Tester
+  records a PASS in the "L2a" row of "What to record" below. A run with a provider whose L2a row is not PASS **does not
+  count** for any DS-2 AC; run it again after L2a passes. If L2a refuses a body, stop: the goldens change under a PO
+  decision in `DECISIONS.md`.
 
 #### Part A: the served-model check on the Mac (before each provider's run; brief Q18, plan condition 2)
 Do this on the Mac, in **Terminal**, from the Tend repository folder, at `APP-COMMIT`, right before that provider's
@@ -339,8 +343,9 @@ named by the person (Bedroom), two existing tasks the cloud must recognise from 
 `resurfaced`, and `t-gutters`), and a false-merge trap ("car … service" against `t-car` "Wash the car"). They are
 different from the AC-M2-11 voice inputs, so the two device phones speak four different voice inputs between them.
 
-Use **one** provider for Part B: the first one you run in Part C (default **OpenAI**). Write which one in the record.
-1. Do Part A (served-model check) for this provider.
+Use **one** provider for Part B, and only one whose L2a row is **PASS** (P11): today that is **Gemini**. Write which one
+in the record. (Once OpenAI or Anthropic L2a passes, you may use it instead.)
+1. Check P11 for this provider (L2a PASS). Do Part A (served-model check) for this provider.
 2. In TendEval: **[Provider]** → the provider; paste your key in **[Key]**; read the consent text and tap **[Agree]**.
    **[Route preference]**: on-device first (the iPhone 13 has no on-device model, so the route is the cloud).
 3. **Offline.** Control Centre → **Airplane Mode on**, then make sure **Wi-Fi and Bluetooth are off**. Screenshot:
@@ -360,8 +365,9 @@ Use **one** provider for Part B: the first one you run in Part C (default **Open
 | in16 | Uh, book the car in for a service on Monday, no wait, Tuesday, and, um, the gutters, clear the gutters before the rain comes, and bleed the radiators in the bedroom |
 
 #### Part C: AC-M2-26 and 27, all 20 inputs, once per provider, about 45 minutes each
-Do this three times: **OpenAI, then Anthropic, then Gemini**.
-1. Part A (served-model check, **before**).
+Do this three times: **OpenAI, then Anthropic, then Gemini**. Each provider's run needs its L2a row PASS first (P11);
+while OpenAI or Anthropic L2a is pending, run Gemini first and the others after their L2a passes.
+1. Check P11 (this provider's L2a PASS). Part A (served-model check, **before**).
 2. In TendEval: **[Provider]** → this provider; paste its key; **[Agree]** to the consent. For Gemini, the consent
    screen shows a warning recommending a paid-tier key (Q17): read it and note in the record which tier your key is.
 3. Check **[Network]** is `home Wi-Fi` with today's speed test (repeat P9 if more than an hour has passed).
@@ -374,13 +380,14 @@ Do this three times: **OpenAI, then Anthropic, then Gemini**.
 7. Part A (served-model check, **after**).
 
 #### Part D: information only (AC-M2-27), iPhone 15 Pro with "always use my cloud model", about 45 minutes
-On the **iPhone 15 Pro**, one provider (your choice; default OpenAI): **[Route preference]** → **always use my cloud
+On the **iPhone 15 Pro**, one provider whose L2a row is PASS (P11; default Gemini today): **[Route preference]** → **always use my cloud
 model**, provider, key, **[Agree]**, then the 20 inputs as in Part C steps 3–6. This run is not a gate; it shows how the
 cloud compares on the faster phone. It never replaces AC-M2-16.
 
 #### What to record (DS-2 run record; one block per provider plus Part B and Part D)
 | Field | Value |
 |---|---|
+| L2a (P11), one row per provider: OpenAI / Anthropic / Gemini — date, HTTP status, schema-valid (yes / no), evidence file | Gemini: 2026-11-25, `HTTP/2 200`, yes, `Fixtures/M2/provider-streams/gemini/recorded-outcome-sample.sse` (PASS). OpenAI: 2026-11-25, `HTTP/2 429` `insufficient_quota`, not verified (pending). Anthropic: 2026-11-25, `HTTP/2 400` credit balance, not verified (pending). |
 | Who ran it; date and start time (local and UTC) | |
 | Device model; iOS build | iPhone 13; |
 | `APP-COMMIT` and fixtures hash as shown by TendEval | |
@@ -409,9 +416,9 @@ cloud compares on the faster phone. It never replaces AC-M2-16.
 #### Pass rules
 | AC | Pass rule | Read from |
 |---|---|---|
-| AC-M2-25 | S2 exits 0 (provider selected, 2 voice inputs, each `noModel` with no draft and nothing committed) **and** S3 exits 0 (each: route `cloud(<provider>)`, `completed`, every golden item found, 0 extras, all drafts valid, 0 duplicates created) **and** S7 holds (on-device transcript and transcriber recorded while offline; plain-note offer seen). | S2, S3, S7 |
-| AC-M2-26 | For **each** of the three providers, the S4 log shows: the Q3 thresholds as in DS-1 AC-M2-15 (N = 58; 56 / 56 / 53 / 50 / 56 / 56 / 56; extras ≤ 2; validity 100%; 0 introduced banned tokens); route = that provider for every input; 0 duplicates created; false merges ≤ 1; "sent key paths are a subset of the allowed list" holds. S6 agrees. S7 served-model check holds. | S4 check lines (except the timing line), S6, S7 |
-| AC-M2-27 | For each provider, the S4 check "every input TTFI < 3000 ms and total <= 10000 ms (AC-M2-27)" holds. Part D figures are reported in this file for information only. | S4 timing line; S5 |
+| AC-M2-25 | P11 holds for the Part B provider (its L2a row is PASS) **and** S2 exits 0 (provider selected, 2 voice inputs, each `noModel` with no draft and nothing committed) **and** S3 exits 0 (each: route `cloud(<provider>)`, `completed`, every golden item found, 0 extras, all drafts valid, 0 duplicates created) **and** S7 holds (on-device transcript and transcriber recorded while offline; plain-note offer seen). | P11 L2a row, S2, S3, S7 |
+| AC-M2-26 | For **each** of the three providers, P11 holds (its L2a row is PASS) **and** the S4 log shows: the Q3 thresholds as in DS-1 AC-M2-15 (N = 58; 56 / 56 / 53 / 50 / 56 / 56 / 56; extras ≤ 2; validity 100%; 0 introduced banned tokens); route = that provider for every input; 0 duplicates created; false merges ≤ 1; "sent key paths are a subset of the allowed list" holds. S6 agrees. S7 served-model check holds. | P11 L2a rows, S4 check lines (except the timing line), S6, S7 |
+| AC-M2-27 | For each provider, P11 holds (its L2a row is PASS) **and** the S4 check "every input TTFI < 3000 ms and total <= 10000 ms (AC-M2-27)" holds. Part D figures are reported in this file for information only. | P11 L2a rows, S4 timing line; S5 |
 
 If the owner narrows Q16 to fewer providers, that needs a PO decision first; a provider left out is hidden in the app
 until it passes (brief Q16). It is never "skipped" in this script without that decision.
@@ -449,7 +456,7 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
 | UX-4 Design craft | n.a. | No product UI; TendEval is not judged against UX-4 (plan WI-M2-M7). |
 | P-1 On device first | pass | DS-1 runs with cloud off; AC-M2-11 runs in airplane mode with Wi-Fi and Bluetooth off; DS-2 proves the transcript is made on device while offline (AC-M2-25). |
 | P-2 No data leaves the device | pass | Only invented fixture data is used. Results files move by AirDrop to the owner's own Mac; TendEval never uploads (AC-M2-28). The fast.com speed test sends no household data. |
-| P-3 Cloud AI opt-in, minimised | pass | Cloud only after the owner pastes their own key and agrees to the consent; "Remove key" after each provider; sent key paths checked against the allowed lists (AC-M2-26). The Mac served-model check sends the fixed Outcome sample with an empty household. Keys never go into files or chat. GR-1, 2, 3, 5 closed at PR #32 `02f944e`; GR-4 (L2a): Gemini PASS, OpenAI and Anthropic deferred by owner decision and required before their DS-2 runs count (DS-2 P11). |
+| P-3 Cloud AI opt-in, minimised | pass | Cloud only after the owner pastes their own key and agrees to the consent; "Remove key" after each provider; sent key paths checked against the allowed lists (AC-M2-26). The Mac served-model check sends the fixed Outcome sample with an empty household. Keys never go into files or chat. GR-1, 2, 3, 5 closed at PR #32 `02f944e`; GR-4 (L2a): Gemini PASS, OpenAI and Anthropic deferred by owner decision and required before any of their DS-2 runs (Parts B, C, D) count (DS-2 P11). |
 | P-4 Media not persisted | pass | No audio is stored (brief device-run rules); TendEval writes only the results file (AC-M2-28); screenshots show no household data beyond the invented fixtures. |
 
 ## Open questions and needs (route through the Orchestrator)
@@ -470,3 +477,5 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
 | 2026-11-24 | Acceptance Tester | Orchestrator → Reviewer | sent | Review WI-M2-16 round 1: F1 fixed (DS-1 S1 and DS-2 S1 run `sha256sum -c` inside `Fixtures/M2/eval`); N4 fixed (P10 initials only). F2 answered in `eval-composition.md` (EC-Q8, to the PO). |
 | 2026-11-24 | Acceptance Tester | Orchestrator → Developer, PO, Reviewer | sent | A-F1 re-tested at `origin/main` `4e13164` (PR #33): 7 own cases, all as F4 requires; Developer's TendTools suite 11/11. **A-F1 CLOSED.** S5/S7 stay as the second control and now also read the tool's subset line. |
 | 2026-11-25 | Acceptance Tester | Orchestrator → PO, Documenter, Developer, Reviewer | sent | WI-M2-16 freeze: `MANIFEST.sha256` committed, `EvalFreeze.declaredFrozen = true`, `eval-composition.md` v6 Frozen. GR-4: Gemini PASS; OpenAI and Anthropic L2a deferred (owner decision), now DS-2 precondition P11 and an AC-M2-26 note. |
+| 2026-11-25 | Reviewer (via Orchestrator) | Acceptance Tester | accepted | Review PR #36 round 1 CHANGES REQUIRED (`review-WI-M2-16-freeze.md`). |
+| 2026-11-25 | Acceptance Tester | Orchestrator → Reviewer | sent | M1: P11 covers Parts B, C, D and AC-M2-25/26/27; Part B and Part D use an L2a-PASS provider (Gemini today); L2a record row per provider; pass rules and Results rows cite P11. m1: freeze-state test display name and header comment (text only). m2: L2a procedure committed as `l2a-real-call-check.md`; Gemini evidence referenced at PR #37's path; no `.status` file committed. n1: dates and dev-notes pointer. m3 open (governance PR). |
