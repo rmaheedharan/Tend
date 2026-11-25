@@ -1,0 +1,24 @@
+[probe] T-27 platform: macOS Version 27.2.1 (Build 26B131)
+[probe] T-27 SFSpeechRecognizer.authorizationStatus (before) = notDetermined
+[probe] T-27 SpeechTranscriber.isAvailable = true
+[probe] T-27 SpeechTranscriber supportedLocale(en-US) = en_US
+[probe] T-27 DictationTranscriber supportedLocale(en-US) = en_US
+[probe] SpeechTranscriber: asset status before = installed
+[probe] T-27 SpeechTranscriber RESULT ok in 0.399636667 seconds: "We are almost out of dishwasher pods, and the AC needs servicing before summer."
+[probe] DictationTranscriber: asset status before = installed
+[probe] T-27 DictationTranscriber RESULT ok in 0.337246917 seconds: "We are almost out of dishwasher pods, and the AC needs servicing before summer [results seen: 1]"
+[probe] T-27 SFSpeechRecognizer.authorizationStatus (after) = notDetermined
+[probe] T-27 SpeechTranscriber bestAvailableAudioFormat = <AVAudioFormat 0x797b120690:  1 ch,  16000 Hz, Int16>
+[probe] T-27 SpeechTranscriber (converted) RESULT ok in 0.185285167 seconds: "We are almost out of dishwasher pods, and the AC needs servicing before summer."
+[probe] T-27 DictationTranscriber bestAvailableAudioFormat = <AVAudioFormat 0x797b1203c0:  1 ch,  16000 Hz, Int16>
+[probe] T-27 DictationTranscriber (converted) RESULT ok in 0.194464417 seconds: "We are almost out of dishwasher pods, and the AC needs servicing before summer"
+[probe] T-27 SFSpeechRecognizer.authorizationStatus (after converted) = notDetermined
+[probe] R-1 platform: macOS Version 27.2.1 (Build 26B131)
+[probe] R-1 SystemLanguageModel.default.availability = available
+[probe] R-1 run 1: TTFI=2.223031458 seconds total=5.323362 seconds items=3
+[probe] R-1 run 2: TTFI=1.374691833 seconds total=5.800892792 seconds items=3
+[probe] R-1 run 3: TTFI=1.335010958 seconds total=4.412647542 seconds items=3
+[probe] R-1 run 4: TTFI=1.339583375 seconds total=4.402466667 seconds items=3
+[probe] R-1 run 5: TTFI=1.351642417 seconds total=4.427323792 seconds items=3
+[probe] R-1 summary: runs=5 TTFI median=1.351642417 seconds min=1.335010958 seconds max=2.223031458 seconds; total median=4.427323792 seconds
+[probe] DONE

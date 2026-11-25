@@ -1,0 +1,25 @@
+[probe] T-27 platform: iOS Simulator Version 26.5 (Build 23F77)
+[probe] T-27 SFSpeechRecognizer.authorizationStatus (before) = notDetermined
+[probe] T-27 SpeechTranscriber.isAvailable = false
+[probe] T-27 SpeechTranscriber supportedLocale(en-US) = en_US
+[probe] T-27 DictationTranscriber supportedLocale(en-US) = en_US
+[probe] SpeechTranscriber: asset status before = unsupported
+[probe] SpeechTranscriber: downloading assets…
+[probe] SpeechTranscriber: asset install error = Error Domain=SFSpeechErrorDomain Code=1 "Cannot check the download status, local.probe.ios is not subscribed to transcription.en" UserInfo={NSLocalizedDescription=Cannot check the download status, local.probe.ios is not subscribed to transcription.en}
+[probe] SpeechTranscriber: asset status after = unsupported
+[probe] T-27 SpeechTranscriber RESULT error: Error Domain=SFSpeechErrorDomain Code=5 "No common audio format among modules" UserInfo={NSLocalizedDescription=No common audio format among modules}
+[probe] DictationTranscriber: asset status before = installed
+[probe] T-27 DictationTranscriber RESULT error: Error Domain=SFSpeechErrorDomain Code=5 "No common audio format among modules" UserInfo={NSLocalizedDescription=No common audio format among modules}
+[probe] T-27 SFSpeechRecognizer.authorizationStatus (after) = notDetermined
+[probe] T-27 SpeechTranscriber bestAvailableAudioFormat = nil
+[probe] T-27 DictationTranscriber bestAvailableAudioFormat = nil
+[probe] T-27 SFSpeechRecognizer.authorizationStatus (after converted) = notDetermined
+[probe] R-1 platform: iOS Simulator Version 26.5 (Build 23F77)
+[probe] R-1 SystemLanguageModel.default.availability = available
+[probe] R-1 run 1: error Error Domain=FoundationModels.LanguageModelSession.GenerationError Code=-1 "(null)" UserInfo={NSMultipleUnderlyingErrorsKey=(
+[probe] R-1 run 2: error Error Domain=FoundationModels.LanguageModelSession.GenerationError Code=-1 "(null)" UserInfo={NSMultipleUnderlyingErrorsKey=(
+[probe] R-1 run 3: error Error Domain=FoundationModels.LanguageModelSession.GenerationError Code=-1 "(null)" UserInfo={NSMultipleUnderlyingErrorsKey=(
+[probe] R-1 run 4: error Error Domain=FoundationModels.LanguageModelSession.GenerationError Code=-1 "(null)" UserInfo={NSMultipleUnderlyingErrorsKey=(
+[probe] R-1 run 5: error Error Domain=FoundationModels.LanguageModelSession.GenerationError Code=-1 "(null)" UserInfo={NSMultipleUnderlyingErrorsKey=(
+[probe] R-1 summary: runs=5 TTFI median=n/a min=n/a max=n/a; total median=n/a
+[probe] DONE

@@ -5289,7 +5289,7 @@ before summer.").
 
 | Where | `authorizationStatus()` before → after | `SpeechTranscriber` | `DictationTranscriber` |
 |---|---|---|---|
-| macOS 27.2.1 (26B131), command-line tool with `NSSpeechRecognitionUsageDescription` embedded | `notDetermined` → `notDetermined` | `isAvailable = true`; assets `supported` → `installed`; **transcribed the sentence exactly** in 0.36 s | `.longDictation`: **transcribed it** in 0.20 s. `.shortDictation` returned no final result for this 4.8 s file (a note for WI-M2-M3, not a permission matter). |
+| macOS 27.2.1 (26B131), command-line tool with `NSSpeechRecognitionUsageDescription` embedded | `notDetermined` → `notDetermined` | `isAvailable = true`; assets `supported` → `installed` (first run; already `installed` in the committed run); **transcribed the sentence exactly**, from the file (0.40 s) and from converted buffers through `start(inputSequence:)` (0.19 s) | `.longDictation`: **transcribed it**, from the file (0.34 s) and from buffers (0.19 s). In the first run, `.shortDictation` returned no final result for this 4.8 s file (a note for WI-M2-M3, not a permission matter). |
 | iOS 26.5 Simulator (23F77), iPhone 17 Pro | `notDetermined` → `notDetermined` | `isAvailable = false`; assets `unsupported`; an asset request fails with "not subscribed to transcription.en" | assets `supported` → `installed`, but `bestAvailableAudioFormat` is `nil` and analysis fails with "No common audio format among modules" |
 
 - **On the Simulator, neither failure is an authorization error.** The Simulator has no usable speech model, so it
@@ -5313,10 +5313,14 @@ before summer.").
 - **Run:** a fresh session each run, `prewarm()` and 1 s idle, then `streamResponse` on the 3-task Outcome sentence.
   TTFI is the time to the first snapshot whose first item has a non-empty `title`, on `ContinuousClock`.
 
+Committed run ([`probes/mac-probe-final.log`](evidence/mac/MS-1/probes/mac-probe-final.log)):
+
 | Run | 1 | 2 | 3 | 4 | 5 | Median |
 |---|---|---|---|---|---|---|
-| TTFI (s) | 2.12 | 1.33 | 1.33 | 1.36 | 1.37 | **1.36** |
-| Total (s) | 5.13 | 4.36 | 4.41 | 4.46 | 5.79 | 4.46 |
+| TTFI (s) | 2.22 | 1.37 | 1.34 | 1.34 | 1.35 | **1.35** |
+| Total (s) | 5.32 | 5.80 | 4.41 | 4.40 | 4.43 | 4.43 |
+
+An earlier run in the same session gave a TTFI median of 1.36 s (range 1.33–2.12 s) and a total median of 4.46 s.
 
 - Every run produced 3 items. Run 1 is a cold start.
 - What this says for R-1: on the Mac the schema lands just under the 1.5 s AC-M2-16 bound once warm, with little room
@@ -5328,14 +5332,18 @@ before summer.").
   plan Simulator tests against the real model.
 
 ### Test runs (R-18 runtime record; the evidence record has the logs)
+The clean run at `0065664`, with `build/`, every package `.build` and the project's DerivedData deleted first. The
+Xcode builds are short because Xcode 27's shared compilation cache (`DerivedData/CompilationCache.noindex`) was warm
+from earlier runs in the session.
+
 | Command | Result | Runtime |
 |---|---|---|
-| B1 `swift test` TendCore | 141 tests in 18 suites passed, 0 warnings | 33 s |
-| B2 `swift test` TendIngestion | 570 tests in 67 suites: **568 pass, 2 fail** (the Havana tzdata cases below), 0 warnings | 72–92 s |
-| B4 `xcodebuild test -scheme TendAI` (macOS) | 1 test passed, `TEST SUCCEEDED` | < 1 min |
-| B5 `xcodebuild test -scheme TendAIHostedTests` (iPhone 17 Pro, iOS 26.5) | 2 tests passed, `TEST SUCCEEDED` | ~1 min |
-| B6 Release build and archive of `Tend`; `find … -iname '*TendEval*'` | both succeed; both `find`s print nothing; the archive holds only `Tend.app` | ~1 min |
-| B6 `TendEval` Debug build | succeeds; the bundle holds the 5 fixture files, and its `MANIFEST.sha256` is byte-identical to the repo's; `UIFileSharingEnabled = true` (Debug) | ~2 min |
+| B1 `swift test` TendCore | 141 tests in 18 suites passed, 0 warnings | 43 s wall (tests 30.7 s) |
+| B2 `swift test` TendIngestion | 570 tests in 67 suites: **568 pass, 2 fail** (the Havana tzdata cases below), 0 warnings | 97 s wall (tests 70.7 s) |
+| B4 `xcodebuild test -scheme TendAI` (macOS) | 1 test passed, `TEST SUCCEEDED` | 8 s |
+| B5 `xcodebuild test -scheme TendAIHostedTests` (iPhone 17 Pro, iOS 26.5) | 2 tests passed, `TEST SUCCEEDED` | 9 s |
+| B6 Release build and archive of `Tend`; `find … -iname '*TendEval*'` | both succeed; both `find`s print nothing; the archive holds only `Tend.app` | 5 s + 2 s |
+| B6 `TendEval` Debug build | succeeds; the bundle holds the 5 fixture files, and its `MANIFEST.sha256` is byte-identical to the repo's (all 5 SHA-256 match); `UIFileSharingEnabled = true` (Debug) | 11 s |
 | B6 `xcodebuild archive -scheme TendEval` | refused, exit 66: "Scheme TendEval is not currently configured for the archive action." (as intended) | — |
 
 ### B2 on macOS: two America/Havana tzdata failures (not caused by this item; owner of the fix: WI-M2-03)
