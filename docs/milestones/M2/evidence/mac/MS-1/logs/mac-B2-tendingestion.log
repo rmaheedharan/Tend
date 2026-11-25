@@ -1898,7 +1898,7 @@ profile info: INFO (no pass rule)
 ◇ Test case passing 2 arguments type → "overloaded_error", reason → .serviceUnavailable to "AC-M2-24: an error event stops the stream with a neutral reason" started.
 ◇ Test case passing 3 arguments text → "[tru]", issue → .unexpectedByte, offset → 4 to "AC-M2-24: invalid JSON is a typed error with the byte offset of the first bad byte" started.
 ◇ Test case passing 2 arguments text → "1e", expected → nil to "AC-M2-24: whole numbers are read exactly from the JSON text; fractions, huge and malformed numbers are nil" started.
-AC-M2-09 scan: repository root $HOME/dharanbro-projects/Tend
+AC-M2-09 scan: repository root $REPO
 AC-M2-09 scan: Rule 5 T-27 exception OFF
 AC-M2-09 scan: TendIngestion (required) Packages/TendIngestion/Sources: 55 files scanned
 AC-M2-09 scanned: Packages/TendIngestion/Sources/TendIngestion/CloudOutput/AnthropicStreamDialect.swift

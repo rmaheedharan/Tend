@@ -10,7 +10,7 @@ a device AC.
 | macOS | 27.2.1 (26B131) |
 | Xcode | 27.2 (27B52), iOS 27.2 SDK, macOS 27.2 SDK; Swift 6.4.2 (swiftlang-6.4.2.1.9) |
 | Simulator runtime | iOS 26.5 (23F77), device "iPhone 17 Pro" |
-| XcodeGen | 2.46.0. Release zip SHA-256 `4d9e34b6…dff892`; binary SHA-256 `8774da74…f99db` (ADR-0003) |
+| XcodeGen | 2.46.0. Release zip SHA-256 `4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806` (same as ADR-0003); binary SHA-256 `8774da74…f99db` (ADR-0003) |
 | tz database | 2026f |
 | **Commit tested** | **`0065664278099efc737c4c7065f2dafec57ed524`** on `m2/xcodegen-project` |
 
@@ -28,8 +28,26 @@ it deletes `build/`, `Tend.xcodeproj`, every `Packages/*/.build` and the project
 output goes to its own file in [`logs/`](logs/). [`logs/timings.txt`](logs/timings.txt) has each command's exit
 code and wall time. B7 (install on an iPhone) belongs to MS-3 and was not run.
 
-Home and temporary paths in the logs were replaced with `$HOME`, `$USER`, `$TMPDIR` and `$SCRATCH` before
-hashing, because the repository is public. Nothing else was edited.
+Personal and machine-specific paths were replaced with neutral tokens before hashing, because the repository is
+public. No personal value is written anywhere in this folder.
+
+| Token | Replaced |
+|---|---|
+| `$REPO` | The absolute path of the Tend checkout on the owner's Mac (a folder in the owner's home directory whose name contained a personal handle). Substituted in review round 1 (M1): 2,248 occurrences on 1,498 lines, in 8 logs (B2, B3, B4, B5, B6-release, B6-archive, B6-eval-debug, B6-eval-archive) and `run-evidence.sh`. |
+| `$HOME` | The owner's home directory, wherever it was not part of the checkout path. |
+| `$USER` | The owner's macOS user name (for example in `ls -l` owner columns). |
+| `$TMPDIR` | The per-user temporary directory. |
+| `$SCRATCH` | The session scratchpad directory. |
+
+Nothing else in the logs was edited. `run-evidence.sh` had the checkout path hard-coded in its `cd` line; that line
+now reads `cd "$REPO"`, and the script stops with a message unless `REPO` is set to the absolute path of the Tend
+checkout (run it as `REPO=/path/to/Tend zsh run-evidence.sh`). The run itself used the literal path.
+
+XcodeGen zip check (review round 1, m3): the README previously abbreviated the zip digest with a wrong tail. On
+2026-11-25 the Developer re-downloaded `https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip`
+in the Linux container: SHA-256 `4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806`, equal to ADR-0003;
+size 4,278,764 bytes, so the size in ADR-0003 (5,738,697) was corrected. The binary digest in B0 (`8774da74…f99db`)
+already matched ADR-0003.
 
 ## Results
 | Step | Command (plan.md) | Exit | Result |
@@ -45,8 +63,15 @@ hashing, because the repository is public. Nothing else was edited.
 | B6 | `xcodebuild build … -scheme TendEval -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath build/dd-eval CODE_SIGNING_ALLOWED=NO` | 0 | `BUILD SUCCEEDED`. The bundle holds the 5 eval fixtures, each SHA-256 equal to the repo's. Info.plist: `com.tend.eval`, `UIFileSharingEnabled = true`, `LSSupportsOpeningDocumentsInPlace = true` |
 | B6 (new) | `xcodebuild archive … -scheme TendEval …` | 66 (expected) | "Scheme TendEval is not currently configured for the archive action." |
 
-Warnings: no compiler warning appears in any log. The only "warning:" lines are `appintentsmetadataprocessor`'s
-"Metadata extraction skipped, no AppIntents.framework dependency found", a tool notice, not a compiler warning.
+Warnings: no compiler warning appears in any log. Two kinds of `warning:` line do appear:
+- `appintentsmetadataprocessor`'s "Metadata extraction skipped, no AppIntents.framework dependency found", a tool
+  notice, not a compiler warning.
+- The build-validation warning "All interface orientations must be supported unless the app requires full screen."
+  for target `Tend` (`mac-B6-release.log:356`, `mac-B6-archive.log:246`) and target `TendEval`
+  (`mac-B6-eval-debug.log:1114`). It comes from `project.yml` (`TARGETED_DEVICE_FAMILY "1,2"` with no orientation
+  keys). It is not in the AC-M2-13(b) commands (B1, B2, B4, B5 are clean), but it conflicts with CLAUDE.md §3 "no
+  warnings". Ticketed for MS-2 (review round 1, m1(a)): add explicit orientation keys for `Tend` and `TendEval`; the
+  iPad orientation set is the Designer's decision (CLAUDE.md §9 Q1).
 
 ## Probes (information only; never evidence for an AC)
 - [`probes/`](probes/) holds the T-27 and R-1 probe sources: `Probe.swift` and the two entry files, and the XcodeGen
@@ -60,17 +85,17 @@ Warnings: no compiler warning appears in any log. The only "warning:" lines are 
 ```text
     13a067f0946d5320e691231de857c767a383c35a448fc630867c3708968212c1  logs/mac-B0-header.log
     fe684c28ec5b7f85ba297ebd626208b1d8f59ff08c464c2e27e276a3b89ec942  logs/mac-B1-tendcore.log
-    b0b1f41113433b5e1200ef921e9b84271ca9ce3fbb34a4db9315ea04e3503e93  logs/mac-B2-tendingestion.log
-    97b4deb576dc6550bc03d5ecca0a2101a115162d7d850d7075e3ed36a2796385  logs/mac-B3-xcodegen.log
-    4324a0a95300aeaacb21f45afcac1f91a66f431834c33ae88ad0e3e4df0f5509  logs/mac-B4-tendai-macos.log
-    f3312dbc354bfd72bbd0e617cb80f4be2bf605a321bb22b6f9906880f53127f7  logs/mac-B5-hosted.log
+    59e205963def2598182b9e086e70e0c64535691181a8c3f8511dece970d972e1  logs/mac-B2-tendingestion.log
+    67ba535348bf43d70dbb47b82f3c373e169bc5f063b0864118ff6c8d47d9a0f9  logs/mac-B3-xcodegen.log
+    2d5fd1f043440d6ea207e4fa6be6a609eff744c1e11377e9e0514f46fb355f4c  logs/mac-B4-tendai-macos.log
+    e540e56b5b4594303ab90f2524e192f88c684a4718b6f6c97a181ce227ca5896  logs/mac-B5-hosted.log
     2320f2e0356bce30e4dff0e6cef7aefbb2b60324eb9bd6772a1e4bd92a7e0f49  logs/mac-B6-archive-find.log
-    4276bc4194411fa681976385eb27a19dc8deb308e936ea13ce54891252c8d0d7  logs/mac-B6-archive.log
-    189d26808f22922b0078fe82db24a80ffa07e2e82dd416f7d32afa61f89f8df1  logs/mac-B6-eval-archive.log
+    4b869f1f62565f9b282c0c9fa43d3c00f92561a3ccddd65e025f5aa5cb729ec2  logs/mac-B6-archive.log
+    705099c150762577c3e503220cabe6d8c2bc3e1f1ed0649f0a1ba27b2f9a42d0  logs/mac-B6-eval-archive.log
     2a5c0830412a704d12842587e56031fa914d4934242e29607eb2a7824d10cbde  logs/mac-B6-eval-bundle.log
-    c1b0a8a801c6433d019071231ff948aecdb15b54ca91e8cf9a10ee3e18b33700  logs/mac-B6-eval-debug.log
+    4757135a0173878ea9efb7a1fb5f888ffe4348389386071fb538a4e585d8670e  logs/mac-B6-eval-debug.log
     65ca1525bd711f65d07aab1eae27bea50064478b1094df16b05a47f2f4ab2f1a  logs/mac-B6-release-find.log
-    40a17c34bbebec60d5a1a5ab8251d9aba74d74a12f848ca27364f7674f8a0384  logs/mac-B6-release.log
+    042415425b104968f93e5dfdcaf2cfbdb605d8463b28cc66fb36b98f6b04b5f9  logs/mac-B6-release.log
     726afc407c638fcc582ff1abfb0973f3baff25aceea213d8ee7a6835c9251115  logs/mac-B9-after.log
     8b004f58485682d279fbbc0d486dba73c8bac16e1885a79b2415abd43632d8d1  logs/timings.txt
     766c8c7c54bb87c191f0d7ac1becf824633c759c8544b71a11ad0b044878fb53  probes/IOSProbe-ProbeApp.swift
@@ -79,5 +104,5 @@ Warnings: no compiler warning appears in any log. The only "warning:" lines are 
     5354fc5d6f03ca96256e45e27c45ce99076e71f37b471c1118e9d846604dd585  probes/ios-sim-probe-run2.log
     e4b090f21480895327d0bcf00fd262106220553f9b080c925b42f2b9f38af3af  probes/mac-probe-final.log
     8770a95cda4e9465080590003328e7332dc10f9e2d72dab0ea2e003a968421ed  probes/probe-project.yml
-    cef6bb1a62ce5784e3ef93a574bd2ceb1fa38ced5ccf17f7cc26459dc2481111  run-evidence.sh
+    d878b4274a5c33d16e8fc4a90a084975a4ccb7b77df0f53aca7bb4e1b111da41  run-evidence.sh
 ```

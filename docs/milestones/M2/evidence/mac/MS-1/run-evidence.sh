@@ -1,6 +1,8 @@
 #!/bin/zsh
 # WI-M2-M1 MS-1 evidence run: plan B0–B6 from a clean state at the committed head.
-cd $HOME/dharanbro-projects/Tend || exit 1
+# REPO must be set to the absolute path of the Tend checkout before running, e.g. REPO=/path/to/Tend zsh run-evidence.sh
+: "${REPO:?set REPO to the Tend checkout}"
+cd "$REPO" || exit 1
 setopt nullglob
 rm -rf build Tend.xcodeproj Packages/*/.build Tools/*/.build "$HOME"/Library/Developer/Xcode/DerivedData/TendAI-* "$HOME"/Library/Developer/Xcode/DerivedData/Tend-*
 if [[ -e build || -e Tend.xcodeproj || -n "$(echo Packages/*/.build)" ]]; then echo "clean failed"; exit 1; fi

@@ -8,10 +8,10 @@ Resolve Package Graph
 
 
 Resolved source packages:
-  TendSourceScan: $HOME/dharanbro-projects/Tend/Packages/TendSourceScan @ local
-  TendAI: $HOME/dharanbro-projects/Tend/Packages/TendAI
-  TendCore: $HOME/dharanbro-projects/Tend/Packages/TendCore
-  TendIngestion: $HOME/dharanbro-projects/Tend/Packages/TendIngestion
+  TendSourceScan: $REPO/Packages/TendSourceScan @ local
+  TendAI: $REPO/Packages/TendAI
+  TendCore: $REPO/Packages/TendCore
+  TendIngestion: $REPO/Packages/TendIngestion
 
 2026-11-25 11:40:35.745 xcodebuild[66552:4094906] Writing error result bundle to $TMPDIR/ResultBundle_2026-25-11_11-40-0035.xcresult
 xcodebuild: error: Scheme TendEval is not currently configured for the archive action.

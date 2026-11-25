@@ -5232,7 +5232,7 @@ Three of the 6 tests then failed (trailing part, outcome, split chunks; 45 issue
 ## WI-M2-M1 — XcodeGen project, `TendAI` scaffold, T-27 check, Mac command check, latency probe (MS-1)
 
 - **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/xcodegen-project`, based on
-  `main` at `20c40ea`  ·  **PR:** not opened (the brief says push only; the owner merges Mac-only PRs under D-032)  ·
+  `main` at `20c40ea`  ·  **PR:** #38 (the owner merges Mac-only PRs under D-032)  ·
   **ADRs:** [ADR-0003](../../architecture/adr/0003-project-generation.md), now **Accepted**;
   [ADR-0006](../../architecture/adr/0006-m2-module-layout.md) (the layout followed).
 - **Requirements:** ○ AC-M2-09 (the Rule 5 decision and the `TendAI` and `TendEval` roots switched to `required`),
@@ -5394,6 +5394,18 @@ from earlier runs in the session.
 | AC-M2-28 `project.yml` scan test | — | WI-M2-M7 (owner of AC-M2-28) |
 | CLAUDE.md §7 still shows the commented Xcode command | Minor | Documenter (protected path) |
 
+### Tickets (from review round 1, [review-pr38.md](review-pr38.md))
+| Finding | Ticket | Where |
+|---|---|---|
+| m1(a) "All interface orientations must be supported…" warning for `Tend` and `TendEval` | Add `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad` (and an explicit iPhone list) for both targets in `project.yml`; B6 re-run proves it clean. The iPad orientation set is the Designer's decision (CLAUDE.md §9 Q1). | MS-2 |
+| m2 `TendEval` Release is excluded only by the schemes | Hard guard in the `TendEval` Release configuration, asserted by the AC-M2-28 `project.yml` scan test. | WI-M2-M7 |
+| m4 T-27 rests on docs and a macOS command-line probe | T-27 check on the iPhone 15 Pro in SP-1: first capture shows only the microphone prompt, and transcribes (Planner / Tester). | MS-2 |
+| n2 B6 builds without the warnings-as-errors flag | Pass `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES` in the B6 commands on the next Mac run. | next Mac run (MS-2) |
+
+The round 1 docs-only fixes (M1 path redaction to `$REPO`, m1(b) README warning sentence, m3 zip digest, n1 PR number)
+are in the fix commit on top of `02c1d84`; no file outside `docs/` changed, so the Mac record still covers `0065664`
+(review Q1 is open for the PO / owner).
+
 ### Law check
 | Law | Status (pass / n.a. / concern) | Note |
 |---|---|---|
@@ -5411,3 +5423,5 @@ from earlier runs in the session.
 |---|---|---|---|---|
 | 2026-11-25 | Coordinator | Developer (owner's Mac) | accepted | WI-M2-M1 brief. The start was blocked until the owner installed Xcode and accepted its licence. |
 | 2026-11-25 | Developer | Reviewer, Acceptance Tester, PO (via the coordinator) | sent | Branch pushed, no PR. Open items: the Havana tzdata failures (PO / WI-M2-03), and HM-2 / D-032 for the owner's merge. |
+| 2026-11-25 | Reviewer | Developer | accepted | PR #38 round 1: CHANGES REQUIRED (M1, m1, m2, m3, m4, n1, n2). |
+| 2026-11-25 | Developer | Reviewer (via Orchestrator) | sent | Docs-only fix: `$REPO` redaction (2,248 occurrences), 22 hashes recomputed (9 changed), README warning sentence, zip digest aligned with ADR-0003 (and ADR zip size corrected), PR #38 noted; tickets above. Not pushed. |

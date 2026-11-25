@@ -47,7 +47,7 @@ surface. Tuist's strengths (caching, very large graphs) do not pay for its extra
 |---|---|
 | Tool | XcodeGen (github.com/yonaskolb/XcodeGen), MIT licence |
 | Version | **2.46.0** (released 2026-07-16). 2.47.0 and 2.48.0 came out on 2026-11-17 and 2026-11-19; we pin the release that has been out for four months, not one from last week. Moving the pin is a one-line PR that updates this table and `options.minimumXcodeGenVersion` in `project.yml`. |
-| Artifact | `https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip` (5,738,697 bytes) |
+| Artifact | `https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip` (4,278,764 bytes; re-measured 2026-11-25, see the MS-1 evidence README) |
 | SHA-256 of the zip | `4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806` (matches the digest GitHub publishes for the asset) |
 | SHA-256 of `bin/xcodegen` | `8774da746668bc18fe74e54cbaf10f2631a1fb05947cd374179aa912f14f99db` (universal x86_64 + arm64) |
 | Install method | The GitHub release binary, not Homebrew or Mint (no extra package manager, and an exact artifact we can checksum). See below. |
