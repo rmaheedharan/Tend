@@ -3,6 +3,7 @@
 Response bodies of the three cloud providers' streaming APIs. They are read by `ProviderStreamReader`
 (`Packages/TendIngestion/Sources/TendIngestion/CloudOutput/`) in the Linux tests (`ProviderStreamFixtureTests`).
 The cloud adapters read them end to end through a mock transport on the owner-run Mac (WI-M2-M6).
+The real recordings (section "Recorded") follow the same rule.
 
 Every fixture holds **response bodies only**: no request, no headers, no key, no household data. Each one was written for
 the brief's Outcome sample sentence: "The AC needs servicing before summer, we're almost out of dishwasher pods, and
@@ -25,8 +26,8 @@ format:
 
 The shapes follow the request of PO WI-M2-10 ruling 7, and a length stop is the fixed output cap of ruling 3. The model
 IDs in the bodies are the served models of ruling 7: `gpt-6-luna`, `claude-haiku-4-5-20251001` and
-`gemini-3.5-flash-lite`. The formats were written from the providers' documentation and are not verified against a
-live stream (WI-M2-13 K9); the recorded fixtures of WI-M2-M6 check them. The fixtures were written by a one-off generator script that is not
+`gemini-3.5-flash-lite`. The formats were written from the providers' documentation and were not verified against a
+live stream (WI-M2-13 K9). The recorded fixtures check them; for Gemini, see "Recorded". The fixtures were written by a one-off generator script that is not
 kept in the repo. The test table in `ProviderStreamFixtureTests` is the specification: it states the exact result of
 each fixture, and a test fails if a file is added or missing.
 
@@ -44,7 +45,20 @@ each fixture, and a test fails if a file is added or missing.
 | `provider-error-after-first-draft` | An in-stream error after item 1 (`server_error`, `overloaded_error`, code 503) | `interrupted(serviceUnavailable)`; 1 draft |
 | `finished-output-no-end` | The whole output JSON is finished, but the body ends without the provider's normal end (OpenAI: no `finish_reason` and no `[DONE]`; Anthropic: `content_block_stop` but no `message_delta` or `message_stop`; Gemini: no `finishReason`). A cloud stream counts as truncated without that end (PO 2026-11-24, WI-M2-13 K2). | `interrupted(outputCutShort)`; 3 drafts |
 
-## Recorded (WI-M2-M6)
+## Recorded (live check L2a, GR-4; WI-M2-M6)
 
-`recorded/<provider>/`, at least one per provider. The owner records them on the owner-run Mac with the sample
-sentence, and saves the response stream only. There are none yet.
+`<provider>/recorded-outcome-sample.sse`, the path in plan.md "Real provider recordings": one per provider. The owner
+sends the committed golden request for the Outcome sentence with an empty household and saves the response stream only.
+They are read by `ProviderStreamRecordingTests`.
+
+| File | Recorded | How | Result through `DraftPipeline` |
+|---|---|---|---|
+| `gemini/recorded-outcome-sample.sse` | 2026-11-25, by the owner (L2a) | The committed golden body `Fixtures/M2/payload/golden/g1-outcome-empty-gemini.body.json` with the golden headers of `g1-outcome-empty-gemini.head.txt` (the owner's own key in place of the fake one) to `gemini-3.5-flash-lite:streamGenerateContent?alt=sse`. HTTP 200, `text/event-stream`. 14 `data:` events, CRLF. | `completed`; 3 drafts ("The AC needs servicing", "dishwasher pods", "deep clean the balcony"); no skip |
+
+The Gemini recording holds the model's reply to the fixed Outcome sentence only: no request, no header, no key and no
+household data (a test checks this). The body shows the served model `gemini-3.5-flash-lite` in every event, no
+`thoughtsTokenCount` in `usageMetadata` (0 thinking tokens reported), and a last part with empty `text` and a
+`thoughtSignature`, which carries `finishReason` `STOP`.
+
+OpenAI and Anthropic have no recording yet. Their L2a calls returned only billing errors (no credit), which prove
+nothing about the request, so those responses were not saved.
