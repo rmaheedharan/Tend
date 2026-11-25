@@ -5314,6 +5314,63 @@ sanity test, plus the end mismatch. Then I restored the file (byte-identical, `c
 | 2026-11-25 | PO (via Orchestrator) | Developer | accepted | Ruling C: keep Havana, move to the 2025 transitions, add the stale-fixture guard. |
 | 2026-11-25 | Developer | Reviewer, Acceptance Tester, owner (via Orchestrator) | sent | Test-only change, local commit, not pushed. 570 green on Linux. Mac rerun on 2026f still needed. |
 
+## Find sha256sum on macOS so the manifest-command test runs (AC-M2-13(b), AC-M2-14; WI-M2-16)
+
+**Date:** 2026-11-25 · **Developer** · branch `m2/eval-freeze-sha256-path` (from `main` `2a47f75`), local commit, not pushed
+
+### Why
+The owner's Mac gate run (macOS 27.2.1, at `cf1261f`) skipped "AC-M2-14: the documented manifest command writes
+exactly the in-memory render". The test looked for `sha256sum` only at `/usr/bin/sha256sum`, and on that Mac it is
+at `/sbin/sha256sum`. AC-M2-13(b) needs 0 skipped on the Mac run, so this skip blocks it.
+
+### What changed (test file only; no product code)
+- `EvalFreezeTests.swift`: `EvalFreeze.resolveSHA256Sum(path:isExecutable:)` returns the first executable
+  `sha256sum` in `/usr/bin`, `/sbin`, `/usr/sbin`, `/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, then each `PATH`
+  directory in order. `EvalFreeze.sha256sum` is now that result (`String?`).
+- The `.enabled(if:)` guard uses the resolved path (nil means skip). The skip message now names every place searched.
+  The test body uses `#require` on the path. What the test asserts is unchanged.
+- The header comment now describes the search instead of "Linux only".
+- New parameterised test "AC-M2-13(b) / AC-M2-14: sha256sum is found in the fixed places in order, then PATH; nil
+  only if absent everywhere" (6 cases, with an injected `isExecutable`, so no filesystem is involved). It covers Linux
+  `/usr/bin`, macOS 27 `/sbin`, Homebrew before `PATH`, `PATH` order, and none found.
+
+Break check: I swapped the order to `PATH` first. The resolver test failed on the "Homebrew before PATH" case
+(got `/home/u/bin/sha256sum`). Then I restored the file (byte-identical, `cmp`).
+
+### AC coverage
+| AC | Test | Result |
+|---|---|---|
+| AC-M2-14 | `EvalFreezeTests.documentedCommandMatchesRender` (unchanged assertions) | pass (Linux, `/usr/bin/sha256sum`) |
+| AC-M2-13(b), AC-M2-14 | `EvalFreezeTests.sha256sumResolver`, 6 cases | pass (Linux) |
+
+### Verification environment
+| Check | Linux (swift:6.2-noble) | macOS (owner Mac, macOS 27.2.1) | Simulator | Device |
+|---|---|---|---|---|
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` | **571 tests in 67 suites passed, 0 skipped**, 0 warnings | **not verified: owner Mac rerun needed** (expect the manifest-command test to run from `/sbin/sha256sum`, 0 skipped) | not verified | not verified |
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| Owner reruns TendIngestion on the Mac and confirms 0 skipped (AC-M2-13(b)) | gates AC-M2-13(b) | Owner |
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Test only. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | n.a. | No copy. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No AI path change. |
+| P-2 No data leaves device | n.a. | A local `sha256sum` process in tests only. |
+| P-3 Cloud escalation per ADR | n.a. | No change. |
+| P-4 Media not persisted | n.a. | Nothing written (stdout only). |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-25 | Orchestrator | Developer | accepted | Mac finding: skip at `/sbin/sha256sum` path, `cf1261f`. |
+| 2026-11-25 | Developer | Reviewer, owner (via Orchestrator) | sent | Test-only, local commit, not pushed. 571 green, 0 skipped on Linux. Mac rerun needed. |
+
 ---
 
 ## WI-M2-M1 — XcodeGen project, `TendAI` scaffold, T-27 check, Mac command check, latency probe (MS-1)
