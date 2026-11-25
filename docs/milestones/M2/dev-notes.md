@@ -5199,9 +5199,10 @@ Three of the 6 tests then failed (trailing part, outcome, split chunks; 45 issue
 ### Known limitations / follow-ups
 | Item | Severity | Ticket |
 |---|---|---|
-| L2a for OpenAI (incl. array system content, F2) and Anthropic | blocking freeze (AC-M2-14) | Owner: add credit, rerun the L2a commands; then a recording each, same test pattern |
+| L2a for OpenAI (incl. array system content, F2) and Anthropic | not blocking the freeze (owner decision "L2a outcome", 2026-11-25); gates those providers' DS-2 runs (acceptance.md P11) | Owner: add credit, rerun the L2a commands; then a recording each, same test pattern |
 | The schema check of the recorded output was a one-off Python script, not a committed test | Minor | Can become a Linux test once WI-M2-M6 adds a Foundation schema check for outputs |
-| Whether L2a for Gemini alone is enough to close GR-4 (GR-4 names only Gemini members) | question | PO / Tester to decide; I do not close GR-4 myself |
+| Whether L2a for Gemini alone is enough to close GR-4 (GR-4 names only Gemini members) | answered | Owner decision "L2a outcome" (2026-11-25): freeze now with Gemini PASS; OpenAI/Anthropic deferred (review R37 N1) |
+| Recording tests use the shared test rooms, not the empty household the request was sent with (review R37 N2) | Minor | Ticket for WI-M2-M6 when real recordings per provider are added |
 
 ### Law check
 | Law | Status (pass / n.a. / concern) | Note |
