@@ -1,107 +1,149 @@
-// The microphone capture life cycle (WI-M2-M3 round 2; review PR #42 M1, m1). The rules `MicrophoneAudioSource` keeps
-// under its lock, tested without audio.
+// The microphone capture life cycle (WI-M2-M3; review PR #42 M1, m1, round 2 M1-r2, m6). The rules
+// `MicrophoneAudioSource` keeps under its lock, tested without audio. Mutating calls are made outside `#expect`.
 
 import Testing
 @testable import TendAI
 
-@Suite("Microphone capture state (WI-M2-M3; review PR #42 M1, m1)")
+@Suite("Microphone capture state (WI-M2-M3; review PR #42 M1, m1, M1-r2, m6)")
 struct MicrophoneCaptureStateTests {
+
+    private func started(_ state: inout MicrophoneCaptureState) throws -> UInt64 {
+        let begun = state.begin()
+        return try #require(begun)
+    }
 
     @Test("M1: a stop while the capture is starting is remembered; the session is never activated")
     func stopBeforeActivation() throws {
         var state = MicrophoneCaptureState()
-        let begunToken = state.begin()
-        let token = try #require(begunToken)
-        let r1 = state.stop()
-        #expect(r1 == .wasStarting)
-        let r2 = state.mayActivate(token)
-        #expect(r2 == false)
+        let token = try started(&state)
+        let stopped = state.stop()
+        #expect(stopped == .wasStarting)
+        let activate = state.mayActivate(token)
+        #expect(activate == false)
         #expect(state.phase == .idle)
-        let r3 = state.markRunning(token)
-        #expect(r3 == false)
     }
 
-    @Test("M1: a stop after activation but before the engine is stored stops it from ever running")
-    func stopDuringStart() throws {
+    @Test("M1-r2: a stop during engine prepare/start is seen after start; the engine is never published, and the start path tears down")
+    func stopDuringEngineStart() throws {
         var state = MicrophoneCaptureState()
-        let begunToken = state.begin()
-        let token = try #require(begunToken)
-        let r4 = state.mayActivate(token)
-        #expect(r4)
-        let r5 = state.stop()
-        #expect(r5 == .wasStarting)
-        let r6 = state.markRunning(token)
-        #expect(r6 == false)
+        let token = try started(&state)
+        let activate = state.mayActivate(token)
+        #expect(activate)
+        // engine.prepare() / engine.start() are running on the start path now.
+        let stopped = state.stop()
+        #expect(stopped == .wasStarting)            // nobody else gets the engine to tear down
+        let published = state.markRunning(token)  // after start() returned
+        #expect(published == false)
+        #expect(state.phase == .stopping(token))
+        let during = state.begin()
+        #expect(during == nil)                       // m6: nothing starts during the teardown
+        state.finishTeardown(token)
         #expect(state.phase == .idle)
     }
 
-    @Test("A stop while running hands back that capture's token for teardown, once")
+    @Test("M1-r2: a stream termination during engine start acts as a stop; only the start path tears down")
+    func terminationDuringEngineStart() throws {
+        var state = MicrophoneCaptureState()
+        let token = try started(&state)
+        let activate = state.mayActivate(token)
+        #expect(activate)
+        let owned = state.end(token)
+        #expect(owned == false)
+        #expect(state.phase == .stopRequested(token))
+        let published = state.markRunning(token)
+        #expect(published == false)
+        #expect(state.phase == .stopping(token))
+        state.finishTeardown(token)
+        #expect(state.phase == .idle)
+    }
+
+    @Test("A stop while running hands the token to one caller; the source stays busy until finishTeardown (m6)")
     func stopWhileRunning() throws {
         var state = MicrophoneCaptureState()
-        let begunToken = state.begin()
-        let token = try #require(begunToken)
-        let r7 = state.mayActivate(token)
-        #expect(r7)
-        let r8 = state.markRunning(token)
-        #expect(r8)
-        #expect(state.phase == .running(token))
-        let r9 = state.stop()
-        #expect(r9 == .wasRunning(token))
-        let r10 = state.stop()
-        #expect(r10 == .nothing)
-        let r11 = state.end(token)
-        #expect(r11 == false)
+        let token = try started(&state)
+        _ = state.mayActivate(token)
+        let published = state.markRunning(token)
+        #expect(published)
+        let first = state.stop()
+        #expect(first == .wasRunning(token))
+        let second = state.stop()
+        #expect(second == .nothing)
+        let owned = state.end(token)
+        #expect(owned == false)
+        let during = state.begin()
+        #expect(during == nil)
+        state.finishTeardown(token)
+        let after = state.begin()
+        #expect(after != nil)
     }
 
-    @Test("m1: a second capture is refused while one is starting or running, and allowed after it ends")
+    @Test("m6: a new capture cannot begin while the old one's teardown runs, after a termination too")
+    func noOverlapAfterTermination() throws {
+        var state = MicrophoneCaptureState()
+        let token = try started(&state)
+        _ = state.mayActivate(token)
+        _ = state.markRunning(token)
+        let owned = state.end(token)
+        #expect(owned)
+        #expect(state.phase == .stopping(token))
+        let during = state.begin()
+        #expect(during == nil)
+        state.finishTeardown(token)
+        let next = try started(&state)
+        #expect(next != token)
+    }
+
+    @Test("A start that gives up (session, converter or engine) holds the source until its teardown is done")
+    func startGaveUp() throws {
+        var state = MicrophoneCaptureState()
+        let token = try started(&state)
+        _ = state.mayActivate(token)
+        state.startGaveUp(token)
+        #expect(state.phase == .stopping(token))
+        let during = state.begin()
+        #expect(during == nil)
+        state.finishTeardown(token)
+        #expect(state.phase == .idle)
+    }
+
+    @Test("m1: a second capture is refused while one is starting or running")
     func oneAtATime() throws {
         var state = MicrophoneCaptureState()
-        let begunFirst = state.begin()
-        let first = try #require(begunFirst)
-        let r12 = state.begin()
-        #expect(r12 == nil)
-        let r13 = state.mayActivate(first)
-        #expect(r13)
-        let r14 = state.markRunning(first)
-        #expect(r14)
-        let r15 = state.begin()
-        #expect(r15 == nil)
-        let r16 = state.end(first)
-        #expect(r16)
-        let begunSecond = state.begin()
-        let second = try #require(begunSecond)
-        #expect(second != first)
+        let first = try started(&state)
+        let whileStarting = state.begin()
+        #expect(whileStarting == nil)
+        _ = state.mayActivate(first)
+        _ = state.markRunning(first)
+        let whileRunning = state.begin()
+        #expect(whileRunning == nil)
     }
 
-    @Test("m1: ending one capture never ends another (teardown is per token)")
-    func endIsPerToken() throws {
+    @Test("m1: another capture's token never ends, stops or finishes this one")
+    func perToken() throws {
         var state = MicrophoneCaptureState()
-        let begunFirst = state.begin()
-        let first = try #require(begunFirst)
-        let r17 = state.end(first)
-        #expect(r17)
-        let begunSecond = state.begin()
-        let second = try #require(begunSecond)
-        let r18 = state.mayActivate(second)
-        #expect(r18)
-        let r19 = state.markRunning(second)
-        #expect(r19)
-        // The first stream's late termination must not stop the second capture.
-        let r20 = state.end(first)
-        #expect(r20 == false)
+        let first = try started(&state)
+        _ = state.mayActivate(first)
+        _ = state.markRunning(first)
+        _ = state.end(first)
+        state.finishTeardown(first)
+        let second = try started(&state)
+        _ = state.mayActivate(second)
+        _ = state.markRunning(second)
+        let stale = state.end(first)
+        #expect(stale == false)
+        state.finishTeardown(first)
         #expect(state.phase == .running(second))
-        let r21 = state.mayActivate(first)
-        #expect(r21 == false)
-        let r22 = state.markRunning(first)
-        #expect(r22 == false)
+        let staleActivate = state.mayActivate(first)
+        let stalePublish = state.markRunning(first)
+        #expect(staleActivate == false && stalePublish == false)
     }
 
-    @Test("A stop with nothing running does nothing, and leaves the next capture free to start")
-    func idleStop() throws {
+    @Test("A stop with nothing running does nothing")
+    func idleStop() {
         var state = MicrophoneCaptureState()
-        let r23 = state.stop()
-        #expect(r23 == .nothing)
-        let r24 = state.begin()
-        #expect(r24 != nil)
+        let result = state.stop()
+        #expect(result == .nothing)
+        let begun = state.begin()
+        #expect(begun != nil)
     }
 }
