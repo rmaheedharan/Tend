@@ -1,0 +1,23 @@
+Building for production...
+Build complete! (0.32 secs)
+availability available
+  emitted 1 dishwasher pods restock existing(29C62E64-62B6-4A02-AC80-CB1004FF6281) normal crit false dup ofExisting(91D46F10-6860-47BF-B005-90B8F2710947) phrase We're almost out of dishwasher pods
+  emitted 2 AC servicing oneOff none high crit true dup none phrase the AC needs servicing before summer
+  emitted 3 mop the kitchen floor oneOff existing(29C62E64-62B6-4A02-AC80-CB1004FF6281) high crit false dup none phrase mop the kitchen floor tonight
+  finished completed(route: TendIngestion.Route.onDevice, input: nil, plainNote: nil)
+run 1 ttfi 7.938720292 seconds total 12.505384249999999 seconds
+  emitted 1 dishwasher pods restock existing(29C62E64-62B6-4A02-AC80-CB1004FF6281) normal crit false dup ofExisting(91D46F10-6860-47BF-B005-90B8F2710947) phrase We're almost out of dishwasher pods
+  emitted 2 AC servicing oneOff none high crit true dup none phrase the AC needs servicing before summer
+  emitted 3 mop the kitchen floor oneOff existing(29C62E64-62B6-4A02-AC80-CB1004FF6281) high crit false dup none phrase mop the kitchen floor tonight
+  finished completed(route: TendIngestion.Route.onDevice, input: nil, plainNote: nil)
+run 2 ttfi 6.31702825 seconds total 10.829425917 seconds
+  emitted 1 dishwasher pods restock existing(29C62E64-62B6-4A02-AC80-CB1004FF6281) normal crit false dup ofExisting(91D46F10-6860-47BF-B005-90B8F2710947) phrase We're almost out of dishwasher pods
+  emitted 2 AC servicing oneOff none high crit true dup none phrase the AC needs servicing before summer
+  emitted 3 mop the kitchen floor oneOff existing(29C62E64-62B6-4A02-AC80-CB1004FF6281) high crit false dup none phrase mop the kitchen floor tonight
+  finished completed(route: TendIngestion.Route.onDevice, input: nil, plainNote: nil)
+run 3 ttfi 6.365397167 seconds total 10.847908624999999 seconds
+  emitted 1 dishwasher pods restock existing(29C62E64-62B6-4A02-AC80-CB1004FF6281) normal crit false dup ofExisting(91D46F10-6860-47BF-B005-90B8F2710947) phrase We're almost out of dishwasher pods
+  emitted 2 AC servicing oneOff none high crit true dup none phrase the AC needs servicing before summer
+  emitted 3 mop the kitchen floor oneOff existing(29C62E64-62B6-4A02-AC80-CB1004FF6281) high crit false dup none phrase mop the kitchen floor tonight
+  finished completed(route: TendIngestion.Route.onDevice, input: nil, plainNote: nil)
+run 4 ttfi 6.323099332999999 seconds total 10.866736583 seconds
