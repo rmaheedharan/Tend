@@ -6028,3 +6028,258 @@ At `fad715a` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 5
   helper only. Mac evidence record for `f4dd2ab`: [`evidence/mac/WI-M2-M2-main-merge/`](evidence/mac/WI-M2-M2-main-merge/README.md):
   B1 TendCore 141; B2 TendIngestion 580, scan 68 files, 0 violations; B4 TendAI 57; B5 hosted 34; B6 as MS-1; all passed,
   0 skipped, clean tree before and after.
+
+## WI-M2-M3 — speech adapter: `SpeechAnalyzer` with `SpeechTranscriber`, falling back to `DictationTranscriber`; microphone source; microphone permission (MS-2)
+
+- **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/speech-adapter`, based on
+  `main` at `41bf8fa` (independent of `m2/on-device-adapter`)  ·  **PR:** none yet (owner merge under D-032)  ·
+  **ADRs:** ADR-0006 (layout followed: the three named speech files).
+- **Requirements:** ○ AC-M2-09 (Rule 2 media types only in the two speech files; Rule 5, T-27 exception off),
+  ○ AC-M2-11 and ○ AC-M2-25 (the Mac half: the transcriber used is reported; the device runs are DS-1, DS-2). FR-A1,
+  P-1, P-4, UX-3. T-27, R-8.
+- **Mac evidence record:** [`evidence/mac/WI-M2-M3/`](evidence/mac/WI-M2-M3/README.md), for the code commit
+  `1c19f688d665a6b1c6c0046e69c3b190f3af7a14`.
+
+### What changed
+- **`TendAI/Speech/SpeechTranscriptionAdapter.swift`** — `SpeechCapture`, the public voice capture:
+  - **Which transcriber:** `SpeechTranscriber` when `isAvailable`, it supports the locale and its assets are on the
+    device; otherwise `DictationTranscriber` when it supports the locale and its assets are on the device; otherwise
+    `unavailable(languageNotSupported | assetsNotInstalled)`; a transcriber with no audio format gives
+    `unavailable(audioFormatUnavailable)` (the Simulator's dictation case in MS-1). The choice is a pure function
+    (`TranscriberChoice.choose`), tested over all 64 state combinations against an independent table.
+  - **The transcriber used is reported** as the first event (`transcriberChosen`) and in the final transcript
+    (AC-M2-25).
+  - **The brain-dump input is the final transcript:** the final results, trimmed and joined with one space, once the
+    audio has ended (the person stopped). Volatile text is reported as `textSoFar` for display only, never stored.
+    The `finished(.transcribed)` event is the end of speech for TTFI (brief Definitions).
+  - Outcomes: `transcribed`, `nothingHeard`, `unavailable(reason)`, `stopped(audioInterrupted | transcriptionStopped)`,
+    `cancelled`. When the consuming task itself is cancelled, the sequence simply ends (an `AsyncStream` returns nil to a
+    cancelled consumer) and the audio and the transcriber are stopped through `onTermination`.
+  - The real engine (`SpeechAnalyzerEngine`) uses `SpeechAnalyzer(modules:)`, `analyzeSequence(_:)` then
+    `finalizeAndFinishThroughEndOfInput()`, presets `.progressiveTranscription` and `.progressiveLongDictation` (the
+    MS-1 note: `.shortDictation` gave no final result for a 4.8 s utterance). Cancelling calls `cancelAndFinishNow()`.
+  - **Assets, probed on this Mac:** `AssetInventory.status(forModules:)` reads `supported` for an en-US module whose
+    assets are installed, until the process calls `assetInstallationRequest(supporting:)` once (it then returns nil and
+    the status reads `installed`). So the choice reads the device's `installedLocales`, and the engine calls
+    `assetInstallationRequest` before analysis: nil means installed; a non-nil request (a download) ends the capture as
+    `stopped(transcriptionStopped)`. A capture never starts a download.
+- **`TendAI/Speech/MicrophoneAudioSource.swift`** — `AVAudioEngine` input tap in the hardware format, each buffer
+  converted with `AVAudioConverter` to the transcriber's format and passed on as an `AnalyzerInput`; nothing kept.
+  `stop()` ends the utterance. On iOS it sets the audio session to `.record` while it runs. It is a `final class` with
+  `@unchecked Sendable` and an `NSLock` (comment in the file): the `AVAudioEngine` is not `Sendable`, and Rule 2 does
+  not allow the `Synchronization` module. **Reviewer sign-off needed** (skill rule). Not run in any test: there is no
+  microphone in a headless test or in the Simulator; DS-1 and DS-2 run it.
+- **`TendAI/Speech/SpeechPermission.swift`** — microphone only (`AVAudioApplication`): `microphone()` reads without
+  asking; `requestMicrophone()` asks once. No speech-recognition authorization (T-27; the Rule 5 exception stays off).
+  M3's app target must add `NSMicrophoneUsageDescription` (the Designer writes the string).
+- **Tests:** `TendAITests` +17 (now 18 with the scaffold), `TendAIHostedTests` +2 (now 4).
+
+### AC → test
+| AC | Test(s) | Command | Result |
+|---|---|---|---|
+| AC-M2-25 / AC-M2-11 (transcriber reported; final transcript) | `SpeechCaptureTests`: "The final transcript is the final results joined; volatile text is reported for display only", "AC-M2-25: the transcriber used is reported, for both transcribers", "The audio is asked for in the transcriber's format …", "Audio with no words ends with nothingHeard …", "No usable transcriber …" (3 reasons), "Audio that stops by itself …", "A transcriber error …", "Cancelling the consumer …", "A capture started inside a cancelled task asks for no audio", "Readiness reports …" | B4 | PASS |
+| Transcriber choice | `TranscriberChoiceTests`: 64 combinations, preference, join | B4 | PASS |
+| Real on-device transcription (Mac half) | `SpeechRealEngineTests`: "On this Mac the capture chooses SpeechTranscriber and transcribes the sentence on device"; "The DictationTranscriber fallback also transcribes the sentence on device" (a sentence made by `say` into a temporary file, fed as buffers; deleted after) | B4 | PASS |
+| iOS build and calm end in the Simulator | `SpeechHostedTests`: "A voice capture ends with exactly one finished event, last, and no transcript from silence"; "Reading the microphone permission does not ask" | B5 | PASS |
+| T-27 / Rule 5 | `SpeechPermissionTests`; the AC-M2-09 scan (TendAI 4 files, 0 violations; no `SFSpeech*`) | B4, B2 | PASS |
+| UX-3 names | `SpeechNamesTests` | B4 | PASS |
+
+**Mutants (each run, then reverted; all killed):** dictation preferred over a usable `SpeechTranscriber` (S1, 3 tests);
+volatile text in the final transcript (S2); audio interruption not told apart (S3); capture termination does not
+cancel (S4); transcriber not reported (S5); volatile result taken as final (S6).
+
+### Test runs (R-18; the evidence record has the logs)
+The clean run at `1c19f68`.
+
+| Command | Result | Runtime |
+|---|---|---|
+| B1 `swift test` TendCore | 141 tests in 18 suites passed, 0 skipped | 43 s wall |
+| B2 `swift test` TendIngestion | 571 tests in 67 suites passed, 0 skipped; scan 60 files (TendAI 4), 0 violations | 96 s wall |
+| B4 `xcodebuild test -scheme TendAI` (macOS) | 18 tests in 6 suites passed | 14 s |
+| B5 `xcodebuild test -scheme TendAIHostedTests` (iPhone 17 Pro, iOS 26.5) | 4 tests in 2 suites passed | 10 s |
+| B6 | as MS-1; both `find`s print nothing; `TendEval` archive refused (66) | 5 + 2 + 12 + 1 s |
+
+### Verification environment
+| Check | Linux | macOS (owner-run Mac) | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| Choice, assembly, outcomes, cancellation | n.a. (Apple-only) | pass (B4) | — | — | — |
+| Real `SpeechTranscriber` and `DictationTranscriber` from buffers | n.a. | pass (B4, synthetic sentence) | no speech model (R-8) | DS-1, DS-2 | Live voice on an iPhone |
+| `MicrophoneAudioSource` | n.a. | builds | builds | DS-1, DS-2 | No microphone in tests |
+| Microphone prompt only, no speech-recognition prompt (T-27) | n.a. | — | — | DS-1, DS-2 | Tester's device script |
+
+### Things the reviewer should look at closely
+- `MicrophoneAudioSource` is the only `@unchecked Sendable` in `TendAI` (lock-guarded; reason in the file).
+- The asset check reads `installedLocales` instead of `AssetInventory.status` (probe above). If a device shows a
+  locale as installed while analysis still needs a download, the capture ends `stopped(transcriptionStopped)` rather
+  than downloading.
+- `SpeechCaptureOutcome.cancelled` is delivered only when the capture task sees the cancellation before the consumer
+  stops reading; a cancelled consumer just sees the sequence end. M3 knows it cancelled.
+- The real-engine tests need the en-US speech assets installed on the Mac (true here, as in MS-1).
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| `NSMicrophoneUsageDescription` string for the app and `TendEval` | — | Designer (copy) + M3 / WI-M2-M7 `project.yml` |
+| Downloading speech assets (no API here; the eval precondition is "assets installed") | — | M3 (Designer: when to offer it) |
+| Live microphone path untested off device | — | DS-1, DS-2 |
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Voice capture is the primary entry; no form. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | Outcome and reason names pass the banned-token rule (test); none blames the person ("nothingHeard", "audioInterrupted"). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | `SpeechAnalyzer` modules only; no server-capable recogniser; no speech-recognition authorization (T-27). |
+| P-2 No data leaves device | pass | No networking (Rule 2 scan). A capture never starts an asset download. |
+| P-3 Cloud AI | n.a. | No cloud step here; only the transcript text can later reach a cloud model, under P-3. |
+| P-4 Media not persisted | pass | Buffers go from the source to the analyzer and are not kept; nothing is written or logged. The test's synthetic audio file is in the temporary folder and deleted after each test. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR. Reviewer sign-off asked for the one `@unchecked Sendable`. |
+
+## WI-M2-M3 round 2 — review PR #42 M1, m1–m5, n1, n2
+
+- **Branch:** `m2/speech-adapter-v2` (re-created by the orchestrator with a neutral identity), on top of the review
+  commit `895f5c1`  ·  **Code commit:** `118fcbee2b6049c72eb9cfabb638600341701939`  ·  **Mac evidence record:**
+  [`evidence/mac/WI-M2-M3-r2/`](evidence/mac/WI-M2-M3-r2/README.md).
+
+### What changed
+- **M1 (sticky stop).** New `TendAI/Speech/MicrophoneCaptureState.swift`: a plain value with no audio types that
+  holds the capture's phase (`idle`, `starting(token)`, `running(token)`, `stopRequested(token)`). `MicrophoneAudioSource`
+  keeps it under its lock. `stop()` while starting is remembered; the start path asks `mayActivate(token)` before it
+  activates the iOS audio session and `markRunning(token)` when it stores the engine. After a stop either answer is
+  no: nothing is activated, or the tap is removed and the engine never started, and the stream finishes normally (an
+  empty utterance).
+- **m1 (reuse).** `begin()` gives a token only when no capture is starting or running: a second `audio(in:)` meanwhile
+  finishes at once with `audioNotStarted` and never touches the first. Teardown is per token (`end(token)`,
+  `takeEngine(token)`), so a late termination of one stream never stops another capture. After a capture ends the
+  source can be used again. The rule is in the type's doc comment.
+- **m2 (cleanup).** (a) Every early exit after the iOS session is activated (converter cannot be made, engine cannot
+  start) sets it inactive again. (b) A buffer that cannot be converted no longer finishes the stream inside the tap:
+  the tap schedules a task that ends the capture, tears down and finishes with `conversionStopped`.
+- **m3.** The `@unchecked Sendable` comment now says exactly what the lock guards (`state`, `engine`, `continuation`)
+  and why the engine methods called outside it cannot overlap (only the token's owner calls them, and the engine is
+  taken out under the lock once).
+- **m4.** If the chosen transcriber has no audio format, it is left out and the choice is made again (so
+  SpeechTranscriber falls back to DictationTranscriber); the one used is reported. If none has a format, the capture
+  ends `unavailable(audioFormatUnavailable)`. `SpeechEngine.choice` takes an `excluding:` set.
+- **m5.** `AssetCheck.installed`: the assets are used only when `assetInstallationRequest` returns nil; a pending
+  request **or a thrown error** means not installed (`stopped(transcriptionStopped)`), never a download.
+- **n1:** "independent table" dropped from the 64-combination test name. **n2:** `say`'s temporary file is deleted
+  even when `say` fails.
+
+### AC → test (B4 unless noted)
+| Item | Test(s) | Result |
+|---|---|---|
+| M1 | `MicrophoneCaptureStateTests`: "a stop while the capture is starting is remembered; the session is never activated", "a stop after activation but before the engine is stored stops it from ever running", "A stop while running hands back that capture's token for teardown, once" | PASS |
+| m1 | "a second capture is refused while one is starting or running, and allowed after it ends", "ending one capture never ends another (teardown is per token)", "A stop with nothing running does nothing …" | PASS |
+| m4 | `SpeechRoundTwoTests`: "when SpeechTranscriber has no audio format, the capture falls back to DictationTranscriber and reports it", "when neither transcriber has an audio format …", "with no other transcriber usable …", "the exclusion makes the choice skip a transcriber, and only that one" | PASS |
+| m5 | "assets may be used only when the installation request is nil; a pending request or a throw means no" (both branches and the throw) | PASS |
+| m2, m3 | Code and comment; the iOS paths build in B5. The live microphone paths are DS-1 / DS-2 (no microphone in tests) | builds |
+
+**Mutants (killed):** a stop during start lost (2 tests); a second capture allowed (1); `end` for any token (2); no
+format fallback (1); a thrown asset request read as installed (1).
+
+### Test runs
+At `118fcbe` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 571 in 67, AC-M2-09 scan 61 files (TendAI 5), 0 violations; B4 TendAI 29 tests in 8 suites (incl. the real SpeechTranscriber and DictationTranscriber tests); B5 hosted 4 tests in 2 suites (the iOS build of the reworked microphone source); B6 as MS-1. All passed, 0 skipped, no compiler warnings.
+
+### For the Acceptance Tester (DS-1, DS-2)
+Add a quick-stop step: start a voice capture and stop it at once (before speaking); the microphone indicator must go
+off and the capture must end with nothing heard.
+
+## WI-M2-M3 round 3 — review PR #42 round 2 M1-r2 (engine published only after it started) and m6 (stopping phase)
+
+- **Branch:** `m2/speech-adapter-v2`, on top of the round-2 review commit `99a4841`  ·  **Code commit:**
+  `33bab8051a427ae88c46de60b840b5c6a67b328c`  ·  **Mac evidence record:** [`evidence/mac/WI-M2-M3-r3/`](evidence/mac/WI-M2-M3-r3/README.md).
+
+### What changed
+- **M1-r2.** `MicrophoneAudioSource.start` now creates the engine, installs the tap, calls `prepare()` and `start()`,
+  and only then asks `markRunning(token)` and publishes the engine. Before that point no other party can reach the
+  engine: `stop()` and the stream's termination only set `stopRequested` (the state type's `stop` and `end` for a
+  starting capture). If `markRunning` answers no, the start path stops its own engine (tap removed, `stop()`), sets the
+  iOS session inactive and ends the stream normally. An engine that cannot start is torn down by the start path too
+  (`startGaveUp`). The type's header comment and the `@unchecked Sendable` justification say exactly this.
+- **m6.** `MicrophoneCaptureState` has a `stopping(token)` phase: `stop` of a running capture, `end` of a running
+  capture, `markRunning` after a stop and `startGaveUp` all move to `stopping`; `begin` refuses while stopping; the
+  teardown (engine stopped, session inactive) ends with `finishTeardown(token)`, and only then is the source idle.
+  So the old teardown's session deactivation can never stop a new capture.
+
+### AC → test (B4)
+| Item | Test(s) | Result |
+|---|---|---|
+| M1-r2 | `MicrophoneCaptureStateTests`: "a stop during engine prepare/start is seen after start; the engine is never published, and the start path tears down", "a stream termination during engine start acts as a stop; only the start path tears down", "a stop while the capture is starting is remembered; the session is never activated" | PASS |
+| m6 | "A stop while running hands the token to one caller; the source stays busy until finishTeardown", "a new capture cannot begin while the old one's teardown runs, after a termination too", "A start that gives up … holds the source until its teardown is done" | PASS |
+| m1 (kept) | "a second capture is refused while one is starting or running", "another capture's token never ends, stops or finishes this one" | PASS |
+
+**Mutants (killed):** a running stop goes straight to idle (m6); a stop during start ignored at `markRunning` (M1-r2,
+2 tests); a termination during start lost (1); `begin` allowed while stopping (5).
+
+### Test runs
+At `33bab80` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 571 in 67, AC-M2-09 scan 61 files, 0 violations; B4 TendAI 32 tests in 8 suites; B5 hosted 4 tests in 2 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings. The B1–B6 wall times are longer than earlier runs because the Mac was busy with another build at the
+time; no test was affected.
+
+### For the Acceptance Tester (DS-1, DS-2)
+The quick-stop step from round 2 also covers this: start a capture and stop it at once, and again within a second of
+the previous stop; the microphone indicator must go off each time and the next capture must record normally.
+
+## WI-M2-M3 round 4 — a stop before the microphone is asked for is kept (SP-1 probe review I-1; P-4)
+
+- **Branch:** `m2/speech-adapter-v2`, on top of `6943163` (PR #44 round 3 approved)  ·  **Code commit:** `e100496a812f2cdf6f87040e571e597375b1e2d0`  ·
+  **Mac evidence record:** [`evidence/mac/WI-M2-M3-r4/`](evidence/mac/WI-M2-M3-r4/README.md).
+- **The defect (SP-1 review I-1):** the adapter asks the source for audio only after the transcriber is chosen
+  (`transcriberChosen`). A `stop()` in that window found the microphone source `idle` and was dropped; the
+  microphone then opened and stayed on (P-4: it kept running after the person stopped).
+- **The fix:** `CaptureAudioSource.captureWillStart()` (a protocol requirement with a default no-op, so other sources
+  are unchanged). `SpeechCapture.events(from:)` calls it synchronously when the capture starts, before anything is
+  awaited. `MicrophoneAudioSource` arms its `MicrophoneCaptureState` there (new phases `armed`, `armedStopped`). A stop
+  while armed is kept; the capture's `begin` then goes straight to `stopRequested`, so `mayActivate` answers no, the
+  session is never activated, and the audio ends at once: the result is `nothingHeard`, the same as a quick stop. A
+  stop with nothing armed or running still does nothing, and arming clears an old stop, so a stale [Stop] never ends a
+  later capture.
+- **Tests (B4):** `EarlyStopTests` over a source with the microphone source's state rules (no hardware) and an engine
+  whose choice and format wait on a gate: "A stop before transcriberChosen ends the capture as nothing heard; the
+  microphone never opens"; "A stop after the transcriber is chosen but before the source is asked for audio still ends
+  it empty"; "A stale stop (with no capture started) never ends a later capture"; "State: arm then stop makes the next
+  begin start already stopped; arming again clears it". The suite has a 1-minute time limit, so a dropped stop fails
+  instead of hanging.
+- **Mutants (killed):** a stop while armed dropped (3 tests); the armed stop forgotten at `begin` (3); the adapter does
+  not arm (2); arming keeps a stale stop (1).
+- **Test runs (clean, at `e100496`):** B1 TendCore 141; B2 TendIngestion 571, scan 61 files, 0 violations; B4 TendAI 36
+  tests in 9 suites; B5 hosted 4; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
+- **For SP-1 (B4 "tap Start then Stop at once"):** the microphone indicator must not come on, and the capture ends
+  `nothingHeard`.
+
+## WI-M2-M3 round 5 — PR #44 review round 4 m7, m8, n5, n6; brought up to date with main
+
+- **Branch:** `m2/speech-adapter-v2`, on top of the round-4 review `8a04059`. Code commit `a5b9f25`; then `origin/main`
+  (`9e50012`, PRs #45, #46, #47) merged as `c36a89c` (merge commit, no rebase). The only conflict was this file: main's
+  text is kept as it is and this branch's WI-M2-M3 sections follow it. No build fix was needed.
+- **m7.** `MicrophoneCaptureState` keeps the capture that has started but not yet asked for audio in its own field
+  (`next`: `none`, `armed`, `stopped`), beside the phase. `arm()` now works in every phase, also while an earlier capture
+  on the same source is still starting, running or being torn down. A stop then is kept for the new capture (and also
+  stops the earlier one if it is still active); the new capture begins already stopped, so the microphone never opens.
+- **m8.** `SpeechCapture.run` checks cancellation after the transcriber choice and format and before asking the source
+  for audio, so a capture cancelled during the choice never opens the microphone, even for a moment.
+- **n5.** A test drives the real `MicrophoneAudioSource`: `captureWillStart()`, `stop()`, then `audio(in:)` ends at once,
+  empty, with no engine created (no microphone needed). **n6.** The state type's header now describes `begin` and `arm`
+  as built, and says `audio(in:)` is meant to be called by `SpeechCapture`, which always arms first.
+- **Tests (B4):** `RoundFiveStopTests`: "a second capture armed while the first is still being torn down keeps its stop"
+  and "… while the first is still starting or running keeps its stop" (both failed before the fix), "a capture cancelled
+  during the transcriber choice never asks the source for audio" (failed before the fix), and the n5 test. Mutants
+  killed: arm only when idle (2 tests), no cancellation check (1), the real source does not arm (the n5 test).
+- **Test runs (clean, at `c36a89c`, the merged code commit):** B1 TendCore 141 tests in 18 suites; B2 TendIngestion 579
+  in 68, AC-M2-09 scan 66 files, 0 violations; B4 TendAI 42 tests in 11 suites; B5 hosted 36 tests in 5 suites (the
+  Keychain and transport tests from main plus the speech hosted tests); B6 as MS-1. All passed, 0 skipped, no compiler
+  warnings. Record: [`evidence/mac/WI-M2-M3-r5/`](evidence/mac/WI-M2-M3-r5/README.md).
+
+### WI-M2-M3: brought up to date with main (PR #43 and #49 merged)
+- `origin/main` (`8371552`) merged into `m2/speech-adapter-v2` as `2a6931e` (merge commit; no rebase). The only conflict
+  was this file. It was rebuilt by section: main's text as it is (an unchanged prefix), then this branch's five
+  WI-M2-M3 sections; a section comparison shows every section of `main` (28) and of this branch (31) exactly once and
+  unchanged, and no heading twice. No build fix was needed (main already has the `model(household:)` test helper).
+- Mac evidence record for `2a6931e`: [`evidence/mac/WI-M2-M3-main-merge/`](evidence/mac/WI-M2-M3-main-merge/README.md).
+  B1 TendCore 141; B2 TendIngestion 580, scan 72 files, 0 violations; B4 TendAI 96 tests in 17 suites; B5 hosted 36
+  tests in 5 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings, clean tree before and after.

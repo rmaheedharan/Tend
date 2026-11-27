@@ -1,0 +1,949 @@
+Building for debugging...
+[Planning deferred tasks]
+[28 / 52]
+[29 / 53] TendCore
+[39 / 96]
+[41 / 96]
+[46 / 96]
+[48 / 96]
+[52 / 96]
+[54 / 96]
+[57 / 96]
+[60 / 96]
+[62 / 96]
+[63 / 96]
+[72 / 96] TendCore
+[73 / 96] TendCore
+[86 / 97] TendCoreTests-product
+[87 / 108]
+[97 / 108] TendCoreTests-product
+[102 / 108] TendCoreTests-product
+[104 / 108] TendCoreTests-product
+Build complete! (10.70 secs)
+Test Suite 'All tests' started at 2026-11-27 22:55:05.320.
+Test Suite 'All tests' passed at 2026-11-27 22:55:05.321.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 2403
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Rescheduler gate properties (AC-M1-20, AC-M1-21, AC-M1-22)" started.
+◇ Suite "JSON file repository load errors (AC-M1-06, AC-M1-25)" started.
+◇ Suite "Non-finite window dates (AC-M2-02 W2-F3 clause, Q9, T-21)" started.
+◇ Suite "JSON file repository round trip (AC-M1-05, R-7)" started.
+◇ Suite "Rescheduler rules R0–R4 (AC-M1-17, AC-M1-18, AC-M1-19)" started.
+◇ Suite "Completion (AC-M1-03)" started.
+◇ Suite "HouseholdRepository contract (AC-M1-04)" started.
+◇ Suite "Context filter (AC-M1-08…12)" started.
+◇ Suite "JSON file repository atomic save (AC-M1-07, R-8)" started.
+◇ Suite "Household model (AC-M1-01)" started.
+◇ Suite "Source scanner self-tests (AC-M1-02, AC-M1-23 negative tests)" started.
+◇ Suite "Slot calendar and next eligible window E(a, D) (WI-M1-03; R-3)" started.
+◇ Suite "Model invariants (AC-M1-25)" started.
+◇ Suite "Seeded household generator (AC-M1-05 support)" started.
+◇ Suite "Zero-guilt model structure (AC-M1-02, D-1, D-2)" started.
+◇ Suite "Source scans of TendCore/Sources (AC-M1-02, AC-M1-23)" started.
+◇ Suite "Effective-state helpers (D-1; brief definitions, Q12, Q13)" started.
+◇ Suite "Rule-of-Three selector (AC-M1-13…16)" started.
+◇ Test "AC-M1-22: identical inputs give identical selection and rescheduling outputs over 100 runs, and two RNG seeds give the same outputs" started.
+◇ Test "AC-M1-21 (Gate): over 500 seeded households of 50-500 tasks (at least half with ended windows) one pass equals the oracle, leaves no ended window, and is idempotent" started.
+◇ Test "AC-M2-02 (W2-F3) pin: the largest finite JSON number reads back as a finite date; one step past it does not" started.
+◇ Test "W3-F2 / Q21 measurement: across 2035-01-10 13:37:04Z (2^30 s) an odd-step duration changes exactly once by one 2^-23 s step (at the edge pass or the next), an even-step duration never changes; structure otherwise identical" started.
+◇ Test "W2-F1: a file URL from a path is accepted" started.
+◇ Test "W2-F1 / P-2: a repository refuses a URL that is not a local file URL before any read or write" started.
+◇ Test "AC-M1-06: a path that is a directory, not a file, throws unreadableFile" started.
+◇ Test "AC-M2-02 (W2-F3): the in-memory repository rejects a task carrying a non-finite date with invalidTask(windowDateNotFinite) and keeps what it holds" started.
+◇ Test "AC-M1-20 (Gate): after N = 1…60 consecutive ended windows the decoded structure equals the structure after 1 pass; only the window moves" started.
+◇ Test "AC-M2-02 (W2-F3): the in-memory repository still accepts valid tasks after a rejection" started.
+◇ Test "AC-M2-02 (W2-F3) / AC-M1-07: the file repository refuses to save a task carrying a non-finite date and keeps the stored file" started.
+◇ Test "AC-M1-06: HouseholdStoreError has exactly the design-list cases and carries no user-facing text" started.
+◇ Test "AC-M2-02 (W2-F3) pin: the file repository's strict decoder reads a string-spelled non-finite date as unreadableFile, never as a task" started.
+◇ Test "AC-M2-02 (W2-F3): a task or household that decodes to a non-finite window date throws windowDateNotFinite" started.
+◇ Test "AC-M2-02 (Q9 position): windowDateNotFinite sits after noAllowedWeekdays and before windowEndNotAfterStart" started.
+◇ Test "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test "AC-M1-25 / AC-M2-02: the repository cases cover all nine M1 invariants as invalidTask, and the non-finite case as unreadableFile" started.
+◇ Test "AC-M2-02 (Q9 position): the finiteness check runs before the window-order check and after the weekday check" started.
+◇ Test "AC-M1-06: a file with an unknown schema version throws unsupportedSchemaVersion and is left unchanged" started.
+◇ Test "AC-M2-02 (W2-F3): constructing a task with a non-finite windowStart or windowEnd throws windowDateNotFinite" started.
+◇ Test "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test "ADR-0004: saving the same household twice writes identical bytes (stable key order)" started.
+◇ Test "AC-M1-05: 200 seeded households (0-500 tasks) round-trip through a new file repository instance exactly" started.
+◇ Test "AC-M2-02 (W2-F3) pin: JSONEncoder with the repository's settings refuses a non-finite date (EncodingError.invalidValue)" started.
+◇ Test "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test "AC-M2-02 (W2-F3 boundary): the most extreme finite dates are accepted" started.
+◇ Test "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test "AC-M1-03: over 300 seeded households every non-completed task completes exactly as the independent oracle says" started.
+◇ Test "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test "AC-M1-19 / R1: a deferral whose rest is over and whose window ended becomes active on E(now, D)" started.
+◇ Test "R0: completed tasks and resting deferrals are not touched, even with an ended window" started.
+◇ Test "AC-M1-03: only the completed task changes; the other tasks and the schema version are kept" started.
+◇ Test "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test "Design list: RescheduleOutcome has exactly the five reason codes" started.
+◇ Test "R1: a deferral whose rest is over and whose window is still open becomes active and nothing else changes" started.
+◇ Test "Window open or not yet open: the task is unchanged in every state" started.
+◇ Test "AC-M1-04 contract: upsert into a repository with nothing saved creates a household with that task" started.
+◇ Test "AC-M1-03 (c): a task with no room, or a room that is not in the household, changes no room" started.
+◇ Test "ADR-0004: the file is JSON with schemaVersion 1 and dates as seconds since the reference date" started.
+◇ Test "Rescheduler: the household version keeps task order, rooms and schema version, and matches the per-task rules" started.
+◇ Test "AC-M1-17: the lightened deep clean counts as low effort when its new window opens (low energy selects it)" started.
+◇ Test "AC-M1-04 contract: saving a household with a schema version this build cannot read is rejected and stores nothing" started.
+◇ Test "AC-M1-03 scope: completing an unknown ID or an already completed task changes nothing and reports false" started.
+◇ Test "AC-M1-04 contract: upsert adds a task with a new ID at the end" started.
+◇ Test "AC-M1-04 contract: save replaces the whole household (nothing from the earlier save survives)" started.
+◇ Test "AC-M1-04 contract: save then load returns the household exactly, also from a reopened instance" started.
+◇ Test "AC-M1-18: a resurfaced task carries no escalation field; the only prompt metadata is the fixed gentle tone" started.
+◇ Test "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test "AC-M1-04 contract: a repository with nothing saved loads an empty household at the current schema version" started.
+◇ Test "AC-M1-04 contract: update room with a new ID adds the room at the end" started.
+◇ Test "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test "AC-M1-04 contract: a sequence of save, upsert, remove and update room gives the same household on both implementations" started.
+◇ Test "AC-M1-04 contract: upsert replaces the task with the same ID in place, keeping the order of the others" started.
+◇ Test "AC-M1-04 contract: removing an ID that is not stored changes nothing and does not throw" started.
+◇ Test "AC-M1-09: the injected time zone wins over the time zone carried by the injected calendar" started.
+◇ Test "AC-M1-07: a failed upsert, remove or room update leaves A intact" started.
+◇ Test "AC-M1-04 contract: remove deletes only the task with that ID" started.
+◇ Test "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test "AC-M1-01: every field combination allowed by the model invariants is representable and round-trips through Codable" started.
+◇ Test "AC-M1-04 contract: concurrent upserts from many tasks are all kept (no lost update; Swift 6 isolation)" started.
+◇ Test "AC-M1-04 contract: update room replaces the room with the same ID in place, including lastTendedAt (FR-B3)" started.
+◇ Test "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test "AC-M1-07: when the very first save fails, no household file is created and nothing was saved" started.
+◇ Test "AC-M1-11: a weather-dependent task is valid only in clear or cloudy weather; others ignore the weather" started.
+◇ Test "AC-M1-01: TaskState values are Equatable and Codable, including the deferral date (FR-B2)" started.
+◇ Test "AC-M1-07: when a later save of B fails mid-way, loading returns A intact (no partial or empty file)" started.
+◇ Test "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test "AC-M1-07: a save whose encoding fails part-way (a non-finite date) writes nothing and leaves A intact" started.
+◇ Test "AC-M1-07: the write primitive is given the whole encoded household in one call, after encoding has finished" started.
+◇ Test "R-8 / AC-M1-07: the standard writer replaces the file by rename (new file identity), never rewrites it in place, and leaves no staging file" started.
+◇ Test "AC-M1-01: one task of each kind (one-off errand, recurring maintenance, consumable restock) is representable, Equatable and Codable" started.
+◇ Test "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test "AC-M1-12: maintenance and resurfaced tasks with an open window are valid; the selector does not change them" started.
+◇ Test "AC-M1-01: the value enums hold exactly the cases in the design naming list" started.
+◇ Test "AC-M1-01 / FR-B3: a Room carries an optional lastTendedAt and round-trips through Codable" started.
+◇ Test "AC-M1-01: a Household holds tasks, rooms and a schema version and round-trips through Codable" started.
+◇ Test "AC-M1-10: an instant that is Sunday 10:00 in one injected zone and Monday in another follows the injected zone" started.
+◇ Test "AC-M1-01: every non-empty set of allowed dayparts and weekdays is representable and round-trips" started.
+◇ Test "AC-M1-09: one instant in two injected time zones follows each zone's local daypart" started.
+◇ Test "AC-M1-07: after a failed save, the next successful save of B is stored and loads exactly" started.
+◇ Test "AC-M1-01: Equatable distinguishes every stored field of HouseholdTask" started.
+◇ Test "AC-M1-23 coverage: the planted fixtures exercise every pattern in the closed list" started.
+◇ Test "AC-M1-01: the default allowed dayparts are morning, afternoon and evening; night is quiet (Q2)" started.
+◇ Test "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test "AC-M1-23: `import Foundation` alone is allowed; imports in comments and strings are ignored" started.
+◇ Test "Scanner keeps line numbers aligned through comments and multi-line strings" started.
+◇ Test "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test "AC-M1-02 negative: whole-token match ignores near-misses (template, latest, translate, relate)" started.
+◇ Test "AC-M1-23 positive: AsyncStream( and AsyncThrowingStream( (Q17), any contentsOf: in the allowlisted file (Q18, Q23) and append/insert(contentsOf:) (Q23) are not reported" started.
+◇ Test "AC-M1-23 negative: imports other than Foundation are detected" started.
+◇ Test "AC-M1-23 negative: banned patterns in comments and plain string text are ignored" started.
+◇ Test "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test "Review F-2: `.now` with a receiver is not reported (moment.now, self.now, chains, optional chaining)" started.
+◇ Test "N-2: comment markers inside string literals do not hide the rest of the line or file" started.
+◇ Test "N-1: near-misses at identifier and camelCase word boundaries are not reported" started.
+◇ Test "R-3: a night slot across a DST change runs from 22:00 to 05:00 local (6 h in spring, 8 h in autumn) and belongs to Saturday" started.
+◇ Test "Scanner tokeniser splits camelCase humps, acronyms, underscores and digits" started.
+◇ Test "E(a, D): the task is not changed and only the requested duration is used" started.
+◇ Test "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test "AC-M1-02 negative: banned tokens inside comments are ignored (line, doc, block, nested block)" started.
+◇ Test "R-3: E(a, D) on DST days in America/New_York" started.
+◇ Test "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test "R-3 / Q11: a nonexistent local time resolves to the next instant, a repeated one to its first occurrence" started.
+◇ Test "AC-M1-25: when several invariants are broken, the first in the documented order is reported" started.
+◇ Test "AC-M1-25: decoding a household whose file contains one invalid task throws the typed violation" started.
+◇ Test "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test "AC-M1-25 / AC-M1-02: an unknown lifecycle state in JSON is rejected, not mapped to a default" started.
+◇ Test "E(a, D): over 1,000 seeded tasks, anchors and time zones the window equals the brute-force oracle's, with windowEnd = s + D" started.
+◇ Test "SplitMix64 produces the published reference sequence for seed 0, so seeds replay on every platform" started.
+◇ Test "R-3: a calendar day that does not exist (Samoa skipped Friday 30 December 2011) moves a Friday task to the next Friday" started.
+◇ Test "AC-M1-25 / AC-M2-02: the cases cover all ten invariants (the nine M1 design-list cases plus windowDateNotFinite)" started.
+◇ Test "AC-M1-25: values just inside each invariant are accepted (boundary)" started.
+◇ Test "Generator: over the AC-M1-05 seeds every kind, flag, state, daypart, weekday and window position occurs, and every task is valid" started.
+◇ Test "Generator: the same seed gives the same household; different seeds give different ones" started.
+◇ Test case passing 1 argument text → "https://example.org/household.json" to "W2-F1 / P-2: a repository refuses a URL that is not a local file URL before any read or write" started.
+◇ Test case passing 1 argument nonFinite → windowStart = NaN to "AC-M2-02 (W2-F3): the in-memory repository rejects a task carrying a non-finite date with invalidTask(windowDateNotFinite) and keeps what it holds" started.
+◇ Test case passing 1 argument text → "http://192.0.2.1/household.json" to "W2-F1 / P-2: a repository refuses a URL that is not a local file URL before any read or write" started.
+◇ Test case passing 1 argument nonFinite → windowStart = +infinity to "AC-M2-02 (W2-F3): the in-memory repository rejects a task carrying a non-finite date with invalidTask(windowDateNotFinite) and keeps what it holds" started.
+◇ Test case passing 1 argument text → "ftp://example.org/household.json" to "W2-F1 / P-2: a repository refuses a URL that is not a local file URL before any read or write" started.
+◇ Test case passing 1 argument nonFinite → windowStart = -infinity to "AC-M2-02 (W2-F3): the in-memory repository rejects a task carrying a non-finite date with invalidTask(windowDateNotFinite) and keeps what it holds" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = NaN to "AC-M2-02 (W2-F3): the in-memory repository rejects a task carrying a non-finite date with invalidTask(windowDateNotFinite) and keeps what it holds" started.
+◇ Test case passing 1 argument text → "data:application/json;base64,e30=" to "W2-F1 / P-2: a repository refuses a URL that is not a local file URL before any read or write" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = +infinity to "AC-M2-02 (W2-F3): the in-memory repository rejects a task carrying a non-finite date with invalidTask(windowDateNotFinite) and keeps what it holds" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = -infinity to "AC-M2-02 (W2-F3): the in-memory repository rejects a task carrying a non-finite date with invalidTask(windowDateNotFinite) and keeps what it holds" started.
+◇ Test case passing 1 argument text → "household.json" to "W2-F1 / P-2: a repository refuses a URL that is not a local file URL before any read or write" started.
+◇ Test "Design review: PromptTone has exactly one case, gentle (AC-M1-18 groundwork)" started.
+◇ Test case passing 1 argument nonFinite → windowStart = +infinity to "AC-M2-02 (W2-F3) / AC-M1-07: the file repository refuses to save a task carrying a non-finite date and keeps the stored file" started.
+◇ Test case passing 1 argument nonFinite → windowStart = NaN to "AC-M2-02 (W2-F3) / AC-M1-07: the file repository refuses to save a task carrying a non-finite date and keeps the stored file" started.
+◇ Test case passing 1 argument nonFinite → windowStart = -infinity to "AC-M2-02 (W2-F3) / AC-M1-07: the file repository refuses to save a task carrying a non-finite date and keeps the stored file" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = NaN to "AC-M2-02 (W2-F3) / AC-M1-07: the file repository refuses to save a task carrying a non-finite date and keeps the stored file" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = +infinity to "AC-M2-02 (W2-F3) / AC-M1-07: the file repository refuses to save a task carrying a non-finite date and keeps the stored file" started.
+◇ Test case passing 1 argument nonFinite → windowStart = NaN to "AC-M2-02 (W2-F3) pin: the file repository's strict decoder reads a string-spelled non-finite date as unreadableFile, never as a task" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = -infinity to "AC-M2-02 (W2-F3) / AC-M1-07: the file repository refuses to save a task carrying a non-finite date and keeps the stored file" started.
+◇ Test case passing 1 argument nonFinite → windowStart = +infinity to "AC-M2-02 (W2-F3) pin: the file repository's strict decoder reads a string-spelled non-finite date as unreadableFile, never as a task" started.
+◇ Test case passing 1 argument nonFinite → windowStart = -infinity to "AC-M2-02 (W2-F3) pin: the file repository's strict decoder reads a string-spelled non-finite date as unreadableFile, never as a task" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = NaN to "AC-M2-02 (W2-F3) pin: the file repository's strict decoder reads a string-spelled non-finite date as unreadableFile, never as a task" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = +infinity to "AC-M2-02 (W2-F3) pin: the file repository's strict decoder reads a string-spelled non-finite date as unreadableFile, never as a task" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = -infinity to "AC-M2-02 (W2-F3) pin: the file repository's strict decoder reads a string-spelled non-finite date as unreadableFile, never as a task" started.
+◇ Test "AC-M1-02 / D-2: the encoded HouseholdTask has exactly the naming-list keys" started.
+◇ Test case passing 1 argument nonFinite → windowStart = NaN to "AC-M2-02 (W2-F3): a task or household that decodes to a non-finite window date throws windowDateNotFinite" started.
+◇ Test case passing 1 argument nonFinite → windowStart = +infinity to "AC-M2-02 (W2-F3): a task or household that decodes to a non-finite window date throws windowDateNotFinite" started.
+◇ Test case passing 1 argument nonFinite → windowStart = -infinity to "AC-M2-02 (W2-F3): a task or household that decodes to a non-finite window date throws windowDateNotFinite" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = NaN to "AC-M2-02 (W2-F3): a task or household that decodes to a non-finite window date throws windowDateNotFinite" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = +infinity to "AC-M2-02 (W2-F3): a task or household that decodes to a non-finite window date throws windowDateNotFinite" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = -infinity to "AC-M2-02 (W2-F3): a task or household that decodes to a non-finite window date throws windowDateNotFinite" started.
+◇ Test case passing 1 argument nonFinite → windowStart = NaN to "AC-M2-02 (Q9 position): the finiteness check runs before the window-order check and after the weekday check" started.
+◇ Test case passing 1 argument nonFinite → windowStart = +infinity to "AC-M2-02 (Q9 position): the finiteness check runs before the window-order check and after the weekday check" started.
+◇ Test case passing 1 argument bad → schemaVersion 2 to "AC-M1-06: a file with an unknown schema version throws unsupportedSchemaVersion and is left unchanged" started.
+◇ Test case passing 1 argument nonFinite → windowStart = -infinity to "AC-M2-02 (Q9 position): the finiteness check runs before the window-order check and after the weekday check" started.
+◇ Test case passing 1 argument bad → schemaVersion 0 to "AC-M1-06: a file with an unknown schema version throws unsupportedSchemaVersion and is left unchanged" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = NaN to "AC-M2-02 (Q9 position): the finiteness check runs before the window-order check and after the weekday check" started.
+◇ Test case passing 1 argument bad → schemaVersion -1 to "AC-M1-06: a file with an unknown schema version throws unsupportedSchemaVersion and is left unchanged" started.
+◇ Test case passing 1 argument bad → schemaVersion 99 to "AC-M1-06: a file with an unknown schema version throws unsupportedSchemaVersion and is left unchanged" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = +infinity to "AC-M2-02 (Q9 position): the finiteness check runs before the window-order check and after the weekday check" started.
+◇ Test case passing 1 argument nonFinite → windowStart = NaN to "AC-M2-02 (W2-F3): constructing a task with a non-finite windowStart or windowEnd throws windowDateNotFinite" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = -infinity to "AC-M2-02 (Q9 position): the finiteness check runs before the window-order check and after the weekday check" started.
+◇ Test case passing 1 argument bad → schemaVersion 2 with a different shape to "AC-M1-06: a file with an unknown schema version throws unsupportedSchemaVersion and is left unchanged" started.
+◇ Test case passing 1 argument bad → windowStart: NaN to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument nonFinite → windowStart = +infinity to "AC-M2-02 (W2-F3): constructing a task with a non-finite windowStart or windowEnd throws windowDateNotFinite" started.
+◇ Test "AC-M1-25 / AC-M2-02 naming: TaskInvariantViolation has exactly the nine M1 design-list cases plus windowDateNotFinite, in order" started.
+◇ Test "AC-M1-02: the lifecycle state is the closed set active, deferred(until:), maintenance, resurfaced, completed" started.
+◇ Test case passing 1 argument nonFinite → windowStart = -infinity to "AC-M2-02 (W2-F3): constructing a task with a non-finite windowStart or windowEnd throws windowDateNotFinite" started.
+◇ Test case passing 1 argument bad → windowStart: nan to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument bad → truncated to half to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test "AC-M1-02 / D-2: HouseholdTask stores exactly the fields in the design naming list (no counter, original window or history)" started.
+◇ Test "AC-M1-02 / D-2: Room and Household store no counters or history" started.
+◇ Test case passing 1 argument bad → windowStart: Infinity to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = NaN to "AC-M2-02 (W2-F3): constructing a task with a non-finite windowStart or windowEnd throws windowDateNotFinite" started.
+◇ Test "AC-M1-02: no banned zero-guilt token in any identifier or string literal of TendCore/Sources" started.
+◇ Test case passing 1 argument bad → windowStart: -Infinity to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = +infinity to "AC-M2-02 (W2-F3): constructing a task with a non-finite windowStart or windowEnd throws windowDateNotFinite" started.
+◇ Test case passing 1 argument bad → task violating noAllowedDayparts to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 1 argument bad → truncated by one byte to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = -infinity to "AC-M2-02 (W2-F3): constructing a task with a non-finite windowStart or windowEnd throws windowDateNotFinite" started.
+◇ Test case passing 1 argument bad → windowStart: inf to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument bad → windowStart: 1e309 to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test "AC-M1-23: only `import Foundation`, no ambient time, randomness or networking API in TendCore/Sources" started.
+◇ Test case passing 1 argument bad → task violating noAllowedWeekdays to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 1 argument bad → empty file (0 bytes) to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test case passing 1 argument bad → windowStart: 1e400 to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument bad → windowStart: -1e400 to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument bad → windowStart: "NaN" to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument bad → windowStart: "Infinity" to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument bad → windowStart: "-Infinity" to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument bad → windowEnd: nan to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument bad → windowEnd: NaN to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 2 arguments start → NaN, end → NaN to "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test case passing 1 argument token → NaN to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 1 argument bad → windowEnd: Infinity to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument token → nan to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 1 argument bad → windowEnd: -Infinity to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 2 arguments start → NaN, end → +infinity to "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test case passing 1 argument token → Infinity to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test "Window helpers are half-open: windowStart <= now < windowEnd is open; windowEnd <= now has ended" started.
+◇ Test case passing 1 argument bad → windowEnd: inf to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument token → -Infinity to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 1 argument bad → windowEnd: 1e309 to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument token → inf to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 2 arguments start → NaN, end → -infinity to "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test case passing 1 argument bad → windowEnd: 1e400 to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument token → 1e309 to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 1 argument nonFinite → windowStart = NaN to "AC-M2-02 (W2-F3) pin: JSONEncoder with the repository's settings refuses a non-finite date (EncodingError.invalidValue)" started.
+◇ Test case passing 2 arguments start → +infinity, end → NaN to "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test case passing 1 argument token → 1e400 to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 1 argument bad → windowEnd: -1e400 to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 1 argument token → -1e400 to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 1 argument bad → windowEnd: "NaN" to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 2 arguments start → +infinity, end → +infinity to "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test case passing 1 argument token → "NaN" to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 1 argument token → "Infinity" to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 2 arguments start → +infinity, end → -infinity to "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test case passing 1 argument nonFinite → windowStart = +infinity to "AC-M2-02 (W2-F3) pin: JSONEncoder with the repository's settings refuses a non-finite date (EncodingError.invalidValue)" started.
+◇ Test case passing 1 argument token → "-Infinity" to "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" started.
+◇ Test case passing 1 argument bad → plain text, not JSON to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test case passing 1 argument bad → task violating windowDateNotFinite to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 2 arguments start → -infinity, end → NaN to "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test case passing 1 argument bad → task violating windowEndNotAfterStart to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 1 argument bad → binary noise to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test case passing 2 arguments start → -infinity, end → +infinity to "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test case passing 1 argument bad → task violating recurringWithoutInterval to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 1 argument bad → JSON array instead of an object to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test case passing 1 argument bad → schemaVersion only, no tasks or rooms to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test case passing 1 argument bad → task violating intervalBelowOneDay to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 1 argument nonFinite → windowStart = -infinity to "AC-M2-02 (W2-F3) pin: JSONEncoder with the repository's settings refuses a non-finite date (EncodingError.invalidValue)" started.
+◇ Test case passing 1 argument bad → windowEnd: "Infinity" to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test case passing 2 arguments start → -infinity, end → -infinity to "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" started.
+◇ Test case passing 1 argument bad → no schemaVersion to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test case passing 1 argument bad → task violating intervalOnNonRecurringTask to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 1 argument bad → task violating criticalAndDeepClean to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 1 argument bad → schemaVersion is a string to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test case passing 1 argument bad → windowEnd: "-Infinity" to "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" started.
+◇ Test "D-1: isResting and isRestOver split a deferral at now (until > now rests; until <= now rest is over)" started.
+◇ Test case passing 1 argument bad → task violating maintenanceOnNonDeepClean to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 1 argument bad → a task field has the wrong type to "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" started.
+◇ Test case passing 1 argument bad → task violating resurfacedOnNonCritical to "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = NaN to "AC-M2-02 (W2-F3) pin: JSONEncoder with the repository's settings refuses a non-finite date (EncodingError.invalidValue)" started.
+◇ Test "D-1: a task that is not deferred is neither resting nor at the end of a rest" started.
+◇ Test case passing 1 argument interval → 784102400.123456 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test case passing 1 argument kind → .oneOff to "AC-M1-19 / R1: a deferral whose rest is over and whose window ended becomes active on E(now, D)" started.
+◇ Test case passing 2 arguments kind → .oneOff, start → active to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 1 argument kind → .recurring to "AC-M1-19 / R1: a deferral whose rest is over and whose window ended becomes active on E(now, D)" started.
+◇ Test case passing 2 arguments kind → .oneOff, start → resting deferral to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 1 argument kind → .restock to "AC-M1-19 / R1: a deferral whose rest is over and whose window ended becomes active on E(now, D)" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = +infinity to "AC-M2-02 (W2-F3) pin: JSONEncoder with the repository's settings refuses a non-finite date (EncodingError.invalidValue)" started.
+◇ Test case passing 1 argument interval → 0.30000000000000004 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test "AC-M1-13: NowSelection rejects the same task twice" started.
+◇ Test case passing 2 arguments kind → .oneOff, start → deferral whose rest is over to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 2 arguments kind → .oneOff, start → maintenance (deep clean) to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 1 argument nonFinite → windowEnd = -infinity to "AC-M2-02 (W2-F3) pin: JSONEncoder with the repository's settings refuses a non-finite date (EncodingError.invalidValue)" started.
+◇ Test case passing 2 arguments kind → .oneOff, start → resurfaced (critical) to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 1 argument interval → 1e-07 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test case passing 2 arguments kind → .restock, start → active to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 1 argument interval → -1e-09 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test case passing 1 argument interval → 0.0 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test case passing 2 arguments kind → .restock, start → resting deferral to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 2 arguments example → window ends exactly at now, now inside an allowed slot: E starts at now, startState → "active" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument interval → -978307200.000001 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test case passing 2 arguments kind → .restock, start → deferral whose rest is over to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 1 argument interval → 4102444800.0005 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test case passing 2 arguments kind → .restock, start → maintenance (deep clean) to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 1 argument interval → 784102400.0000001 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: upsert into a repository with nothing saved creates a household with that task" started.
+◇ Test case passing 1 argument interval → 784102399.9999999 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test case passing 2 arguments example → window ends exactly at now, now inside an allowed slot: E starts at now, startState → "resurfaced" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments kind → .restock, start → resurfaced (critical) to "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: upsert into a repository with nothing saved creates a household with that task" started.
+◇ Test case passing 1 argument interval → 0.3333333333333333 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test "AC-M1-16: equal windowEnd ties go to critical tasks first, then ascending ID" started.
+◇ Test case passing 1 argument interval → 123456789.98765433 to "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" started.
+◇ Test "AC-M1-13: NowSelection holds 0 to 3 items and cannot be constructed with 4 or more" started.
+◇ Test case passing 2 arguments example → window ends exactly at now, now inside an allowed slot: E starts at now, startState → "rest over" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument state → .active to "Window open or not yet open: the task is unchanged in every state" started.
+◇ Test case passing 1 argument state → .maintenance to "Window open or not yet open: the task is unchanged in every state" started.
+◇ Test case passing 2 arguments example → window ended an hour ago, now inside an allowed slot: E starts at now, startState → "active" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → window ended an hour ago, now inside an allowed slot: E starts at now, startState → "resurfaced" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument state → .resurfaced to "Window open or not yet open: the task is unchanged in every state" started.
+◇ Test case passing 2 arguments example → window ended an hour ago, now inside an allowed slot: E starts at now, startState → "rest over" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test "AC-M1-16: five resurfaced criticals compete; only the three with the earliest windowEnd are returned, ahead of an earlier active task" started.
+◇ Test "AC-M1-16: over the property households and 500 tie-heavy households the items are exactly the oracle's sorted first min(3, n)" started.
+◇ Test case passing 2 arguments example → now outside the allowed slots: E starts at the next allowed slot (Saturday 05:00), startState → "active" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → now outside the allowed slots: E starts at the next allowed slot (Saturday 05:00), startState → "resurfaced" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → now outside the allowed slots: E starts at the next allowed slot (Saturday 05:00), startState → "rest over" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Sunday 01:00 is Saturday night, so E starts at now, startState → "active" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Sunday 01:00 is Saturday night, so E starts at now, startState → "resurfaced" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: saving a household with a schema version this build cannot read is rejected and stores nothing" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Sunday 01:00 is Saturday night, so E starts at now, startState → "rest over" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Saturday 01:00 is Friday night, so E starts Saturday 22:00, startState → "active" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: saving a household with a schema version this build cannot read is rejected and stores nothing" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Saturday 01:00 is Friday night, so E starts Saturday 22:00, startState → "resurfaced" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: upsert adds a task with a new ID at the end" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Saturday 01:00 is Friday night, so E starts Saturday 22:00, startState → "rest over" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: save replaces the whole household (nothing from the earlier save survives)" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: upsert adds a task with a new ID at the end" started.
+◇ Test "AC-M1-16: the order does not depend on the order of the household's tasks" started.
+◇ Test case passing 2 arguments example → DST spring day: morning-only task at 01:30 EST starts at 05:00 EDT, startState → "active" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: save replaces the whole household (nothing from the earlier save survives)" started.
+◇ Test "AC-M1-15: an empty household and a 500-task household with nothing valid give an empty selection without error" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: save then load returns the household exactly, also from a reopened instance" started.
+◇ Test case passing 2 arguments example → DST spring day: morning-only task at 01:30 EST starts at 05:00 EDT, startState → "resurfaced" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: save then load returns the household exactly, also from a reopened instance" started.
+◇ Test case passing 2 arguments example → DST spring day: morning-only task at 01:30 EST starts at 05:00 EDT, startState → "rest over" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test "AC-M1-16: a non-resurfaced critical ranks after a non-critical with an earlier windowEnd, and before one with the same windowEnd" started.
+◇ Test "AC-M1-14 (Gate): over 1,000 seeded households of 50-500 tasks every selection has at most 3 items, no duplicates, and every item passes the independent oracle" started.
+◇ Test case passing 2 arguments example → DST autumn day: evening-only task at Saturday 23:00 EDT starts Sunday 17:00 EST, startState → "active" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → DST autumn day: evening-only task at Saturday 23:00 EDT starts Sunday 17:00 EST, startState → "resurfaced" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → DST autumn day: evening-only task at Saturday 23:00 EDT starts Sunday 17:00 EST, startState → "rest over" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → window ends exactly at now, now inside an allowed slot: E starts at now, startState → "active" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 2 arguments example → DST autumn night: the repeated 01:30 (second, EST) is inside Saturday night, so E starts at now, startState → "active" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: a repository with nothing saved loads an empty household at the current schema version" started.
+◇ Test case passing 2 arguments example → window ends exactly at now, now inside an allowed slot: E starts at now, startState → "maintenance" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 2 arguments example → DST autumn night: the repeated 01:30 (second, EST) is inside Saturday night, so E starts at now, startState → "resurfaced" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: a repository with nothing saved loads an empty household at the current schema version" started.
+◇ Test case passing 2 arguments example → window ends exactly at now, now inside an allowed slot: E starts at now, startState → "rest over" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 2 arguments example → DST autumn night: the repeated 01:30 (second, EST) is inside Saturday night, so E starts at now, startState → "rest over" to "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" started.
+◇ Test case passing 2 arguments example → window ended an hour ago, now inside an allowed slot: E starts at now, startState → "active" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 2 arguments example → window ended an hour ago, now inside an allowed slot: E starts at now, startState → "maintenance" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: update room with a new ID adds the room at the end" started.
+◇ Test case passing 2 arguments example → window ended an hour ago, now inside an allowed slot: E starts at now, startState → "rest over" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: update room with a new ID adds the room at the end" started.
+◇ Test "AC-M1-15: the selection size equals min(3, number of contextually valid tasks) for 50-500 and 0-49 task households" started.
+◇ Test case passing 2 arguments example → now outside the allowed slots: E starts at the next allowed slot (Saturday 05:00), startState → "active" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test "AC-M1-13: NowSelection stores exactly three optional task slots, so a fourth item has nowhere to go" started.
+◇ Test "AC-M1-13 / Q13: the selector returns tasks unchanged and does not move a task whose window ended" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: upsert replaces the task with the same ID in place, keeping the order of the others" started.
+◇ Test case passing 2 arguments kind → .oneOff, example → window ends exactly at now, now inside an allowed slot: E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 2 arguments example → now outside the allowed slots: E starts at the next allowed slot (Saturday 05:00), startState → "maintenance" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: upsert replaces the task with the same ID in place, keeping the order of the others" started.
+◇ Test case passing 2 arguments example → now outside the allowed slots: E starts at the next allowed slot (Saturday 05:00), startState → "rest over" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Sunday 01:00 is Saturday night, so E starts at now, startState → "active" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 2 arguments example → weekly, every slot allowed: same wall-clock time 7 days later (Berlin), start → active to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Sunday 01:00 is Saturday night, so E starts at now, startState → "maintenance" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Sunday 01:00 is Saturday night, so E starts at now, startState → "rest over" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument failure → beforeAnyBytes to "AC-M1-07: a failed upsert, remove or room update leaves A intact" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: remove deletes only the task with that ID" started.
+◇ Test case passing 2 arguments kind → .oneOff, example → window ended an hour ago, now inside an allowed slot: E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument failure → halfwayThroughStaging to "AC-M1-07: a failed upsert, remove or room update leaves A intact" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Saturday 01:00 is Friday night, so E starts Saturday 22:00, startState → "active" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: remove deletes only the task with that ID" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: removing an ID that is not stored changes nothing and does not throw" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Saturday 01:00 is Friday night, so E starts Saturday 22:00, startState → "maintenance" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument failure → justBeforeReplace to "AC-M1-07: a failed upsert, remove or room update leaves A intact" started.
+◇ Test case passing 2 arguments example → weekly, every slot allowed: same wall-clock time 7 days later (Berlin), start → resting deferral to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 2 arguments example → night slot across midnight: Saturday 01:00 is Friday night, so E starts Saturday 22:00, startState → "rest over" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+AC-M1-01: 1440 combinations checked, 792 representable, 648 rejected by invariants
+◇ Test case passing 2 arguments example → DST spring day: morning-only task at 01:30 EST starts at 05:00 EDT, startState → "active" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: concurrent upserts from many tasks are all kept (no lost update; Swift 6 isolation)" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: removing an ID that is not stored changes nothing and does not throw" started.
+◇ Test case passing 2 arguments example → DST spring day: morning-only task at 01:30 EST starts at 05:00 EDT, startState → "maintenance" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: concurrent upserts from many tasks are all kept (no lost update; Swift 6 isolation)" started.
+◇ Test case passing 1 argument kind → InMemoryHouseholdRepository to "AC-M1-04 contract: update room replaces the room with the same ID in place, including lastTendedAt (FR-B3)" started.
+◇ Test case passing 2 arguments example → DST spring day: morning-only task at 01:30 EST starts at 05:00 EDT, startState → "rest over" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 2 arguments kind → .oneOff, example → now outside the allowed slots: E starts at the next allowed slot (Saturday 05:00) to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 2 arguments example → DST autumn day: evening-only task at Saturday 23:00 EDT starts Sunday 17:00 EST, startState → "active" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument kind → JSONFileHouseholdRepository to "AC-M1-04 contract: update room replaces the room with the same ID in place, including lastTendedAt (FR-B3)" started.
+◇ Test case passing 2 arguments example → weekly, every slot allowed: same wall-clock time 7 days later (Berlin), start → deferral whose rest is over to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument weekdayCase → Monday 10:00 → not valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test "AC-M1-13: the selector returns a NowSelection of 3 even when 100 tasks are valid" started.
+◇ Test case passing 2 arguments example → DST autumn day: evening-only task at Saturday 23:00 EDT starts Sunday 17:00 EST, startState → "maintenance" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument weekdayCase → Tuesday 10:00 → not valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 1 argument weekdayCase → Wednesday 10:00 → not valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 1 argument failure → beforeAnyBytes to "AC-M1-07: when the very first save fails, no household file is created and nothing was saved" started.
+◇ Test case passing 1 argument weekdayCase → Thursday 10:00 → not valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 2 arguments example → DST autumn day: evening-only task at Saturday 23:00 EDT starts Sunday 17:00 EST, startState → "rest over" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument weekdayCase → Friday 10:00 → not valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 2 arguments example → weekly, every slot allowed: same wall-clock time 7 days later (Berlin), start → maintenance (deep clean) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 2 arguments energy → .low, profile → .low to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument failure → halfwayThroughStaging to "AC-M1-07: when the very first save fails, no household file is created and nothing was saved" started.
+◇ Test case passing 1 argument weekdayCase → Saturday 10:00 → valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 2 arguments example → DST autumn night: the repeated 01:30 (second, EST) is inside Saturday night, so E starts at now, startState → "active" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 2 arguments kind → .oneOff, example → night slot across midnight: Sunday 01:00 is Saturday night, so E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument weekdayCase → Sunday 10:00 → valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 1 argument weather → .clear to "AC-M1-11: a weather-dependent task is valid only in clear or cloudy weather; others ignore the weather" started.
+◇ Test case passing 1 argument failure → justBeforeReplace to "AC-M1-07: when the very first save fails, no household file is created and nothing was saved" started.
+◇ Test case passing 2 arguments example → DST autumn night: the repeated 01:30 (second, EST) is inside Saturday night, so E starts at now, startState → "maintenance" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument weekdayCase → Friday 23:00 (Friday night) → not valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 1 argument weather → .cloudy to "AC-M1-11: a weather-dependent task is valid only in clear or cloudy weather; others ignore the weather" started.
+◇ Test case passing 1 argument weekdayCase → Saturday 01:00 (Friday night) → not valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 2 arguments example → weekly, every slot allowed: same wall-clock time 7 days later (Berlin), start → resurfaced (critical) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument weekdayCase → Saturday 04:59:59.999 (Friday night) → not valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 2 arguments example → DST autumn night: the repeated 01:30 (second, EST) is inside Saturday night, so E starts at now, startState → "rest over" to "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" started.
+◇ Test case passing 1 argument weather → .wet to "AC-M1-11: a weather-dependent task is valid only in clear or cloudy weather; others ignore the weather" started.
+◇ Test case passing 1 argument weekdayCase → Saturday 05:00 (Saturday morning) → valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 1 argument weekdayCase → Saturday 23:00 (Saturday night) → valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 1 argument weather → .severe to "AC-M1-11: a weather-dependent task is valid only in clear or cloudy weather; others ignore the weather" started.
+◇ Test case passing 1 argument weekdayCase → Monday 01:00 (Sunday night) → valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 1 argument weather → .unknown to "AC-M1-11: a weather-dependent task is valid only in clear or cloudy weather; others ignore the weather" started.
+◇ Test case passing 1 argument weekdayCase → Monday 04:59:59.999 (Sunday night) → valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 1 argument failure → beforeAnyBytes to "AC-M1-07: when a later save of B fails mid-way, loading returns A intact (no partial or empty file)" started.
+◇ Test case passing 2 arguments kind → .oneOff, example → night slot across midnight: Saturday 01:00 is Friday night, so E starts Saturday 22:00 to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument weekdayCase → Monday 05:00 (Monday morning) → not valid to "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" started.
+◇ Test case passing 2 arguments energy → .low, profile → .normal to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument boundary → 04:59:00.000 → night to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 1 argument failure → halfwayThroughStaging to "AC-M1-07: when a later save of B fails mid-way, loading returns A intact (no partial or empty file)" started.
+◇ Test case passing 1 argument boundary → 04:59:59.999 → night to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 2 arguments example → every 3 days, weekend only: Saturday 10:17:03.250 is allowed, so it starts there, start → active to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument failure → justBeforeReplace to "AC-M1-07: when a later save of B fails mid-way, loading returns A intact (no partial or empty file)" started.
+◇ Test case passing 1 argument boundary → 05:00:00.000 → morning to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 1 argument boundary → 11:59:00.000 → morning to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 1 argument boundary → 11:59:59.999 → morning to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 1 argument boundary → 12:00:00.000 → afternoon to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 2 arguments example → every 3 days, weekend only: Saturday 10:17:03.250 is allowed, so it starts there, start → resting deferral to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 2 arguments kind → .oneOff, example → DST spring day: morning-only task at 01:30 EST starts at 05:00 EDT to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument boundary → 16:59:00.000 → afternoon to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 2 arguments energy → .low, profile → .high to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument boundary → 16:59:59.999 → afternoon to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 1 argument boundary → 17:00:00.000 → evening to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 1 argument boundary → 21:59:00.000 → evening to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 2 arguments example → every 3 days, weekend only: Saturday 10:17:03.250 is allowed, so it starts there, start → deferral whose rest is over to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument boundary → 21:59:59.999 → evening to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 1 argument boundary → 22:00:00.000 → night to "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" started.
+◇ Test case passing 1 argument kind → .oneOff to "AC-M1-01: one task of each kind (one-off errand, recurring maintenance, consumable restock) is representable, Equatable and Codable" started.
+◇ Test case passing 2 arguments kind → .oneOff, example → DST autumn day: evening-only task at Saturday 23:00 EDT starts Sunday 17:00 EST to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument kind → .recurring to "AC-M1-01: one task of each kind (one-off errand, recurring maintenance, consumable restock) is representable, Equatable and Codable" started.
+◇ Test case passing 1 argument kind → .restock to "AC-M1-01: one task of each kind (one-off errand, recurring maintenance, consumable restock) is representable, Equatable and Codable" started.
+◇ Test case passing 2 arguments example → every 3 days, weekend only: Saturday 10:17:03.250 is allowed, so it starts there, start → maintenance (deep clean) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 2 arguments energy → .low, profile → .highDeepCleanInMaintenance to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument stateWindowCase → (a: completed) → not valid to "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test case passing 1 argument stateWindowCase → (b: deferred until now + 1 s (resting)) → not valid to "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test case passing 2 arguments kind → .oneOff, example → DST autumn night: the repeated 01:30 (second, EST) is inside Saturday night, so E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 2 arguments example → every 3 days, weekend only: Saturday 10:17:03.250 is allowed, so it starts there, start → resurfaced (critical) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument stateWindowCase → (c: deferred until now (rest over)) → valid to "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test case passing 1 argument stateWindowCase → (d: deferred until now - 1 h (rest over)) → valid to "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test case passing 2 arguments example → daily, morning only, completed at 13:00: tomorrow 13:00 is not morning, so the next morning 05:00, start → active to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 2 arguments energy → .normal, profile → .low to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument stateWindowCase → (e: windowStart == now) → valid to "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test case passing 2 arguments kind → .recurring, example → window ends exactly at now, now inside an allowed slot: E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 2 arguments example → daily, morning only, completed at 13:00: tomorrow 13:00 is not morning, so the next morning 05:00, start → resting deferral to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument stateWindowCase → (f: windowStart == now + 1 s) → not valid to "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test case passing 1 argument stateWindowCase → (g: windowEnd == now (window ended)) → not valid to "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test case passing 1 argument stateWindowCase → (h: windowEnd == now + 1 s) → valid to "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test case passing 2 arguments energy → .normal, profile → .normal to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument token → "overdue" to "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test case passing 2 arguments example → daily, morning only, completed at 13:00: tomorrow 13:00 is not morning, so the next morning 05:00, start → deferral whose rest is over to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 2 arguments kind → .recurring, example → window ended an hour ago, now inside an allowed slot: E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument token → "late" to "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test case passing 1 argument stateWindowCase → (i: windowEnd == now - 1 h (window ended)) → not valid to "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" started.
+◇ Test case passing 1 argument token → "lateness" to "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test case passing 1 argument index → 0 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → daily, morning only, completed at 13:00: tomorrow 13:00 is not morning, so the next morning 05:00, start → maintenance (deep clean) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument token → "missed" to "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test case passing 1 argument index → 1 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument token → "failed" to "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test case passing 2 arguments kind → .recurring, example → now outside the allowed slots: E starts at the next allowed slot (Saturday 05:00) to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument index → 2 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments energy → .normal, profile → .high to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument token → "behind" to "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test case passing 2 arguments example → daily, morning only, completed at 13:00: tomorrow 13:00 is not morning, so the next morning 05:00, start → resurfaced (critical) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 3 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+AC-M1-01: 1905 daypart × weekday sets round-tripped
+◇ Test case passing 1 argument token → "penalty" to "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test case passing 1 argument fixture → "import FoundationNetworking" to "AC-M1-23 negative: imports other than Foundation are detected" started.
+◇ Test case passing 1 argument index → 4 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument token → "debt" to "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test case passing 1 argument fixture → "import Network" to "AC-M1-23 negative: imports other than Foundation are detected" started.
+◇ Test case passing 1 argument index → 5 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument token → "streak" to "AC-M1-02 negative: every banned token planted in a string literal is detected" started.
+◇ Test case passing 1 argument fixture → "import CFNetwork" to "AC-M1-23 negative: imports other than Foundation are detected" started.
+◇ Test case passing 1 argument index → 6 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → every 4 days, Monday only: anchor Sunday 22 Nov, so Monday 23 Nov 05:00, start → active to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 7 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument fixture → "import Dispatch" to "AC-M1-23 negative: imports other than Foundation are detected" started.
+◇ Test case passing 1 argument fixture → "@testable import Glibc" to "AC-M1-23 negative: imports other than Foundation are detected" started.
+◇ Test case passing 1 argument index → 8 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → every 4 days, Monday only: anchor Sunday 22 Nov, so Monday 23 Nov 05:00, start → resting deferral to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 2 arguments energy → .normal, profile → .highDeepCleanInMaintenance to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 2 arguments kind → .recurring, example → night slot across midnight: Sunday 01:00 is Saturday night, so E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument index → 9 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument fixture → "@preconcurrency import Combine" to "AC-M1-23 negative: imports other than Foundation are detected" started.
+◇ Test case passing 1 argument token → "overdue" to "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test case passing 1 argument index → 10 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument token → "late" to "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test case passing 1 argument fixture → "import struct Foundation.Date" to "AC-M1-23 negative: imports other than Foundation are detected" started.
+◇ Test case passing 1 argument index → 11 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → every 4 days, Monday only: anchor Sunday 22 Nov, so Monday 23 Nov 05:00, start → deferral whose rest is over to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument token → "lateness" to "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test case passing 1 argument fixture → "import Foundation; import Darwin" to "AC-M1-23 negative: imports other than Foundation are detected" started.
+◇ Test case passing 1 argument index → 12 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 13 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument token → "missed" to "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test case passing 1 argument index → 14 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument token → "failed" to "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test case passing 2 arguments example → every 4 days, Monday only: anchor Sunday 22 Nov, so Monday 23 Nov 05:00, start → maintenance (deep clean) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 2 arguments kind → .recurring, example → night slot across midnight: Saturday 01:00 is Friday night, so E starts Saturday 22:00 to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 2 arguments energy → .high, profile → .low to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument index → 15 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument token → "behind" to "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test case passing 1 argument token → "penalty" to "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test case passing 1 argument index → 16 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → every 4 days, Monday only: anchor Sunday 22 Nov, so Monday 23 Nov 05:00, start → resurfaced (critical) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument token → "debt" to "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test case passing 1 argument index → 17 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments kind → .recurring, example → DST spring day: morning-only task at 01:30 EST starts at 05:00 EDT to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument index → 18 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument token → "streak" to "AC-M1-02 negative: every banned token planted in an identifier is detected" started.
+◇ Test case passing 1 argument invariant → noAllowedDayparts to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 19 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments energy → .high, profile → .normal to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 2 arguments example → DST spring: 2 days across the change keeps 10:00 local (47 h, not 48 h), start → active to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument invariant → noAllowedWeekdays to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 20 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument invariant → windowDateNotFinite to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 21 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument invariant → windowDateNotFinite to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument dstCase → spring: Saturday 21:00 EST, Saturday-night task → Saturday 22:00 EST to "R-3: E(a, D) on DST days in America/New_York" started.
+◇ Test case passing 1 argument invariant → windowDateNotFinite to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 22 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST spring: 2 days across the change keeps 10:00 local (47 h, not 48 h), start → resting deferral to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument dstCase → spring: Sunday 04:30 EDT is still Saturday night → anchor to "R-3: E(a, D) on DST days in America/New_York" started.
+◇ Test case passing 2 arguments kind → .recurring, example → DST autumn day: evening-only task at Saturday 23:00 EDT starts Sunday 17:00 EST to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument invariant → windowDateNotFinite to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument dstCase → spring: Sunday 05:00 EDT → next Saturday 22:00 EDT to "R-3: E(a, D) on DST days in America/New_York" started.
+◇ Test case passing 1 argument index → 23 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument invariant → windowDateNotFinite to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument dstCase → spring: Sunday 01:30 EST, Sunday-morning task → Sunday 05:00 EDT to "R-3: E(a, D) on DST days in America/New_York" started.
+◇ Test case passing 1 argument index → 24 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument invariant → windowDateNotFinite to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument dstCase → autumn: Saturday 23:00 EDT, Sunday-morning task → Sunday 05:00 EST to "R-3: E(a, D) on DST days in America/New_York" started.
+◇ Test case passing 1 argument example → inside an allowed slot: starts at the anchor to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument index → 25 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument invariant → windowEndNotAfterStart to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 2 arguments energy → .high, profile → .high to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument dstCase → autumn: first 01:30 (EDT) is Saturday night → anchor to "R-3: E(a, D) on DST days in America/New_York" started.
+◇ Test case passing 2 arguments example → DST spring: 2 days across the change keeps 10:00 local (47 h, not 48 h), start → deferral whose rest is over to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument example → exactly at an allowed slot's start: starts at the anchor to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument invariant → windowEndNotAfterStart to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 26 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument dstCase → autumn: second 01:30 (EST) is Saturday night → anchor to "R-3: E(a, D) on DST days in America/New_York" started.
+◇ Test case passing 1 argument invariant → recurringWithoutInterval to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument dstCase → autumn: Sunday 06:00 EST, evening task → Sunday 17:00 EST to "R-3: E(a, D) on DST days in America/New_York" started.
+◇ Test case passing 1 argument example → afternoon, morning-only task: next morning 05:00 to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument index → 27 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument invariant → intervalBelowOneDay to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 28 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument example → 1 ms before an allowed afternoon: that afternoon to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument invariant → intervalBelowOneDay to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument example → end of the last allowed slot of the week: same slot next week to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument index → 29 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument example → last instant of an allowed slot: starts at the anchor to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument invariant → intervalOnNonRecurringTask to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 2 arguments example → DST spring: 2 days across the change keeps 10:00 local (47 h, not 48 h), start → maintenance (deep clean) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 30 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument example → Sunday 01:00 is in Saturday's night slot to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument invariant → intervalOnNonRecurringTask to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument example → Sunday 05:00 is past Saturday night: next Saturday 22:00 to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument index → 31 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument invariant → criticalAndDeepClean to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 2 arguments energy → .high, profile → .highDeepCleanInMaintenance to "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" started.
+◇ Test case passing 1 argument example → Saturday 01:00 is Friday night, not Saturday night: Saturday 22:00 to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument invariant → maintenanceOnNonDeepClean to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 32 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument example → weekend-only from Monday: Saturday 05:00 to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 1 argument invariant → resurfacedOnNonCritical to "AC-M1-25: constructing a task that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 33 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument example → default dayparts at 23:00: next morning to "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" started.
+◇ Test case passing 2 arguments example → DST spring: 2 days across the change keeps 10:00 local (47 h, not 48 h), start → resurfaced (critical) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 34 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 35 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 36 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments kind → .recurring, example → DST autumn night: the repeated 01:30 (second, EST) is inside Saturday night, so E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument index → 37 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST spring: a wall time that does not exist (02:30:15.250) resolves to the next instant, 03:00 EDT, start → active to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 38 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments kind → .restock, example → window ends exactly at now, now inside an allowed slot: E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument violation → .noAllowedDayparts to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 39 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument violation → .noAllowedWeekdays to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 40 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments kind → .restock, example → window ended an hour ago, now inside an allowed slot: E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument violation → .windowDateNotFinite to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 41 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument violation → .windowEndNotAfterStart to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 2 arguments kind → .restock, example → now outside the allowed slots: E starts at the next allowed slot (Saturday 05:00) to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument index → 42 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument violation → .recurringWithoutInterval to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 2 arguments example → DST spring: a wall time that does not exist (02:30:15.250) resolves to the next instant, 03:00 EDT, start → resting deferral to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 43 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments kind → .restock, example → night slot across midnight: Sunday 01:00 is Saturday night, so E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument violation → .intervalBelowOneDay to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 44 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument violation → .intervalOnNonRecurringTask to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 45 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument violation → .criticalAndDeepClean to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 2 arguments kind → .restock, example → night slot across midnight: Saturday 01:00 is Friday night, so E starts Saturday 22:00 to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument violation → .maintenanceOnNonDeepClean to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 2 arguments example → DST spring: a wall time that does not exist (02:30:15.250) resolves to the next instant, 03:00 EDT, start → deferral whose rest is over to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 46 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments kind → .restock, example → DST spring day: morning-only task at 01:30 EST starts at 05:00 EDT to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument violation → .resurfacedOnNonCritical to "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" started.
+◇ Test case passing 1 argument index → 47 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments kind → .restock, example → DST autumn day: evening-only task at Saturday 23:00 EDT starts Sunday 17:00 EST to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument index → 48 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 49 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST spring: a wall time that does not exist (02:30:15.250) resolves to the next instant, 03:00 EDT, start → maintenance (deep clean) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 50 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments kind → .restock, example → DST autumn night: the repeated 01:30 (second, EST) is inside Saturday night, so E starts at now to "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" started.
+◇ Test case passing 1 argument index → 51 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 52 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+E(a, D) property: seeds 300001...301000, 1000 cases, 265 start at the anchor, 735 move to a later slot, 156 anchors within 12 h of a DST change, longest move 155 h
+◇ Test case passing 2 arguments example → DST spring: a wall time that does not exist (02:30:15.250) resolves to the next instant, 03:00 EDT, start → resurfaced (critical) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 53 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 54 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 55 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+AC-M1-03 property: seeds 500001...500300, 4250 completions, 1384 recurring, 45 moments within 12 h of a DST change
+◇ Test case passing 2 arguments example → DST autumn: a repeated wall time (01:30:15.250) resolves to its first occurrence, EDT, start → active to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 56 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 57 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 58 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: a repeated wall time (01:30:15.250) resolves to its first occurrence, EDT, start → resting deferral to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 59 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 60 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 61 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: a repeated wall time (01:30:15.250) resolves to its first occurrence, EDT, start → deferral whose rest is over to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 62 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 63 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 64 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 65 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: a repeated wall time (01:30:15.250) resolves to its first occurrence, EDT, start → maintenance (deep clean) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 66 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 67 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 68 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: a repeated wall time (01:30:15.250) resolves to its first occurrence, EDT, start → resurfaced (critical) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 69 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 70 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 71 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 72 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 73 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 74 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: completed in the second 01:30 (EST), a week later is 01:30 EST, start → active to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 75 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 76 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 77 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: completed in the second 01:30 (EST), a week later is 01:30 EST, start → resting deferral to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 78 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 79 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 80 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 81 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: completed in the second 01:30 (EST), a week later is 01:30 EST, start → deferral whose rest is over to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 82 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 83 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: completed in the second 01:30 (EST), a week later is 01:30 EST, start → maintenance (deep clean) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 84 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 85 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: completed in the second 01:30 (EST), a week later is 01:30 EST, start → resurfaced (critical) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 86 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 87 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 88 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 89 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: 2 days across the change keeps 18:00 local (49 h), evening slot, start → active to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 90 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 91 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 92 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: 2 days across the change keeps 18:00 local (49 h), evening slot, start → resting deferral to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 93 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 94 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 95 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: 2 days across the change keeps 18:00 local (49 h), evening slot, start → deferral whose rest is over to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 96 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 97 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 98 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+✔ Test "W2-F1: a file URL from a path is accepted" passed after 1.421 seconds.
+◇ Test case passing 1 argument index → 99 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: 2 days across the change keeps 18:00 local (49 h), evening slot, start → maintenance (deep clean) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 100 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 101 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 102 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 103 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 2 arguments example → DST autumn: 2 days across the change keeps 18:00 local (49 h), evening slot, start → resurfaced (critical) to "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" started.
+◇ Test case passing 1 argument index → 104 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 105 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 106 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 107 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 108 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 109 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 110 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 111 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 112 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 113 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 114 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 115 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 116 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 117 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 118 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 119 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 120 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 121 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 122 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+◇ Test case passing 1 argument index → 123 to "AC-M1-23 negative: every banned pattern planted in code is detected" started.
+✔ Test "W2-F1 / P-2: a repository refuses a URL that is not a local file URL before any read or write" with 5 test cases passed after 1.513 seconds.
+✔ Test "AC-M1-06: a path that is a directory, not a file, throws unreadableFile" passed after 1.513 seconds.
+✔ Test "AC-M2-02 (W2-F3): the in-memory repository rejects a task carrying a non-finite date with invalidTask(windowDateNotFinite) and keeps what it holds" with 6 test cases passed after 1.513 seconds.
+✔ Test "AC-M2-02 (W2-F3): the in-memory repository still accepts valid tasks after a rejection" passed after 1.513 seconds.
+✔ Test "AC-M2-02 (W2-F3) pin: the largest finite JSON number reads back as a finite date; one step past it does not" passed after 1.513 seconds.
+✔ Test "AC-M1-06: HouseholdStoreError has exactly the design-list cases and carries no user-facing text" passed after 1.513 seconds.
+✔ Test "AC-M2-02 (W2-F3) / AC-M1-07: the file repository refuses to save a task carrying a non-finite date and keeps the stored file" with 6 test cases passed after 1.513 seconds.
+✔ Test "AC-M2-02 (W2-F3) pin: the file repository's strict decoder reads a string-spelled non-finite date as unreadableFile, never as a task" with 6 test cases passed after 1.513 seconds.
+✔ Test "AC-M2-02 (W2-F3): a task or household that decodes to a non-finite window date throws windowDateNotFinite" with 6 test cases passed after 1.513 seconds.
+✔ Test "AC-M2-02 (Q9 position): windowDateNotFinite sits after noAllowedWeekdays and before windowEndNotAfterStart" passed after 1.513 seconds.
+✔ Test "AC-M2-02 (Q9 position): the finiteness check runs before the window-order check and after the weekday check" with 6 test cases passed after 1.513 seconds.
+✔ Test "AC-M1-25 / AC-M2-02: the repository cases cover all nine M1 invariants as invalidTask, and the non-finite case as unreadableFile" passed after 1.513 seconds.
+✔ Test "AC-M1-06: a file with an unknown schema version throws unsupportedSchemaVersion and is left unchanged" with 5 test cases passed after 1.513 seconds.
+✔ Test "AC-M2-02 (W2-F3): constructing a task with a non-finite windowStart or windowEnd throws windowDateNotFinite" with 6 test cases passed after 1.513 seconds.
+D-2: HouseholdTask stored fields: id, title, kind, roomID, effort, isCritical, isDeepClean, isWeatherDependent, allowedDayparts, allowedWeekdays, windowStart, windowEnd, recurrenceIntervalDays, state, completedAt
+✔ Test "AC-M1-06: a corrupt file (truncated or not JSON) throws unreadableFile and is left byte-for-byte unchanged" with 10 test cases passed after 1.513 seconds.
+AC-M1-02 scan: 23 files scanned under Packages/TendCore/Sources
+AC-M1-02 scanned: Sources/TendCore/Model/Daypart.swift
+AC-M1-02 scanned: Sources/TendCore/Model/Effort.swift
+AC-M1-02 scanned: Sources/TendCore/Model/Household.swift
+AC-M1-02 scanned: Sources/TendCore/Model/HouseholdTask.swift
+AC-M1-02 scanned: Sources/TendCore/Model/PromptTone.swift
+AC-M1-02 scanned: Sources/TendCore/Model/Room.swift
+AC-M1-02 scanned: Sources/TendCore/Model/TaskInvariantViolation.swift
+AC-M1-02 scanned: Sources/TendCore/Model/TaskKind.swift
+AC-M1-02 scanned: Sources/TendCore/Model/TaskState.swift
+AC-M1-02 scanned: Sources/TendCore/Model/WeatherCondition.swift
+AC-M1-02 scanned: Sources/TendCore/Model/Weekday.swift
+AC-M1-02 scanned: Sources/TendCore/Persistence/HouseholdRepository.swift
+AC-M1-02 scanned: Sources/TendCore/Persistence/HouseholdStoreError.swift
+AC-M1-02 scanned: Sources/TendCore/Persistence/InMemoryHouseholdRepository.swift
+AC-M1-02 scanned: Sources/TendCore/Persistence/JSONFileHouseholdRepository.swift
+AC-M1-02 scanned: Sources/TendCore/Rescheduling/Completion.swift
+AC-M1-02 scanned: Sources/TendCore/Rescheduling/RescheduleOutcome.swift
+AC-M1-02 scanned: Sources/TendCore/Rescheduling/Rescheduler.swift
+AC-M1-02 scanned: Sources/TendCore/Selection/ContextValidity.swift
+AC-M1-02 scanned: Sources/TendCore/Selection/Moment.swift
+AC-M1-02 scanned: Sources/TendCore/Selection/NowSelection.swift
+AC-M1-02 scanned: Sources/TendCore/Selection/NowSelector.swift
+AC-M1-02 scanned: Sources/TendCore/Selection/SlotCalendar.swift
+✔ Test "AC-M2-02 (W2-F3) / AC-M1-06: a hand-written file with a non-finite window date is rejected with a typed error and left unchanged" with 22 test cases passed after 1.519 seconds.
+✔ Test "AC-M1-25 / AC-M1-06: a file containing a task that violates an invariant throws invalidTask through the repository and is left unchanged" with 10 test cases passed after 1.519 seconds.
+AC-M1-23 scan: 23 files scanned under Packages/TendCore/Sources
+AC-M1-23 scan: 23 import statements found
+AC-M1-23 scan: contentsOf: allowlist ["JSONFileHouseholdRepository.swift"], 1 allowlisted files present: ["Sources/TendCore/Persistence/JSONFileHouseholdRepository.swift"]
+AC-M1-02 scan: 0 hits
+✔ Test "ADR-0004: saving the same household twice writes identical bytes (stable key order)" passed after 1.571 seconds.
+✔ Test "AC-M2-02 (W2-F3): both window dates non-finite throws windowDateNotFinite" with 9 test cases passed after 1.571 seconds.
+✔ Test "AC-M2-02 (W2-F3) pin: JSONDecoder cannot read a hand-written non-finite date token (DecodingError)" with 11 test cases passed after 1.571 seconds.
+✔ Test "AC-M2-02 (W2-F3 boundary): the most extreme finite dates are accepted" passed after 1.571 seconds.
+◇ Test case passing 4 arguments startOffset → 0.0, endOffset → 1.0, open → true, ended → false to "Window helpers are half-open: windowStart <= now < windowEnd is open; windowEnd <= now has ended" started.
+◇ Test case passing 4 arguments startOffset → 0.001, endOffset → 1.0, open → false, ended → false to "Window helpers are half-open: windowStart <= now < windowEnd is open; windowEnd <= now has ended" started.
+◇ Test case passing 4 arguments startOffset → -1.0, endOffset → 0.0, open → false, ended → true to "Window helpers are half-open: windowStart <= now < windowEnd is open; windowEnd <= now has ended" started.
+◇ Test case passing 4 arguments startOffset → -1.0, endOffset → 0.001, open → true, ended → false to "Window helpers are half-open: windowStart <= now < windowEnd is open; windowEnd <= now has ended" started.
+◇ Test case passing 4 arguments startOffset → -7200.0, endOffset → -3600.0, open → false, ended → true to "Window helpers are half-open: windowStart <= now < windowEnd is open; windowEnd <= now has ended" started.
+✔ Test "AC-M2-02 (W2-F3) pin: JSONEncoder with the repository's settings refuses a non-finite date (EncodingError.invalidValue)" with 6 test cases passed after 1.571 seconds.
+◇ Test case passing 3 arguments offset → -3600.0, resting → false, restOver → true to "D-1: isResting and isRestOver split a deferral at now (until > now rests; until <= now rest is over)" started.
+◇ Test case passing 3 arguments offset → -0.001, resting → false, restOver → true to "D-1: isResting and isRestOver split a deferral at now (until > now rests; until <= now rest is over)" started.
+◇ Test case passing 3 arguments offset → 0.0, resting → false, restOver → true to "D-1: isResting and isRestOver split a deferral at now (until > now rests; until <= now rest is over)" started.
+◇ Test case passing 3 arguments offset → 0.001, resting → true, restOver → false to "D-1: isResting and isRestOver split a deferral at now (until > now rests; until <= now rest is over)" started.
+◇ Test case passing 3 arguments offset → 1.0, resting → true, restOver → false to "D-1: isResting and isRestOver split a deferral at now (until > now rests; until <= now rest is over)" started.
+◇ Test case passing 1 argument state → .active to "D-1: a task that is not deferred is neither resting nor at the end of a rest" started.
+◇ Test case passing 1 argument state → .completed to "D-1: a task that is not deferred is neither resting nor at the end of a rest" started.
+✔ Test "R-7 / AC-M1-05: awkward sub-second dates are written and read back bit-exact" with 11 test cases passed after 1.572 seconds.
+✔ Test "R0: completed tasks and resting deferrals are not touched, even with an ended window" passed after 1.572 seconds.
+✔ Test "AC-M1-03 (a): a one-off or restock task in any non-completed state becomes completed at now, other fields unchanged; its room is tended now" with 10 test cases passed after 1.572 seconds.
+✔ Test "AC-M1-19 / R1: a deferral whose rest is over and whose window ended becomes active on E(now, D)" with 3 test cases passed after 1.572 seconds.
+✔ Test "AC-M1-03: only the completed task changes; the other tasks and the schema version are kept" passed after 1.572 seconds.
+✔ Test "Design list: RescheduleOutcome has exactly the five reason codes" passed after 1.573 seconds.
+✔ Test "AC-M1-18: a critical task whose window ended is brought back gently (resurfaced) on exactly E(now, D)" with 24 test cases passed after 1.573 seconds.
+✔ Test "R1: a deferral whose rest is over and whose window is still open becomes active and nothing else changes" passed after 1.573 seconds.
+✔ Test "AC-M1-04 contract: upsert into a repository with nothing saved creates a household with that task" with 2 test cases passed after 1.573 seconds.
+✔ Test "AC-M1-03 (c): a task with no room, or a room that is not in the household, changes no room" passed after 1.573 seconds.
+✔ Test "Window open or not yet open: the task is unchanged in every state" with 3 test cases passed after 1.574 seconds.
+✔ Test "ADR-0004: the file is JSON with schemaVersion 1 and dates as seconds since the reference date" passed after 1.574 seconds.
+W3-F2 / Q21 measurement: 72 chains cross 2035-01-10 13:37:04 +0000 (2^30 s); one step = 1.1920928955078125e-07 s; odd-step 36 chains, 36 changed exactly once; even-step 36 chains, 36 unchanged; changes: seed 610001, R2 deep clean, odd-step: N = 5, -1 step; seed 610001, R3 critical, odd-step: N = 5, -1 step; seed 610001, R4 other, odd-step: N = 5, -1 step; seed 610002, R2 deep clean, odd-step: N = 5, -1 step; seed 610002, R3 critical, odd-step: N = 5, -1 step; seed 610002, R4 other, odd-step: N = 5, -1 step; seed 610003, R2 deep clean, odd-step: N = 7, +1 step; seed 610003, R3 critical, odd-step: N = 7, +1 step; seed 610003, R4 other, odd-step: N = 5, -1 step; seed 610004, R2 deep clean, odd-step: N = 5, +1 step; seed 610004, R3 critical, odd-step: N = 5, +1 step; seed 610004, R4 other, odd-step: N = 5, +1 step; seed 610005, R2 deep clean, odd-step: N = 7, -1 step; seed 610005, R3 critical, odd-step: N = 5, +1 step; seed 610005, R4 other, odd-step: N = 7, -1 step; seed 610006, R2 deep clean, odd-step: N = 7, +1 step; seed 610006, R3 critical, odd-step: N = 7, +1 step; seed 610006, R4 other, odd-step: N = 7, +1 step; seed 610007, R2 deep clean, odd-step: N = 5, -1 step; seed 610007, R3 critical, odd-step: N = 5, -1 step; seed 610007, R4 other, odd-step: N = 5, -1 step; seed 610008, R2 deep clean, odd-step: N = 5, +1 step; seed 610008, R3 critical, odd-step: N = 5, +1 step; seed 610008, R4 other, odd-step: N = 5, +1 step; seed 610009, R2 deep clean, odd-step: N = 5, +1 step; seed 610009, R3 critical, odd-step: N = 5, +1 step; seed 610009, R4 other, odd-step: N = 3, -1 step; seed 610010, R2 deep clean, odd-step: N = 5, +1 step; seed 610010, R3 critical, odd-step: N = 5, +1 step; seed 610010, R4 other, odd-step: N = 5, +1 step; seed 610011, R2 deep clean, odd-step: N = 5, +1 step; seed 610011, R3 critical, odd-step: N = 5, +1 step; seed 610011, R4 other, odd-step: N = 5, +1 step; seed 610012, R2 deep clean, odd-step: N = 5, +1 step; seed 610012, R3 critical, odd-step: N = 5, +1 step; seed 610012, R4 other, odd-step: N = 5, +1 step
+✔ Test "Rescheduler: the household version keeps task order, rooms and schema version, and matches the per-task rules" passed after 2.118 seconds.
+✔ Test "AC-M1-03 scope: completing an unknown ID or an already completed task changes nothing and reports false" passed after 2.119 seconds.
+✔ Test "AC-M1-17: the lightened deep clean counts as low effort when its new window opens (low energy selects it)" passed after 2.119 seconds.
+✔ Test "AC-M1-04 contract: saving a household with a schema version this build cannot read is rejected and stores nothing" with 2 test cases passed after 2.119 seconds.
+✔ Test "AC-M1-04 contract: upsert adds a task with a new ID at the end" with 2 test cases passed after 2.119 seconds.
+✔ Test "AC-M1-04 contract: save replaces the whole household (nothing from the earlier save survives)" with 2 test cases passed after 2.119 seconds.
+✔ Test "AC-M1-04 contract: save then load returns the household exactly, also from a reopened instance" with 2 test cases passed after 2.148 seconds.
+AC-M1-23 scan: 0 hits
+✔ Test "AC-M1-17: a deep clean whose window ended moves to maintenance on exactly E(now, D); stored effort unchanged" with 24 test cases passed after 3.011 seconds.
+✔ Test "AC-M1-04 contract: a repository with nothing saved loads an empty household at the current schema version" with 2 test cases passed after 3.012 seconds.
+✔ Test "AC-M1-04 contract: update room with a new ID adds the room at the end" with 2 test cases passed after 3.012 seconds.
+✔ Test "AC-M1-18: a resurfaced task carries no escalation field; the only prompt metadata is the fixed gentle tone" passed after 3.012 seconds.
+AC-M1-05: seeds 1...200, 200 households, 51718 tasks (min 0, max 500 per household), 144045 dates compared bit-exact, 144045 with a sub-second part
+AC-M1-13 NowSelection stored properties: ["first: Optional<HouseholdTask>", "second: Optional<HouseholdTask>", "third: Optional<HouseholdTask>"]
+✔ Test "AC-M1-04 contract: upsert replaces the task with the same ID in place, keeping the order of the others" with 2 test cases passed after 3.527 seconds.
+✔ Test "AC-M1-19: any other task whose window ended stays active on exactly E(now, D), every other field unchanged" with 24 test cases passed after 3.527 seconds.
+✔ Test "AC-M1-09: the injected time zone wins over the time zone carried by the injected calendar" passed after 3.527 seconds.
+✔ Test "AC-M1-03 (b): a recurring task becomes active on exactly E(now + interval days, D), keeps effort and flags; incl. DST days" with 45 test cases passed after 3.527 seconds.
+✔ Test "AC-M1-07: a failed upsert, remove or room update leaves A intact" with 3 test cases passed after 3.527 seconds.
+✔ Test "AC-M1-04 contract: remove deletes only the task with that ID" with 2 test cases passed after 3.527 seconds.
+✔ Test "AC-M1-04 contract: removing an ID that is not stored changes nothing and does not throw" with 2 test cases passed after 3.528 seconds.
+✔ Test "AC-M1-01: every field combination allowed by the model invariants is representable and round-trips through Codable" passed after 3.528 seconds.
+✔ Test "AC-M1-04 contract: update room replaces the room with the same ID in place, including lastTendedAt (FR-B3)" with 2 test cases passed after 3.640 seconds.
+✔ Test "AC-M1-10: a weekend-only task is valid on Saturday and Sunday only; the night slot belongs to the day it starts" with 15 test cases passed after 3.640 seconds.
+✔ Test "AC-M1-07: when the very first save fails, no household file is created and nothing was saved" with 3 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-08: low energy accepts only low effort (incl. maintenance), normal adds normal, high accepts all" with 12 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-11: a weather-dependent task is valid only in clear or cloudy weather; others ignore the weather" with 5 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-01: TaskState values are Equatable and Codable, including the deferral date (FR-B2)" passed after 3.642 seconds.
+✔ Test "AC-M1-04 contract: a sequence of save, upsert, remove and update room gives the same household on both implementations" passed after 3.642 seconds.
+✔ Test "AC-M1-09: at each daypart boundary a task is valid exactly when the local daypart is allowed; default dayparts are quiet at night" with 12 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-07: when a later save of B fails mid-way, loading returns A intact (no partial or empty file)" with 3 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-07: a save whose encoding fails part-way (a non-finite date) writes nothing and leaves A intact" passed after 3.642 seconds.
+✔ Test "AC-M1-07: the write primitive is given the whole encoded household in one call, after encoding has finished" passed after 3.642 seconds.
+✔ Test "R-8 / AC-M1-07: the standard writer replaces the file by rename (new file identity), never rewrites it in place, and leaves no staging file" passed after 3.642 seconds.
+✔ Test "AC-M1-01: one task of each kind (one-off errand, recurring maintenance, consumable restock) is representable, Equatable and Codable" with 3 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-12: maintenance and resurfaced tasks with an open window are valid; the selector does not change them" passed after 3.642 seconds.
+✔ Test "AC-M1-01: the value enums hold exactly the cases in the design naming list" passed after 3.642 seconds.
+✔ Test "AC-M1-01 / FR-B3: a Room carries an optional lastTendedAt and round-trips through Codable" passed after 3.642 seconds.
+✔ Test "AC-M1-12: state and half-open window boundaries decide validity exactly as the brief lists" with 9 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-01: a Household holds tasks, rooms and a schema version and round-trips through Codable" passed after 3.642 seconds.
+✔ Test "AC-M1-10: an instant that is Sunday 10:00 in one injected zone and Monday in another follows the injected zone" passed after 3.642 seconds.
+✔ Test "AC-M1-09: one instant in two injected time zones follows each zone's local daypart" passed after 3.642 seconds.
+✔ Test "AC-M1-07: after a failed save, the next successful save of B is stored and loads exactly" passed after 3.642 seconds.
+✔ Test "AC-M1-01: Equatable distinguishes every stored field of HouseholdTask" passed after 3.642 seconds.
+✔ Test "AC-M1-23 coverage: the planted fixtures exercise every pattern in the closed list" passed after 3.642 seconds.
+✔ Test "AC-M1-01: the default allowed dayparts are morning, afternoon and evening; night is quiet (Q2)" passed after 3.642 seconds.
+✔ Test "AC-M1-23: `import Foundation` alone is allowed; imports in comments and strings are ignored" passed after 3.642 seconds.
+✔ Test "Scanner keeps line numbers aligned through comments and multi-line strings" passed after 3.642 seconds.
+✔ Test "AC-M1-02 negative: every banned token planted in a string literal is detected" with 9 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-02 negative: whole-token match ignores near-misses (template, latest, translate, relate)" passed after 3.642 seconds.
+✔ Test "AC-M1-23 negative: every banned pattern planted in code is detected" with 124 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-23 positive: AsyncStream( and AsyncThrowingStream( (Q17), any contentsOf: in the allowlisted file (Q18, Q23) and append/insert(contentsOf:) (Q23) are not reported" passed after 3.642 seconds.
+✔ Test "AC-M1-01: every non-empty set of allowed dayparts and weekdays is representable and round-trips" passed after 3.642 seconds.
+✔ Test "AC-M1-23 negative: imports other than Foundation are detected" with 8 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-23 negative: banned patterns in comments and plain string text are ignored" passed after 3.642 seconds.
+✔ Test "AC-M1-02 negative: every banned token planted in an identifier is detected" with 9 test cases passed after 3.642 seconds.
+✔ Test "Review F-2: `.now` with a receiver is not reported (moment.now, self.now, chains, optional chaining)" passed after 3.642 seconds.
+✔ Test "N-2: comment markers inside string literals do not hide the rest of the line or file" passed after 3.642 seconds.
+✔ Test "R-3: a night slot across a DST change runs from 22:00 to 05:00 local (6 h in spring, 8 h in autumn) and belongs to Saturday" passed after 3.642 seconds.
+✔ Test "E(a, D): the task is not changed and only the requested duration is used" passed after 3.642 seconds.
+✔ Test "Scanner tokeniser splits camelCase humps, acronyms, underscores and digits" passed after 3.642 seconds.
+✔ Test "AC-M1-25: constructing a task that violates an invariant throws the typed violation" with 18 test cases passed after 3.642 seconds.
+✔ Test "AC-M1-02 negative: banned tokens inside comments are ignored (line, doc, block, nested block)" passed after 3.642 seconds.
+✔ Test "R-3: E(a, D) on DST days in America/New_York" with 8 test cases passed after 3.643 seconds.
+✔ Test "N-1: near-misses at identifier and camelCase word boundaries are not reported" passed after 3.643 seconds.
+✔ Test "E(a, D): hand-computed examples, incl. slot starts, the night slot owned by its start day, and a full week ahead" with 11 test cases passed after 3.643 seconds.
+✔ Test "R-3 / Q11: a nonexistent local time resolves to the next instant, a repeated one to its first occurrence" passed after 3.643 seconds.
+✔ Test "AC-M1-25: when several invariants are broken, the first in the documented order is reported" passed after 3.643 seconds.
+✔ Test "AC-M1-25: decoding a household whose file contains one invalid task throws the typed violation" passed after 3.643 seconds.
+✔ Test "AC-M1-25: decoding JSON that violates an invariant throws the typed violation" with 10 test cases passed after 3.643 seconds.
+✔ Test "AC-M1-25 / AC-M1-02: an unknown lifecycle state in JSON is rejected, not mapped to a default" passed after 3.643 seconds.
+✔ Test "R-3: a calendar day that does not exist (Samoa skipped Friday 30 December 2011) moves a Friday task to the next Friday" passed after 3.643 seconds.
+✔ Test "SplitMix64 produces the published reference sequence for seed 0, so seeds replay on every platform" passed after 3.643 seconds.
+✔ Test "AC-M1-25: values just inside each invariant are accepted (boundary)" passed after 3.643 seconds.
+✔ Test "AC-M1-25 / AC-M2-02: the cases cover all ten invariants (the nine M1 design-list cases plus windowDateNotFinite)" passed after 3.643 seconds.
+✔ Test "Generator: the same seed gives the same household; different seeds give different ones" passed after 3.643 seconds.
+✔ Test "E(a, D): over 1,000 seeded tasks, anchors and time zones the window equals the brute-force oracle's, with windowEnd = s + D" passed after 3.643 seconds.
+✔ Test "AC-M1-03: over 300 seeded households every non-completed task completes exactly as the independent oracle says" passed after 3.644 seconds.
+✔ Test "Design review: PromptTone has exactly one case, gentle (AC-M1-18 groundwork)" passed after 3.641 seconds.
+✔ Test "AC-M1-02 / D-2: the encoded HouseholdTask has exactly the naming-list keys" passed after 3.635 seconds.
+✔ Test "AC-M1-25 / AC-M2-02 naming: TaskInvariantViolation has exactly the nine M1 design-list cases plus windowDateNotFinite, in order" passed after 3.630 seconds.
+✔ Test "AC-M1-02: the lifecycle state is the closed set active, deferred(until:), maintenance, resurfaced, completed" passed after 3.630 seconds.
+✔ Test "AC-M1-02 / D-2: HouseholdTask stores exactly the fields in the design naming list (no counter, original window or history)" passed after 3.630 seconds.
+✔ Test "AC-M1-02 / D-2: Room and Household store no counters or history" passed after 3.630 seconds.
+✔ Test "AC-M1-02: no banned zero-guilt token in any identifier or string literal of TendCore/Sources" passed after 3.628 seconds.
+✔ Test "Window helpers are half-open: windowStart <= now < windowEnd is open; windowEnd <= now has ended" with 5 test cases passed after 3.610 seconds.
+✔ Test "D-1: isResting and isRestOver split a deferral at now (until > now rests; until <= now rest is over)" with 5 test cases passed after 3.591 seconds.
+✔ Test "D-1: a task that is not deferred is neither resting nor at the end of a rest" with 2 test cases passed after 3.588 seconds.
+✔ Test "AC-M1-13: NowSelection rejects the same task twice" passed after 3.581 seconds.
+✔ Test "AC-M1-16: equal windowEnd ties go to critical tasks first, then ascending ID" passed after 3.577 seconds.
+✔ Test "AC-M1-13: NowSelection holds 0 to 3 items and cannot be constructed with 4 or more" passed after 3.576 seconds.
+✔ Test "AC-M1-16: five resurfaced criticals compete; only the three with the earliest windowEnd are returned, ahead of an earlier active task" passed after 3.570 seconds.
+✔ Test "W3-F2 / Q21 measurement: across 2035-01-10 13:37:04Z (2^30 s) an odd-step duration changes exactly once by one 2^-23 s step (at the edge pass or the next), an even-step duration never changes; structure otherwise identical" passed after 3.646 seconds.
+✔ Test "AC-M1-16: the order does not depend on the order of the household's tasks" passed after 3.555 seconds.
+✔ Test "AC-M1-15: an empty household and a 500-task household with nothing valid give an empty selection without error" passed after 3.553 seconds.
+✔ Test "AC-M1-16: a non-resurfaced critical ranks after a non-critical with an earlier windowEnd, and before one with the same windowEnd" passed after 3.550 seconds.
+✔ Test "AC-M1-23: only `import Foundation`, no ambient time, randomness or networking API in TendCore/Sources" passed after 3.625 seconds.
+✔ Test "AC-M1-05: 200 seeded households (0-500 tasks) round-trip through a new file repository instance exactly" passed after 3.646 seconds.
+✔ Test "AC-M1-13: NowSelection stores exactly three optional task slots, so a fourth item has nowhere to go" passed after 3.531 seconds.
+✔ Test "AC-M1-13 / Q13: the selector returns tasks unchanged and does not move a task whose window ended" passed after 3.531 seconds.
+✔ Test "AC-M1-13: the selector returns a NowSelection of 3 even when 100 tasks are valid" passed after 3.411 seconds.
+✔ Suite "JSON file repository load errors (AC-M1-06, AC-M1-25)" passed after 3.649 seconds.
+✔ Suite "Non-finite window dates (AC-M2-02 W2-F3 clause, Q9, T-21)" passed after 3.649 seconds.
+✔ Suite "Rescheduler rules R0–R4 (AC-M1-17, AC-M1-18, AC-M1-19)" passed after 3.649 seconds.
+✔ Suite "Completion (AC-M1-03)" passed after 3.650 seconds.
+✔ Suite "Context filter (AC-M1-08…12)" passed after 3.650 seconds.
+✔ Suite "JSON file repository atomic save (AC-M1-07, R-8)" passed after 3.650 seconds.
+✔ Suite "Household model (AC-M1-01)" passed after 3.650 seconds.
+✔ Test "AC-M1-04 contract: concurrent upserts from many tasks are all kept (no lost update; Swift 6 isolation)" with 2 test cases passed after 3.649 seconds.
+✔ Suite "Source scanner self-tests (AC-M1-02, AC-M1-23 negative tests)" passed after 3.650 seconds.
+✔ Suite "Slot calendar and next eligible window E(a, D) (WI-M1-03; R-3)" passed after 3.650 seconds.
+✔ Suite "Model invariants (AC-M1-25)" passed after 3.650 seconds.
+✔ Suite "Zero-guilt model structure (AC-M1-02, D-1, D-2)" passed after 3.650 seconds.
+✔ Suite "Source scans of TendCore/Sources (AC-M1-02, AC-M1-23)" passed after 3.650 seconds.
+✔ Suite "Effective-state helpers (D-1; brief definitions, Q12, Q13)" passed after 3.650 seconds.
+✔ Suite "JSON file repository round trip (AC-M1-05, R-7)" passed after 3.650 seconds.
+✔ Suite "HouseholdRepository contract (AC-M1-04)" passed after 3.650 seconds.
+Generator coverage: 200 households, 51718 tasks, 15 of 15 daypart sets, 144045 of 144045 dates with a sub-second part
+✔ Test "Generator: over the AC-M1-05 seeds every kind, flag, state, daypart, weekday and window position occurs, and every task is valid" passed after 5.813 seconds.
+✔ Suite "Seeded household generator (AC-M1-05 support)" passed after 5.815 seconds.
+AC-M1-14 gate: seeds 1...1000, 1000 households, 273931 tasks (min 50, max 500 per household), 10147 contextually valid per the oracle
+AC-M1-14 gate: selection sizes 0/1/2/3 = 20/42/49/889; 16 time zones, 5 weather values, 3 energy levels, 134 moments within 12 h of a DST change; task states seen: ["active", "completed", "deferred (rest over)", "deferred (resting)", "maintenance", "resurfaced"]
+✔ Test "AC-M1-14 (Gate): over 1,000 seeded households of 50-500 tasks every selection has at most 3 items, no duplicates, and every item passes the independent oracle" passed after 6.727 seconds.
+AC-M1-15: seeds 1...1000 (50-500 tasks) and 100001...101000 (0-49 tasks), 2000 households, 14 with no tasks; selection sizes 0/1/2/3 = 494/307/197/1002
+✔ Test "AC-M1-15: the selection size equals min(3, number of contextually valid tasks) for 50-500 and 0-49 task households" passed after 6.760 seconds.
+AC-M1-16: 2000 property households (seeds 1...1000, 100001...101000) and 500 tie-heavy households (seeds 200001...200500) match the oracle's order; 434 tie-heavy selections hold a windowEnd tie, 1117 resurfaced items selected
+✔ Test "AC-M1-16: over the property households and 500 tie-heavy households the items are exactly the oracle's sorted first min(3, n)" passed after 7.034 seconds.
+✔ Suite "Rule-of-Three selector (AC-M1-13…16)" passed after 7.110 seconds.
+AC-M1-20: seeds 600001...600040, 360 chains (R2, R3, R4 x one-off, recurring, restock), 21600 pass comparisons against pass 1 (N = 1...60), duration compared by bit pattern, longest chain moved 844 days
+✔ Test "AC-M1-20 (Gate): after N = 1…60 consecutive ended windows the decoded structure equals the structure after 1 pass; only the window moves" passed after 9.048 seconds.
+AC-M1-22: 10 households (seeds 400001...400010), 1000 repeated runs of rescheduling and selection, plus RNG seeds 1 and 0xDEADBEEF: all identical
+✔ Test "AC-M1-22: identical inputs give identical selection and rescheduling outputs over 100 runs, and two RNG seeds give the same outputs" passed after 25.128 seconds.
+AC-M1-21: seeds 400001...400500, 500 households, 135474 tasks (min 50, max 500 per household), 108303 with ended windows (54138 ending exactly at now; 15018 rest over, 14941 resting, 30337 completed)
+AC-M1-21: outcomes unchanged 68626, restEnded 3823, lightened 22485, broughtBackGently 22622, movedToNextWindow 17918; selection sizes 0/1/2/3 after the pass = 0/1/2/497
+✔ Test "AC-M1-21 (Gate): over 500 seeded households of 50-500 tasks (at least half with ended windows) one pass equals the oracle, leaves no ended window, and is idempotent" passed after 30.767 seconds.
+✔ Suite "Rescheduler gate properties (AC-M1-20, AC-M1-21, AC-M1-22)" passed after 30.768 seconds.
+✔ Test run with 141 tests in 18 suites passed after 30.768 seconds.

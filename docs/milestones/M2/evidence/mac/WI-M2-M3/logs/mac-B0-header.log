@@ -1,0 +1,20 @@
+# B0
+1c19f688d665a6b1c6c0046e69c3b190f3af7a14
+--- git status --porcelain (must be empty):
+--- end
+ProductName:		macOS
+ProductVersion:		27.2.1
+BuildVersion:		26B131
+Xcode 27.2
+Build version 27B52
+swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)
+Target: arm64-apple-macosx27.2.0
+Version: 2.46.0
+--- xcodegen binary:
+8774da746668bc18fe74e54cbaf10f2631a1fb05947cd374179aa912f14f99db  $HOME/.local/opt/xcodegen-2.46.0/bin/xcodegen
+iOS 26.5 (26.5 - 23F77) - com.apple.CoreSimulator.SimRuntime.iOS-26-5
+--- tzdata:
+2026f
+--- hardware:
+Macmini9,1
+Apple M1
