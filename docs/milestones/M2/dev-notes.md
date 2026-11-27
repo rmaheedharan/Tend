@@ -6026,3 +6026,26 @@ the previous stop; the microphone indicator must go off each time and the next c
   tests in 9 suites; B5 hosted 4; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
 - **For SP-1 (B4 "tap Start then Stop at once"):** the microphone indicator must not come on, and the capture ends
   `nothingHeard`.
+
+## WI-M2-M3 round 5 — PR #44 review round 4 m7, m8, n5, n6; brought up to date with main
+
+- **Branch:** `m2/speech-adapter-v2`, on top of the round-4 review `8a04059`. Code commit `a5b9f25`; then `origin/main`
+  (`9e50012`, PRs #45, #46, #47) merged as `c36a89c` (merge commit, no rebase). The only conflict was this file: main's
+  text is kept as it is and this branch's WI-M2-M3 sections follow it. No build fix was needed.
+- **m7.** `MicrophoneCaptureState` keeps the capture that has started but not yet asked for audio in its own field
+  (`next`: `none`, `armed`, `stopped`), beside the phase. `arm()` now works in every phase, also while an earlier capture
+  on the same source is still starting, running or being torn down. A stop then is kept for the new capture (and also
+  stops the earlier one if it is still active); the new capture begins already stopped, so the microphone never opens.
+- **m8.** `SpeechCapture.run` checks cancellation after the transcriber choice and format and before asking the source
+  for audio, so a capture cancelled during the choice never opens the microphone, even for a moment.
+- **n5.** A test drives the real `MicrophoneAudioSource`: `captureWillStart()`, `stop()`, then `audio(in:)` ends at once,
+  empty, with no engine created (no microphone needed). **n6.** The state type's header now describes `begin` and `arm`
+  as built, and says `audio(in:)` is meant to be called by `SpeechCapture`, which always arms first.
+- **Tests (B4):** `RoundFiveStopTests`: "a second capture armed while the first is still being torn down keeps its stop"
+  and "… while the first is still starting or running keeps its stop" (both failed before the fix), "a capture cancelled
+  during the transcriber choice never asks the source for audio" (failed before the fix), and the n5 test. Mutants
+  killed: arm only when idle (2 tests), no cancellation check (1), the real source does not arm (the n5 test).
+- **Test runs (clean, at `c36a89c`, the merged code commit):** B1 TendCore 141 tests in 18 suites; B2 TendIngestion 579
+  in 68, AC-M2-09 scan 66 files, 0 violations; B4 TendAI 42 tests in 11 suites; B5 hosted 36 tests in 5 suites (the
+  Keychain and transport tests from main plus the speech hosted tests); B6 as MS-1. All passed, 0 skipped, no compiler
+  warnings. Record: [`evidence/mac/WI-M2-M3-r5/`](evidence/mac/WI-M2-M3-r5/README.md).
