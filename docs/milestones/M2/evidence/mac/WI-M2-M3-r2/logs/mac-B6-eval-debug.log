@@ -1,0 +1,1210 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild build -project Tend.xcodeproj -scheme TendEval -configuration Debug -destination generic/platform=iOS -derivedDataPath build/dd-eval CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  TendIngestion: $REPO/Packages/TendIngestion
+  TendCore: $REPO/Packages/TendCore
+  TendSourceScan: $REPO/Packages/TendSourceScan @ local
+  TendAI: $REPO/Packages/TendAI
+
+2026-11-27 12:04:04.889 xcodebuild[71345:5988473] [MT] IDESchemeActionsInvocationRecord: Device <DVTiPhonePlaceholder: 0x7769c226c0 (Any iOS Device | undefined_arch)> is missing operatingSystemVersion, operatingSystemVersionWithBuildNumber.
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (7 targets)
+    Target 'TendEval' in project 'Tend'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+        ➜ Explicit dependency on target 'TendIngestion-product' in project 'TendIngestion'
+        ➜ Explicit dependency on target 'TendAI-product' in project 'TendAI'
+    Target 'TendAI-product' in project 'TendAI'
+        ➜ Explicit dependency on target 'TendAI' in project 'TendAI'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+        ➜ Explicit dependency on target 'TendIngestion-product' in project 'TendIngestion'
+    Target 'TendAI' in project 'TendAI'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+        ➜ Explicit dependency on target 'TendIngestion-product' in project 'TendIngestion'
+    Target 'TendIngestion-product' in project 'TendIngestion'
+        ➜ Explicit dependency on target 'TendIngestion' in project 'TendIngestion'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+    Target 'TendIngestion' in project 'TendIngestion'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+    Target 'TendCore-product' in project 'TendCore'
+        ➜ Explicit dependency on target 'TendCore' in project 'TendCore'
+    Target 'TendCore' in project 'TendCore' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: 669717dd4507ce7aa9a1ea485fd9daf7
+Build description path: $REPO/build/dd-eval/Build/Intermediates.noindex/XCBuildData/669717dd4507ce7aa9a1ea485fd9daf7.xcbuilddata
+CreateBuildDirectory $REPO/build/dd-eval/SDKExplicitPrecompiledModules
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/SDKExplicitPrecompiledModules
+
+CreateBuildDirectory $REPO/build/dd-eval/CompilationCache.noindex
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/CompilationCache.noindex
+
+CreateBuildDirectory $REPO/build/dd-eval/ModuleCache.noindex
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/ModuleCache.noindex
+
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache
+    cd $REPO/Tend.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -o $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache
+
+CreateBuildDirectory $REPO/build/dd-eval/Build/Products
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/Build/Products
+
+CreateBuildDirectory $REPO/build/dd-eval/Build/Intermediates.noindex
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/Build/Intermediates.noindex
+
+CreateBuildDirectory $REPO/build/dd-eval/Build/Products/Debug-iphoneos
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/Build/Products/Debug-iphoneos
+
+CreateBuildDirectory $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+CreateBuildDirectory $REPO/build/dd-eval/Build/Intermediates.noindex/PrecompiledHeaders
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/Build/Intermediates.noindex/PrecompiledHeaders
+
+CreateBuildDirectory $REPO/build/dd-eval/Build/Intermediates.noindex/ExplicitPrecompiledModules
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+CreateBuildDirectory $REPO/build/dd-eval/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/Tend-73dba576e6168fa1555f64fd32289b57-VFS-iphoneos/all-product-headers.yaml
+    cd $REPO/Tend.xcodeproj
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/Tend-73dba576e6168fa1555f64fd32289b57-VFS-iphoneos/all-product-headers.yaml
+
+CreateBuildDirectory $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval.DependencyStaticMetadataFileList (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval.DependencyMetadataFileList (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval.DependencyMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval.hmap (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-project-headers.hmap (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-project-headers.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-own-target-headers.hmap (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-own-target-headers.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.modulemap (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.modulemap
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.DependencyStaticMetadataFileList (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.DependencyMetadataFileList (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.DependencyMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.SwiftFileList (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.SwiftFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion_const_extract_protocols.json (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion_const_extract_protocols.json
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.LinkFileList (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.LinkFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.SwiftConstValuesFileList (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.SwiftConstValuesFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-OutputFileMap.json (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-OutputFileMap.json
+
+Copy $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/TendIngestion.modulemap $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.modulemap (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.modulemap $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-generated-files.hmap (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-generated-files.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-all-target-headers.hmap (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-all-target-headers.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-all-non-framework-target-headers.hmap (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-all-non-framework-target-headers.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-DebugDylibPath-normal-arm64.txt (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-DebugDylibPath-normal-arm64.txt
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-DebugDylibInstallName-normal-arm64.txt (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-DebugDylibInstallName-normal-arm64.txt
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.SwiftFileList (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.SwiftFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval_const_extract_protocols.json (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval_const_extract_protocols.json
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.SwiftConstValuesFileList (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.SwiftConstValuesFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.LinkFileList (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.LinkFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-OutputFileMap.json (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-OutputFileMap.json
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.modulemap (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.modulemap
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.DependencyStaticMetadataFileList (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.DependencyMetadataFileList (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.DependencyMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore_const_extract_protocols.json (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore_const_extract_protocols.json
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.SwiftFileList (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.SwiftFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.SwiftConstValuesFileList (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.SwiftConstValuesFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.LinkFileList (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.LinkFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-OutputFileMap.json (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-OutputFileMap.json
+
+Copy $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/TendCore.modulemap $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.modulemap (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.modulemap $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.DependencyStaticMetadataFileList (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.modulemap (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.modulemap
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.DependencyMetadataFileList (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.DependencyMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI_const_extract_protocols.json (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI_const_extract_protocols.json
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.SwiftFileList (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.SwiftFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.SwiftConstValuesFileList (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.SwiftConstValuesFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.LinkFileList (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.LinkFileList
+
+WriteAuxiliaryFile $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-OutputFileMap.json (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    write-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-OutputFileMap.json
+
+Copy $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/TendAI.modulemap $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.modulemap (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.modulemap $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos
+
+MkDir $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    /bin/mkdir -p $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app
+
+SwiftDriver TendCore normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name TendCore -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name tendcore -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore_const_extract_protocols.json -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-Swift.h -working-directory $REPO/Tend.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_AvailabilityInternal-5I8L16DTPA0HVMTLL50V5ED5L.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_stdarg-PWW6JCLC8LM1YR0GHVTCKQAX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_stdbool-BWYI210N7HPZH1CCVWK7803VH.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/SwiftShims-4Q94WMKLLGD65927NFHJH2DMU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_stddef-2I73VA4WSUOS9QQT44T0GE79V.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/ptrauth-8OHNTA0X9YXOPLTZ53U8HT2M3.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_float-2LDBS7SZA4WZ9YJOW2C0UWYOT.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-C6B74GCAX8RL6XQ5E2QMS0RBN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/ptrcheck-45GLR1ZZX3CHZXBEP74WWTM2P.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_DarwinFoundation1-9EB7G95LOG4ODAY5MP9A9AC2N.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_limits-1MQG3EMDJNIINE9JH9I87A5UU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_DarwinFoundation2-9HEECDIGP8NT747XY6TDI99C6.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/string_h-6FR1MC308PQEU6ZFY5WV8XMT1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_stdint-1HWCUEA79OZ65PO5CBB9VAK36.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/sys_types-BSH34JI6HIP1M4GW79Q2S80C2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_DarwinFoundation3-A7I68WVO8OQD0B3D9DM7LYSNM.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_inttypes-TZTVWZBZON50RYFX9HW8AYD3.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Darwin-3MT14DN09OKUKUDP6V12Y8H18.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/ObjectiveC-6IQ12K1MCJH45NOCZXPIX7GLX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/os_object-18EHQD7L0MSVZ8N60BJGEUG9.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/os_workgroup-6TXQJ14WYVN56I8EBPRZJSUKV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Dispatch-5MZOJ1JYIC4DTMH8DNRQHVZBT.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreFoundation-AZC4ZH5WS6179DIBL5DVQ8AD1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/XPC-7V93B9JB2YEHV3QDKHSGG8GIL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Security-913JYZ4CIN2YZ2F7WZXVWW98S.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CFNetwork-523QZDCFUZ6LDDJ83H6JUPEQQ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Foundation-68LJI0RQNRAUZILHQ81TDYAVE.pcm
+
+SwiftCompile normal arm64 Compiling\ HouseholdTask.swift,\ PromptTone.swift,\ Room.swift $REPO/Packages/TendCore/Sources/TendCore/Model/HouseholdTask.swift $REPO/Packages/TendCore/Sources/TendCore/Model/PromptTone.swift $REPO/Packages/TendCore/Sources/TendCore/Model/Room.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/HouseholdTask.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile HouseholdTask.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/PromptTone.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile PromptTone.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/Room.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile Room.swift
+
+SwiftCompile normal arm64 Compiling\ HouseholdStoreError.swift,\ InMemoryHouseholdRepository.swift,\ JSONFileHouseholdRepository.swift $REPO/Packages/TendCore/Sources/TendCore/Persistence/HouseholdStoreError.swift $REPO/Packages/TendCore/Sources/TendCore/Persistence/InMemoryHouseholdRepository.swift $REPO/Packages/TendCore/Sources/TendCore/Persistence/JSONFileHouseholdRepository.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Persistence/HouseholdStoreError.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile HouseholdStoreError.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Persistence/InMemoryHouseholdRepository.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile InMemoryHouseholdRepository.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Persistence/JSONFileHouseholdRepository.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile JSONFileHouseholdRepository.swift
+
+SwiftCompile normal arm64 Compiling\ ContextValidity.swift,\ Moment.swift,\ NowSelection.swift $REPO/Packages/TendCore/Sources/TendCore/Selection/ContextValidity.swift $REPO/Packages/TendCore/Sources/TendCore/Selection/Moment.swift $REPO/Packages/TendCore/Sources/TendCore/Selection/NowSelection.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Selection/ContextValidity.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile ContextValidity.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Selection/Moment.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile Moment.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Selection/NowSelection.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile NowSelection.swift
+
+SwiftCompile normal arm64 Compiling\ Daypart.swift,\ Effort.swift,\ Household.swift $REPO/Packages/TendCore/Sources/TendCore/Model/Daypart.swift $REPO/Packages/TendCore/Sources/TendCore/Model/Effort.swift $REPO/Packages/TendCore/Sources/TendCore/Model/Household.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/Daypart.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile Daypart.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/Effort.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile Effort.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/Household.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile Household.swift
+
+SwiftCompile normal arm64 Compiling\ TaskInvariantViolation.swift,\ TaskKind.swift,\ TaskState.swift $REPO/Packages/TendCore/Sources/TendCore/Model/TaskInvariantViolation.swift $REPO/Packages/TendCore/Sources/TendCore/Model/TaskKind.swift $REPO/Packages/TendCore/Sources/TendCore/Model/TaskState.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/TaskInvariantViolation.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile TaskInvariantViolation.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/TaskKind.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile TaskKind.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/TaskState.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile TaskState.swift
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ TendCore (in target 'TendCore' from project 'TendCore')
+
+SwiftCompile normal arm64 (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    
+
+SwiftCompile normal arm64 Compiling\ NowSelector.swift,\ SlotCalendar.swift $REPO/Packages/TendCore/Sources/TendCore/Selection/NowSelector.swift $REPO/Packages/TendCore/Sources/TendCore/Selection/SlotCalendar.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Selection/NowSelector.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile NowSelector.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Selection/SlotCalendar.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile SlotCalendar.swift
+
+SwiftCompile normal arm64 Compiling\ WeatherCondition.swift,\ Weekday.swift,\ HouseholdRepository.swift $REPO/Packages/TendCore/Sources/TendCore/Model/WeatherCondition.swift $REPO/Packages/TendCore/Sources/TendCore/Model/Weekday.swift $REPO/Packages/TendCore/Sources/TendCore/Persistence/HouseholdRepository.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/WeatherCondition.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile WeatherCondition.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Model/Weekday.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile Weekday.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Persistence/HouseholdRepository.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile HouseholdRepository.swift
+
+SwiftCompile normal arm64 Compiling\ Completion.swift,\ RescheduleOutcome.swift,\ Rescheduler.swift $REPO/Packages/TendCore/Sources/TendCore/Rescheduling/Completion.swift $REPO/Packages/TendCore/Sources/TendCore/Rescheduling/RescheduleOutcome.swift $REPO/Packages/TendCore/Sources/TendCore/Rescheduling/Rescheduler.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Rescheduling/Completion.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile Completion.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Rescheduling/RescheduleOutcome.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile RescheduleOutcome.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendCore/Sources/TendCore/Rescheduling/Rescheduler.swift (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile Rescheduler.swift
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for TendCore (in target 'TendCore' from project 'TendCore')
+
+SwiftDriver\ Compilation\ Requirements TendCore normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name TendCore -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name tendcore -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore_const_extract_protocols.json -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-Swift.h -working-directory $REPO/Tend.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Compiling Daypart.swift, Effort.swift, Household.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftDriverJobDiscovery normal arm64 Compiling TaskInvariantViolation.swift, TaskKind.swift, TaskState.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftDriverJobDiscovery normal arm64 Compiling ContextValidity.swift, Moment.swift, NowSelection.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftMergeGeneratedHeaders $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/TendCore-Swift.h $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-Swift.h (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    builtin-swiftHeaderTool -arch arm64 $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-Swift.h -o $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/TendCore-Swift.h
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.swiftmodule/arm64-apple-ios.swiftdoc $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftdoc (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftdoc $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.swiftmodule/arm64-apple-ios.swiftdoc
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.swiftmodule/arm64-apple-ios.swiftmodule $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftmodule (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftmodule $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.swiftmodule/arm64-apple-ios.swiftmodule
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.swiftmodule/arm64-apple-ios.abi.json $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.abi.json (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.abi.json $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.swiftmodule/arm64-apple-ios.abi.json
+
+SwiftDriverJobDiscovery normal arm64 Compiling HouseholdTask.swift, PromptTone.swift, Room.swift (in target 'TendCore' from project 'TendCore')
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftsourceinfo (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftsourceinfo $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo
+
+SwiftDriverJobDiscovery normal arm64 Compiling Completion.swift, RescheduleOutcome.swift, Rescheduler.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftDriverJobDiscovery normal arm64 Compiling NowSelector.swift, SlotCalendar.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftDriverJobDiscovery normal arm64 Compiling HouseholdStoreError.swift, InMemoryHouseholdRepository.swift, JSONFileHouseholdRepository.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftDriverJobDiscovery normal arm64 Compiling WeatherCondition.swift, Weekday.swift, HouseholdRepository.swift (in target 'TendCore' from project 'TendCore')
+
+SwiftDriver\ Compilation TendCore normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Tend.xcodeproj
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name TendCore -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name tendcore -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore_const_extract_protocols.json -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore-Swift.h -working-directory $REPO/Tend.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftDriver TendIngestion normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name TendIngestion -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name tendingestion -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion_const_extract_protocols.json -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-Swift.h -working-directory $REPO/Tend.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+Ld $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.o normal (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0 -r -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -O0 -Xlinker -no_warn_duplicate_libraries -F$REPO/build/dd-eval/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos -iframework /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -iframework /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -filelist $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.LinkFileList -nostdlib -Xlinker -object_path_lto -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore_lto.o -Xlinker -no_deduplicate -Xlinker -dependency_info -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.swiftmodule -o $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.o
+
+ExtractAppIntentsMetadata (in target 'TendCore' from project 'TendCore')
+    cd $REPO/Packages/TendCore
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name TendCore --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk --xcode-version 27B52 --platform-family iOS --deployment-target 26.0 --bundle-identifier tendcore.TendCore --output $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.appintents --target-triple arm64-apple-ios26.0 --binary-file $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendCore.o --dependency-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore_dependency_info.dat --stringsdata-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.SwiftFileList --metadata-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.DependencyMetadataFileList --static-metadata-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/TendCore.DependencyStaticMetadataFileList --swift-const-vals-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendCore.build/Debug-iphoneos/TendCore-t.build/Objects-normal/arm64/TendCore.SwiftConstValuesFileList --force --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-11-27 12:04:08.957 appintentsmetadataprocessor[71397:5988796] Starting App Intents metadata extraction
+2026-11-27 12:04:09.028 appintentsmetadataprocessor[71397:5988796] Extracted no relevant App Intents symbols, skipping writing output
+
+SwiftCompile normal arm64 Compiling\ CanonicalJSON.swift,\ IngestionModel.swift,\ CloudOutputSchema.swift,\ CloudPayloadBuilder.swift,\ CloudPayloadInput.swift,\ CloudProviderTable.swift,\ CloudRequest.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/JSON/CanonicalJSON.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Model/IngestionModel.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudOutputSchema.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudPayloadBuilder.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudPayloadInput.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudProviderTable.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudRequest.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/JSON/CanonicalJSON.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CanonicalJSON.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Model/IngestionModel.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile IngestionModel.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudOutputSchema.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudOutputSchema.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudPayloadBuilder.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudPayloadBuilder.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudPayloadInput.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudPayloadInput.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudProviderTable.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudProviderTable.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudRequest.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudRequest.swift
+
+SwiftCompile normal arm64 Compiling\ CloudRequestKeyPaths.swift,\ DraftRoom.swift,\ RoomLinker.swift,\ CloudStores.swift,\ ModelRouter.swift,\ RouteRules.swift,\ RoutedDraftEvents.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudRequestKeyPaths.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Rooms/DraftRoom.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Rooms/RoomLinker.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Routing/CloudStores.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Routing/ModelRouter.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Routing/RouteRules.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Routing/RoutedDraftEvents.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Payload/CloudRequestKeyPaths.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudRequestKeyPaths.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Rooms/DraftRoom.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile DraftRoom.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Rooms/RoomLinker.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile RoomLinker.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Routing/CloudStores.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudStores.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Routing/ModelRouter.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile ModelRouter.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Routing/RouteRules.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile RouteRules.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Routing/RoutedDraftEvents.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile RoutedDraftEvents.swift
+
+SwiftCompile normal arm64 Compiling\ AnthropicStreamDialect.swift,\ GeminiStreamDialect.swift,\ OpenAIStreamDialect.swift,\ PartialJSONParser.swift,\ ProviderEventJSON.swift,\ ProviderStreamError.swift,\ ProviderStreamReader.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/AnthropicStreamDialect.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/GeminiStreamDialect.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/OpenAIStreamDialect.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/PartialJSONParser.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/ProviderEventJSON.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/ProviderStreamError.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/ProviderStreamReader.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/AnthropicStreamDialect.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile AnthropicStreamDialect.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/GeminiStreamDialect.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile GeminiStreamDialect.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/OpenAIStreamDialect.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile OpenAIStreamDialect.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/PartialJSONParser.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile PartialJSONParser.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/ProviderEventJSON.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile ProviderEventJSON.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/ProviderStreamError.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile ProviderStreamError.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/ProviderStreamReader.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile ProviderStreamReader.swift
+
+SwiftCompile normal arm64 Compiling\ ServerSentEventFramer.swift,\ StructuredOutputReader.swift,\ DraftCommit.swift,\ DraftMapper.swift,\ IngestionDraft.swift,\ PlainNote.swift,\ DuplicateLookup.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/ServerSentEventFramer.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/StructuredOutputReader.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Commit/DraftCommit.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Draft/DraftMapper.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Draft/IngestionDraft.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Draft/PlainNote.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Duplicates/DuplicateLookup.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/ServerSentEventFramer.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile ServerSentEventFramer.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/CloudOutput/StructuredOutputReader.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile StructuredOutputReader.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Commit/DraftCommit.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile DraftCommit.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Draft/DraftMapper.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile DraftMapper.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Draft/IngestionDraft.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile IngestionDraft.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Draft/PlainNote.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile PlainNote.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Duplicates/DuplicateLookup.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile DuplicateLookup.swift
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ TendIngestion (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftCompile normal arm64 (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    
+
+SwiftCompile normal arm64 Compiling\ DraftPipeline.swift,\ DraftStreamAssembler.swift,\ DraftStreamEvent.swift,\ ModelRoute.swift,\ BannedTokens.swift,\ Keywords.swift,\ SourcePhrase.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Stream/DraftPipeline.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Stream/DraftStreamAssembler.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Stream/DraftStreamEvent.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Stream/ModelRoute.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Text/BannedTokens.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Text/Keywords.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Text/SourcePhrase.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Stream/DraftPipeline.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile DraftPipeline.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Stream/DraftStreamAssembler.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile DraftStreamAssembler.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Stream/DraftStreamEvent.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile DraftStreamEvent.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Stream/ModelRoute.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile ModelRoute.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Text/BannedTokens.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile BannedTokens.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Text/Keywords.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile Keywords.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Text/SourcePhrase.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile SourcePhrase.swift
+
+SwiftCompile normal arm64 Compiling\ TextFolding.swift,\ TimeHint.swift,\ TimeResolver.swift,\ CloudResponseBody.swift,\ CloudTiming.swift,\ CloudTransport.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Text/TextFolding.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Time/TimeHint.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Time/TimeResolver.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Transport/CloudResponseBody.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Transport/CloudTiming.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Transport/CloudTransport.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Text/TextFolding.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile TextFolding.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Time/TimeHint.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile TimeHint.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Time/TimeResolver.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile TimeResolver.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Transport/CloudResponseBody.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudResponseBody.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Transport/CloudTiming.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudTiming.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Transport/CloudTransport.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CloudTransport.swift
+
+SwiftCompile normal arm64 Compiling\ DuplicateMarker.swift,\ DuplicateShortlist.swift,\ LocalWordMatch.swift,\ EvalFixtures.swift,\ EvalIDGenerator.swift,\ EvalInstant.swift,\ EvalJSON.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Duplicates/DuplicateMarker.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Duplicates/DuplicateShortlist.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Duplicates/LocalWordMatch.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalFixtures.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalIDGenerator.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalInstant.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalJSON.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Duplicates/DuplicateMarker.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile DuplicateMarker.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Duplicates/DuplicateShortlist.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile DuplicateShortlist.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Duplicates/LocalWordMatch.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile LocalWordMatch.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalFixtures.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalFixtures.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalIDGenerator.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalIDGenerator.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalInstant.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalInstant.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalJSON.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalJSON.swift
+
+SwiftCompile normal arm64 Compiling\ EvalProfile.swift,\ EvalResultsFileV1.swift,\ EvalResultsReading.swift,\ EvalSchemaCheck.swift,\ EvalScoreLog.swift,\ EvalScorer.swift,\ CalmWordsGuard.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalProfile.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalResultsFileV1.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalResultsReading.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalSchemaCheck.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalScoreLog.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalScorer.swift $REPO/Packages/TendIngestion/Sources/TendIngestion/Guard/CalmWordsGuard.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalProfile.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalProfile.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalResultsFileV1.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalResultsFileV1.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalResultsReading.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalResultsReading.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalSchemaCheck.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalSchemaCheck.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalScoreLog.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalScoreLog.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Eval/EvalScorer.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile EvalScorer.swift
+
+SwiftCompile normal arm64 $REPO/Packages/TendIngestion/Sources/TendIngestion/Guard/CalmWordsGuard.swift (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile CalmWordsGuard.swift
+
+SwiftDriverJobDiscovery normal arm64 Compiling CloudRequestKeyPaths.swift, DraftRoom.swift, RoomLinker.swift, CloudStores.swift, ModelRouter.swift, RouteRules.swift, RoutedDraftEvents.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for TendIngestion (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftDriver\ Compilation\ Requirements TendIngestion normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name TendIngestion -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name tendingestion -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion_const_extract_protocols.json -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-Swift.h -working-directory $REPO/Tend.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftMergeGeneratedHeaders $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/TendIngestion-Swift.h $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-Swift.h (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    builtin-swiftHeaderTool -arch arm64 $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-Swift.h -o $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/TendIngestion-Swift.h
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.swiftmodule/arm64-apple-ios.swiftmodule $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftmodule (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftmodule $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.swiftmodule/arm64-apple-ios.swiftmodule
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.swiftmodule/arm64-apple-ios.swiftdoc $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftdoc (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftdoc $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.swiftmodule/arm64-apple-ios.swiftdoc
+
+SwiftDriverJobDiscovery normal arm64 Compiling TextFolding.swift, TimeHint.swift, TimeResolver.swift, CloudResponseBody.swift, CloudTiming.swift, CloudTransport.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.swiftmodule/arm64-apple-ios.abi.json $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.abi.json (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.abi.json $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.swiftmodule/arm64-apple-ios.abi.json
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftsourceinfo (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftsourceinfo $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo
+
+SwiftDriver TendAI normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name TendAI -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name tendai -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI_const_extract_protocols.json -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-Swift.h -working-directory $REPO/Tend.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Compiling AnthropicStreamDialect.swift, GeminiStreamDialect.swift, OpenAIStreamDialect.swift, PartialJSONParser.swift, ProviderEventJSON.swift, ProviderStreamError.swift, ProviderStreamReader.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftDriverJobDiscovery normal arm64 Compiling DraftPipeline.swift, DraftStreamAssembler.swift, DraftStreamEvent.swift, ModelRoute.swift, BannedTokens.swift, Keywords.swift, SourcePhrase.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftDriverJobDiscovery normal arm64 Compiling ServerSentEventFramer.swift, StructuredOutputReader.swift, DraftCommit.swift, DraftMapper.swift, IngestionDraft.swift, PlainNote.swift, DuplicateLookup.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftDriverJobDiscovery normal arm64 Compiling CanonicalJSON.swift, IngestionModel.swift, CloudOutputSchema.swift, CloudPayloadBuilder.swift, CloudPayloadInput.swift, CloudProviderTable.swift, CloudRequest.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/UniformTypeIdentifiers-4ZL2FYIQ6EID5XJ4NIGR6VJN8.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreMIDI-B8SUU1PGRPHCSZNGWNBMC7YHU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/IOSurface-CL04HMIS6JE8NUSPRFB6D2HXW.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_intrinsics-7LCEDTD0IPB598JT8SNNBMXSA.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_tgmath-B44YW3H7XFAK28D1UZ7JCN2SM.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreAudioTypes-EN6N4D05M1JXNMWELRBQ6CQO7.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/dnssd-AQLQ6BE8D0LOUCBXNCKKYQIXJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreGraphics-BS338AX3BN9MNFWUVXSYMNJED.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreAudio-DJRBUZZKRP3OJMFVPG0865D84.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/OpenGLES-B01S3LV46I1I2KPQ2U18PFZOS.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Metal-Z4GD90W5B55GI3SHUOGY3S36.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/AudioToolbox-DWWHVOK1HZYXZM3PVCEOGAOGE.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Network-6YEDOSZCOFH079HMBSCXO2YAS.pcm
+
+SwiftDriverJobDiscovery normal arm64 Compiling DuplicateMarker.swift, DuplicateShortlist.swift, LocalWordMatch.swift, EvalFixtures.swift, EvalIDGenerator.swift, EvalInstant.swift, EvalJSON.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/ImageIO-8XA2A14JDEA190ZEO9TLMGBB1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/simd-8MGWOCE710KG9PZTHOZ34IEQU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/AVRouting-2NS0GD3NLV2WK8CR81OYXRYJI.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreVideo-9K6ODKZ049BZKKO2AGNFGZ86B.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/QuartzCore-4MARBL05TGPYBABS4FO3KW246.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreImage-25QYJGWEHC6E77D083F18XLH7.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreMedia-2MPWZ8YQHLIN9RPZL6SNGKLJA.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/AVFAudio-9YWPPEL1929KB0MGG4EXJVC7L.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/MediaToolbox-3C2H4BERY8Z5MZT202I6JNAU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/VideoToolbox-9L7MJA8FTWF4CDI9BL4S54K1Y.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/AVFoundation-EB2FBIDNXMX1F86RHXEG2CZBC.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Speech-6159P9WPDRBRSDLSYJNQ3PZYF.pcm
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ TendAI (in target 'TendAI' from project 'TendAI')
+
+SwiftCompile normal arm64 (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Tend.xcodeproj
+    
+
+SwiftCompile normal arm64 Compiling\ TendAIModule.swift $REPO/Packages/TendAI/Sources/TendAI/TendAIModule.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftCompile normal arm64 $REPO/Packages/TendAI/Sources/TendAI/TendAIModule.swift (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile TendAIModule.swift
+
+SwiftCompile normal arm64 Compiling\ SpeechPermission.swift $REPO/Packages/TendAI/Sources/TendAI/Speech/SpeechPermission.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftCompile normal arm64 $REPO/Packages/TendAI/Sources/TendAI/Speech/SpeechPermission.swift (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile SpeechPermission.swift
+
+SwiftCompile normal arm64 Compiling\ SpeechTranscriptionAdapter.swift $REPO/Packages/TendAI/Sources/TendAI/Speech/SpeechTranscriptionAdapter.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftCompile normal arm64 $REPO/Packages/TendAI/Sources/TendAI/Speech/SpeechTranscriptionAdapter.swift (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile SpeechTranscriptionAdapter.swift
+
+SwiftCompile normal arm64 Compiling\ MicrophoneAudioSource.swift $REPO/Packages/TendAI/Sources/TendAI/Speech/MicrophoneAudioSource.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftCompile normal arm64 $REPO/Packages/TendAI/Sources/TendAI/Speech/MicrophoneAudioSource.swift (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile MicrophoneAudioSource.swift
+
+SwiftCompile normal arm64 Compiling\ MicrophoneCaptureState.swift $REPO/Packages/TendAI/Sources/TendAI/Speech/MicrophoneCaptureState.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftCompile normal arm64 $REPO/Packages/TendAI/Sources/TendAI/Speech/MicrophoneCaptureState.swift (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Tend.xcodeproj
+    builtin-SwiftPerFileCompile MicrophoneCaptureState.swift
+
+SwiftDriverJobDiscovery normal arm64 Compiling TendAIModule.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftDriverJobDiscovery normal arm64 Compiling MicrophoneCaptureState.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for TendAI (in target 'TendAI' from project 'TendAI')
+
+SwiftDriver\ Compilation\ Requirements TendAI normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Tend.xcodeproj
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name TendAI -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name tendai -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI_const_extract_protocols.json -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-Swift.h -working-directory $REPO/Tend.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+SwiftMergeGeneratedHeaders $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/TendAI-Swift.h $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-Swift.h (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    builtin-swiftHeaderTool -arch arm64 $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-Swift.h -o $REPO/build/dd-eval/Build/Intermediates.noindex/GeneratedModuleMaps-iphoneos/TendAI-Swift.h
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.swiftmodule/arm64-apple-ios.swiftdoc $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftdoc (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftdoc $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.swiftmodule/arm64-apple-ios.swiftdoc
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.swiftmodule/arm64-apple-ios.abi.json $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.abi.json (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.abi.json $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.swiftmodule/arm64-apple-ios.abi.json
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.swiftmodule/arm64-apple-ios.swiftmodule $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftmodule (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftmodule $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.swiftmodule/arm64-apple-ios.swiftmodule
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftsourceinfo (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftsourceinfo $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo
+
+SwiftDriver TendEval normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name TendEval -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -parse-as-library -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval_const_extract_protocols.json -Xcc -iquote -Xcc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-generated-files.hmap -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-own-target-headers.hmap -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/Tend-73dba576e6168fa1555f64fd32289b57-VFS-iphoneos/all-product-headers.yaml -Xcc -iquote -Xcc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-project-headers.hmap -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-Swift.h -working-directory $REPO -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Compiling EvalProfile.swift, EvalResultsFileV1.swift, EvalResultsReading.swift, EvalSchemaCheck.swift, EvalScoreLog.swift, EvalScorer.swift, CalmWordsGuard.swift (in target 'TendIngestion' from project 'TendIngestion')
+
+SwiftDriver\ Compilation TendIngestion normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Tend.xcodeproj
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name TendIngestion -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name tendingestion -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion_const_extract_protocols.json -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion-Swift.h -working-directory $REPO/Tend.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+Ld $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.o normal (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0 -r -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -O0 -Xlinker -no_warn_duplicate_libraries -F$REPO/build/dd-eval/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos -iframework /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -iframework /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -filelist $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.LinkFileList -nostdlib -Xlinker -object_path_lto -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion_lto.o -Xlinker -no_deduplicate -Xlinker -dependency_info -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.swiftmodule -o $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.o
+
+ExtractAppIntentsMetadata (in target 'TendIngestion' from project 'TendIngestion')
+    cd $REPO/Packages/TendIngestion
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name TendIngestion --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk --xcode-version 27B52 --platform-family iOS --deployment-target 26.0 --bundle-identifier tendingestion.TendIngestion --output $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.appintents --target-triple arm64-apple-ios26.0 --binary-file $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendIngestion.o --dependency-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion_dependency_info.dat --stringsdata-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.SwiftFileList --metadata-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.DependencyMetadataFileList --static-metadata-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/TendIngestion.DependencyStaticMetadataFileList --swift-const-vals-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendIngestion.build/Debug-iphoneos/TendIngestion-t.build/Objects-normal/arm64/TendIngestion.SwiftConstValuesFileList --force --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-11-27 12:04:11.913 appintentsmetadataprocessor[71440:5989095] Starting App Intents metadata extraction
+2026-11-27 12:04:12.019 appintentsmetadataprocessor[71440:5989095] Extracted no relevant App Intents symbols, skipping writing output
+
+SwiftDriverJobDiscovery normal arm64 Compiling SpeechPermission.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_stdbool-28LAGLO47FXV46265W279KOUX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/ptrauth-CVZBH2ZDKRF6PVRJ0COZ210WP.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_AvailabilityInternal-AXFW9L4HB29GFF6SSB7TAK24Z.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/DeveloperToolsSupport-B0NZIOQ83CIKY27R2P632KCSY.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_float-7M4VW06PYWKCV2KWXX8G0UN6U.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/ptrcheck-56EBY5776U9FMT5Q6KT16S5RM.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/SwiftShims-8MSMVMIYFP67QUT5B3JTCPEOX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_stddef-2AS13A1TKLX5P7IK4TVXXG5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_stdarg-3ASBQ72JRNZ8SVLK3EVF17XEV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-A1CS469APPWRNT3W4U9X9GNTJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_DarwinFoundation1-E0AJYDMZQGPUU81EE8FE30M2U.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_limits-45GGRVV3I5IK2O81TSQYL2CA0.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_DarwinFoundation2-CZVV8PV5GHKABE7UV7R4F9WYB.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_tgmath-9MD2OAVQ7V84M51R1KPF5IMBR.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_stdint-ES9N0FC0EOKS07578KDNV9F2T.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/string_h-8KU5N1H20I3P52HM8BW7EIN4Z.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/sys_types-AGA2B1VHPW3S14QFFSKSNC5Y1.pcm
+
+SwiftDriverJobDiscovery normal arm64 Compiling MicrophoneAudioSource.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_DarwinFoundation3-8TQTZ6VBPTYQS4QAHQZ8YA22N.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_intrinsics-8LGU17ZI1WIYJDQKLHQ1J6FTJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_stdatomic-6RCB9NR8WVDOZMFPLJ0HMGMJY.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_Builtin_inttypes-D89W33278Y6PJ62XR6GDBVM09.pcm
+
+SwiftDriverJobDiscovery normal arm64 Compiling SpeechTranscriptionAdapter.swift (in target 'TendAI' from project 'TendAI')
+
+SwiftDriver\ Compilation TendAI normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Tend.xcodeproj
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name TendAI -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name tendai -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI_const_extract_protocols.json -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI-Swift.h -working-directory $REPO/Tend.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+Ld $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.o normal (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0 -r -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -O0 -Xlinker -no_warn_duplicate_libraries -F$REPO/build/dd-eval/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos -iframework /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks -iframework /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk/Developer/Library/Frameworks -filelist $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.LinkFileList -nostdlib -Xlinker -object_path_lto -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI_lto.o -Xlinker -no_deduplicate -Xlinker -dependency_info -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.swiftmodule -o $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.o
+
+ExtractAppIntentsMetadata (in target 'TendAI' from project 'TendAI')
+    cd $REPO/Packages/TendAI
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name TendAI --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk --xcode-version 27B52 --platform-family iOS --deployment-target 26.0 --bundle-identifier tendai.TendAI --output $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.appintents --target-triple arm64-apple-ios26.0 --binary-file $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendAI.o --dependency-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI_dependency_info.dat --stringsdata-file $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.SwiftFileList --metadata-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.DependencyMetadataFileList --static-metadata-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/TendAI.DependencyStaticMetadataFileList --swift-const-vals-list $REPO/build/dd-eval/Build/Intermediates.noindex/TendAI.build/Debug-iphoneos/TendAI-t.build/Objects-normal/arm64/TendAI.SwiftConstValuesFileList --force --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-11-27 12:04:12.616 appintentsmetadataprocessor[71464:5989179] Starting App Intents metadata extraction
+2026-11-27 12:04:12.680 appintentsmetadataprocessor[71464:5989179] Extracted no relevant App Intents symbols, skipping writing output
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Darwin-BYAJYQO5UOBN9UTUUDFK6F0KO.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/simd-2B8SG8QB61H56PXVDCTU5YLIW.pcm
+
+CpResource $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/inputs.json $REPO/Fixtures/M2/eval/inputs.json (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks $REPO/Fixtures/M2/eval/inputs.json $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app
+
+CpResource $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/MANIFEST.sha256 $REPO/Fixtures/M2/eval/MANIFEST.sha256 (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks $REPO/Fixtures/M2/eval/MANIFEST.sha256 $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app
+
+CpResource $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/results-v1.schema.json $REPO/Fixtures/M2/eval/results-v1.schema.json (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks $REPO/Fixtures/M2/eval/results-v1.schema.json $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app
+
+CpResource $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/golden.json $REPO/Fixtures/M2/eval/golden.json (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks $REPO/Fixtures/M2/eval/golden.json $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app
+
+CpResource $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/household.json $REPO/Fixtures/M2/eval/household.json (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks $REPO/Fixtures/M2/eval/household.json $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app
+
+ProcessInfoPlistFile $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/Info.plist $REPO/Apps/TendEval/Support/Debug-Info.plist (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-infoPlistUtility $REPO/Apps/TendEval/Support/Debug-Info.plist -producttype com.apple.product-type.application -genpkginfo $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/PkgInfo -expandbuildsettings -format binary -platform iphoneos -requiredArchitecture arm64 -o $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/Info.plist
+
+Ld $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/__preview.dylib normal (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0 -dynamiclib -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L$REPO/build/dd-eval/Build/Products/Debug-iphoneos -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos -install_name @rpath/TendEval.debug.dylib -Xlinker -dead_strip -rdynamic -Xlinker -no_deduplicate -Xlinker -dependency_info -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval_dependency_info.dat -o $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/__preview.dylib
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/ObjectiveC-E4C0DLPDNS162UJHYRZ74RTVM.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/MachO-164KUKOJVS68MK1WQ9VCMZAH7.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/os_object-DL7LX02ZIVY92MLG9A463YJ6J.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/os_workgroup-HQ8O3T94PYC8M1WZG88HYUK1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Spatial-2DFJGKUCWMW28SQUESOUCL3MO.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Dispatch-5YUS50WQAMDS53WB5C8151O49.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreFoundation-1LZVJZNWJTJO15EHXZ917XRAW.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/XPC-4JR1PY4T6LUFAOQWDRFHYN77S.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/os-5IEF3UPXJ2TCSWFWOE13UH6AO.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreGraphics-46WZCF7I77ZY1MQVGNMU4RXYR.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Security-93SITD9RUFUWO40IA93APEY7Y.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreAudioTypes-1O8SV0NGCBJB4KU3CE12QSTJ8.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CFNetwork-CREZ8A18HE1AWJIW52LM9VZ2A.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreAudio-DI7FAK3UZVYPX8O0MOY2V2T3A.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Foundation-BXCVT1LSMGLW45OI0AR83J5YQ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreText-ARHJIJHWFEKGA9SOQLBU2I32N.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/ImageIO-5CKEM4O8K2K8BZQVR02YH6331.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/DataDetection-1XEPAS3A57UX76PQHNXUEUIA1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/FileProvider-B4TI9B5ZBJJKXQB0R1F818OOH.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/UIUtilities-8TRSMG7QJ7QC2LXEGY0X27AAH.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/_LocationEssentials-E8LAL60NWITMAR6R2FOTBN252.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/UserNotifications-4IAGDHD1IWJBANRJ6BSGOM2LN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreData-E4XVSTQYO19FCHMPNYINUNV8P.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Accessibility-2L8MYUYW1NHUU57SDBQ2AMJGF.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/IOSurface-EA4GV3DESIZ8DV6KPV8MLL52C.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/UniformTypeIdentifiers-ALA37VBW5MFK3B2UP0MRWAFDL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/OSLog-4AQRRA8BRB569IB7OI4P2ZDJK.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreTransferable-CI5FXYV3QTG1I5ZVEOG2BYN9K.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Symbols-B3E6QOSPM0IVBF4DFQWLFXFWK.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreLocation-ALDYCXQTQT4P7V3SNBEZBRTGB.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/OpenGLES-BEL1L2DRFYVDV3VXU1Z018SA8.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/Metal-DXJAC04JSUQ6JY9UYINMAETW0.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreMotion-351FESVOSFO01K2FA92OJUN0H.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreVideo-4P8SH84EFXV999MPAJ9XK5DPL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreMedia-1YZ4AMA902ZRM7BKF6ZP3WDHE.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/QuartzCore-4XZDOPI27VPXYE4675D5JLFJR.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/CoreImage-8H619Z1C53RSMBZAWLD335N5A.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/SwiftUICore-1L66APGRQIOEIXP2ZW87HLP8D.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/UIKit-351HTOUBA0WEHTESGEBVOCIQQ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-eval/SDKExplicitPrecompiledModules/SwiftUI-16ZHRV5LQ9YPXJY7AVL6SJIG5.pcm
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ TendEval (in target 'TendEval' from project 'Tend')
+
+SwiftCompile normal arm64 (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    
+
+SwiftCompile normal arm64 Compiling\ TendEvalApp.swift $REPO/Apps/TendEval/Sources/TendEvalApp.swift (in target 'TendEval' from project 'Tend')
+
+SwiftCompile normal arm64 $REPO/Apps/TendEval/Sources/TendEvalApp.swift (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-SwiftPerFileCompile TendEvalApp.swift
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for TendEval (in target 'TendEval' from project 'Tend')
+
+SwiftDriver\ Compilation\ Requirements TendEval normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name TendEval -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -parse-as-library -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval_const_extract_protocols.json -Xcc -iquote -Xcc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-generated-files.hmap -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-own-target-headers.hmap -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/Tend-73dba576e6168fa1555f64fd32289b57-VFS-iphoneos/all-product-headers.yaml -Xcc -iquote -Xcc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-project-headers.hmap -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-Swift.h -working-directory $REPO -experimental-emit-module-separately -disable-cmo
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.swiftmodule/arm64-apple-ios.abi.json $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.abi.json (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.abi.json $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.swiftmodule/arm64-apple-ios.abi.json
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.swiftmodule/arm64-apple-ios.swiftdoc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftdoc (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftdoc $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.swiftmodule/arm64-apple-ios.swiftdoc
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.swiftmodule/arm64-apple-ios.swiftmodule $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftmodule (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftmodule $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.swiftmodule/arm64-apple-ios.swiftmodule
+
+SwiftMergeGeneratedHeaders $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources/TendEval-Swift.h $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-Swift.h (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-swiftHeaderTool -arch arm64 $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-Swift.h -o $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources/TendEval-Swift.h
+
+Copy $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftsourceinfo (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftsourceinfo $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo
+
+SwiftDriverJobDiscovery normal arm64 Compiling TendEvalApp.swift (in target 'TendEval' from project 'Tend')
+
+SwiftDriver\ Compilation TendEval normal arm64 com.apple.xcode.tools.swift.compiler (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name TendEval -Onone @$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path $REPO/build/dd-eval/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I $REPO/build/dd-eval/Build/Products/Debug-iphoneos -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F $REPO/build/dd-eval/Build/Products/Debug-iphoneos -parse-as-library -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc $REPO/build/dd-eval/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-eval/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-eval/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-eval/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval_const_extract_protocols.json -Xcc -iquote -Xcc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-generated-files.hmap -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-own-target-headers.hmap -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/Tend-73dba576e6168fa1555f64fd32289b57-VFS-iphoneos/all-product-headers.yaml -Xcc -iquote -Xcc $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-project-headers.hmap -Xcc -I$REPO/build/dd-eval/Build/Products/Debug-iphoneos/include -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval-Swift.h -working-directory $REPO -experimental-emit-module-separately -disable-cmo
+
+Ld $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/TendEval.debug.dylib normal (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0 -dynamiclib -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L$REPO/build/dd-eval/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos -L$REPO/build/dd-eval/Build/Products/Debug-iphoneos -F$REPO/build/dd-eval/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphoneos -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos -filelist $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.LinkFileList -install_name @rpath/TendEval.debug.dylib -Xlinker -rpath -Xlinker @loader_path -Xlinker -rpath -Xlinker $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -Xlinker -object_path_lto -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -dependency_info -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.swiftmodule -Xlinker -alias -Xlinker _main -Xlinker ___debug_main_executable_dylib_entry_point -o $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/TendEval.debug.dylib
+
+ConstructStubExecutorLinkFileList $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-ExecutorLinkFileList-normal-arm64.txt (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    construct-stub-executor-link-file-list $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/TendEval.debug.dylib /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/libPreviewsJITStubExecutor_no_swift_entry_point.a /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/libPreviewsJITStubExecutor.a --output $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-ExecutorLinkFileList-normal-arm64.txt
+note: Using stub executor library with Swift entry point. (in target 'TendEval' from project 'Tend')
+
+Ld $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/TendEval normal (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L$REPO/build/dd-eval/Build/Products/Debug-iphoneos -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -F$REPO/build/dd-eval/Build/Products/Debug-iphoneos -Xlinker -rpath -Xlinker @executable_path -Xlinker -rpath -Xlinker @loader_path -Xlinker -rpath -Xlinker $REPO/build/dd-eval/Build/Products/Debug-iphoneos/PackageFrameworks -Xlinker -rpath -Xlinker @executable_path/Frameworks -rdynamic -Xlinker -no_deduplicate -e ___debug_blank_executor_main -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_dylib -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-DebugDylibPath-normal-arm64.txt -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_instlnm -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-DebugDylibInstallName-normal-arm64.txt -Xlinker -filelist -Xlinker $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval-ExecutorLinkFileList-normal-arm64.txt $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/TendEval.debug.dylib -o $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/TendEval
+
+CopySwiftLibs $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-swiftStdLibTool --copy --verbose --scan-executable $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/TendEval.debug.dylib --scan-folder $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/Frameworks --scan-folder $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/PlugIns --scan-folder $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/SystemExtensions --scan-folder $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/Extensions --platform iphoneos --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+Ignoring --strip-bitcode because --sign was not passed
+
+ExtractAppIntentsMetadata (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name TendEval --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk --xcode-version 27B52 --platform-family iOS --deployment-target 26.0 --bundle-identifier com.tend.eval --output $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app --target-triple arm64-apple-ios26.0 --binary-file $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/TendEval --dependency-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval_dependency_info.dat --stringsdata-file $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.SwiftFileList --metadata-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval.DependencyMetadataFileList --static-metadata-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval.DependencyStaticMetadataFileList --swift-const-vals-list $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/Objects-normal/arm64/TendEval.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-11-27 12:04:16.092 appintentsmetadataprocessor[71517:5989340] Starting App Intents metadata extraction
+2026-11-27 12:04:16.093 appintentsmetadataprocessor[71517:5989340] warning: Metadata extraction skipped, no AppIntents.framework dependency found
+
+AppIntentsSSUTraining (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/Info.plist --temp-dir-path $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/ssu --bundle-id com.tend.eval --product-path $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app --extracted-metadata-path $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/Metadata.appintents --metadata-file-list $REPO/build/dd-eval/Build/Intermediates.noindex/Tend.build/Debug-iphoneos/TendEval.build/TendEval.DependencyMetadataFileList --source-file $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app/Info.plist --archive-ssu-assets
+2026-11-27 12:04:16.119 appintentsnltrainingprocessor[71518:5989341] Parsing options for appintentsnltrainingprocessor
+2026-11-27 12:04:16.120 appintentsnltrainingprocessor[71518:5989341] Starting AppIntents SSU YAML Generation
+2026-11-27 12:04:16.120 appintentsnltrainingprocessor[71518:5989341] No AppShortcuts found - Skipping.
+
+RegisterExecutionPolicyException $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-RegisterExecutionPolicyException $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app
+
+Validate $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    builtin-validationUtility $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app -shallow-bundle -infoplist-subpath Info.plist
+warning: All interface orientations must be supported unless the app requires full screen. (in target 'TendEval' from project 'Tend')
+
+Touch $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app (in target 'TendEval' from project 'Tend')
+    cd $REPO
+    /usr/bin/touch -c $REPO/build/dd-eval/Build/Products/Debug-iphoneos/TendEval.app
+
+PruneExplicitPrecompiledModules $REPO/build/dd-eval/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules $REPO/build/dd-eval/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules $REPO/build/dd-eval/SDKExplicitPrecompiledModules
+
+** BUILD SUCCEEDED **
+
