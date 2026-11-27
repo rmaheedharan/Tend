@@ -3,12 +3,17 @@
 //
 // The input node's tap gives buffers in the hardware format; each is converted to the transcriber's format and passed
 // straight on as an `AnalyzerInput`. No buffer is kept after it is passed on, and nothing is written or logged (P-4).
-// The audio stops when the stream ends: `stop()` (the person is done speaking) finishes it normally, which is the end
-// of the utterance; an engine that cannot start, or a converter error, finishes it with an error.
+// - `stop()` (the person is done speaking) ends the utterance: the stream finishes normally. A stop that comes while
+//   the capture is still starting is remembered, so the microphone never starts after it (review PR #42 M1).
+// - **One capture at a time:** a second `audio(in:)` while one is starting or running finishes at once with
+//   `audioNotStarted` and does not touch the first. After a capture ends, the source can be used again.
+// - An engine that cannot start, or a converter that cannot be made, finishes the stream with `audioNotStarted`; on
+//   iOS the audio session is set inactive again on every such exit (review m2). A buffer that cannot be converted
+//   finishes it with `conversionStopped`; the teardown then runs on a task, never inside the tap callback.
 //
 // It needs the microphone permission (`SpeechPermission`), and on iOS an active audio session, which this source sets
-// for recording while it runs. Verified on device in DS-1 and DS-2 (the iOS Simulator and a headless Mac test have no
-// microphone).
+// for recording while it runs. Verified on device in DS-1 and DS-2 (a headless Mac test and the Simulator have no
+// microphone to drive); the state rules are unit-tested in `MicrophoneCaptureState`.
 
 import AVFAudio
 import Foundation
@@ -16,61 +21,85 @@ import Speech
 
 /// Why the microphone audio stopped by itself.
 public enum MicrophoneAudioStop: Error, Hashable, Sendable {
-    /// The audio engine could not start (no input, or the session could not be activated).
+    /// The audio engine could not start (no input, the session could not be activated, or another capture is active).
     case audioNotStarted
     /// A buffer could not be converted to the transcriber's format.
     case conversionStopped
 }
 
 public final class MicrophoneAudioSource: CaptureAudioSource, @unchecked Sendable {
-    // @unchecked Sendable: `engine` and `continuation` are touched only under `lock`; the tap block reads the
-    // converter, which is created before the tap is installed and never changed. Reviewer sign-off needed (skill).
+    // @unchecked Sendable (Reviewer sign-off needed, skill rule): `lock` guards the three stored fields, `state`,
+    // `engine` and `continuation`, and every read or write of them. The `AVAudioEngine` methods (`prepare`, `start`,
+    // `removeTap`, `stop`) run outside the lock, but only by the one party that owns the capture's token at that
+    // moment: the start path until `markRunning` succeeds, then whoever takes the engine out of `engine` under the lock
+    // (`stop()`, the stream's termination, or a conversion stop), which happens once. So no two threads ever call one
+    // engine at the same time. The tap block only reads the converter (made before the tap is installed, never
+    // changed) and calls the continuation, which is `Sendable`.
     private let lock = NSLock()
-    private var engine: AVAudioEngine?
-    private var continuation: AsyncThrowingStream<AnalyzerInput, any Error>.Continuation?
+    private var state = MicrophoneCaptureState()
+    private var engine: (token: UInt64, engine: AVAudioEngine)?
+    private var continuation: (token: UInt64, continuation: AsyncThrowingStream<AnalyzerInput, any Error>.Continuation)?
 
     public init() {}
 
     public func audio(in format: AVAudioFormat) -> AsyncThrowingStream<AnalyzerInput, any Error> {
         AsyncThrowingStream { continuation in
-            continuation.onTermination = { [weak self] _ in self?.tearDown() }
-            do {
-                try start(format: format, continuation: continuation)
-            } catch {
+            guard let token = lock.withLock({ state.begin() }) else {
                 continuation.finish(throwing: MicrophoneAudioStop.audioNotStarted)
+                return
             }
+            lock.withLock { self.continuation = (token, continuation) }
+            continuation.onTermination = { [weak self] _ in self?.end(token) }
+            start(token: token, format: format, continuation: continuation)
         }
     }
 
-    /// The person is done speaking: ends the utterance (the stream finishes normally).
+    /// The person is done speaking: ends the utterance (the stream finishes normally). Before the capture has started,
+    /// it is remembered and the microphone never starts.
     public func stop() {
-        let continuation = lock.withLock { () -> AsyncThrowingStream<AnalyzerInput, any Error>.Continuation? in
-            let current = self.continuation
+        let (result, continuation) = lock.withLock { () -> (MicrophoneCaptureState.StopResult,
+                                                            AsyncThrowingStream<AnalyzerInput, any Error>.Continuation?) in
+            let result = state.stop()
+            guard case .wasRunning = result else { return (result, nil) }
+            let current = self.continuation?.continuation
             self.continuation = nil
-            return current
+            return (result, current)
         }
-        tearDown()
-        continuation?.finish()
+        if case let .wasRunning(token) = result {
+            tearDown(takeEngine(token))
+            continuation?.finish()
+        }
     }
 
-    private func start(format: AVAudioFormat,
-                       continuation: AsyncThrowingStream<AnalyzerInput, any Error>.Continuation) throws {
+    private func start(token: UInt64, format: AVAudioFormat,
+                       continuation: AsyncThrowingStream<AnalyzerInput, any Error>.Continuation) {
+        guard lock.withLock({ state.mayActivate(token) }) else {
+            // Stopped while starting: an empty utterance, and nothing was activated.
+            finishStart(token, continuation, error: nil, sessionActive: false)
+            return
+        }
         #if os(iOS)
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: [])
-        try session.setActive(true, options: [])
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.record, mode: .measurement, options: [])
+            try session.setActive(true, options: [])
+        } catch {
+            finishStart(token, continuation, error: .audioNotStarted, sessionActive: true)
+            return
+        }
         #endif
         let engine = AVAudioEngine()
         let input = engine.inputNode
         let hardware = input.outputFormat(forBus: 0)
         guard let converter = AVAudioConverter(from: hardware, to: format) else {
-            throw MicrophoneAudioStop.audioNotStarted
+            finishStart(token, continuation, error: .audioNotStarted, sessionActive: true)
+            return
         }
         let ratio = format.sampleRate / hardware.sampleRate
-        input.installTap(onBus: 0, bufferSize: 4_096, format: hardware) { buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 4_096, format: hardware) { [weak self] buffer, _ in
             let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up)) + 16
             guard let converted = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else {
-                continuation.finish(throwing: MicrophoneAudioStop.conversionStopped)
+                self?.conversionStopped(token)
                 return
             }
             var given = false
@@ -85,29 +114,87 @@ public final class MicrophoneAudioSource: CaptureAudioSource, @unchecked Sendabl
                 return buffer
             }
             if status == .error || error != nil {
-                continuation.finish(throwing: MicrophoneAudioStop.conversionStopped)
+                self?.conversionStopped(token)
                 return
             }
             if converted.frameLength > 0 { continuation.yield(AnalyzerInput(buffer: converted)) }
         }
-        lock.withLock {
-            self.engine = engine
-            self.continuation = continuation
+        let running = lock.withLock { () -> Bool in
+            guard state.markRunning(token) else { return false }
+            self.engine = (token, engine)
+            return true
         }
-        engine.prepare()
-        try engine.start()
+        guard running else {
+            // Stopped while the engine was being made: remove the tap, never start it.
+            input.removeTap(onBus: 0)
+            finishStart(token, continuation, error: nil, sessionActive: true)
+            return
+        }
+        do {
+            engine.prepare()
+            try engine.start()
+        } catch {
+            _ = lock.withLock { state.end(token) }
+            tearDown(takeEngine(token))
+            continuation.finish(throwing: MicrophoneAudioStop.audioNotStarted)
+        }
     }
 
-    private func tearDown() {
-        let engine = lock.withLock { () -> AVAudioEngine? in
-            let current = self.engine
-            self.engine = nil
-            self.continuation = nil
-            return current
+    /// Ends a capture that never ran: the state is released, the iOS session set inactive if it was activated, and
+    /// the stream finished (normally after a stop, else with `error`).
+    private func finishStart(_ token: UInt64, _ continuation: AsyncThrowingStream<AnalyzerInput, any Error>.Continuation,
+                             error: MicrophoneAudioStop?, sessionActive: Bool) {
+        lock.withLock {
+            _ = state.end(token)
+            if self.continuation?.token == token { self.continuation = nil }
         }
+        if sessionActive { Self.deactivateSession() }
+        if let error { continuation.finish(throwing: error) } else { continuation.finish() }
+    }
+
+    /// The stream of `token` ended (termination): tear down that capture only.
+    private func end(_ token: UInt64) {
+        let owned = lock.withLock { () -> Bool in
+            let owned = state.end(token)
+            if self.continuation?.token == token { self.continuation = nil }
+            return owned
+        }
+        if owned { tearDown(takeEngine(token)) }
+    }
+
+    /// Called from the tap thread: the teardown runs on a task, not inside the tap callback (review m2).
+    private func conversionStopped(_ token: UInt64) {
+        Task { [weak self] in
+            guard let self else { return }
+            let continuation = self.lock.withLock { () -> AsyncThrowingStream<AnalyzerInput, any Error>.Continuation? in
+                guard self.state.end(token), self.continuation?.token == token else { return nil }
+                let current = self.continuation?.continuation
+                self.continuation = nil
+                return current
+            }
+            guard let continuation else { return }
+            self.tearDown(self.takeEngine(token))
+            continuation.finish(throwing: MicrophoneAudioStop.conversionStopped)
+        }
+    }
+
+    /// Takes the engine of `token` out of the source, once.
+    private func takeEngine(_ token: UInt64) -> AVAudioEngine? {
+        lock.withLock {
+            guard let stored = self.engine, stored.token == token else { return nil }
+            self.engine = nil
+            return stored.engine
+        }
+    }
+
+    private func tearDown(_ engine: AVAudioEngine?) {
         guard let engine else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+        Self.deactivateSession()
+    }
+
+    private static func deactivateSession() {
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         #endif

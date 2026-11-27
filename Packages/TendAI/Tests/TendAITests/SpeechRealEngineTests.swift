@@ -54,9 +54,15 @@ enum SpokenFixture {
         let say = Process()
         say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
         say.arguments = ["-o", url.path, "--data-format=LEI16@16000", sentence]
-        try say.run()
-        say.waitUntilExit()
-        try #require(say.terminationStatus == 0)
+        do {
+            try say.run()
+            say.waitUntilExit()
+            try #require(say.terminationStatus == 0)
+        } catch {
+            // Never leave the synthetic file behind (review PR #42 n2).
+            try? FileManager.default.removeItem(at: url)
+            throw error
+        }
         return url
     }
 

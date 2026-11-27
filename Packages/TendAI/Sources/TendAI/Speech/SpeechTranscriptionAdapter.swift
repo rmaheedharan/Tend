@@ -109,6 +109,15 @@ enum TranscriberChoice: Hashable, Sendable {
     case use(SpeechTranscriberKind)
     case unavailable(SpeechUnavailableReason)
 
+    /// The choice when `excluded` transcribers are not usable (a transcriber with no audio format, review PR #42 m4).
+    static func choose(speech: TranscriberStatus, dictation: TranscriberStatus,
+                       excluding excluded: Set<SpeechTranscriberKind>) -> TranscriberChoice {
+        var speech = speech, dictation = dictation
+        if excluded.contains(.speechTranscriber) { speech.assetsInstalled = false; speech.isAvailable = false }
+        if excluded.contains(.dictationTranscriber) { dictation.assetsInstalled = false; dictation.isAvailable = false }
+        return choose(speech: speech, dictation: dictation)
+    }
+
     static func choose(speech: TranscriberStatus, dictation: TranscriberStatus) -> TranscriberChoice {
         if speech.isAvailable && speech.supportsLocale && speech.assetsInstalled { return .use(.speechTranscriber) }
         if dictation.isAvailable && dictation.supportsLocale && dictation.assetsInstalled {
@@ -128,8 +137,8 @@ struct TranscriptPiece: Hashable, Sendable {
 }
 
 protocol SpeechEngine: Sendable {
-    /// Which transcriber this capture uses, or why none can.
-    func choice(for locale: Locale) async -> TranscriberChoice
+    /// Which transcriber this capture uses, or why none can, leaving out `excluded` (ones with no audio format).
+    func choice(for locale: Locale, excluding excluded: Set<SpeechTranscriberKind>) async -> TranscriberChoice
     /// The audio format the transcriber takes, or nil.
     func audioFormat(for kind: SpeechTranscriberKind, locale: Locale) async -> AVAudioFormat?
     /// Transcribes `input` until it ends, then finalizes. Ends normally after the last final result, or throws.
@@ -157,7 +166,7 @@ public struct SpeechCapture: Sendable {
 
     /// Which transcriber a capture would use now, or why none can (the eval's preconditions; M3's capture screen).
     public func readiness() async -> SpeechReadiness {
-        switch await engine.choice(for: locale) {
+        switch await engine.choice(for: locale, excluding: []) {
         case let .use(kind): .ready(kind)
         case let .unavailable(reason): .unavailable(reason)
         }
@@ -186,14 +195,23 @@ public struct SpeechCapture: Sendable {
 
     private static func run(engine: any SpeechEngine, locale: Locale, source: some CaptureAudioSource,
                             emit: (SpeechCaptureEvent) -> Void) async -> SpeechCaptureOutcome {
-        let kind: SpeechTranscriberKind
-        switch await engine.choice(for: locale) {
-        case let .use(chosen): kind = chosen
-        case let .unavailable(reason): return .unavailable(reason)
+        // SpeechTranscriber first, then DictationTranscriber; a transcriber with no audio format on this device is
+        // left out and the next one tried (review PR #42 m4). The one used is reported.
+        var excluded: Set<SpeechTranscriberKind> = []
+        var picked: (kind: SpeechTranscriberKind, format: AVAudioFormat)?
+        while picked == nil {
+            switch await engine.choice(for: locale, excluding: excluded) {
+            case let .use(kind):
+                if let format = await engine.audioFormat(for: kind, locale: locale) {
+                    picked = (kind, format)
+                } else {
+                    excluded.insert(kind)
+                }
+            case let .unavailable(reason):
+                return excluded.isEmpty ? .unavailable(reason) : .unavailable(.audioFormatUnavailable)
+            }
         }
-        guard let format = await engine.audioFormat(for: kind, locale: locale) else {
-            return .unavailable(.audioFormatUnavailable)
-        }
+        guard let (kind, format) = picked else { return .unavailable(.audioFormatUnavailable) }
         emit(.transcriberChosen(kind))
         let audio = AudioEndWatch(source.audio(in: format))
         var finals: [String] = []
@@ -259,7 +277,7 @@ actor AudioEndState {
 
 /// `SpeechAnalyzer` with `SpeechTranscriber` or `DictationTranscriber`, on device.
 struct SpeechAnalyzerEngine: SpeechEngine {
-    func choice(for locale: Locale) async -> TranscriberChoice {
+    func choice(for locale: Locale, excluding excluded: Set<SpeechTranscriberKind>) async -> TranscriberChoice {
         let speechLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale)
         let dictationLocale = await DictationTranscriber.supportedLocale(equivalentTo: locale)
         // "Installed" is read from the device's installed locales: `AssetInventory.status` reads `supported` for an
@@ -273,7 +291,7 @@ struct SpeechAnalyzerEngine: SpeechEngine {
             isAvailable: true, supportsLocale: dictationLocale != nil,
             assetsInstalled: dictationLocale.map { wanted in dictationInstalled.contains { Self.same($0, wanted) } }
                 ?? false)
-        return TranscriberChoice.choose(speech: speech, dictation: dictation)
+        return TranscriberChoice.choose(speech: speech, dictation: dictation, excluding: excluded)
     }
 
     /// Two locales name the same language and region (`en_US` = `en-US`).
@@ -297,8 +315,9 @@ struct SpeechAnalyzerEngine: SpeechEngine {
                 // The assets are on the device (checked by `choice`); this registers them for this process and
                 // returns nil. A non-nil request means a download, which a capture never starts.
                 let module = Self.module(kind, resolved)
-                let pending = (try? await AssetInventory.assetInstallationRequest(supporting: [module])) ?? nil
-                guard pending == nil else {
+                guard await AssetCheck.installed({
+                    try await AssetInventory.assetInstallationRequest(supporting: [module])
+                }) else {
                     continuation.finish(throwing: SpeechEngineStop.assetsMissing)
                     return
                 }
@@ -357,6 +376,19 @@ struct SpeechAnalyzerEngine: SpeechEngine {
         switch kind {
         case .speechTranscriber: SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
         case .dictationTranscriber: DictationTranscriber(locale: locale, preset: .progressiveLongDictation)
+        }
+    }
+}
+
+/// Whether a module's assets may be used now: only when the installation request says there is nothing to download
+/// (nil). A pending request (a download) or a thrown error (an unknown asset state) means no: the capture ends
+/// `stopped(transcriptionStopped)` and never starts a download (review PR #42 m5).
+enum AssetCheck {
+    static func installed<Request>(_ request: () async throws -> Request?) async -> Bool {
+        do {
+            return try await request() == nil
+        } catch {
+            return false
         }
     }
 }

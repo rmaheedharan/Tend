@@ -11,6 +11,10 @@ import TendIngestion
 /// A scripted transcriber: its choice, its format, and the pieces it gives once the audio has ended.
 struct ScriptedEngine: SpeechEngine {
     var chosen: TranscriberChoice = .use(.speechTranscriber)
+    /// The choice when `chosen`'s transcriber is excluded (it had no audio format).
+    var fallback: TranscriberChoice = .unavailable(.assetsNotInstalled)
+    /// Kinds that have no audio format.
+    var noFormat: Set<SpeechTranscriberKind> = []
     var format: AVAudioFormat? = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1,
                                                interleaved: true)
     /// Pieces given while the audio runs (one per audio buffer received, in order), then after it ends.
@@ -19,8 +23,17 @@ struct ScriptedEngine: SpeechEngine {
     var failAtEnd = false
     let log = EngineLog()
 
-    func choice(for locale: Locale) async -> TranscriberChoice { chosen }
-    func audioFormat(for kind: SpeechTranscriberKind, locale: Locale) async -> AVAudioFormat? { format }
+    func choice(for locale: Locale, excluding excluded: Set<SpeechTranscriberKind>) async -> TranscriberChoice {
+        if case let .use(kind) = chosen, excluded.contains(kind) {
+            if case let .use(other) = fallback, excluded.contains(other) { return .unavailable(.assetsNotInstalled) }
+            return fallback
+        }
+        return chosen
+    }
+
+    func audioFormat(for kind: SpeechTranscriberKind, locale: Locale) async -> AVAudioFormat? {
+        noFormat.contains(kind) ? nil : format
+    }
 
     func transcribe(_ kind: SpeechTranscriberKind, locale: Locale,
                     input: AsyncThrowingStream<AnalyzerInput, any Error>) -> AsyncThrowingStream<TranscriptPiece, any Error> {
@@ -234,7 +247,7 @@ struct TranscriberChoiceTests {
         TranscriberStatus(isAvailable: bits & 1 != 0, supportsLocale: bits & 2 != 0, assetsInstalled: bits & 4 != 0)
     }
 
-    @Test("Every combination of the two transcribers' states gives the plan's choice (64 cases, independent table)")
+    @Test("Every combination of the two transcribers' states gives the plan's choice (64 cases)")
     func everyCombination() {
         var seen: Set<TranscriberChoice> = []
         for s in 0..<8 {
@@ -285,5 +298,58 @@ struct SpeechNamesTests {
             // Source-code names are matched as AC-M1-02 does (a case-insensitive substring of the identifier).
             #expect(!BannedTokens.all.contains { name.lowercased().contains($0) }, "\(name)")
         }
+    }
+}
+
+@Suite("Speech round 2 (WI-M2-M3; review PR #42 m4, m5)")
+struct SpeechRoundTwoTests {
+    @Test("m4: when SpeechTranscriber has no audio format, the capture falls back to DictationTranscriber and reports it")
+    func formatFallback() async {
+        let engine = ScriptedEngine(fallback: .use(.dictationTranscriber), noFormat: [.speechTranscriber],
+                                    atEnd: [TranscriptPiece(text: "Mop the floor", isFinal: true)])
+        let events = await collect(SpeechCapture(engine: engine, locale: en), FakeAudioSource())
+        #expect(events.first == .transcriberChosen(.dictationTranscriber))
+        #expect(events.last == .finished(.transcribed(FinalTranscript(text: "Mop the floor",
+                                                                      transcriber: .dictationTranscriber))))
+    }
+
+    @Test("m4: when neither transcriber has an audio format, the capture ends unavailable(audioFormatUnavailable)")
+    func noFormatAnywhere() async {
+        let engine = ScriptedEngine(fallback: .use(.dictationTranscriber),
+                                    noFormat: [.speechTranscriber, .dictationTranscriber])
+        let source = FakeAudioSource()
+        let events = await collect(SpeechCapture(engine: engine, locale: en), source)
+        #expect(events == [.finished(.unavailable(.audioFormatUnavailable))])
+        #expect(await source.log.formats.isEmpty)
+    }
+
+    @Test("m4: with no other transcriber usable, a missing format ends unavailable(audioFormatUnavailable)")
+    func noFallback() async {
+        let engine = ScriptedEngine(fallback: .unavailable(.languageNotSupported), noFormat: [.speechTranscriber])
+        let events = await collect(SpeechCapture(engine: engine, locale: en), FakeAudioSource())
+        #expect(events == [.finished(.unavailable(.audioFormatUnavailable))])
+    }
+
+    @Test("m4: the exclusion makes the choice skip a transcriber, and only that one")
+    func exclusion() {
+        let ready = TranscriberStatus(isAvailable: true, supportsLocale: true, assetsInstalled: true)
+        #expect(TranscriberChoice.choose(speech: ready, dictation: ready, excluding: [.speechTranscriber])
+                == .use(.dictationTranscriber))
+        #expect(TranscriberChoice.choose(speech: ready, dictation: ready, excluding: [.dictationTranscriber])
+                == .use(.speechTranscriber))
+        #expect(TranscriberChoice.choose(speech: ready, dictation: ready, excluding: []) == .use(.speechTranscriber))
+        if case .use = TranscriberChoice.choose(speech: ready, dictation: ready,
+                                               excluding: [.speechTranscriber, .dictationTranscriber]) {
+            Issue.record("both excluded must give no transcriber")
+        }
+    }
+
+    struct Unknown: Error {}
+
+    @Test("m5: assets may be used only when the installation request is nil; a pending request or a throw means no")
+    func assetCheck() async {
+        #expect(await AssetCheck.installed { () async throws -> Int? in nil })
+        #expect(await AssetCheck.installed { () async throws -> Int? in 1 } == false)
+        #expect(await AssetCheck.installed { () async throws -> Int? in throw Unknown() } == false)
     }
 }
