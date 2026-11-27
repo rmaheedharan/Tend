@@ -2,9 +2,10 @@
 
 - **Owner:** Acceptance Tester  ·  **Run by:** the human owner  ·  **Date written:** 2026-11-27  ·  **Base:** `origin/main`
   `41bf8fa`, branch `m2/sp1-device-script`
-- **Version:** v2 (2026-11-27), answers review PR #48 round 1 (M1, m1-m4, n1, n2, i1, i2).
-- **Status:** READY FOR THE DEVELOPER (Part D below). The owner runs it only after the Tester has filled in the
-  "Values" table and done the pre-run checks (Part T).
+- **Version:** v3 (2026-11-27), for the final probe build `c07e12a` (review `review-sp1-probe.md` round 3, items 1-7).
+  v2 answered review PR #48 round 1 (M1, m1-m4, n1, n2, i1, i2).
+- **Status:** READY FOR THE OWNER. Part D is delivered on `m2/sp1-probe`; the Tester has filled in the "Values" table
+  and recorded Part T (T1-T5) at `SP1-COMMIT` below. Still information only (not AC evidence).
 - **What it is:** a short spike that answers R-1: "is the on-device time to first item (TTFI) under 1.5 s on the real
   gate phone, with one duplicate-lookup `Tool` call per capture?" (PO ruling 2026-11-27, `po-m2-r1-latency.md`,
   option (d)). It also checks three speech things on the real phone: the T-27 permission prompt, a quick stop, and stop
@@ -112,15 +113,26 @@ review PR #48 m4).
    SP1|seq=..|capture|n=1|transcriber=speechTranscriber
    SP1|seq=..|capture|n=1|stop_tapped
    SP1|seq=..|capture|n=1|finished=transcribed|ms_stop_to_finished=180|words=7|text=Water the plants and wash the car
-   SP1|seq=..|quickstop|try=1|when=beforeChosen|finished=nothingHeard|ms_stop_to_finished=40
+   SP1|seq=..|quickstop|try=1|when=beforeChosen|firststop=planned|finished=nothingHeard|ms_stop_to_finished=40|restops=0
    SP1|seq=..|quickstop|done
    ```
+   Optional, only when **[Stop]** is tapped during the quick stop test: `SP1|seq=<n>|quickstop|try=<n>|stop_tapped`.
+   The full shapes (build `c07e12a`) are:
+   `SP1|seq=<n>|quickstop|try=<1-10>|when=<beforeChosen|atChosen>|firststop=<planned|timer>|finished=<outcome>|ms_stop_to_finished=<ms|none>|restops=<0-3>`,
+   `SP1|seq=<n>|quickstop|try=<n>|stop_tapped` and `SP1|seq=<n>|quickstop|done`. `finished=` is `transcribed`,
+   `nothingHeard`, `unavailable(<r>)`, `stopped(<r>)`, `cancelled`, or `none` (no `finished` event came; see D4.7).
    The transcript text is printed only because the owner reads a fixed invented sentence (P-4: nothing is stored by the
    app; no audio is kept).
 7. **[Quick stop test]** runs 10 tries by itself, 1 s apart, with the same source: tries 1-5 call `stop()` right after
    the capture is started (before `transcriberChosen`); tries 6-10 call `stop()` at the `transcriberChosen` event (the
    M1-r2 window). Each try prints its line. After try 10 it prints `quickstop|done` and shows "Look at the top of the
    screen now" with a 10-second countdown.
+   **Per-try limit.** If no `finished` event comes within 5 s of the latest stop, the source is stopped again, up to
+   3 times (`restops`). If there is still no `finished` after that, the try is cancelled and its line prints
+   `finished=none`. If one of tries 6-10 gets no `transcriberChosen` within 5 s of its start, the timer makes the first
+   stop and the line prints `firststop=timer` (otherwise `firststop=planned`). `ms_stop_to_finished` is always counted
+   from the **first** stop to `finished` (`none` if no `finished` came). So one try takes at most about 25 s
+   (5 s + 4 × 5 s).
 
 **D5. Dry run and command check (owner's Mac, through Remote Control).**
 1. Run B5 with the probe present: it passes, and `SP1TimingProbe` shows as skipped.
@@ -167,14 +179,29 @@ If you do not provide D7, the owner skips Part V.
 - T5. Fill in the "Values" table and correct any command the Developer reported in D5.4. Then tell the Orchestrator
   "SP-1 ready for the owner".
 
+### Part T results at `SP1-COMMIT` = `c07e12a9647c7612b720a4d598d9f535870ca1b6` (Acceptance Tester, 2026-11-27)
+
+Run by the Acceptance Tester in the Linux container after `git fetch origin` (`origin/m2/sp1-probe` head `2b2daed`).
+Information only for SP-1; none of this is evidence for any AC.
+| Check | Command / source | Result |
+|---|---|---|
+| T1 | `git merge-base --is-ancestor fad715a c07e12a` and `git merge-base --is-ancestor 8c324a6 c07e12a` | Both exit 0. `8c324a6` is the PR #44 head that holds the M1-r2 fix; see T5 for its approval. |
+| T2 | `git grep -n -e 'Fixtures/M2/eval' -e 'inputs.json' -e 'golden.json' c07e12a -- Packages/TendAI/HostedTests Apps/TendAITestHost` | Prints nothing (exit 1). The 8 dev-set texts in `SP1TimingProbe.swift` at `c07e12a`, compared with the 20 `text` values of `Fixtures/M2/eval/inputs.json` at `c07e12a` (case-insensitive, both ways "equal or contained"): 0 overlaps. `git diff origin/main c07e12a -- Fixtures` is empty. |
+| T3 | `git show c07e12a:project.yml`; `git grep -n NSSpeechRecognitionUsageDescription c07e12a -- ':!docs'` | `TendAITestHost` has `INFOPLIST_KEY_NSMicrophoneUsageDescription: "TendAITestHost uses the microphone to test voice capture. Nothing is saved."` (no banned word). `NSSpeechRecognitionUsageDescription`: 0 hits in `project.yml` and 0 outside `docs/` (the only hits are in docs and in the old MS-1 probe evidence file). `TEND_BUNDLE_PREFIX` default `com.tend` for both bundles. |
+| T4 | `docs/milestones/M2/evidence/mac/SP-1-r4/` (on `m2/sp1-probe`) | 23 of 23 SHA-256 lines in its README verify (`sha256sum -c`). B0 and D5 headers print `c07e12a9647c7612b720a4d598d9f535870ca1b6` with an empty `git status --porcelain`; both "after" files are empty. `logs/mac-B5-hosted.log`: `Test run with 37 tests in 6 suites passed`, the SP-1 probe test `skipped`, `** TEST SUCCEEDED **`. `d5/d5-b5-custom-prefix.log`: 37 tests in 6 suites passed with a custom prefix. `d5/d5-probe-lines.txt`: 28 `SP1|` lines in the D3 shape (header, cold, 24 warm, summary, footer; Simulator `model` lines say `noModel`, which is expected there and is not an SP-1 result). `d5/d5-console-lines.txt`: the speech-screen line reaches the Terminal. |
+| T5 | `docs/milestones/M2/review-pr42.md` on `origin/m2/speech-adapter-v2` (head `910c11a`); `review-sp1-probe.md` round 3 | PR #44 review round 5 at `8c324a6`: **APPROVE**, no open Blocker or Major (D1 "a round the Reviewer has approved" holds). `review-sp1-probe.md` round 3: the probe code at `c07e12a` is good (m-4, n-4 closed; printed shapes match D4.6). Its open Major M-3 is a dev-notes text loss that blocks the **merge** of `m2/sp1-probe` only; the fix is docs-only and does not change `SP1-COMMIT`, so it does not block the device run. Values table filled in; owner commands in Part A and Part B are unchanged (the probe still runs with `-only-testing:TendAIHostedTests/SP1TimingProbe`). **SP-1 ready for the owner.** |
+
+If the Developer ships the optional m-5 fix (or any other code commit), `SP1-COMMIT` changes and Part T and the Mac
+B5/D5 record must be done again before the owner runs it.
+
 ---
 
 ## Values (filled in by the Tester before the run)
 
 | Name | Value |
 |---|---|
-| `SP1-COMMIT` (the commit to build) | *to be filled in* |
-| `SP1-VARIANT-COMMIT` (optional, D7; empty = skip Part V) | *to be filled in, or "none"* |
+| `SP1-COMMIT` (the commit to build) | `c07e12a9647c7612b720a4d598d9f535870ca1b6` (Mac record `docs/milestones/M2/evidence/mac/SP-1-r4/` on `m2/sp1-probe`) |
+| `SP1-VARIANT-COMMIT` (optional, D7; empty = skip Part V) | none (no D7 delivered; skip Part V) |
 | Dev-set source | `devset-main.swift` (PR #43 evidence), 8 inputs `dev1`-`dev8` |
 
 The owner picks two more values on the day (they are **not** written into this file or into any committed file):
@@ -317,8 +344,14 @@ The phone stays plugged in and unlocked for all of Part A. Do not use it while a
   away within **3 seconds** and stay away for **10 seconds**. Do this 3 times. Write down, for each time, "dot gone" or
   "dot stayed".
 - [ ] B5. **Quick stop test (automatic).** Tap **[Quick stop test]** and do not touch the phone. It starts and stops
-  the microphone 10 times by itself (about 15 seconds). When it says **"Look at the top of the screen now"**, watch for
-  10 seconds: the orange dot must be gone. Write down "dot gone" or "dot stayed".
+  the microphone 10 times by itself. This takes **about 15 seconds** when every stop works. If some stops are not
+  answered, the app tries again by itself, and the test can take **up to about 4-5 minutes**. That is fine: just wait.
+  - **Do not tap [Stop]** during the test, and do not close the app.
+  - Wait until it says **"Look at the top of the screen now"** (a countdown) and the line `quickstop|done` appears.
+  - Then watch for 10 seconds: the orange dot must be gone. Write down "dot gone" or "dot stayed".
+  - If the dot is still there after the countdown, write **"dot stayed"**, then close the app from the app switcher
+    (swipe up from the bottom and hold, then swipe the app up). [Stop] does nothing during the countdown. Then open the
+    app again with B1 (new file name `full-speech-b.log`) before B6.
 - [ ] B6. **Stop, then start again.** Tap **[Start]**, say **"Kettle needs descaling, also wipe the oven door"**, tap
   **[Stop]**. Right away tap **[Start]** again, say **"Water the plants and wash the car"**, tap **[Stop]**. Both
   should show a `finished=transcribed` line with the words you said. Then check the orange dot is gone.
@@ -425,7 +458,7 @@ its own, not an average (brief Q4).
 | Check | Expected | If not |
 |---|---|---|
 | B3 permission (T-27) | Exactly one prompt, the microphone one. No "Speech Recognition" prompt. The app does not close. A `finished=transcribed` line. | T-27 finding to the Developer and the PO: the WI-M2-M1 T-27 result does not hold on device, so the AC-M2-09 Rule 5 exception must be decided again (brief T-27). |
-| B4, B5 quick stop | Every try has a `finished=` line with `ms_stop_to_finished` ≤ 2000. The orange dot is gone within 3 s and stays gone 10 s, every time. | Defect, **Major**, owner Developer (WI-M2-M3; the microphone keeps running after the person stopped; P-4 consent). |
+| B4, B5 quick stop | B4: every capture has a `finished=` line with `ms_stop_to_finished` ≤ 2000. B5: every `quickstop|try=` line has `firststop=planned`, `restops=0`, a real `finished=` outcome (not `none`) and `ms_stop_to_finished` ≤ 2000, and a `quickstop|done` line follows. The orange dot is gone within 3 s and stays gone 10 s, every time. | Defect, **Major**, owner Developer (WI-M2-M3; the microphone keeps running after the person stopped; P-4 consent). In B5, `restops` ≥ 1 or `finished=none` means a stop went unanswered for 5 s: the same **Major**, owner Developer (WI-M2-M3; P-4). `firststop=timer` on a try 6-10 means the transcriber was not chosen within 5 s, so that try did not test the `transcriberChosen` window: report it to the Developer as information, and judge its `ms_stop_to_finished` the same way. A try that comes right after a `quickstop|try=<n>|stop_tapped` line is information only (review round 3 n-5). |
 | B6, B7 stop then start again | Every second capture ends `finished=transcribed` with the spoken words (the key words "kettle", "oven", "plants", "car" are in the text). No `audioNotStarted`. The dot is gone at the end. | Defect, **Major**, owner Developer (WI-M2-M3, one capture at a time, review m1). |
 
 These speech checks are spikes too. DS-1 (TendEval) repeats them on the gate build (DS-1 P8 and Part C).
@@ -443,7 +476,7 @@ These speech checks are spikes too. DS-1 (TendEval) repeats them on the gate bui
 | P-1 On-device inference | pass | The timing probe uses only `FoundationModelsOnDeviceSource`; no cloud route exists in the probe. Speech is on device (`SpeechAnalyzer`). |
 | P-2 No data leaves device | pass | Only invented dev-set sentences and an invented household. The short files hold no personal data and move to the owner's own Mac by cable; the Tester checks them before commit. The asset download in B2 is Apple's speech model, only when tapped. |
 | P-3 Cloud AI only opt-in | n.a. | No cloud path is used. No key is needed. |
-| P-4 Media not persisted | pass | No audio is stored. The only text kept is the transcript of the fixed invented sentences. The quick-stop checks test that the microphone really stops when the person stops. |
+| P-4 Media not persisted | pass | No audio is stored. The only text kept is the transcript of the fixed invented sentences. The quick-stop checks test that the microphone really stops when the person stops; in B5 every try is bounded (at most 3 re-stops, then cancelled), and any re-stop or `finished=none` is a Major. If the dot stays after the countdown, the owner closes the app (review round 3 m-5). |
 
 ## Handoff Log
 
@@ -455,3 +488,5 @@ These speech checks are spikes too. DS-1 (TendEval) repeats them on the gate bui
 | 2026-11-27 | Acceptance Tester | Orchestrator → PO | sent (info) | SP-1 uses the brief Q4 rule "each input, not an average" for R-1 (every warm TTFI < 1500 ms). A total > 5000 ms is reported to the PO separately. |
 | 2026-11-27 | Reviewer (via Orchestrator) | Acceptance Tester | accepted | Review PR #48 round 1 CHANGES REQUIRED (`review-pr48.md`). |
 | 2026-11-27 | Acceptance Tester | Orchestrator → Reviewer | sent | v2. M1: `sp1run <name>` gives each try its own result bundle and log, refuses a used name, retries use `run0b`/`run1b`/`run2b`, A5 and B9 loop over every log, R2 sends every short file, the Tester counts the first valid try. m1: DS-1 Part C wording. m2: a non-`completed` outcome on a clean phone is reported, not re-run; R-1 not met until the Developer and PO rule. m3: **allowed** as optional D7 / Part V, a separate labelled variant commit run after the baseline; the baseline alone decides R-1. m4: `@Suite struct SP1TimingProbe`. n1, n2, i1, i2 done. |
+| 2026-11-27 | Reviewer (via Orchestrator) | Acceptance Tester | accepted | `review-sp1-probe.md` round 3 on `m2/sp1-probe` (`2b2daed`), items 1-7 for SP-1.md; final `SP1-COMMIT` `c07e12a`. |
+| 2026-11-27 | Acceptance Tester | Orchestrator → human owner | sent | v3: D4.6 shapes (`firststop`, `restops`, optional `stop_tapped`), D4.7 per-try limit, B4/B5 rule (`restops` ≥ 1 or `finished=none` is a Major; `firststop=timer` and a try after `stop_tapped` are information), B5 timing and "dot stayed" step, Values (`SP1-COMMIT` `c07e12a`, no variant), Part T recorded (T1-T5 pass). B4 by hand unchanged. The round-2 m-4 caveat named in item 3 was never in v2, so there was nothing to delete. SP-1 ready for the owner; information only; AC-M2-16, AC-M2-11 and AC-M2-25 stay AWAITING-DEVICE. |
