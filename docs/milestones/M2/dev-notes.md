@@ -5569,3 +5569,87 @@ are in the fix commit on top of `02c1d84`; no file outside `docs/` changed, so t
 | 2026-11-25 | Developer | Reviewer, Acceptance Tester, PO (via the coordinator) | sent | Branch pushed, no PR. Open items: the Havana tzdata failures (PO / WI-M2-03), and HM-2 / D-032 for the owner's merge. |
 | 2026-11-25 | Reviewer | Developer | accepted | PR #38 round 1: CHANGES REQUIRED (M1, m1, m2, m3, m4, n1, n2). |
 | 2026-11-25 | Developer | Reviewer (via Orchestrator) | sent | Docs-only fix: `$REPO` redaction (2,248 occurrences), 22 hashes recomputed (9 changed), README warning sentence, zip digest aligned with ADR-0003 (and ADR zip size corrected), PR #38 noted; tickets above. Not pushed. |
+
+## WI-M2-M5 — Keychain key store: generic password, data-protection keychain, this device only, not synchronised; masked form; delete on turn-off and remove-key (MS-2)
+
+- **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/keychain-key-store`, based on
+  `main` at `41bf8fa`  ·  **PR:** none yet (owner merge under D-032)  ·  **ADRs:** ADR-0005 Decision 5, ADR-0006.
+- **Requirements:** ● AC-M2-21, ● AC-M2-18 (the real-Keychain half of (a)). P-3, P-4, UX-3. T-14, T-16.
+- **Mac evidence record:** [`evidence/mac/WI-M2-M5/`](evidence/mac/WI-M2-M5/README.md), for the code commit
+  `73905869b83714e310ed4cb4397dddc9d8301b6b`.
+- **Commit identity:** from this item on, the repo-local git identity is `Claude <noreply@anthropic.com>` (the
+  orchestrator's instruction; the earlier two branches are re-created as `-v2` by the orchestrator).
+
+### What changed
+- **`TendAI/Cloud/KeychainAPIKeyStore.swift`** (allowlist file 3; the only file that imports `Security`) — an actor
+  conforming to `APIKeyStore`:
+  - one item per provider: `kSecClassGenericPassword`, service `tend.ai.key` (reverse-DNS, not host-like under Rule 4),
+    account = the provider's raw name, `kSecUseDataProtectionKeychain = true`, `kSecAttrSynchronizable = false`,
+    `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`;
+  - `save` updates in place (data and accessibility) and adds only when no item exists, so a failed replace never
+    leaves the provider without its old key;
+  - `hasKey` asks for attributes only, never the data (WI-M2-09 ticket); `key` reads the data back;
+  - `deleteKey` treats `errSecItemNotFound` as done;
+  - every Keychain status becomes a neutral `CloudStoreError` (`errSecInteractionNotAllowed` → `notAccessibleNow`,
+    anything else → `storeUnavailable`); no error holds the key or the status text.
+  - The key is stored **exactly as given** (AC-M2-21 "Reading it back after save returns the same key"). Trimming or
+    refusing surrounding whitespace and control characters is the open PO decision R28-F5; WI-M2-M4's transport
+    refuses a header value with a line break before sending, so a pasted newline can never inject a header.
+- **`TendAI/Cloud/APIKeyMask.swift`** — the only display form: `••••` plus the last 4 `Character`s for a key of 12 or
+  more characters, `••••` alone for shorter keys (T-16). Not allowlisted (no `Security`, no networking).
+- **Tests:** `TendAIHostedTests` +6 tests (iOS 26.5 Simulator, each with its own Keychain service, cleaned up);
+  `TendAITests` +2 (the mask). Hosted tests use `ModelRouter` with the real store for AC-M2-18 (a).
+
+### AC → test
+| AC | Test(s) | Command | Result |
+|---|---|---|---|
+| AC-M2-21 item kind and attributes (read back with `kSecReturnAttributes`, T-16) | `KeychainAPIKeyStoreHostedTests` "AC-M2-21: save, read, replace and delete, with the item's attributes read back from the Keychain" (3 providers): after save and after replace, exactly one item; `kSecAttrAccessible` = `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`; `kSecAttrSynchronizable` false; service and account; found by a generic-password search and by a search with `kSecUseDataProtectionKeychain`, and not by an internet-password search (the class is not among the returned attributes) | B5 | PASS |
+| AC-M2-21 read back, replace, delete → `errSecItemNotFound` | same test; "Keys are kept per provider …"; "A key of any length and any characters is stored and read back exactly" (empty, 1 char, short, non-ASCII with emoji, 4,096 chars) | B5 | PASS |
+| AC-M2-21 masked form | `APIKeyMaskTests` (6 keys: 0, 3, 11, 12, 26 characters, non-ASCII) and "never more than the last four" | B4 | PASS |
+| AC-M2-21 no key in any formatting | "AC-M2-21: no formatting of any key-holding value shows the key": `String(describing:)`, `String(reflecting:)`, interpolation, `dump` and `Mirror` of `APIKey` and of the store, every `CloudStoreError`, the mask | B5 | PASS |
+| AC-M2-18 (a) real Keychain | "turning cloud off deletes the item", "removing the key deletes the item" (lookup gives `errSecItemNotFound`; cloud status off), "An orphan key restored without consent is deleted from the Keychain at the first route choice (T-14)" | B5 | PASS |
+
+**Mutants (each run in the Simulator host, then reverted):** accessibility `AfterFirstUnlock` on replace (K1),
+item added as synchronizable (K2b), delete does nothing (K3), mask shows 5 characters (K4), mask threshold 11 (K5):
+all killed. K2 (the query's `kSecAttrSynchronizable` widened to "any") survives: it changes only which items a lookup
+may match, not the item written, and the attribute test reads the written item. Recorded, not hidden.
+
+### Test runs (R-18; the evidence record has the logs)
+The clean run at `7390586`.
+
+| Command | Result | Runtime |
+|---|---|---|
+| B1 `swift test` TendCore | 141 tests in 18 suites passed, 0 skipped | 43 s wall |
+| B2 `swift test` TendIngestion | 571 tests in 67 suites passed, 0 skipped; scan 59 files (TendAI 3), 0 violations | 95 s wall |
+| B4 `xcodebuild test -scheme TendAI` (macOS) | 3 tests in 2 suites passed | 8 s |
+| B5 `xcodebuild test -scheme TendAIHostedTests` (iPhone 17 Pro, iOS 26.5) | 9 tests in 2 suites passed | 9 s |
+| B6 | as MS-1; both `find`s print nothing; `TendEval` archive refused (66) | 5 + 3 + 11 + 1 s |
+
+### Things the reviewer should look at closely
+- `kSecUseDataProtectionKeychain` is set on every query (it is what selects the data-protection keychain on macOS;
+  on iOS every item is in it).
+- The hosted tests' `UnavailableOnDevice` uses `OnDeviceModelSource.model()` as on `main`. If
+  `m2/on-device-adapter-v2` merges first (it renames it to `model(household:)`), this test helper needs the one-line
+  rename at merge.
+- Personal data: the key never reaches a log, an error or a formatted value (test above); the Keychain item is not
+  synchronised and not restorable to another device.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| R28-F5: trim or refuse a key with surrounding whitespace or a control character | Minor | PO decision; then a one-line change in `save` with a test |
+| The durable consent store (not restorable from a backup) | — | M3 (Q21) |
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 … UX-4 | n.a. | No UI; the error names are neutral (UX-3). |
+| P-1 | n.a. | No model. |
+| P-2 | pass | No networking; `Security` only in the allowlisted file. |
+| P-3 | pass | Keychain only, this device only, not synchronised; deleted on turn-off, remove-key and orphan (tests). |
+| P-4 | pass | Nothing written outside the Keychain item; nothing logged. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR. |
