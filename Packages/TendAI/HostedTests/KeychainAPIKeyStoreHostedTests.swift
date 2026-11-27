@@ -6,6 +6,7 @@ import Foundation
 import Security
 import Testing
 import TendAI
+import TendCore
 import TendIngestion
 
 /// Reads an item back as the Keychain stores it (independent of the store's own query).
@@ -193,7 +194,7 @@ struct KeychainAPIKeyStoreHostedTests {
 /// An on-device source that is never available (routing tests only).
 struct UnavailableOnDevice: OnDeviceModelSource {
     func availability() -> OnDeviceAvailability { .unavailable(.deviceNotEligible) }
-    func model() -> any IngestionModel { NeverModel() }
+    func model(household: Household) -> any IngestionModel { NeverModel() }
 }
 
 struct NoCloudModels: CloudModelSource {
