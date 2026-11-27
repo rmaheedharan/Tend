@@ -113,8 +113,10 @@ struct KeychainAPIKeyStoreHostedTests {
         #expect(try await store.key(for: .gemini) == APIKey("key-for-gemini"))
     }
 
-    @Test("A key of any length and any characters is stored and read back exactly (save rejects nothing)",
-          arguments: ["", "a", "short-key", "ключ-🔑-ü-日本", String(repeating: "x", count: 4_096)])
+    // Since PO ruling R28-F5 an empty or non-ASCII key is refused (`KeyPasteCleanupHostedTests`); length is still
+    // never checked.
+    @Test("A key of any length in U+0021…U+007E is stored and read back exactly (no length or prefix check)",
+          arguments: ["a", "short-key", "sk-ant-api03-0123456789_abc", String(repeating: "x", count: 4_096)])
     func exactText(text: String) async throws {
         let service = freshService()
         defer { KeychainProbe.removeAll(service: service) }

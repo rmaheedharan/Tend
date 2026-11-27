@@ -663,6 +663,7 @@ struct CloudStoreTests {
     @Test("store and route names are calm (no banned token; UX-3)")
     func calmNames() {
         let names = ["\(CloudStoreError.storeUnavailable)", "\(CloudStoreError.notAccessibleNow)",
+                     "\(CloudStoreError.keyTextNotAccepted)",
                      "\(RoutePreference.onDeviceFirst)", "\(RoutePreference.alwaysCloud)",
                      "\(CloudStatus.off)", "\(CloudStatus.on(.gemini))"]
         for name in names {
@@ -670,6 +671,6 @@ struct CloudStoreTests {
                 .lowercased()
             #expect(!BannedTokens.containsBannedToken(words), "\(name)")
         }
-        #expect(CloudStoreError.allCases.count == 2)
+        #expect(CloudStoreError.allCases.count == 3)   // + keyTextNotAccepted (PO R28-F5)
     }
 }

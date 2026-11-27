@@ -9,7 +9,8 @@ struct APIKeyMaskTests {
     @Test("Twelve or more characters show four dots and the last four; shorter keys show four dots only",
           arguments: [
               ("", "••••"), ("abc", "••••"), ("12345678901", "••••"), ("123456789012", "••••9012"),
-              ("sk-test-0123456789abcdWXYZ", "••••WXYZ"), ("ключ-ключ-ключ-🔑ab", "••••-🔑ab"),
+              ("sk-test-0123456789abcdWXYZ", "••••WXYZ"), ("\n sk-test-0123456789abcdWXYZ \u{200B}", "••••WXYZ"),   // R28-F5: from the trimmed key
+              ("ключ-ключ-ключ-🔑ab", "••••"),   // R28-F5: a key the store refuses shows the dots only
           ])
     func mask(key: String, expected: String) {
         #expect(APIKeyMask.masked(APIKey(key)) == expected)

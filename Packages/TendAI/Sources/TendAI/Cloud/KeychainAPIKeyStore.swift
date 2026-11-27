@@ -10,9 +10,8 @@
 // formatted or put in an error (the errors are `CloudStoreError`, which hold no value). `hasKey` reads attributes only,
 // never the key's data.
 //
-// Whether a pasted key with surrounding whitespace or a control character is trimmed or refused is a PO decision
-// (review R28-F5, open); until it is made, the key is stored exactly as given, and the transport refuses a header value
-// with a line break before sending (WI-M2-M4).
+// A pasted key is trimmed and checked by `APIKeyText` (PO ruling R28-F5) before anything is written: it is stored
+// trimmed, or refused with `keyTextNotAccepted` and any earlier item is kept.
 
 import Foundation
 import Security
@@ -61,7 +60,10 @@ public actor KeychainAPIKeyStore: APIKeyStore {
     }
 
     public func save(_ key: APIKey, for provider: CloudProvider) throws(CloudStoreError) {
-        let data = key.withSecret { Data($0.utf8) }
+        // PO R28-F5: trimmed and checked by the shared rule before anything is written; a refused key leaves any
+        // earlier item untouched.
+        guard let cleaned = APIKeyText.cleaned(key) else { throw .keyTextNotAccepted }
+        let data = cleaned.withSecret { Data($0.utf8) }
         // Replace in place when an item exists, so a failed replace never leaves the provider without its old key.
         let update: [String: Any] = [
             kSecValueData as String: data,

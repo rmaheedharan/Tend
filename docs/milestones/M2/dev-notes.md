@@ -5573,7 +5573,7 @@ are in the fix commit on top of `02c1d84`; no file outside `docs/` changed, so t
 ## WI-M2-M5 — Keychain key store: generic password, data-protection keychain, this device only, not synchronised; masked form; delete on turn-off and remove-key (MS-2)
 
 - **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/keychain-key-store`, based on
-  `main` at `41bf8fa`  ·  **PR:** none yet (owner merge under D-032)  ·  **ADRs:** ADR-0005 Decision 5, ADR-0006.
+  `main` at `41bf8fa`  ·  **PR:** #45 (owner merge under D-032)  ·  **ADRs:** ADR-0005 Decision 5, ADR-0006.
 - **Requirements:** ● AC-M2-21, ● AC-M2-18 (the real-Keychain half of (a)). P-3, P-4, UX-3. T-14, T-16.
 - **Mac evidence record:** [`evidence/mac/WI-M2-M5/`](evidence/mac/WI-M2-M5/README.md), for the code commit
   `73905869b83714e310ed4cb4397dddc9d8301b6b`.
@@ -5611,8 +5611,11 @@ are in the fix commit on top of `02c1d84`; no file outside `docs/` changed, so t
 
 **Mutants (each run in the Simulator host, then reverted):** accessibility `AfterFirstUnlock` on replace (K1),
 item added as synchronizable (K2b), delete does nothing (K3), mask shows 5 characters (K4), mask threshold 11 (K5):
-all killed. K2 (the query's `kSecAttrSynchronizable` widened to "any") survives: it changes only which items a lookup
-may match, not the item written, and the attribute test reads the written item. Recorded, not hidden.
+all killed. K2 (the query's `kSecAttrSynchronizable` widened to "any") survived round 1: the query is used by every
+lookup, by `hasKey`, by `deleteKey` and by the **update** path of `save`, so the mutant would read, delete or overwrite a
+synchronizable item with the same names; no round-1 test planted one. **Killed in `m2/key-paste-cleanup`** (review PR #45
+m1): a planted synchronizable item holding a sentinel is not seen by `hasKey` or `key`, is still intact after `save`
+(which adds a separate non-synchronizable item) and after `deleteKey`.
 
 ### Test runs (R-18; the evidence record has the logs)
 The clean run at `7390586`.
@@ -5636,7 +5639,7 @@ The clean run at `7390586`.
 ## WI-M2-M4 — cloud transport and failure mapping: ephemeral HTTPS to the routed host only, redirects refused, fixed client headers, `URLError` and status to neutral reasons (MS-2)
 
 - **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/cloud-transport`, based on
-  `main` at `41bf8fa`  ·  **PR:** none yet (owner merge under D-032)  ·  **ADRs:** ADR-0005 Decisions 6 and 7,
+  `main` at `41bf8fa`  ·  **PR:** #46 (owner merge under D-032)  ·  **ADRs:** ADR-0005 Decisions 6 and 7,
   ADR-0006.
 - **Requirements:** ● AC-M2-22, ● AC-M2-23 (the Mac halves; the deadline and retry arithmetic and the outcomes are
   WI-M2-14 and WI-M2-06 on Linux). P-2, P-3, P-4, UX-3. Tickets closed here: R28-F4 / GR-3 (explicit headers on the
@@ -5644,7 +5647,7 @@ The clean run at `7390586`.
   resource timeout), PO Q3 (refusals send nothing), round 1 (timeouts per attempt, raw `Retry-After`, never retry),
   and the transport half of R28-F5 (a header value with a line break is refused).
 - **Mac evidence record:** [`evidence/mac/WI-M2-M4/`](evidence/mac/WI-M2-M4/README.md), for the code commit
-  `1854d549c3fb89b9378a23ea83857550f142ccd3 (the branch has two code commits: `d406a7d` and the AC-M2-12 naming fix `1854d54`; an earlier evidence run at `d406a7d` stopped at B2 on that scan and was discarded)`.
+  `1854d549c3fb89b9378a23ea83857550f142ccd3` (the branch has two code commits: `d406a7d` and the AC-M2-12 naming fix `1854d54`; an earlier evidence run at `d406a7d` stopped at B2 on that scan and was discarded).
 
 ### What changed
 - **`TendAI/Cloud/CloudHTTPTransport.swift`** (allowlist file 1) — `CloudTransport` conformance:

@@ -6,14 +6,16 @@
 //   cookies neither sent nor kept; `timeoutIntervalForResource` and `timeoutIntervalForRequest` from the attempt's
 //   `CloudAttemptTimeouts`. Never retried here (the retry is `CloudResponseBody`'s).
 // - **HTTPS to the routed provider's host only.** The URL is built with `URLComponents` from the builder's bare host and
-//   path, scheme `https`. A request whose host is not the ADR-0005 host of its provider, a URL that is not HTTPS, or a
-//   header value with a line break is refused before anything is sent (`requestNotSent`).
+//   path, scheme `https`. A request whose host is not the ADR-0005 host of its provider, a URL that is not HTTPS, a
+//   header value with a line break, or an auth key outside U+0021…U+007E is refused before anything is sent
+//   (`requestNotSent`).
 // - **No redirect is followed.** The task delegate answers every redirect with nil. A redirect to another host ends as
 //   `requestNotSent` (nothing was sent there); any other 3xx is `unexpectedResponse`.
 // - **Headers:** exactly the builder's headers (auth, provider, `User-Agent: Tend`, `Accept-Language: en-US`), set
 //   explicitly so the device's defaults are never sent. The session adds only the transport-set headers.
 // - **Body:** a 2xx body is passed on in chunks of up to 4 KiB, cut after each blank line (the end of a server-sent
-//   event), so every whole event goes on at once and no chunk is a single byte (review R29-N2). Any other status throws `CloudTransportFailure`, with the raw `Retry-After` for 429 and 5xx.
+//   event), so every whole event goes on at once. No cut makes a single-byte chunk; only the final remainder of a
+//   body can be shorter (review R29-N2; PR #46 n1). Any other status throws `CloudTransportFailure`, with the raw `Retry-After` for 429 and 5xx.
 // - **Cancellation** (contract point 5): `onTermination` cancels the task and the session; a cancelled attempt finishes
 //   without an error.
 // Nothing is logged or written: the body and the key live only in memory for the attempt (P-4).
@@ -57,6 +59,8 @@ public struct CloudHTTPTransport: CloudTransport {
     /// The URL request for `request`, or nil when it must be refused before sending.
     static func urlRequest(_ request: CloudRequest, timeouts: CloudAttemptTimeouts) -> URLRequest? {
         guard let allowed = routedHostName(request.provider), request.host == allowed else { return nil }
+        // PO R28-F5: an auth key outside U+0021…U+007E (or empty) is never sent.
+        guard request.headers.allSatisfy(\.keyIsSendable) else { return nil }
         var components = URLComponents()
         components.scheme = "https"
         components.host = request.host

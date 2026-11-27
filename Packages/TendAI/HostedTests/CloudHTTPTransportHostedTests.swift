@@ -157,7 +157,7 @@ struct CloudHTTPTransportHostedTests {
         #expect(configuration.httpAdditionalHeaders == nil)
     }
 
-    @Test("AC-M2-22: a 2xx body arrives in order, in chunks cut at line ends and never one byte each",
+    @Test("AC-M2-22: a 2xx body arrives in order, in chunks cut at event ends; no cut makes a single-byte chunk",
           arguments: CloudProvider.allCases)
     func body(provider: CloudProvider) async throws {
         let id = F.newID()
@@ -170,7 +170,8 @@ struct CloudHTTPTransportHostedTests {
         #expect(end == nil)
         #expect(Data(chunks.joined()) == payload)
         #expect(chunks.allSatisfy { $0.count <= CloudHTTPTransport.chunkLimit })
-        // Whole server-sent events (cut at each blank line) or 4 KiB pieces, never single bytes (review R29-N2).
+        // Whole server-sent events (cut at each blank line) or 4 KiB pieces; no cut makes a single-byte chunk, only
+        // a final remainder could be shorter (review R29-N2; PR #46 n1). This body ends in a full piece.
         #expect(chunks.allSatisfy { $0.count > 1 })
         #expect(chunks.count >= 300)
         // HTTPS to the provider's host and path, the builder's body, one request.
@@ -192,6 +193,11 @@ struct CloudHTTPTransportHostedTests {
         _ = await F.send(request, plan: .respond(status: 200, headers: [:], chunks: [Data("x".utf8)]), id: id)
         let sent = try #require(StubBook.shared.requests(id).first)
         let fields = sent.allHTTPHeaderFields ?? [:]
+        // PR #46 m1: every builder header arrives with its exact value (auth included, byte for byte).
+        for header in request.headers {
+            let expected = header.withValue { $0 }
+            #expect(sent.value(forHTTPHeaderField: header.name) == expected, "header \(header.name)")
+        }
         #expect(fields["User-Agent"] == "Tend")
         #expect(fields["Accept-Language"] == "en-US")
         let allowed = Set(request.headerNames.map { $0.lowercased() })
@@ -286,6 +292,13 @@ struct CloudHTTPTransportHostedTests {
         (.serverCertificateUntrusted, .secureConnectionUnavailable),
         (.serverCertificateHasBadDate, .secureConnectionUnavailable), (.cannotConnectToHost, .unexpectedResponse),
         (.badServerResponse, .unexpectedResponse),
+        // PR #46 m2: the seven codes that had no row.
+        (.internationalRoamingOff, .offline), (.callIsActive, .offline),
+        (.serverCertificateHasUnknownRoot, .secureConnectionUnavailable),
+        (.serverCertificateNotYetValid, .secureConnectionUnavailable),
+        (.clientCertificateRejected, .secureConnectionUnavailable),
+        (.clientCertificateRequired, .secureConnectionUnavailable),
+        (.appTransportSecurityRequiresSecureConnection, .secureConnectionUnavailable),
     ]
 
     @Test("AC-M2-23: each URLError through the session maps to its neutral reason", arguments: errors.map(\.0.rawValue))
@@ -396,5 +409,32 @@ struct CloudHTTPTransportHostedTests {
         #expect(!CloudHTTPTransport.endsEvent(Array("data: x\n".utf8)))
         #expect(!CloudHTTPTransport.endsEvent(Array("\n".utf8)))
         #expect(!CloudHTTPTransport.endsEvent([]))
+    }
+
+    @Test("PR #46 m2: over raw values −3000…0, only URLError.cancelled (−999) maps to nil")
+    func onlyCancelledIsNil() {
+        var nilCodes: [Int] = []
+        for raw in -3_000...0 where CloudFailureMapping.reason(for: URLError.Code(rawValue: raw)) == nil {
+            nilCodes.append(raw)
+        }
+        #expect(nilCodes == [URLError.Code.cancelled.rawValue])
+        #expect(nilCodes == [-999])
+    }
+
+    @Test("R28-F5: an auth key outside U+0021…U+007E is refused before sending; nothing reaches the stub",
+          arguments: CloudProvider.allCases)
+    func badAuthKeyNotSent(provider: CloudProvider) async throws {
+        for raw in ["sk bad", "clé", "sk\u{200B}x", ""] {
+            let id = F.newID()
+            let base = try CloudPayloadBuilder.request(
+                CloudPayloadInput(capture: "buy pods", roomNames: [], shortlistTitles: []),
+                model: CloudModel.defaultModel(for: provider), key: APIKey(raw))
+            let request = F.altered(base, id: id)
+            let (chunks, end) = await F.send(request, plan: .respond(status: 200, headers: [:],
+                                                                     chunks: [Data("x".utf8)]), id: id)
+            #expect(chunks.isEmpty)
+            #expect((end as? CloudTransportFailure)?.reason == .requestNotSent)
+            #expect(StubBook.shared.requests(id).isEmpty)
+        }
     }
 }
