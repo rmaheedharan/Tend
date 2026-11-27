@@ -5569,3 +5569,107 @@ are in the fix commit on top of `02c1d84`; no file outside `docs/` changed, so t
 | 2026-11-25 | Developer | Reviewer, Acceptance Tester, PO (via the coordinator) | sent | Branch pushed, no PR. Open items: the Havana tzdata failures (PO / WI-M2-03), and HM-2 / D-032 for the owner's merge. |
 | 2026-11-25 | Reviewer | Developer | accepted | PR #38 round 1: CHANGES REQUIRED (M1, m1, m2, m3, m4, n1, n2). |
 | 2026-11-25 | Developer | Reviewer (via Orchestrator) | sent | Docs-only fix: `$REPO` redaction (2,248 occurrences), 22 hashes recomputed (9 changed), README warning sentence, zip digest aligned with ADR-0003 (and ADR zip size corrected), PR #38 noted; tickets above. Not pushed. |
+
+## WI-M2-M4 — cloud transport and failure mapping: ephemeral HTTPS to the routed host only, redirects refused, fixed client headers, `URLError` and status to neutral reasons (MS-2)
+
+- **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/cloud-transport`, based on
+  `main` at `41bf8fa`  ·  **PR:** none yet (owner merge under D-032)  ·  **ADRs:** ADR-0005 Decisions 6 and 7,
+  ADR-0006.
+- **Requirements:** ● AC-M2-22, ● AC-M2-23 (the Mac halves; the deadline and retry arithmetic and the outcomes are
+  WI-M2-14 and WI-M2-06 on Linux). P-2, P-3, P-4, UX-3. Tickets closed here: R28-F4 / GR-3 (explicit headers on the
+  wire), R29-N2 (no single-byte chunks), R30-F2 (cancellation is not a failure), R30-F5 (a silent attempt ends at the
+  resource timeout), PO Q3 (refusals send nothing), round 1 (timeouts per attempt, raw `Retry-After`, never retry),
+  and the transport half of R28-F5 (a header value with a line break is refused).
+- **Mac evidence record:** [`evidence/mac/WI-M2-M4/`](evidence/mac/WI-M2-M4/README.md), for the code commit
+  `1854d549c3fb89b9378a23ea83857550f142ccd3 (the branch has two code commits: `d406a7d` and the AC-M2-12 naming fix `1854d54`; an earlier evidence run at `d406a7d` stopped at B2 on that scan and was discarded)`.
+
+### What changed
+- **`TendAI/Cloud/CloudHTTPTransport.swift`** (allowlist file 1) — `CloudTransport` conformance:
+  - **One attempt per call, its own session:** `URLSessionConfiguration.ephemeral` with `httpCookieStorage = nil`,
+    `httpShouldSetCookies = false`, cookie policy `.never`, `urlCache = nil`, `urlCredentialStorage = nil`, cache
+    policy `.reloadIgnoringLocalAndRemoteCacheData`, `waitsForConnectivity = false`, and
+    `timeoutIntervalForResource` / `timeoutIntervalForRequest` from the attempt's `CloudAttemptTimeouts`. No retry.
+  - **HTTPS to the routed host only:** the URL is built with `URLComponents` (scheme `https`, the builder's bare host,
+    path and fixed query `alt=sse` through `query`, no `URLQueryItem`). The request host must equal the ADR-0005 host
+    of the request's provider (`CloudProviderTable.hosts`), and the built URL must be `https` to that host; a
+    header name or value with CR, LF or NUL is refused. Each refusal throws `CloudTransportFailure(.requestNotSent)`
+    before a session exists.
+  - **Redirects:** `RedirectRefuser` (a stateless `URLSessionTaskDelegate`, passed to `bytes(for:delegate:)`) answers
+    every redirect with nil. The 3xx is then the final response: `requestNotSent` when its `Location` names another
+    host, else `unexpectedResponse`.
+  - **Headers:** exactly the builder's, each set with `setValue(_:forHTTPHeaderField:)` (the builder already ends with
+    `User-Agent: Tend` and `Accept-Language: en-US`, so the device defaults are replaced).
+  - **Body:** for a 2xx, bytes go on in chunks cut after each blank line (`\n\n` or `\n\r\n`, the end of a server-sent
+    event) or at 4 KiB, so a whole event goes on at once and no chunk is a single byte (R29-N2). Other statuses throw
+    `CloudTransportFailure(reason, retryAfter:)`, with the raw `Retry-After` value only for 429 and 5xx.
+  - **Cancellation:** `onTermination` cancels the task and `invalidateAndCancel()`s the session; a cancelled attempt
+    (or `URLError.cancelled`) finishes without an error (R30-F2). A stream created in a cancelled task sends nothing.
+  - Naming note: the AC-M1-23 `Host(` call rule catches any called function whose name ends in `Host`; the two
+    helpers are `routedHostName` and `pointsElsewhere`.
+- **`TendAI/Cloud/CloudFailureMapping.swift`** (allowlist file 2) — `URLError.Code` → reason (offline: not connected,
+  connection lost, data not allowed, roaming off, call active; `timedOut`; host not found: cannot find host, DNS; secure
+  connection: TLS and certificate codes and ATS; `cancelled` → nil; everything else `unexpectedResponse`; `URLError.Code`
+  is a struct, so this one switch needs a `default`). Status: 2xx → nil, 401/403 → `keyNotAccepted`, 429 →
+  `rateLimited`, 5xx → `serviceUnavailable`, else `unexpectedResponse`.
+- **Tests:** `TendAIHostedTests` +17 (iOS 26.5 Simulator), over a `URLProtocol` stub installed only through the
+  transport's test hook (`adjust`), so no source names `URLProtocol`. The stub records every request that reaches it.
+
+### AC → test (all B5)
+| AC | Test(s) | Result |
+|---|---|---|
+| AC-M2-22 ephemeral, no cookies or cache, timeouts | "each attempt uses an ephemeral configuration with no cookies, cache or credentials, and its timeouts"; "A response's Set-Cookie is never kept or sent back on the next attempt" | PASS |
+| AC-M2-22 HTTPS to the routed host; refusals send nothing (PO Q3) | "a 2xx body arrives in order …" (3 providers: scheme, host, path, method, body bytes, Gemini query); "a request to a host other than the provider's is refused before sending" (4 hosts, 0 requests at the stub); "a non-HTTPS URL is refused before sending" (3 forms, 0 requests); "a redirect to another host is not followed and ends requestNotSent" (1 request, only to the routed host); "A redirect on the same host is not followed either"; "A header value with a line break is refused" | PASS |
+| AC-M2-22 Headers (R28-F4, GR-3) | "User-Agent: Tend and Accept-Language: en-US are set explicitly; only the builder's headers are sent" (3 providers; every header the stub sees is the builder's or transport-set) | PASS |
+| AC-M2-22 timeouts applied per attempt (R30-F5) | "a stub that never answers ends timedOut at the attempt's resource timeout" (1.0 s, under 5 s); "a body that stops arriving ends timedOut" | PASS |
+| AC-M2-23 mapping | "each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" (12 statuses, exactly 1 request each: never retried); "each URLError through the session maps to its neutral reason" (11 codes); "the mapping table, code by code" | PASS |
+| Contract 4, 5 (R30-F2) | "cancelling mid-body ends without a failure, and CloudResponseBody ends with CancellationError"; "A stream created inside a cancelled task sends nothing" | PASS |
+| R29-N2 | body test (no 1-byte chunk, ≤ 4 KiB), "An event ends at a blank line, LF or CRLF …" | PASS |
+
+**Mutants (each run in the Simulator host, then reverted; all killed):** no host check (T1); redirect followed (T2);
+`Accept-Language` not set (T3); `Retry-After` passed for every status (T4); resource timeout not applied (T5); cookie
+storage kept (T6); cancellation mapped to a failure (T7); line breaks allowed in headers (T8); 403 not read as a key
+problem (T9).
+
+### Test runs (R-18; the evidence record has the logs)
+The clean run at `1854d54`.
+
+| Command | Result | Runtime |
+|---|---|---|
+| B1 `swift test` TendCore | 141 tests in 18 suites passed, 0 skipped | 45 s wall |
+| B2 `swift test` TendIngestion | 571 tests in 67 suites passed, 0 skipped; AC-M2-09 scan 59 files (TendAI 3), 0 violations; AC-M2-12 vocabulary scan 0 violations | 110 s wall |
+| B4 `xcodebuild test -scheme TendAI` (macOS) | 1 test passed (the scaffold; this item's tests are all hosted) | — |
+| B5 `xcodebuild test -scheme TendAIHostedTests` (iPhone 17 Pro, iOS 26.5) | 19 tests in 2 suites passed | — |
+| B6 | as MS-1; both `find`s print nothing; `TendEval` archive refused (66) | — |
+
+**AC-M2-12 note:** Foundation names two codes `dnsLookupFailed` and `secureConnectionFailed`; the calm-vocabulary scan
+does not allow that word in our source identifiers, so `CloudFailureMapping` names them by raw value
+(`dnsLookup` = -1006, `secureConnection` = -1200), and a hosted test checks they equal the Foundation codes.
+
+### Things the reviewer should look at closely
+- The `URLProtocol` stub sees the request before the lowest network layer, so it shows the headers the session will
+  send from the request and configuration; that the OS adds no `User-Agent` or `Accept-Language` of its own when they
+  are set explicitly is Apple's documented behaviour, not something a stub can prove. DS-2's provider runs are the
+  end-to-end check (Reviewer confirmation asked by the R28-F4 ticket).
+- A redirect is answered with nil, and the 3xx response's `Location` decides `requestNotSent` vs `unexpectedResponse`.
+- The test-only `adjust` hook is internal; the app uses `CloudHTTPTransport()`.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| R28-F5 trim or refuse at save (key store) | Minor | PO decision; the transport already refuses line breaks |
+| Real provider streams over this transport | — | WI-M2-M6 (needs the owner's keys) |
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1, UX-2, UX-4 | n.a. | No UI. |
+| UX-3 | pass | Reason names are neutral (unchanged neutral types). |
+| P-1 | pass | The transport is only reached on route `cloud` (router, WI-M2-09). |
+| P-2 | pass | Networking only in the two allowlisted files (scan 0 violations); one host per provider; nothing else is reachable. |
+| P-3 | pass | Only the builder's bytes are sent; no cookie, cache or credential store; the key only in its header. |
+| P-4 | pass | Body bytes live in memory for one attempt; nothing logged or written. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR. |
