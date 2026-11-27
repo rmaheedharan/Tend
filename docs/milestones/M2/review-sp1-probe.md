@@ -457,3 +457,128 @@ round 2), so this is checked by reading the code, not from a log.
 | 2026-11-27 | Reviewer | Orchestrator → Developer | returned | CHANGES REQUIRED: M-3 (restore the 61 lost WI-M2-M2 dev-notes lines from `origin/m2/on-device-adapter-v2` 5807-6023, drop the stray row, fix the "rebuilt by section" sentence, reword the link-change sentence per m-6). Docs only; `SP1-COMMIT` stays `c07e12a`. Optional m-5 (needs a new `SP1-COMMIT` and B5/D5 re-run). |
 | 2026-11-27 | Reviewer | Orchestrator → Planner | sent | m-6 ticket: undo or isolate `BUNDLE_LOADER: ""` before the M2 gate or before any hosted test uses host code/state; not a merge blocker. |
 | 2026-11-27 | Reviewer | Orchestrator → Acceptance Tester | sent | SP-1.md changes 1-7 above (format, D4.7, B4/B5 rule without the m-4 caveat, B5 duration and closing step, `SP1-COMMIT = c07e12a`, Part T incl. PR #44 round-5 approval, B5 37 tests). M-3 blocks the merge only, not the device run (the build `c07e12a` is unchanged by its fix); ready for the owner once these edits are in and the PR #44 round-5 review is APPROVE. |
+
+---
+
+# Round 4 — re-review of the M-3 / m-6 docs fix (`2b2daed..e3507f4`)
+
+- **Reviewer:** code-reviewer (independent, fresh context)
+- **Scope:** `e3507f4` ("restore the WI-M2-M2 dev-notes text lost in merge 88921e8"), on top of `2b2daed` (round-3
+  review). Only `docs/milestones/M2/dev-notes.md` changes.
+- **Sources compared:** `origin/main` = `9e50012`; `origin/m2/on-device-adapter-v2` = `d4d1a95`;
+  `origin/m2/speech-adapter-v2` = `910c11a` and its parent `8c324a6` (their `dev-notes.md` are equal: `910c11a` only
+  adds `review-pr42.md`).
+- **IDs:** FR-A1, R-1, SP-1, AC-M2-16 (stays AWAITING-DEVICE), AC-M2-18, AC-M2-21, AC-M2-22, AC-M2-23, MS-2; CLAUDE.md
+  §4 rules 3 and 4; P-1…P-4, UX-3.
+
+## Summary
+
+**APPROVE.** M-3 and m-6 are closed. The fix is docs only, touches only `dev-notes.md`, and no code has changed since
+`c07e12a`, so **`SP1-COMMIT` = `c07e12a9647c7612b720a4d598d9f535870ca1b6` stands** and nothing needs to be re-run on
+the Mac. A scripted section comparison shows every section of main, of the on-device branch and of the speech branch
+appears exactly once and byte-identical, main's file is an unchanged byte prefix, and the only sections unique to this
+branch are the SP-1 ones. **No Docker test run was done or needed this round** (docs only; the round-3 Linux runs at
+`849d6db` still cover the unchanged code). m-5 and n-5 stay open as non-blocking. One new Nit (n-6).
+
+## Checks
+
+1. **Scope.** `git diff 2b2daed e3507f4 --stat`: `docs/milestones/M2/dev-notes.md` only (+76/−6).
+   `git diff --quiet c07e12a e3507f4 -- . ':!docs'` succeeds: nothing outside `docs/` changed since `c07e12a`.
+   (`c07e12a..e3507f4` also adds the `SP-1-r4` record and the review file, both under `docs/`.)
+2. **Section comparison (scripted).** The script below splits each `dev-notes.md` at every Markdown heading line
+   (`#`…`######` followed by a space, outside code fences) and compares whole sections byte for byte.
+   - HEAD (`e3507f4`): **384 sections**. The union of distinct sections from the four sources plus HEAD is also
+     **384**, so HEAD has no extra or edited section.
+   - Each section from `9e50012` (339), `d4d1a95` (356), `910c11a` (360) and `8c324a6` (360) appears **exactly once** in
+     HEAD. Each source's *last* section matches byte for byte except for one added trailing blank line (the separator
+     before the next part, since it is no longer the end of the file). The text is the same.
+   - `head.startswith(main)` is **true**: main's 581 466-byte file is an unchanged prefix.
+   - **No whole section is repeated, and no `##` heading appears twice.** Generic `###`/`####` subheadings ("Law
+     check", "Handoff log", "What changed", …) do repeat, as they already do in main (23 such headings repeat there).
+     For each heading, the number of times it appears in HEAD equals the number of distinct source sections with that
+     heading, so none comes from a copy.
+   - **Sections only on this branch:** `## SP-1 probe (device spike …) D1–D6`, `### What changed (D2–D4)`,
+     `### D5 dry run …`, `## SP-1 probe round 2 …`, `### SP-1 round 2: evidence and D5 …`, `### SP-1 round 3 — quick
+     stop timing …`, `### SP-1 round 4 — the final speech branch merged; final SP1-COMMIT`. All are SP-1; nothing else.
+   - The restored WI-M2-M2 subsections (Known limitations / follow-ups, **Law check**, **Handoff log**, AC → test (B4),
+     Developer dev set, Eval manifest, Test runs, and "brought up to date with main") are now word for word `d4d1a95`.
+3. **Stray row gone.** The row "Reviewer sign-off asked for the one `@unchecked Sendable`" now appears once in HEAD
+   (`dev-notes.md:5916`, under `### Handoff log` in WI-M2-M3), where `910c11a` also has it. The stray copy at the end of
+   WI-M2-M2 round 2's "What changed" is removed (diff hunk at old line 6208).
+   **"Rebuilt by section" sentence:** reworded (`dev-notes.md` round 4, first bullet). It now says the merge took the
+   older WI-M2-M2 copies, which had lost 61 lines (M-3), that a later docs commit fixed this to match `d4d1a95` word for
+   word, and that every section of the three sources appears exactly once, unchanged. All of this matches what I
+   measured. **m-6 line:** `dev-notes.md:6394-6395`: "It must be undone or isolated before the M2 gate, or before any
+   hosted test uses host code or state, whichever comes first (Planner ticket)." This is the wording asked for.
+4. **Authorship and personal data.** `e3507f4` author and committer `Claude <noreply@anthropic.com>`. The only e-mail
+   in the added lines and the commit message is `noreply@anthropic.com`. No user home path, person's name, user name,
+   team ID or device ID in the added lines. The restored text is the same as `d4d1a95`, which was reviewed under PR #43.
+
+### Script used (reproducible; run with `python3 -I` from any directory, set `R` to the worktree)
+
+```python
+import subprocess, re, collections
+R = "<worktree>"; P = "docs/milestones/M2/dev-notes.md"
+def show(ref): return subprocess.run(["git","-C",R,"show",f"{ref}:{P}"],capture_output=True,text=True,check=True).stdout
+def split(t):
+    secs, cur, fence = [], [], False
+    for l in t.splitlines(keepends=True):
+        if l.startswith("```"): fence = not fence
+        if not fence and re.match(r"#{1,6} ", l) and cur: secs.append("".join(cur)); cur = []
+        cur.append(l)
+    if cur: secs.append("".join(cur))
+    return secs
+head = show("e3507f4"); hs = split(head); norm = lambda s: s.rstrip("\n")
+print("main prefix:", head.startswith(show("9e50012")))
+print("dup sections:", [k for k,c in collections.Counter(map(norm, hs)).items() if c > 1])
+used = set()
+for ref in ["9e50012","d4d1a95","910c11a","8c324a6"]:
+    for s in split(show(ref)):
+        assert sum(norm(h) == norm(s) for h in hs) == 1, (ref, s.splitlines()[0]); used.add(norm(s))
+print("HEAD-only:", [s.splitlines()[0] for s in hs if norm(s) not in used])
+```
+
+Output at `e3507f4`: `main prefix: True`; `dup sections: []`; no assertion fails; `HEAD-only:` the 7 SP-1 headings
+listed above.
+
+## Findings, re-checked
+
+| # | Severity | Evidence at `e3507f4` | Status |
+|---|---|---|---|
+| M-3 | Major | Check 2 and 3 above: every source section exactly once and byte-identical; WI-M2-M2 Law check, Handoff log and AC → test restored; stray row removed; sentence accurate. | **Closed** |
+| m-6 | Minor | `dev-notes.md:6394-6395` reworded to "before the M2 gate, or before any hosted test uses host code or state, whichever comes first (Planner ticket)". The Planner ticket itself is still to be raised (round-3 handoff). | **Closed** (dev-notes wording); ticket with the Planner |
+| m-5 | Minor | No code change; unchanged. The Tester's SP-1 B5 closing step (round 3, item 4) covers it. | Open (non-blocking) |
+| n-5 | Nit | Unchanged. | Open |
+| I-4, I-5 | Info | Unchanged. | Info |
+
+## New findings (round 4)
+
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| n-6 | Nit | `docs/milestones/M2/dev-notes.md:6350` (SP-1 probe round 2) | The round-2 bullet still says the link change "must be undone or isolated before the Keychain and `URLProtocol` …", an older due point. It is a historical round note, and the round-4 line (`:6394`) now gives the current due point, so there is no contradiction for a reader who reads to the end. | None needed. Optionally add "(superseded by round 4)" the next time this file is edited. | Open |
+
+## Checklist (round 4)
+- [x] Scope docs only; no code change since `c07e12a`; `SP1-COMMIT` unchanged
+- [x] Merge faithful and docs complete (scripted section comparison)
+- [x] Stray row removed; "rebuilt by section" sentence accurate; m-6 wording as asked
+- [x] Tests: n.a. this round (no code; no Docker run needed, none done)
+- [x] Authorship `Claude <noreply@anthropic.com>`; no personal data
+- [x] No new dependency; no protected file touched (`git diff --stat` shows only `docs/milestones/M2/dev-notes.md`)
+
+## Law check (round 4)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Docs only. |
+| UX-2 Rule of Three | n.a. | Docs only. |
+| UX-3 Zero-Guilt | pass | The restored text is the already-reviewed `d4d1a95` text. The new sentences use no banned word as UI copy. "Late" appears only inside the restored WI-M2-M2 Law check row, where it names a title the banned-token guard rejects. |
+| UX-4 Design craft | n.a. | Docs only. |
+| P-1 On-device first | pass | No code change; the restored WI-M2-M2 Law check again records P-1 for the on-device adapter. |
+| P-2 No data leaves device (except user iCloud / P-3) | pass | No code change; no personal data in the added lines. |
+| P-3 Cloud AI opt-in per ADR-0005 | n.a. | No cloud path changed. |
+| P-4 Media not persisted | pass (m-5 note unchanged) | No code change; device proof stays with SP-1 B4/B5 (AWAITING-DEVICE). |
+
+## Handoff log (round 4)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Orchestrator | Reviewer | accepted | Round 4 of `m2/sp1-probe` at `e3507f4`: docs fix `2b2daed..e3507f4` for M-3 and m-6. |
+| 2026-11-27 | Reviewer | Orchestrator → Merge Gatekeeper / Acceptance Tester | sent | APPROVE. M-3, m-6 closed; m-5, n-5, n-6 non-blocking. `SP1-COMMIT` stays `c07e12a`. No Docker or Mac re-run needed (docs only). Planner: m-6 ticket still to be raised. Tester: the round-3 SP-1.md edits 1-7 still apply. |
