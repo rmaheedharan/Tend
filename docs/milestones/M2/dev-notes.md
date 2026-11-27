@@ -5765,3 +5765,30 @@ time; no test was affected.
 ### For the Acceptance Tester (DS-1, DS-2)
 The quick-stop step from round 2 also covers this: start a capture and stop it at once, and again within a second of
 the previous stop; the microphone indicator must go off each time and the next capture must record normally.
+
+## WI-M2-M3 round 4 — a stop before the microphone is asked for is kept (SP-1 probe review I-1; P-4)
+
+- **Branch:** `m2/speech-adapter-v2`, on top of `6943163` (PR #44 round 3 approved)  ·  **Code commit:** `e100496a812f2cdf6f87040e571e597375b1e2d0`  ·
+  **Mac evidence record:** [`evidence/mac/WI-M2-M3-r4/`](evidence/mac/WI-M2-M3-r4/README.md).
+- **The defect (SP-1 review I-1):** the adapter asks the source for audio only after the transcriber is chosen
+  (`transcriberChosen`). A `stop()` in that window found the microphone source `idle` and was dropped; the
+  microphone then opened and stayed on (P-4: it kept running after the person stopped).
+- **The fix:** `CaptureAudioSource.captureWillStart()` (a protocol requirement with a default no-op, so other sources
+  are unchanged). `SpeechCapture.events(from:)` calls it synchronously when the capture starts, before anything is
+  awaited. `MicrophoneAudioSource` arms its `MicrophoneCaptureState` there (new phases `armed`, `armedStopped`). A stop
+  while armed is kept; the capture's `begin` then goes straight to `stopRequested`, so `mayActivate` answers no, the
+  session is never activated, and the audio ends at once: the result is `nothingHeard`, the same as a quick stop. A
+  stop with nothing armed or running still does nothing, and arming clears an old stop, so a stale [Stop] never ends a
+  later capture.
+- **Tests (B4):** `EarlyStopTests` over a source with the microphone source's state rules (no hardware) and an engine
+  whose choice and format wait on a gate: "A stop before transcriberChosen ends the capture as nothing heard; the
+  microphone never opens"; "A stop after the transcriber is chosen but before the source is asked for audio still ends
+  it empty"; "A stale stop (with no capture started) never ends a later capture"; "State: arm then stop makes the next
+  begin start already stopped; arming again clears it". The suite has a 1-minute time limit, so a dropped stop fails
+  instead of hanging.
+- **Mutants (killed):** a stop while armed dropped (3 tests); the armed stop forgotten at `begin` (3); the adapter does
+  not arm (2); arming keeps a stale stop (1).
+- **Test runs (clean, at `e100496`):** B1 TendCore 141; B2 TendIngestion 571, scan 61 files, 0 violations; B4 TendAI 36
+  tests in 9 suites; B5 hosted 4; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
+- **For SP-1 (B4 "tap Start then Stop at once"):** the microphone indicator must not come on, and the capture ends
+  `nothingHeard`.
