@@ -24,16 +24,20 @@ final class ScriptedCloudTransport: CloudTransport, @unchecked Sendable {
     private let lock = NSLock()
     private var replies: [Reply]
     private var sent: [CloudRequest] = []
+    private var sentTimeouts: [CloudAttemptTimeouts] = []
     private var terminated = 0
 
     init(_ replies: [Reply]) { self.replies = replies }
 
     var requests: [CloudRequest] { lock.withLock { sent } }
+    /// The timeouts each attempt was sent with, in order.
+    var timeouts: [CloudAttemptTimeouts] { lock.withLock { sentTimeouts } }
     var terminations: Int { lock.withLock { terminated } }
 
     func send(_ request: CloudRequest, timeouts: CloudAttemptTimeouts) -> AsyncThrowingStream<[UInt8], any Error> {
         let reply = lock.withLock { () -> Reply in
             sent.append(request)
+            sentTimeouts.append(timeouts)
             return replies.isEmpty ? .failure(CloudTransportFailure(.unexpectedResponse)) : replies.removeFirst()
         }
         return AsyncThrowingStream { continuation in
@@ -125,7 +129,7 @@ enum CloudFixtures {
     }
 
     static func adapter(_ provider: CloudProvider, transport: any CloudTransport) -> any IngestionModel {
-        CloudAdapters(transport: transport, clock: ContinuousClock()).model(for: provider, key: fakeKey)
+        CloudAdapters(transport: transport, clock: ContinuousClock()).receive().model(for: provider, key: fakeKey)
     }
 
     /// The oracle: the provider stream reader over the whole body, as a model (the Linux path).
@@ -290,8 +294,21 @@ struct CloudAdapterTests {
             #expect(!queries.isEmpty)
             let allEmpty = queries.allSatisfy { $0.isEmpty }
             #expect(allEmpty)
-            let fields = String(describing: Mirror(reflecting: model).children.map { "\($0.label ?? "")" })
-            #expect(!fields.lowercased().contains("tool") && !fields.lowercased().contains("lookup"))
+            // The guarantee is by type (no Tool member anywhere in the five types); this walks every stored member
+            // of the model, nested ones included, as a second look (review R50-N2).
+            let fields = Self.storedMembers(model).joined(separator: " ").lowercased()
+            #expect(fields.contains("cloud.model") && fields.contains("cloud.transport"), "\(fields)")
+            #expect(!fields.contains("tool") && !fields.contains("lookup"), "\(fields)")
+        }
+    }
+
+    /// Every stored member's path and type, to `depth` levels (labels and type names).
+    static func storedMembers(_ value: Any, prefix: String = "", depth: Int = 4) -> [String] {
+        guard depth > 0 else { return [] }
+        return Mirror(reflecting: value).children.flatMap { child -> [String] in
+            let path = prefix.isEmpty ? (child.label ?? "_") : prefix + "." + (child.label ?? "_")
+            return [path + ":" + String(describing: type(of: child.value))]
+                + storedMembers(child.value, prefix: path, depth: depth - 1)
         }
     }
 
@@ -310,7 +327,7 @@ struct CloudAdapterTests {
                                                 .body(body, chunk: 50)])
         let events = await F.events(F.adapter(.openAI, transport: transport), provider: .openAI)
         #expect(F.outcome(events) == .completed)
-        #expect(transport.requests.count == 2)
+        try #require(transport.requests.count == 2)
         #expect(transport.requests[0] == transport.requests[1])
     }
 
@@ -365,6 +382,35 @@ struct CloudAdapterTests {
         #expect(built?.provider == provider)
     }
 
+    @Test("AC-M2-22, Q22 (R50-F1): the deadline runs from receipt, so 2.5 s of consent and Keychain reads leave 7.5 s",
+          arguments: CloudProvider.allCases)
+    func deadlineFromReceipt(provider: CloudProvider) async throws {
+        let body = try F.bytes("Fixtures/M2/provider-streams/synthetic/\(Self.folder(provider))/happy-path.sse")
+        let transport = ScriptedCloudTransport([.body(body, chunk: 64)])
+        let clock = StepClock()
+        let keys = SlowKeyStore(clock: clock, readTime: .milliseconds(2_500))
+        let router = ModelRouter(onDevice: UnavailableOnDeviceSource(),
+                                 cloudModels: CloudAdapters(transport: transport, clock: clock),
+                                 consents: InMemoryCloudConsentStore(), keys: keys)
+        _ = try await router.turnCloudOn(provider, key: F.fakeKey)
+        let received = clock.now
+        let routed = await router.events(input: F.outcomeSentence, household: Household(tasks: [], rooms: []),
+                                         now: Date(timeIntervalSince1970: 1_800_000_000),
+                                         calendar: Calendar(identifier: .gregorian),
+                                         timeZone: TimeZone(identifier: "UTC") ?? .gmt,
+                                         titleSharing: .shortlistTitles, preference: .onDeviceFirst)
+        #expect(routed.route == .cloud(provider))
+        var events: [DraftStreamEvent] = []
+        for await event in routed { events.append(event) }
+        #expect(F.outcome(events) == .completed)
+        #expect(keys.reads == 1, "the key is read once, at request start")
+        #expect(received.duration(to: clock.now) == .milliseconds(2_500), "only the key read took time")
+        let first = try #require(transport.timeouts.first)
+        // 10.0 s from receipt, minus the 2.5 s spent on the consent check and the Keychain read (not 10.0 s from the
+        // model call; mutant m10, start 30 s later, would give 40.0 s).
+        #expect(first == CloudAttemptTimeouts(resource: 7.5, request: 4.0))
+    }
+
     @Test("Through the router: with Gemini turned on, a capture takes route cloud(gemini) and the recording gives 3 drafts")
     func routerEndToEnd() async throws {
         let body = try F.bytes("Fixtures/M2/provider-streams/gemini/recorded-outcome-sample.sse")
@@ -389,4 +435,63 @@ struct CloudAdapterTests {
 struct UnavailableOnDeviceSource: OnDeviceModelSource {
     func availability() -> OnDeviceAvailability { .unavailable(.deviceNotEligible) }
     func model(household: Household) -> any IngestionModel { FailingModel() }
+}
+
+/// A test clock for the deadline: `now` moves only when a test step moves it; `sleep` moves it to the wake-up at once.
+final class StepClock: Clock, @unchecked Sendable {
+    // @unchecked Sendable: `current` is touched only under `lock`. Test target only.
+    struct Instant: InstantProtocol {
+        var offset: Duration
+        func advanced(by duration: Duration) -> Instant { Instant(offset: offset + duration) }
+        func duration(to other: Instant) -> Duration { other.offset - offset }
+        static func < (lhs: Instant, rhs: Instant) -> Bool { lhs.offset < rhs.offset }
+    }
+
+    private let lock = NSLock()
+    private var current = Instant(offset: .zero)
+
+    var now: Instant { lock.withLock { current } }
+    var minimumResolution: Duration { .zero }
+
+    func advance(by duration: Duration) { lock.withLock { current = current.advanced(by: duration) } }
+
+    func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+        try Task.checkCancellation()
+        lock.withLock { current = max(current, deadline) }
+    }
+}
+
+/// An in-memory key store whose key read takes `readTime` on the test clock (a slow Keychain).
+final class SlowKeyStore: APIKeyStore, @unchecked Sendable {
+    // @unchecked Sendable: `readCount` is touched only under `lock`; the wrapped store is an actor. Test target only.
+    private let base = InMemoryAPIKeyStore()
+    private let clock: StepClock
+    private let readTime: Duration
+    private let lock = NSLock()
+    private var readCount = 0
+
+    init(clock: StepClock, readTime: Duration) {
+        self.clock = clock
+        self.readTime = readTime
+    }
+
+    var reads: Int { lock.withLock { readCount } }
+
+    func hasKey(for provider: CloudProvider) async throws(CloudStoreError) -> Bool {
+        await base.hasKey(for: provider)
+    }
+
+    func key(for provider: CloudProvider) async throws(CloudStoreError) -> APIKey? {
+        lock.withLock { readCount += 1 }
+        clock.advance(by: readTime)
+        return await base.key(for: provider)
+    }
+
+    func save(_ key: APIKey, for provider: CloudProvider) async throws(CloudStoreError) {
+        try await base.save(key, for: provider)
+    }
+
+    func deleteKey(for provider: CloudProvider) async throws(CloudStoreError) {
+        await base.deleteKey(for: provider)
+    }
 }

@@ -99,13 +99,15 @@ struct MockCloudModel: IngestionModel {
 }
 
 /// The cloud model source for the tests: records every provider it was asked for, builds mock cloud models.
-final class RecordingCloudModels: CloudModelSource {
+final class RecordingCloudModels: CloudModelSource, CloudCaptureReceipt {
     let transport: RecordingTransport
     private let asked = Mutex<[CloudProvider]>([])
 
     init(transport: RecordingTransport) { self.transport = transport }
 
     var askedProviders: [CloudProvider] { asked.withLock { $0 } }
+
+    func receive() -> any CloudCaptureReceipt { self }
 
     func model(for provider: CloudProvider, key: APIKey) -> any IngestionModel {
         asked.withLock { $0.append(provider) }

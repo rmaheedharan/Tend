@@ -8,8 +8,10 @@
 // - **The request** is the payload builder's (WI-M2-10) for this capture, built only from the `IngestionRequest`
 //   (the capture, the room names and, under Q12 = yes, the shortlist titles; ADR-0005 Decision 3) with the curated
 //   model of the provider (Q18). The key is read only into the auth header.
-// - **The body** is read through `CloudResponseBody` (WI-M2-14): the 10.0 s deadline on the injected clock from the
-//   moment the capture reached this model, per-attempt timeouts and the single 429/5xx retry.
+// - **The body** is read through `CloudResponseBody` (WI-M2-14): the 10.0 s deadline on the injected clock from
+//   `start`, the moment the pipeline received the input (AC-M2-22 "Timeouts", Q22, T-17). `start` is read by
+//   `CloudAdapters.receive()`, which the router calls before the route choice and before the consent and Keychain
+//   reads (review R50-F1), and is never read again here. Then per-attempt timeouts and the single 429/5xx retry.
 // - **No Tool.** A cloud model is never given the duplicate-lookup `Tool` (AC-M2-24): this type has none, and its
 //   snapshots carry no lookup queries.
 // - **Cancellation (contract 3).** A stream created in a cancelled task sends nothing; `onTermination` cancels the
@@ -27,25 +29,27 @@ public struct CloudIngestionModel<C: Clock>: IngestionModel where C.Duration == 
     let key: APIKey
     let transport: any CloudTransport
     let clock: C
+    /// When the pipeline received the input: the start of the 10.0 s deadline.
+    let start: C.Instant
 
-    public init(model: CloudModel, key: APIKey, transport: any CloudTransport, clock: C) {
+    public init(model: CloudModel, key: APIKey, transport: any CloudTransport, clock: C, start: C.Instant) {
         self.model = model
         self.key = key
         self.transport = transport
         self.clock = clock
+        self.start = start
     }
 
     public var provider: CloudProvider { model.provider }
 
     public func snapshots(for request: IngestionRequest) -> AsyncThrowingStream<IngestionSnapshot, any Error> {
-        let (model, key, transport, clock) = (model, key, transport, clock)
+        let (model, key, transport, clock, start) = (model, key, transport, clock, start)
         return AsyncThrowingStream { continuation in
             // Contract 3: created inside a cancelled task, it builds and sends nothing.
             guard !Task.isCancelled else {
                 continuation.finish()
                 return
             }
-            let start = clock.now
             let cloudRequest: CloudRequest
             do {
                 cloudRequest = try CloudPayloadBuilder.request(CloudPayloadInput(request), model: model, key: key)
@@ -54,6 +58,9 @@ public struct CloudIngestionModel<C: Clock>: IngestionModel where C.Duration == 
                 continuation.finish(throwing: ModelStopReason.otherModelError)
                 return
             }
+            // The handler is set right after the task starts. That order is safe: the stream is handed out only after
+            // this closure returns, so no consumer can end it before the handler is in place, and a task that has
+            // already finished leaves the handler nothing to cancel (review R50-N4).
             let task = Task {
                 var reader = ProviderStreamReader(provider: model.provider)
                 do {

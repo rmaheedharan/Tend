@@ -6345,28 +6345,33 @@ test now holds the stream without reading it).
 No live call was made in this item, and no key was read or printed.
 
 ### Owner-pending: the OpenAI and Anthropic recordings (plan "Real provider recordings"; AC-M2-24 T-19; L2a)
-The owner chose "Gemini now, others later" (no credit yet). When there is credit, on the Mac, from the repo root at a
-clean checkout of `main` (each key is typed at a hidden prompt, never echoed, never saved; only the response stream is
-kept):
+The owner chose "Gemini now, others later" (no credit yet). When there is credit, run the script
+`Tools/Recording/record-provider-stream.sh` on the Mac, from the repo root at a clean checkout of `main`, once per
+provider. Run it as a script (with `zsh` or `bash` in front), not by pasting its lines, so its comments stay comments
+and nothing enters the shell history. It shows a hidden prompt for the key: type or paste the key, then press Return.
+Nothing is shown while you type. If no key is read, it stops and sends nothing. The key never appears on screen, in a
+file, or in any command's arguments (curl reads the auth header from its standard input). It is cleared when the
+script ends. Only the response stream is saved, as `~/tend-rec-out/<provider>.sse`. No response headers are saved;
+the HTTP status code is printed. If the stream contains the key, the script deletes the file (review R50-F2, R50-F3).
+
 ```bash
-mkdir -p ~/tend-rec-out
-read -rs TEND_KEY   # OpenAI key, then Return (nothing is shown)
-curl -sS -N -D ~/tend-rec-out/openai.status https://api.openai.com/v1/chat/completions \
-  -H "Authorization: Bearer $TEND_KEY" -H 'Content-Type: application/json' \
-  -H 'User-Agent: Tend' -H 'Accept-Language: en-US' \
-  --data-binary @Fixtures/M2/payload/golden/g1-outcome-empty-openai.body.json \
-  > ~/tend-rec-out/openai.sse; unset TEND_KEY
-read -rs TEND_KEY   # Anthropic key, then Return
-curl -sS -N -D ~/tend-rec-out/anthropic.status https://api.anthropic.com/v1/messages \
-  -H "x-api-key: $TEND_KEY" -H 'anthropic-version: 2023-06-01' -H 'Content-Type: application/json' \
-  -H 'User-Agent: Tend' -H 'Accept-Language: en-US' \
-  --data-binary @Fixtures/M2/payload/golden/g1-outcome-empty-anthropic.body.json \
-  > ~/tend-rec-out/anthropic.sse; unset TEND_KEY
-grep -l -i -E 'sk-|x-api-key|authorization|AIza' ~/tend-rec-out/*.sse || echo "OK: no key in the streams"
+zsh Tools/Recording/record-provider-stream.sh openai
 ```
-The Gemini command is the same with the Gemini golden body and `x-goog-api-key` (already recorded; not needed again).
-Then the Developer (or Tester) commits each `.sse` as `Fixtures/M2/provider-streams/<provider>/recorded-outcome-sample.sse`
-(never the `.status` file when it holds account identifiers), adds it to `CloudAdapterTests` and
+
+```bash
+zsh Tools/Recording/record-provider-stream.sh anthropic
+```
+
+The Gemini command (already recorded; not needed again):
+
+```bash
+zsh Tools/Recording/record-provider-stream.sh gemini
+```
+
+`bash` works the same in place of `zsh`. Each run sends the committed golden request
+(`Fixtures/M2/payload/golden/g1-outcome-empty-<provider>.head.txt` and `.body.json`) with the typed key in the
+provider's auth header. Then the Developer (or Tester) commits each `.sse` as
+`Fixtures/M2/provider-streams/<provider>/recorded-outcome-sample.sse`, adds it to `CloudAdapterTests` and
 `ProviderStreamRecordingTests` like the Gemini one, and records the served model ID and the reasoning-token count
 (Q18 conditions 1 and 5). A billing error is "not verified", not a failure; a 4xx naming a request field stops, and the
 golden bodies change only under a PO decision (L2a pass rule).
