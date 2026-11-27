@@ -593,7 +593,7 @@ struct AnthropicDialectTests {
                 + Body.anthropicEvent(
                     "content_block_start", #"{"type":"content_block_start","index":0,"content_block":{"type":"text"}}"#),
             Body.anthropicStart + Body.anthropicEvent("content_block_delta", #"{"type":"content_block_delta","delta":{}}"#),
-          ])
+          ] as [String])  // Explicit element type: Xcode 27.2's type checker times out on this literal without it.
     func unexpectedStructure(_ prefix: String) {
         expectStop(prefix + Body.anthropicDelta(Body.output) + Body.anthropicStop("tool_use") + Body.anthropicMessageStop,
                    provider, .unreadable(.unexpectedStructure))

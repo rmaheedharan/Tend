@@ -25,11 +25,13 @@ enum ScanScope {
 
     static let roots: [Root] = [
         Root(module: .tendIngestion, path: "Packages/TendIngestion/Sources", state: .required),
-        Root(module: .tendAI, path: "Packages/TendAI/Sources", state: .optional),       // required from WI-M2-M1
-        Root(module: .tendEval, path: "Apps/TendEval/Sources", state: .optional),       // required from WI-M2-M1
+        Root(module: .tendAI, path: "Packages/TendAI/Sources", state: .required),       // required since WI-M2-M1
+        Root(module: .tendEval, path: "Apps/TendEval/Sources", state: .required),       // required since WI-M2-M1
     ]
 
-    /// Rule 5 (T-27): off until the T-27 check in WI-M2-M1 records that iOS 26 needs the two calls.
+    /// Rule 5 (T-27): off. The T-27 check in WI-M2-M1 found that `SpeechAnalyzer` with `SpeechTranscriber` or
+    /// `DictationTranscriber` does not need `SFSpeechRecognizer.requestAuthorization(_:)` (Apple's Speech
+    /// documentation and the macOS run; dev-notes "WI-M2-M1"). DS-1 and DS-2 confirm it on device.
     static let speechPermissionExceptionEnabled = false
 
     static let configuration = IngestionScanConfiguration(

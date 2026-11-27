@@ -1,0 +1,3 @@
+--- git status --porcelain after the run (must be empty):
+?? docs/milestones/M2/evidence/mac/
+--- end

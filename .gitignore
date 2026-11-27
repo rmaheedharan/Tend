@@ -9,3 +9,9 @@ xcuserdata/
 
 # macOS
 .DS_Store
+
+# Generated Xcode project (ADR-0003: always regenerated from project.yml, never hand-edited)
+/Tend.xcodeproj/
+
+# Mac build outputs, logs and result bundles (M2 plan, owner-run Mac commands)
+/build/

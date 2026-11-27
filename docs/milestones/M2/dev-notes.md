@@ -5370,3 +5370,202 @@ Break check: I swapped the order to `PATH` first. The resolver test failed on th
 |---|---|---|---|---|
 | 2026-11-25 | Orchestrator | Developer | accepted | Mac finding: skip at `/sbin/sha256sum` path, `cf1261f`. |
 | 2026-11-25 | Developer | Reviewer, owner (via Orchestrator) | sent | Test-only, local commit, not pushed. 571 green, 0 skipped on Linux. Mac rerun needed. |
+
+---
+
+## WI-M2-M1 — XcodeGen project, `TendAI` scaffold, T-27 check, Mac command check, latency probe (MS-1)
+
+- **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/xcodegen-project`, based on
+  `main` at `20c40ea`  ·  **PR:** #38 (the owner merges Mac-only PRs under D-032)  ·
+  **ADRs:** [ADR-0003](../../architecture/adr/0003-project-generation.md), now **Accepted**;
+  [ADR-0006](../../architecture/adr/0006-m2-module-layout.md) (the layout followed).
+- **Requirements:** ○ AC-M2-09 (the Rule 5 decision and the `TendAI` and `TendEval` roots switched to `required`),
+  ○ AC-M2-13 (the Mac lane exists: B4 and B5 run), ○ AC-M2-28 (the target and scheme structure that its `project.yml`
+  scan will check). T-27, R-1, R-8. P-1, P-2.
+- **Mac evidence record:** [`evidence/mac/MS-1/`](evidence/mac/MS-1/README.md). It names the exact commit tested, every
+  command, and the SHA-256 of each log.
+
+### What changed
+- **`project.yml`** (repo root, XcodeGen 2.46.0). It has four targets:
+  - `Tend`: the app skeleton (`com.tend.app`). It has no dependencies, so it has none on `TendEval`.
+  - `TendEval` (`com.tend.eval`): it depends on `TendCore`, `TendIngestion` and `TendAI`. The five frozen eval files
+    are bundled file by file at the bundle root. File sharing is on in Debug only, through a partial `Info.plist` that
+    only the Debug configuration sets.
+  - `TendAITestHost` (`com.tend.aitesthost`): a blank host app.
+  - `TendAIHostedTests`: a unit-test bundle over `Packages/TendAI/HostedTests`, hosted by `TendAITestHost`.
+
+  It has three schemes:
+  - `Tend` builds and archives only `Tend`.
+  - `TendEval` uses Debug for every action and is not built for archiving, so `xcodebuild archive -scheme TendEval`
+    is refused.
+  - `TendAIHostedTests` builds the host and tests the bundle.
+
+  Swift 6, complete strict concurrency, warnings as errors, iOS 26.0 deployment target, iPhone and iPad. The file is
+  pinned with `minimumXcodeGenVersion: 2.46.0`.
+- **`.gitignore`:** `/Tend.xcodeproj/` (always generated) and `/build/` (Mac logs, derived data and result bundles).
+- **`Packages/TendAI`:**
+  - `Package.swift`: tools 6.2, Swift 6, iOS 26 / macOS 26. The library `TendAI` depends on `../TendCore` and
+    `../TendIngestion`. The test target is `TendAITests`.
+  - `Sources/TendAI/TendAIModule.swift`: the scaffold. It imports `Foundation` only.
+  - `Tests/TendAITests`: 1 test (macOS, B4).
+  - `HostedTests`: 2 tests (iOS Simulator, B5). One checks that they run inside `com.tend.aitesthost`.
+- **`Apps/Tend`, `Apps/TendAITestHost`, `Apps/TendEval`:** one SwiftUI `App` file each, with no product UI. The
+  `TendEval` file imports `SwiftUI` only, has no write or log API, and passes Rule 6.
+- **`ScanScope.swift`:** `TendAI` and `TendEval` are now `required`. The Rule 5 T-27 exception stays **off** (see
+  below); its comment now gives the reason. The AC-M2-09 scan on the Mac: TendIngestion 55 files, TendAI 1, TendEval 1,
+  57 in total, 0 violations.
+- **`ProviderDialectTests.swift`, one line (a compile fix, not a test change):** `arguments: [...] as [String]` on the
+  `unexpectedStructure` test. Xcode 27.2's Swift 6.4.2 compiler stops on that 13-row literal of `String +` chains with
+  "unable to type-check this expression in reasonable time". Linux Swift 6.2 compiled it. The rows, the test body and
+  the test name are unchanged, and the test runs the same 13 cases.
+- **`plan.md`:**
+  - The speech-permission row now records the T-27 result.
+  - The Mac commands section has a "Confirmed by WI-M2-M1" paragraph and one new B6 check (the `TendEval` Archive
+    action is off).
+  - R-1 has the probe numbers. R-8 notes that the Simulator could not give the answer.
+- **ADR-0003:** Accepted, with the pin, both checksums, the install method, and three things learnt while generating.
+
+### T-27: does `SpeechAnalyzer` need `SFSpeechRecognizer.requestAuthorization(_:)`? **No.**
+The probe is a throwaway project in the session scratchpad. It never calls `requestAuthorization`. Its source is
+copied, for the record only, to [`evidence/mac/MS-1/probes/`](evidence/mac/MS-1/probes/), outside every scanned root.
+The input was a 4.8 s, 16 kHz WAV made with `say` ("We are almost out of dishwasher pods, and the AC needs servicing
+before summer.").
+
+| Where | `authorizationStatus()` before → after | `SpeechTranscriber` | `DictationTranscriber` |
+|---|---|---|---|
+| macOS 27.2.1 (26B131), command-line tool with `NSSpeechRecognitionUsageDescription` embedded | `notDetermined` → `notDetermined` | `isAvailable = true`; assets `supported` → `installed` (first run; already `installed` in the committed run); **transcribed the sentence exactly**, from the file (0.40 s) and from converted buffers through `start(inputSequence:)` (0.19 s) | `.longDictation`: **transcribed it**, from the file (0.34 s) and from buffers (0.19 s). In the first run, `.shortDictation` returned no final result for this 4.8 s file (a note for WI-M2-M3, not a permission matter). |
+| iOS 26.5 Simulator (23F77), iPhone 17 Pro | `notDetermined` → `notDetermined` | `isAvailable = false`; assets `unsupported`; an asset request fails with "not subscribed to transcription.en" | assets `supported` → `installed`, but `bestAvailableAudioFormat` is `nil` and analysis fails with "No common audio format among modules" |
+
+- **On the Simulator, neither failure is an authorization error.** The Simulator has no usable speech model, so it
+  cannot answer T-27 either way. This is risk R-8, and it happened.
+- **Apple's documentation** ("Asking Permission to Use Speech Recognition", Speech framework, read 2026-11-25): the
+  permission flow covers only speech recognition with `SFSpeechRecognizer`. The article says `SpeechAnalyzer`
+  transcriber modules "don't send audio data of the user's voice to Apple's servers". The `SpeechAnalyzer`,
+  `SpeechTranscriber` and `DictationTranscriber` reference pages name no authorization step.
+- **Decision:** the Rule 5 exception stays **off** (`ScanScope.speechPermissionExceptionEnabled = false`). The
+  speech-permission file holds no `SFSpeech*` API. Live capture still needs the **microphone** permission
+  (`AVAudioApplication.requestRecordPermission`, `NSMicrophoneUsageDescription`), which is not an `SFSpeech*` API
+  and is allowed by Rule 2 (`AVFAudio`).
+- **For the Acceptance Tester (DS-1, DS-2 preconditions):** on device, the first capture should show the microphone
+  prompt and **no** speech-recognition prompt. If a device shows a speech-recognition prompt or refuses to transcribe
+  without one, T-27 is reopened. The scope table and the plan row are then changed under a PO decision.
+
+### R-1 latency probe (information only, never evidence)
+- **Setup:** M1 Mac mini (16 GB), macOS 27.2.1, `SystemLanguageModel.default.availability == .available`. A
+  draft-sized `@Generable` schema: `items: [ProbeDraft]` with at most 10 items, 7 fields each, `title` first, no
+  `Tool`.
+- **Run:** a fresh session each run, `prewarm()` and 1 s idle, then `streamResponse` on the 3-task Outcome sentence.
+  TTFI is the time to the first snapshot whose first item has a non-empty `title`, on `ContinuousClock`.
+
+Committed run ([`probes/mac-probe-final.log`](evidence/mac/MS-1/probes/mac-probe-final.log)):
+
+| Run | 1 | 2 | 3 | 4 | 5 | Median |
+|---|---|---|---|---|---|---|
+| TTFI (s) | 2.22 | 1.37 | 1.34 | 1.34 | 1.35 | **1.35** |
+| Total (s) | 5.32 | 5.80 | 4.41 | 4.40 | 4.43 | 4.43 |
+
+An earlier run in the same session gave a TTFI median of 1.36 s (range 1.33–2.12 s) and a total median of 4.46 s.
+
+- Every run produced 3 items. Run 1 is a cold start.
+- What this says for R-1: on the Mac the schema lands just under the 1.5 s AC-M2-16 bound once warm, with little room
+  to spare, and before the duplicate `Tool` is added. The iPhone 15 Pro is slower than an M1, so SP-1 in MS-2 is worth
+  running.
+- **iOS 26.5 Simulator:** `availability == .available`, but every `streamResponse` failed with `GenerationError -1`.
+  The underlying errors are `com.apple.SensitiveContentAnalysisML 15` and `ModelManagerError 1001` (the guardrail
+  model is missing in this Simulator runtime). The Simulator gives no on-device-model numbers. WI-M2-M2 should not
+  plan Simulator tests against the real model.
+
+### Test runs (R-18 runtime record; the evidence record has the logs)
+The clean run at `0065664`, with `build/`, every package `.build` and the project's DerivedData deleted first. The
+Xcode builds are short because Xcode 27's shared compilation cache (`DerivedData/CompilationCache.noindex`) was warm
+from earlier runs in the session.
+
+| Command | Result | Runtime |
+|---|---|---|
+| B1 `swift test` TendCore | 141 tests in 18 suites passed, 0 warnings | 43 s wall (tests 30.7 s) |
+| B2 `swift test` TendIngestion | 570 tests in 67 suites: **568 pass, 2 fail** (the Havana tzdata cases below), 0 warnings | 97 s wall (tests 70.7 s) |
+| B4 `xcodebuild test -scheme TendAI` (macOS) | 1 test passed, `TEST SUCCEEDED` | 8 s |
+| B5 `xcodebuild test -scheme TendAIHostedTests` (iPhone 17 Pro, iOS 26.5) | 2 tests passed, `TEST SUCCEEDED` | 9 s |
+| B6 Release build and archive of `Tend`; `find … -iname '*TendEval*'` | both succeed; both `find`s print nothing; the archive holds only `Tend.app` | 5 s + 2 s |
+| B6 `TendEval` Debug build | succeeds; the bundle holds the 5 fixture files, and its `MANIFEST.sha256` is byte-identical to the repo's (all 5 SHA-256 match); `UIFileSharingEnabled = true` (Debug) | 11 s |
+| B6 `xcodebuild archive -scheme TendEval` | refused, exit 66: "Scheme TendEval is not currently configured for the archive action." (as intended) | — |
+
+### B2 on macOS: two America/Havana tzdata failures (not caused by this item; owner of the fix: WI-M2-03)
+- `AC-M2-03 Q6(e): tzdata sanity for the Havana cases` expects `secondsFromGMT(2026-11-01T05:00Z) == -5 h`. macOS
+  gives **-4 h**.
+- `… a repeated and a missing local midnight (America/Havana)`, case "CU tomorrow on the 25 h day", expects the window
+  to end at 05:00Z. macOS gives 04:00Z.
+- The Mac's tz database is **2026f** (`/var/db/timezone/zoneinfo/+VERSION`). In it Cuba does not fall back on
+  2026-11-01. The Linux image (`swift:6.2-noble`) has older tzdata that still has the fall-back. The resolver is right
+  for the zone data it is given. The test pins a tzdata fact that has changed.
+- The sanity test exists to catch exactly this, and it did. **I did not change either test** (never weaken a test).
+- Fix options for WI-M2-03's owner or the PO: move the "repeated midnight" case to a zone and date whose rule is
+  stable in both tzdata versions; or make the fixture pick its date from the zone's actual transitions. The second
+  option changes what the test proves, so the PO decides.
+- Until then, AC-M2-13(b) cannot be green on this Mac. Linux CI will hit the same failure when its image gets 2026f.
+
+### Verification environment
+| Check | Linux `swift test` | macOS (owner-run Mac) | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendCore | not rerun | pass (B1) | n.a. | n.a. | — |
+| TendIngestion | not rerun (CI runs it) | 568 / 570 (B2; tzdata, above) | n.a. | n.a. | — |
+| TendAI scaffold | n.a. (Apple-only) | pass (B4) | pass (B5) | n.a. | — |
+| AC-M2-28 structure | n.a. | B6 pass | n.a. | n.a. | The `project.yml` scan test is WI-M2-M7's (● AC-M2-28) |
+| T-27 | n.a. | answered (no authorization needed) | no speech model | — | DS-1 and DS-2 confirm the prompts on device |
+
+### Things the reviewer should look at closely
+- **Xcode 27.2, not 26.** The App Store installed Xcode 27.2 (27B52) with the iOS 27.2 SDK. The only Simulator runtime
+  on the Mac is iOS 26.5. The deployment target is iOS 26.0, so the iOS 26 floor is what is built against. The brief's
+  "Xcode 26" commands run unchanged. If the PO wants exactly Xcode 26, that is an owner install, and the evidence must
+  be redone.
+- The `as [String]` line is the only edit to an existing test file apart from `ScanScope` and its one comment. It
+  only adds a type annotation.
+- **`TendEval` "Debug only".** All four of its scheme actions use Debug, the scheme cannot archive, and no other
+  target depends on it. The target still has a Release configuration, because XcodeGen generates both configurations
+  for every target. Nothing builds it in Release. If the Reviewer wants a hard guard (for example a Release-only build
+  setting that fails the build), that is one more `project.yml` line.
+- The `Tend` skeleton links nothing. When M3 gives it dependencies, `TendEval` must stay out of them (AC-M2-28).
+- `com.tend.*` bundle IDs are placeholders until the signing team (Q20) is chosen. None of them is host-like under
+  Rule 4.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| Havana tzdata failures in B2 on macOS (tzdata 2026f) | **Major** for AC-M2-13(b); not caused by this item | WI-M2-03 owner and PO (above) |
+| T-27 rests on the docs and macOS; the Simulator has no speech model | Minor | DS-1 and DS-2 prompt check (Tester) |
+| `DictationTranscriber` `.shortDictation` gave no final result for a 4.8 s file; `.longDictation` worked | Minor | WI-M2-M3 (preset choice) |
+| FoundationModels does not run in the iOS 26.5 Simulator (guardrail model missing) | Minor | WI-M2-M2 (test plan) |
+| AC-M2-28 `project.yml` scan test | — | WI-M2-M7 (owner of AC-M2-28) |
+| CLAUDE.md §7 still shows the commented Xcode command | Minor | Documenter (protected path) |
+
+### Tickets (from review round 1, [review-pr38.md](review-pr38.md))
+| Finding | Ticket | Where |
+|---|---|---|
+| m1(a) "All interface orientations must be supported…" warning for `Tend` and `TendEval` | Add `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad` (and an explicit iPhone list) for both targets in `project.yml`; B6 re-run proves it clean. The iPad orientation set is the Designer's decision (CLAUDE.md §9 Q1). | MS-2 |
+| m2 `TendEval` Release is excluded only by the schemes | Hard guard in the `TendEval` Release configuration, asserted by the AC-M2-28 `project.yml` scan test. | WI-M2-M7 |
+| m4 T-27 rests on docs and a macOS command-line probe | T-27 check on the iPhone 15 Pro in SP-1: first capture shows only the microphone prompt, and transcribes (Planner / Tester). | MS-2 |
+| n2 B6 builds without the warnings-as-errors flag | Pass `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES` in the B6 commands on the next Mac run. | next Mac run (MS-2) |
+
+The round 1 docs-only fixes (M1 path redaction to `$REPO`, m1(b) README warning sentence, m3 zip digest, n1 PR number)
+are in the fix commit on top of `02c1d84`; no file outside `docs/` changed, so the Mac record still covers `0065664`
+(review Q1 is open for the PO / owner).
+
+### Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface; the app skeletons show no UI. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No copy. The scaffold names pass the banned-token rule. |
+| UX-4 Design craft | n.a. | No product UI in M2's skeletons. |
+| P-1 On-device inference | pass | Both probes ran fully on device. T-27 keeps speech recognition on `SpeechAnalyzer`, which sends no audio to Apple. |
+| P-2 No data leaves device | pass | No SDK and no networking code. XcodeGen is a dev tool, pinned by checksum (ADR-0003), and nothing from it is linked into an app. |
+| P-3 Cloud AI only opt-in, BYOK, minimised | n.a. | No cloud code. No key was used. |
+| P-4 Media not persisted | pass | The probe's audio was synthetic text-to-speech in the scratchpad. No user audio was captured. |
+
+### Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-25 | Coordinator | Developer (owner's Mac) | accepted | WI-M2-M1 brief. The start was blocked until the owner installed Xcode and accepted its licence. |
+| 2026-11-25 | Developer | Reviewer, Acceptance Tester, PO (via the coordinator) | sent | Branch pushed, no PR. Open items: the Havana tzdata failures (PO / WI-M2-03), and HM-2 / D-032 for the owner's merge. |
+| 2026-11-25 | Reviewer | Developer | accepted | PR #38 round 1: CHANGES REQUIRED (M1, m1, m2, m3, m4, n1, n2). |
+| 2026-11-25 | Developer | Reviewer (via Orchestrator) | sent | Docs-only fix: `$REPO` redaction (2,248 occurrences), 22 hashes recomputed (9 changed), README warning sentence, zip digest aligned with ADR-0003 (and ADR zip size corrected), PR #38 noted; tickets above. Not pushed. |
