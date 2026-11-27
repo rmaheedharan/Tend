@@ -5965,3 +5965,57 @@ time; no test was affected.
 ### For the Acceptance Tester (DS-1, DS-2)
 The quick-stop step from round 2 also covers this: start a capture and stop it at once, and again within a second of
 the previous stop; the microphone indicator must go off each time and the next capture must record normally.
+
+## SP-1 probe (device spike, information only): SP-1.md Part D, D1–D6
+
+- **Branch:** `m2/sp1-probe`, from `origin/m2/on-device-adapter-v2` (`ad8f755`, PR #43 approved round 2) with
+  `origin/m2/speech-adapter-v2` (`774db72`, PR #44 round 3, M1-r2 fixed) merged in (merge commit `130721c`). Neither PR
+  was on `main` yet; the two heads are named here for the Tester (D1, T1). The only merge conflict was the end of this
+  file; both sides are kept.  ·  **SP1-COMMIT:** `e2cdab04cd820432fd9af83e76706bbe418c1049`  ·  **Mac evidence
+  record:** [`evidence/mac/SP-1-dry-run/`](evidence/mac/SP-1-dry-run/README.md).
+- Not evidence for any AC. AC-M2-16 stays AWAITING-DEVICE (DS-1).
+
+### What changed (D2–D4)
+- **D2 `project.yml`:** `TEND_BUNDLE_PREFIX` (default `com.tend`) on `TendAITestHost` and `TendAIHostedTests`; their
+  bundle IDs are `$(TEND_BUNDLE_PREFIX).aitesthost` / `.aihostedtests` (checked: `TEND_BUNDLE_PREFIX=org.example.owner`
+  on the command line gives `org.example.owner.aitesthost` and `org.example.owner.aihostedtests`). `TendAITestHost` has
+  `INFOPLIST_KEY_NSMicrophoneUsageDescription` = "TendAITestHost uses the microphone to test voice capture. Nothing is
+  saved." (in the built `Info.plist`). No `NSSpeechRecognitionUsageDescription` anywhere. `Tend` and `TendEval` are
+  unchanged (B6 as before).
+- **Link change (needs the Reviewer's eye):** the host now links `TendCore`, `TendIngestion` and `TendAI` (the speech
+  screen uses the product adapter). Xcode then leaves the packages out of the hosted test bundle and expects them from
+  the host through `BUNDLE_LOADER`, but the host's Debug build keeps its code in a debug dylib and does not export
+  everything the tests use, so the bundle did not link. I tried `-all_load`, no dead stripping and no debug dylib; the
+  link still had undefined `TendIngestion` symbols. The working fix: `BUNDLE_LOADER: ""` on `TendAIHostedTests`, so the
+  bundle links its own copies; `TEST_HOST` is unchanged, so the tests still run inside the host (Keychain). The cost is
+  that the ObjC runtime warns "Class … is implemented in both" for the package classes at test start. No test passes
+  a value between the host's copy and the bundle's copy (the host's screen is idle during tests), so no cast can cross
+  them. A cleaner alternative is a separate SP-1 app target for the speech screen, which would change the owner's
+  commands; I did not do it without the Tester.
+- **D3 `Packages/TendAI/HostedTests/SP1TimingProbe.swift`:** skipped unless `TEND_SP1=1`; the dev set of the WI-M2-M2
+  round-2 probe, `dev1`…`dev8`, 8 tasks in 3 rooms, fixed UUIDs, the same per-chore expectations; header (device code
+  from `utsname.machine`, or `SIMULATOR_MODEL_IDENTIFIER` in the Simulator; OS string; thermal state; low power;
+  `availability()`), cold `dev1` with no prewarm, then 3 warm rounds (prewarm, 1.0 s, run). `ContinuousClock` from
+  handing the text to the pipeline; TTFI at the first `emitted`, total at the end; 30 s limit per capture (`timeout`).
+  Tool calls answered and refused come from the capture's own `DuplicateLookupRecorder` (`@testable`). Lines go
+  unbuffered to standard output as `SP1|seq=…|…`; no bundle ID, device name, UDID, team or user name. No timing
+  `#expect`; `.timeLimit(.minutes(15))`; an unavailable model records one issue and stops. `commit=unknown` (the Mac
+  header file in step A2 records the commit).
+- **D4 `Apps/TendAITestHost/Sources/SP1SpeechScreen.swift`:** the host's root view. Nothing at launch. Buttons
+  [Speech status], [Get speech model], [Start], [Stop], [Quick stop test]; the `SP1|…` lines below them and on standard
+  output. One `MicrophoneAudioSource` for the session; `SpeechPermission.requestMicrophone()` on the first [Start];
+  [Get speech model] downloads the en-US assets only when tapped; [Quick stop test] runs 10 tries 1 s apart (1–5 stop
+  right after the start, 6–10 at `transcriberChosen`), then `quickstop|done` and a 10-second "Look at the top of the
+  screen now" countdown. One addition for the Mac dry run: the launch variable `TEND_SP1_SELFCHECK=1` presses [Speech
+  status] once at launch (no permission, no download, no microphone); without it nothing runs at launch.
+- **D6:** no eval file, no `@Guide` text or instruction, and the one-call rule unchanged. `git grep` for
+  `Fixtures/M2/eval`, `inputs.json`, `golden.json` in `Packages/TendAI/HostedTests` and `Apps/TendAITestHost` prints
+  nothing; none of the 8 dev-set texts equals or is contained in a frozen `inputs.json` text (checked).
+
+### D5 dry run and command check (Mac mini M1, Xcode 27.2, iOS 26.5 Simulator)
+| Step | Result |
+|---|---|
+| D5.1 B5 with the probe present | PASS: 5 tests in 3 suites; `SP1TimingProbe` "skipped" (`mac-B5-hosted.log`) |
+| D5.2 probe in the Simulator, `TEST_RUNNER_TEND_SP1=1 … -only-testing:TendAIHostedTests/SP1TimingProbe` | PASS (1 test). 28 `SP1|` lines (header, cold, 24 warm, summary, footer); `grep -o 'SP1|.*'` extracts them. Header `device=iPhone18,1`, `model=available`; every capture ends `noModel` (no usable model in the Simulator, MS-1). Never an SP-1 result |
+| D5.3 `xcrun simctl launch --console` of the host | the `speech-status` line (`readiness=ready(dictationTranscriber)|mic=notAsked`) reached the Terminal, with `SIMCTL_CHILD_TEND_SP1_SELFCHECK=1`. I could not tap the Simulator here: the Simulator panel's access prompt was not answered (the owner was away), so the self-check variable stands in for the tap |
+| D5.4 owner commands on Xcode 27.2 | `xcodebuild -help` lists `-only-testing`, `-allowProvisioningUpdates`, `-allowProvisioningDeviceRegistration`, `-showdestinations`, `-destination`; the `TEST_RUNNER_` prefix reaches the test process (D5.2); `-only-testing:TendAIHostedTests/SP1TimingProbe` selects the suite; `TEND_BUNDLE_PREFIX=…` on the command line sets both bundle IDs; `xcrun devicectl device process launch --help` lists `--console`, `--terminate-existing`, `--device`; `-showdestinations` prints `{ platform:iOS, id:…, name:… }`, which the script's `grep 'platform:iOS,'` matches. **No command in Part A or Part B needs a change.** Not checkable without the phone: provisioning with a Personal Team and the device launch itself |

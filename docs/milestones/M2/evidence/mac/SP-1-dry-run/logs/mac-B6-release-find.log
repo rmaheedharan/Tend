@@ -1,0 +1,2 @@
+find build/dd-release/Build/Products -iname '*TendEval*' (must print nothing):
+--- end
