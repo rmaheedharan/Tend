@@ -113,7 +113,7 @@ in `Packages/TendAI` (`grep -rn` over `Sources` and `Tests`).
 - **SHA-256:** the README lists 16 files (every file in the folder except the README itself). `sha256sum -c` on the
   listed lines: **16/16 OK**.
 - **No personal data:** `grep -rniE '<owner login>|Mac-mini|/Users/'` over the evidence folder and the new dev-notes
-  section: **0 hits**. Also 0 hits for `maheed`, `/var/folders`, or `.local` host names. Paths are the `$REPO`,
+  section: **0 hits**. Also 0 hits for the owner's name, `/var/folders`, or `.local` host names. Paths are the `$REPO`,
   `$HOME`, `$TMPDIR` tokens. The README names the machine model ("M1 Mac mini, `Macmini9,1`"), which is hardware,
   not a hostname.
 - **Logs agree with the claims:** B4 lists 18 tests in 6 suites passed, including both real-engine tests (1.86 s and
