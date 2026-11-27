@@ -6274,3 +6274,12 @@ the previous stop; the microphone indicator must go off each time and the next c
   in 68, AC-M2-09 scan 66 files, 0 violations; B4 TendAI 42 tests in 11 suites; B5 hosted 36 tests in 5 suites (the
   Keychain and transport tests from main plus the speech hosted tests); B6 as MS-1. All passed, 0 skipped, no compiler
   warnings. Record: [`evidence/mac/WI-M2-M3-r5/`](evidence/mac/WI-M2-M3-r5/README.md).
+
+### WI-M2-M3: brought up to date with main (PR #43 and #49 merged)
+- `origin/main` (`8371552`) merged into `m2/speech-adapter-v2` as `2a6931e` (merge commit; no rebase). The only conflict
+  was this file. It was rebuilt by section: main's text as it is (an unchanged prefix), then this branch's five
+  WI-M2-M3 sections; a section comparison shows every section of `main` (28) and of this branch (31) exactly once and
+  unchanged, and no heading twice. No build fix was needed (main already has the `model(household:)` test helper).
+- Mac evidence record for `2a6931e`: [`evidence/mac/WI-M2-M3-main-merge/`](evidence/mac/WI-M2-M3-main-merge/README.md).
+  B1 TendCore 141; B2 TendIngestion 580, scan 72 files, 0 violations; B4 TendAI 96 tests in 17 suites; B5 hosted 36
+  tests in 5 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings, clean tree before and after.
