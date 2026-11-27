@@ -607,3 +607,169 @@ Round-3 Nits n3 and n4 are still open (optional). Info i1–i8 stand. AC-M2-11 a
 |---|---|---|---|---|
 | 2026-11-27 | Developer | Reviewer (via Orchestrator) | accepted for review | PR #44 at `430f700` (code `e100496`); fix for SP-1 probe review I-1 (early stop dropped, P-4). |
 | 2026-11-27 | Reviewer | Merge Gatekeeper / Acceptance Tester / Developer (via Orchestrator) | accepted | Round 4: **APPROVE**. I-1 closed in code; `@unchecked Sendable` sign-off holds. New Minors m7 (arm ignored while a previous capture is not yet idle) and m8 (a cancel during the choice still opens the microphone briefly), not blocking; Nits n5, n6 optional. Tester: SP-1 B4 should show no microphone indicator and `restops=0`. Add a DS-1 step "Start, Stop, then Start and Stop again at once, before the first result shows", and AC-M2-11/25 stay AWAITING-DEVICE. Designer/Planner: the M3 capture screen must start a new capture only after the previous `.finished` (m7 option b) unless m7 is fixed in the adapter. |
+
+---
+
+## Round 5 — PR #44 at `8c324a6` (code `a5b9f25`, merged with main as `c36a89c`)
+
+**Verdict: APPROVE.** No open Blocker or Major.
+
+**Scope.** Code commit `a5b9f25` (round-4 m7, m8, n5, n6), the merge `c36a89c` of `origin/main` `9e50012`, and the
+docs-only evidence commit `8c324a6` (WI-M2-M3-r5). I reviewed `git diff 8a04059 a5b9f25` line by line. FR-A1, P-4,
+AC-M2-09, AC-M2-11, AC-M2-25.
+
+### Summary
+- **m7 is fixed.** `MicrophoneCaptureState` now keeps the capture that has started but not yet asked for audio in its
+  own field, `next` (`none` / `armed` / `stopped`), beside `phase` (`MicrophoneCaptureState.swift:38-45, :60`).
+  `arm()` sets `next = .armed` in every phase (`:65-67`). `stop()` turns `armed` into `stopped` and then also stops the
+  active capture as before (`:81-97`). `begin()` reads and clears `next`, then gives a token only in `idle` (`:71-78`).
+  Round-4 interleaving 9 now ends with the microphone closed. I proved this with my own state test and the developer's.
+- **m8 is fixed.** `SpeechCapture.run` returns `.cancelled` before `emit(.transcriberChosen)` and `source.audio(in:)`
+  when the task is cancelled (`SpeechTranscriptionAdapter.swift:226-228`).
+- **n5 and n6 are done.** A test drives the real `MicrophoneAudioSource` (`RoundFiveStopTests.swift:81-97`). The state
+  header now describes the code as built (`MicrophoneCaptureState.swift:5-17`).
+- **The merge is faithful.** The **`@unchecked Sendable` sign-off still holds.** The evidence record is complete.
+- One new **Minor (m9)**: there is a single `next` slot, so two captures armed at the same time on one source share
+  it. It is not new; round 4's `armed`/`armedStopped` had the same limit. It needs the same caller contract as before.
+
+### Interleavings traced (at `a5b9f25`)
+A, B, C are captures on one `MicrophoneAudioSource`, started in that order. "Stop" means `MicrophoneAudioSource.stop()`.
+It has no token: it acts on whatever is armed or active when it arrives.
+
+| # | Interleaving | Path | Result |
+|---|---|---|---|
+| 1 | Round-4 cases 1-8 (stale stop before arm; stop between arm and source start; stop after `begin`; stop during engine start; stop on `.transcriberChosen`; stale stop from an `.unavailable` capture; double stop; B after A's `.finished`) | Same results as round 4. `phase` changes exactly as before. `next` behaves as `armed`/`armedStopped` did when `phase == .idle`. The 9 old state tests, the developer's `stateRules` and my round-4 interleavings pass unchanged on the new file. | PASS |
+| 2 | **Round-4 m7: B armed while A is `stopRequested`, A's teardown ends, then Stop, then B asks for audio** | `arm` → `next = .armed`. A: `markRunning` false → `stopping` → `finishTeardown` → `idle`. Stop → `next = .stopped`, phase `idle` → `.beforeAudio`. B's `begin` → `stopRequested(b)` → `mayActivate` false → `idle`. The microphone never opens. Developer test `armWhileOldCaptureStopping`; my `secondCaptureArmedDuringFirstTeardown` (round 4's known issue, now a plain passing test). | PASS (m7 closed) |
+| 3 | **B armed while A runs, then Stop** ("also stops an earlier still-active capture") | `next = .stopped` and `running(a)` → `stopping(a)` → `.wasRunning(a)`. `MicrophoneAudioSource.stop()` tears down **A by A's token** (`takeContinuation(a)`, `takeEngine(a)`, `finishTeardown(a)`: `MicrophoneAudioSource.swift:72-78, :179-204`). Nothing in that path can reach B: B has no token yet, and B's only state is `next`. B then begins already stopped. Stopping A is correct: B cannot begin while A holds the source (m6), and the caller only arms B after the person pressed Start again. My `stopWithArmedAndRunningStopsBothNotLater`. | PASS |
+| 4 | **B armed while A is `starting`, then Stop** | `next = .stopped`, `starting(a)` → `stopRequested(a)` → `.wasStarting`. A's start path ends A at `mayActivate`/`markRunning`, token-checked as in round 3. B begins stopped. Developer test `armWhileOldCaptureActive(running: 0)`; my `stopWithArmedAndStarting`. | PASS |
+| 5 | **Can B's stop reach a later capture C?** | `begin` clears `next` whether or not it gives a token (`:72-73`), so once B has asked for audio, B's stop is spent. C's `arm()` sets `next = .armed`, so no stop given before C started is ever applied to C. A's teardown only calls `finishTeardown(a)`, which matches only `stopping(a)` (`:152-154`). My `stopWithArmedAndRunningStopsBothNotLater` runs C after B and shows C starts and runs. | PASS |
+| 6 | B asks for audio while A still runs (refused) | `begin` clears `next`, then returns nil → `audioNotStarted` → B ends `.stopped(.audioInterrupted)`. A is untouched. A later C arms and runs normally. My `refusedBeginClearsNext`. | PASS |
+| 7 | A's stream ends (termination or conversion stop) while B is armed | `end(a)` changes only `phase`. `next` stays `.armed`, and B begins normally after A's teardown. My `endOfOldDoesNotTouchNext`. | PASS |
+| 8 | Stop during A's teardown, nothing armed | `.nothing`. No stale stop is left (`next` stays `.none`). My `stopDuringTeardownNothingArmed`. | PASS |
+| 9 | m8: the consumer cancels while the choice or format is awaited | `onTermination` → `task.cancel()`. After the awaits, `Task.isCancelled` → `.cancelled`, and `audio(in:)` is never called. `next` stays `.armed`. That is harmless: the next capture's `arm()` overwrites it. A late Stop turns it into `.stopped`, which the next `arm()` also clears. A cancel that comes after the check and before `audio(in:)` is the old, unavoidable window: the cancellation chain tears the capture down. Developer test `cancelledDuringChoice`. | PASS (m8 closed) |
+| 10 | **Two captures armed at once (B and C, neither has asked for audio yet)** | There is one `next` slot. (a) B armed, C armed, then Stop: whichever begins first (B) uses up the stop and ends empty, and C then opens the microphone, although the person stopped after C started. (b) B armed, Stop, then C armed before B asks for audio: C's `arm()` clears B's stop, B opens the microphone, and C is refused. In both cases the microphone stays on until the next Stop. My `twoArmedOneStopGoesToFirstBeginner` and `armStopArmLosesFirstStop` record this as known issues. Round 4 behaved the same way (`armedStopped` → `arm` → `armed`). It needs the caller to start a second capture while the first is still choosing its transcriber. | **m9** (Minor, not new) |
+
+Lock discipline is unchanged. `next` lives inside the `state` value and is touched only under `lock`. No new lock
+section was added, and no `finish()`, engine or session call runs while the lock is held.
+
+### `@unchecked Sendable` (`MicrophoneAudioSource.swift:36-45`): round-3 sign-off **still holds**
+`MicrophoneAudioSource` has no new stored property: `next` is a field of the `Sendable` value type
+`MicrophoneCaptureState`, which is kept in `state` under `lock`. The justification comment still names the three
+guarded fields accurately. The m8 change adds no shared state: `Task.isCancelled` is read on the run task. The new test
+file adds no `@unchecked` or `nonisolated(unsafe)` type. It reuses `StateBackedSource` and `GatedEngine`, which were
+signed off in round 4. `grep -rn '@unchecked Sendable\|nonisolated(unsafe)' Packages/TendAI` finds nothing new from
+this branch. The `StubBook`/`StubProtocol` hosted-test types came in with main (PR #45-#47) and were reviewed there.
+
+### Tests: real, and none weakened
+- **Nothing weakened:** `git diff --stat 8a04059 a5b9f25 -- Packages/TendAI/Tests` shows one new file
+  (`RoundFiveStopTests.swift`, +98) and no existing test line changed. No `.disabled`, `withKnownIssue` or `#if false`
+  was added. The suite has `.timeLimit(.minutes(1))`.
+- **State mutants, run by me** on Linux Docker `swift:6.2-noble` with `-warnings-as-errors`. I used a scratch package
+  holding the new `MicrophoneCaptureState.swift` and these tests, copied verbatim with only the module name changed:
+  the 9 old state tests, the developer's `stateRules`, and the two state-level m7 tests from `RoundFiveStopTests.swift`.
+  I added 8 interleaving tests of my own. Unmutated: 20/20 pass (my 2 m9 known issues are recorded as known). Results
+  against the **developer's** tests:
+
+  | Mutant | Killed by |
+  |---|---|
+  | M1 `arm` only when `idle` (the round-4 behaviour) | both m7 tests |
+  | M2 a stop is kept only when the phase is `idle` | both m7 tests |
+  | M4 a stop while armed returns early and leaves the active capture running | `armWhileOldCaptureActive` (both cases) |
+  | M5 `begin` ignores `next == .stopped` | `stateRules`, both m7 tests |
+  | M6 `arm` does not clear an old stop | `stateRules` |
+  | M3 a refused `begin` leaves `next` as it was | survives the developer's tests; killed by my `refusedBeginClearsNext` |
+
+  M3 changes nothing a `SpeechCapture` caller can see, because every capture arms first and `arm()` overwrites `next`.
+  It only matters for a direct `audio(in:)` caller that never arms, which the header now rules out (n6). **5/6 killed;
+  the survivor is equivalent on the product path.**
+- **m8 test** (`RoundFiveStopTests.swift:60-79`): `Gate.wait` does not respond to cancellation, so the run task is
+  still held in the choice when the consumer cancels. After the gates open, the code without the fix calls
+  `audio(in:)` and `requests` becomes 1. The test cannot fail for correct code. The 200 ms settle could in theory let
+  the mutant pass on a very slow runner, but never in the failing direction. The dev-notes report it killed. I could
+  not run it on Linux (`AVFAudio`).
+- **n5 test** (`:81-97`): it drives the real `MicrophoneAudioSource`. If `captureWillStart()` were empty, `begin` would
+  go to `starting` and `mayActivate` would be true. On macOS (no `AVAudioSession`) an `AVAudioEngine` would then be
+  made: either the converter or engine fails (`ended != nil`), or a real microphone runs until the time limit. The test
+  fails both ways, which matches the dev-notes ("killed"). This closes the round-4 n5 gap.
+- The B4 log shows all four `RoundFiveStopTests` passing (`mac-B4-tendai-macos.log`), in "42 tests in 11 suites passed".
+
+### Merge `c36a89c` (parents `a5b9f25`, `9e50012`; merge base `41bf8fa`)
+- **Both sides intact:** 152 files differ from the merge base on one side or the other. For every file changed only on
+  the branch, the blob at `c36a89c` equals the blob at `a5b9f25`. For every file changed only on main, it equals the
+  blob at `9e50012`. **0 mismatches.** The only file both sides touched is `docs/milestones/M2/dev-notes.md`.
+- **dev-notes:** main's 5,805 lines are an unchanged prefix of the merged file (`cmp`). The branch's file is the merge
+  base plus an appended block. The merged file's tail after main's text is byte-identical to that block. Main's text
+  is unchanged and this branch's sections are appended, as stated.
+- **`8c324a6` is docs only:** `git diff --name-only c36a89c 8c324a6 | grep -v '^docs/'` prints nothing.
+
+### Evidence record (`evidence/mac/WI-M2-M3-r5/`)
+- **Commit named:** the README and `logs/mac-B0-header.log` give `c36a89c812535c80ec49e6b5c40c43d97c5c2f55`, the merged
+  code commit. B0 and B9 `git status --porcelain` are both empty.
+- **SHA-256:** the README lists 16 files. `sha256sum -c` on those lines: **16/16 OK**.
+- **No personal data:** `grep -rnE` for `/Users/`, `/home/`, e-mail addresses and the owner's account name finds one
+  hit only: the test fixture host `user@api.openai.com` in a B5 test name from main's AC-M2-22 transport test. It is
+  test input, not personal data. Paths use the MS-1 tokens.
+- **Commit identities:** `a5b9f25`, `c36a89c` and `8c324a6` all have `Claude <noreply@anthropic.com>` as author and
+  committer.
+- **Logs agree with the claims:**
+  - B1: 141 tests in 18 suites.
+  - B2: 579 tests in 68 suites. Scan: 56 + 9 + 1 = 66 files, 0 violations (it matches `find`: TendIngestion 56 and
+    TendAI 9 Swift sources after main's `Cloud/` files).
+  - B4: 42 tests in 11 suites. B5: 36 tests in 5 suites.
+  - The `timings.txt` exits match the README (B6-eval-archive 66, as expected).
+  - The only `warning:` lines are the known `appintentsmetadataprocessor` and orientation notices. There is no
+    compiler warning.
+
+### What I ran (Linux container, `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, scratch paths under `/tmp`, at `8c324a6`)
+| Package | Result |
+|---|---|
+| `Packages/TendCore` | exit 0, `✔ Test run with 141 tests in 18 suites passed` (matches B1) |
+| `Packages/TendIngestion` | exit 0, `✔ Test run with 579 tests in 68 suites passed`; "AC-M2-09 scan: 66 files in total, 0 violations"; "AC-M2-12 vocabulary scan: 66 files, 9 exempted, 0 violations" (matches B2) |
+| `MicrophoneCaptureState` scratch package | 20/20 pass (2 reviewer known issues for m9); 6 mutants, 5 killed by the developer's tests, the 6th equivalent on the product path and killed by mine |
+| `Packages/TendAI` | Not run: Apple-only (`AVFAudio`, `Speech`). B4/B5 in the Mac record are the evidence. |
+
+### Round 5 findings
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| m7 | Minor | `MicrophoneCaptureState.swift:65-97` | Arming now works in every phase, and a stop for the armed capture is kept while an earlier one is active or being torn down (interleavings 2-7; tests; mutants M1, M2, M4). | — | **Closed** |
+| m8 | Minor | `SpeechTranscriptionAdapter.swift:226-228` | A capture cancelled during the transcriber choice no longer asks for audio (interleaving 9; `cancelledDuringChoice`). | — | **Closed** |
+| n5 | Nit | `RoundFiveStopTests.swift:81-97` | The real source's arm step is now tested. | — | **Closed** |
+| n6 | Nit | `MicrophoneCaptureState.swift:5-17` | The header matches the code and states the arm-first contract. | — | **Closed** |
+| m9 | Minor (not new; same limit as round 4's `armedStopped`) | `MicrophoneCaptureState.swift:60-67` | `next` is one slot per source. If two captures on one source are both armed (both still choosing a transcriber), a Stop is used up by whichever asks for audio first, and a second `arm()` clears a pending stop for the first. Either way one capture can open the microphone after the person pressed Stop, and it stays on until the next Stop (P-4; interleaving 10, reproduced at state level). It is reachable only if the caller starts a capture while another one on the same source has not yet delivered `.finished`. | Before the M3 capture screen is built, do one of two things. (a) Write the contract on `captureWillStart` / `SpeechCapture.events(from:)`: one capture per source until `.finished`. The M3 screen keeps Start disabled until then, and the Designer/Planner take that into the M3 spec. (b) Give `arm()` a token that `begin` takes, so that an armed capture superseded by a later `arm()` begins already stopped, with a state test for both orders. Not required for this PR. | Open (non-blocking) |
+| n7 | Nit | `RoundFiveStopTests.swift:60-79` | The m8 test relies on a 200 ms settle for the run task to reach `audio(in:)` in the mutant. It is safe for correct code. | Optional: wait on a gate or flag inside `StateBackedSource.audio(in:)` with a timeout instead of sleeping. | Open (optional) |
+
+Round-3 Nits n3 and n4 are still open (optional). Info i1-i8 stand. AC-M2-11 and AC-M2-25 stay **AWAITING-DEVICE**.
+
+### Checklist (round 5)
+- [x] Correctness vs ACs: FR-A1 start/stop order now holds for a second capture started while an earlier one is still
+  active, and for a cancel during the choice. AC-M2-09 scan: 66 files, 0 violations (my run and B2). The Mac halves of
+  AC-M2-11/AC-M2-25 are built and tested in B4/B5.
+- [x] Tests meaningful: 5/6 state mutants killed by the developer's tests, and the survivor is equivalent on the
+  product path. The adapter mutants were traced. No test was weakened.
+- [x] Swift 6 concurrency safe: no new shared state, no lock held across `finish()`, and the `@unchecked Sendable`
+  sign-off holds.
+- [x] No force unwraps / `try!` in the changed files (`grep`).
+- [x] Privacy (P-1…P-4): on device only, no networking, nothing written or logged. m7 and m8 are closed. m9 is a narrow,
+  older caller-contract limit.
+- [x] UX-2/UX-3: UX-2 n.a. UX-3: no user-facing copy (`grep` for banned words in `Speech/`: 0 hits).
+- [ ] Accessibility (UI): n.a. (no UI).
+- [x] Performance: no change in lock acquisitions per capture.
+- [x] No new dependency without ADR. The merge brings main's changes as they were reviewed on main; it adds nothing.
+
+### Law check (round 5)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Voice capture (FR-A1), no form. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No new outcome, reason or copy. A stopped or cancelled early capture ends `nothingHeard` / `cancelled`. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | `SpeechAnalyzer` path unchanged; AC-M2-09 scan Rule 5 exception off, 0 violations. |
+| P-2 No data leaves device | pass | The diff adds no networking. Main's cloud transport files arrive through the merge as they were reviewed on main; this PR does not change them. |
+| P-3 Cloud escalation per ADR | n.a. | No cloud step in this diff. |
+| P-4 Media not persisted without consent | pass (minor concern m9) | m7 and m8 are closed: a stop for a newly started capture is kept whatever the earlier capture is doing, and a cancel during the choice never opens the microphone. m9 is left: two captures armed at once on one source. It is the same caller contract as before, for the M3 capture screen, and SP-1 B4 / DS-1 verify it on device. |
+
+### Handoff log (round 5)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Developer | Reviewer (via Orchestrator) | accepted for review | PR #44 at `8c324a6` (code `a5b9f25`, merge `c36a89c`); round-4 m7, m8, n5, n6. |
+| 2026-11-27 | Reviewer | Merge Gatekeeper / Acceptance Tester / Designer / Planner (via Orchestrator) | accepted | Round 5: **APPROVE**. m7, m8, n5 and n6 closed; the merge is faithful; the evidence is verified; the `@unchecked Sendable` sign-off holds. New Minor m9: one `next` slot, so two captures armed at once share it (not new). Designer/Planner: the M3 capture screen keeps Start disabled until the previous capture's `.finished` (m9 option a), unless the Developer does option b. Nit n7 is optional. Tester: SP-1 B4 / DS-1 as in round 4; AC-M2-11/25 stay AWAITING-DEVICE. |
