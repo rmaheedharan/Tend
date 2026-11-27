@@ -460,3 +460,150 @@ and AC-M2-25 stay **AWAITING-DEVICE**; TRACEABILITY rows for the WI-M2-M3 tests 
 |---|---|---|---|---|
 | 2026-11-27 | Developer | Reviewer (via Orchestrator) | accepted for review | PR #44 at `774db72` (code `33bab80`); M1-r2 and m6 fixes; `@unchecked Sendable` sign-off asked again. |
 | 2026-11-27 | Reviewer | Merge Gatekeeper / Acceptance Tester (via Orchestrator) | accepted | Round 3: **APPROVE**. M1-r2, m3, m6 closed; `@unchecked Sendable` signed off. New Nits n3, n4 optional; Info i6–i8. Tester: DS-1 keeps the quick-stop step and the stop-then-start-at-once step (m6); AC-M2-11 and AC-M2-25 stay AWAITING-DEVICE. |
+
+## Round 4 — PR #44 (`m2/speech-adapter-v2`, head `430f700`, round-3 head `6943163`)
+
+- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** **APPROVE**  ·  **Round:** 4
+- **Scope:** `git diff 6943163 430f700`: `e100496` (code and tests, 4 files, all in `Packages/TendAI`:
+  `SpeechTranscriptionAdapter.swift`, `MicrophoneAudioSource.swift`, `MicrophoneCaptureState.swift`, new
+  `EarlyStopTests.swift`) and `430f700` (docs only: dev-notes round-4 section and the Mac evidence record
+  `evidence/mac/WI-M2-M3-r4/`). It fixes SP-1 probe review I-1 (`review-sp1-probe.md` on `m2/sp1-probe`): a stop that
+  came before the adapter asked the source for audio was dropped, and the microphone then opened and stayed on (P-4).
+  Requirements: FR-A1, the Mac halves of AC-M2-11 and AC-M2-25, AC-M2-09 (scan, T-27 exception off), P-1, P-4, UX-3.
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED`, M2 `IN-BUILD`; an `m2/` work item is allowed (CLAUDE.md §5).
+  No protected path is touched (`git diff --name-only 6943163 430f700` lists only `Packages/TendAI/**` and
+  `docs/milestones/M2/**`).
+
+### Summary
+The fix is small and correct for the defect as reported. `SpeechCapture.events(from:)` calls
+`source.captureWillStart()` inside the `AsyncStream` build closure, which runs synchronously when `events(from:)` is
+called, so the source is armed before the caller gets the stream back and before anything is awaited
+(`SpeechTranscriptionAdapter.swift:195`). `MicrophoneAudioSource` arms its state under the lock (`:66-68`). A stop
+while armed is kept (`armedStopped`), `begin` then returns a token already in `stopRequested`, and `mayActivate`
+returns false before the session is activated, so the stream ends empty and the capture ends `nothingHeard`. A stop
+with nothing armed is still ignored, and arming clears an old stop. Old tests are unchanged and the new tests kill the
+mutants that matter. I traced every interleaving the Orchestrator listed. One narrow window is left: a second capture
+armed while the first is still being torn down (Minor m7 below). It cannot happen if the caller waits for `.finished`,
+which the SP-1 probe does. I also found one older, related gap: a capture cancelled during the transcriber choice still
+opens the microphone briefly (Minor m8). Neither is a Blocker or Major. **The `@unchecked Sendable` sign-off from
+round 3 still holds.**
+
+### Interleavings traced (at `e100496`)
+| # | Interleaving | Path | Result |
+|---|---|---|---|
+| 1 | Stop **before arm** (a stale [Stop], no capture) | `stop()` finds `idle` → `.nothing`. Then `arm()` → `armed`, `begin` → `starting`: the new capture runs normally. Test `staleStopIgnored`. | PASS |
+| 2 | Stop **between arm and the source start** (transcriber choice or format read) | `armed` → `armedStopped` (`MicrophoneCaptureState.swift:81-83`). `audio(in:)` → `begin` → `stopRequested(t)` (`:69-72`). The continuation is stored and `onTermination` is set, then `start` → `mayActivate` → `idle`, false (`:98-100`) → `takeContinuation`, `finish()` (`MicrophoneAudioSource.swift:82-86`). The session is never activated and no engine is made. The `onTermination` → `end(t)` finds `idle`: no-op. The transcriber sees empty input → `.nothingHeard`. Tests `stopBeforeTranscriberChosen`, `stopBeforeSourceStart`. | PASS |
+| 3 | Stop **after `begin`, before `mayActivate`** | `starting` → `stopRequested` → `mayActivate` false (as in round 3). | PASS |
+| 4 | Stop **during engine `prepare()`/`start()`** | `starting` → `stopRequested` → `markRunning` false → `stopping` → local teardown → `idle` (round 3 item 1, unchanged). | PASS |
+| 5 | A stop in response to `.transcriberChosen` (SP-1 tries 6-10) | `emit(.transcriberChosen)` and `source.audio(in:)` run back to back on the run task (`SpeechTranscriptionAdapter.swift:226-227`). The stop lands in `armed` (case 2) or `starting`/`running` (cases 3/4/round 3). Each is handled. | PASS |
+| 6 | **Stale stop from an earlier capture** that never asked for audio (it ended `.unavailable`, so the state stays `armed`) | A late stop → `armedStopped`. The next capture's `arm()` → `armed` (`:56`), which clears it. My scratch test `unavailableCaptureLeavesArmedThenNextArmClears`. | PASS |
+| 7 | Two stops while armed | The second → `.nothing` (`:80`). The capture still begins stopped. My scratch test `doubleStopWhileArmed`. | PASS |
+| 8 | **Two quick captures, B after A's `.finished`** | Every path that ends A's audio calls `finishTeardown` (→ `idle`) **before** `continuation.finish()`: `stop()` (`MicrophoneAudioSource.swift:75-77`), `markRunning` false (`:144-146`), `giveUp` (`:154-157`), `conversionStopped` (`:173-175`). `.finished` comes only after the audio ends, so B's `arm()` finds `idle`, and B's early stop is kept. | PASS |
+| 9 | **Two quick captures, B armed while A is still `starting`/`stopRequested`/`running`/`stopping`** | `arm()` is a no-op outside `idle`/`armed`/`armedStopped` (`MicrophoneCaptureState.swift:54-59`). If A's teardown finishes before B asks for audio, a stop for B in that gap finds `idle` (or `running(A)`) and is dropped. B's `begin` → `starting`, and the microphone opens and stays on. I reproduced this at state level (`secondCaptureArmedDuringFirstTeardown`, below). Reachable only if a caller starts B before A's `.finished` (or right after a cancelled A, whose teardown runs on the cancellation chain). | **m7** |
+| 10 | B armed while A runs, and B asks for audio while A still runs | `begin` nil → `audioNotStarted` → B ends `.stopped(.audioInterrupted)`; A untouched (round-2 m1 rule, unchanged). | PASS |
+
+Lock discipline: the only new access, `captureWillStart`, is one `lock.withLock { state.arm() }`. No `finish()` or
+engine call happens while the lock is held. Under Swift 6 the protocol requirement and its public default extension
+dispatch dynamically for `some CaptureAudioSource`, so `MicrophoneAudioSource`'s method is the one called.
+`FakeAudioSource` and `FileAudioSource` keep the no-op default.
+
+### `@unchecked Sendable` (`MicrophoneAudioSource.swift:36`) — round-3 sign-off **still holds**
+No new stored field. `state` is still touched only under `lock`, and the justification comment (`:37-45`) is still
+accurate (n3 is still open and optional). In the test target, `StateBackedSource` (`EarlyStopTests.swift:12`) keeps
+every mutable field under its `NSLock`. `GatedEngine` (`:66`) has only `let` fields: two actors and an immutable
+`AVAudioFormat`, which is not `Sendable` and is the reason for the annotation. Both are acceptable for test-only code.
+`grep -rn '@unchecked Sendable\|nonisolated(unsafe)' Packages/TendAI` finds only these two new test types besides the
+round-1/3 signed-off ones.
+
+### Tests: real, and none weakened
+- **Nothing weakened:** `git diff --stat 6943163 430f700 -- Packages/TendAI/Tests` shows one new file
+  (`EarlyStopTests.swift`, +191) and no line removed from any existing test. No `.disabled`, `withKnownIssue` or
+  `#if false` was added. The suite has `.timeLimit(.minutes(1))`, so a dropped stop fails instead of hanging.
+- **Old state tests still pass on the new state machine:** I copied `MicrophoneCaptureStateTests.swift` unchanged
+  (only the module name changed) into a Foundation-only scratch package with the new `MicrophoneCaptureState.swift`.
+  All 9 pass.
+- **Mutants, run by me** on Linux Docker `swift:6.2-noble`, against the developer's `stateRules` test, copied verbatim
+  from `EarlyStopTests.swift`. The unmutated code passes. **4/4 killed:** (M-a) a stop while armed is dropped (6
+  issues); (M-b) `begin` from `armedStopped` goes to `starting` (5); (M-c) `arm` keeps `armedStopped` (1); (M-d) `arm`
+  is a no-op (6). This matches the dev-notes' mutant list at the state level.
+- **Adapter-level mutant ("adapter does not arm"):** I could not run it on Linux (`AVFAudio`). By reading the code,
+  `stopBeforeTranscriberChosen` would then see `micOpened == 1` and the stream would never end, so the time limit
+  would fail it. That agrees with the dev-notes ("killed, 2 tests").
+- **Gap (n5):** `EarlyStopTests` drives `StateBackedSource`, a copy of the source's lock-and-state rules, not
+  `MicrophoneAudioSource` itself, which needs audio hardware. So emptying `MicrophoneAudioSource.captureWillStart()`
+  would survive every automated test. It is one line and SP-1 B4 / DS-1 cover it on device. Optional.
+- `stopBeforeSourceStart` uses a 50 ms sleep to get past the choice. If the run task is slow, the stop lands in the
+  choice window instead. The test still passes and stays correct (case 2 either way); it is not flaky in the failing
+  direction.
+
+### Evidence record (`evidence/mac/WI-M2-M3-r4/`)
+- **Commit named:** `README.md` and `logs/mac-B0-header.log` give `e100496a812f2cdf6f87040e571e597375b1e2d0` =
+  `430f700^`. B0 and B9 `git status --porcelain` are both empty.
+- **`430f700` is docs only:** `git diff --name-only e100496 430f700 | grep -v '^docs/'` prints nothing.
+- **SHA-256:** the README lists 16 files. `sha256sum -c` on those lines: **16/16 OK**.
+- **No personal data:** `grep -rnE` for `/Users/`, `/home/`, e-mail addresses and the owner's account name: 0 hits.
+  Paths use the MS-1 tokens (`$REPO`, `$HOME`, …). `Macmini9,1` is the hardware model identifier, not a hostname.
+- **Commit identities neutral:** `git log --format='%an <%ae> | %cn <%ce>' 6943163..430f700`: both commits are
+  `Claude <noreply@anthropic.com>` for author and committer.
+- **Logs agree with the claims:**
+  - B1: `141 tests in 18 suites passed`.
+  - B2: `571 tests in 67 suites passed`; scan 55 + 5 + 1 = 61 files, 0 violations.
+  - B4: `36 tests in 9 suites passed`, including the suite "Early stop (SP-1 review I-1; P-4)" with all 4 tests `✔`.
+  - B5: 4 tests.
+  - `timings.txt` exits match the README (B6-eval-archive 66, as expected).
+  - The only `warning:` lines are the `appintentsmetadataprocessor` and interface-orientation notices already
+    ticketed in MS-1. There is no compiler warning.
+  - Wall times are about half of r3's on the same Mac. That fits warm caches outside the deleted folders and does not
+    change any result.
+
+### What I ran (Linux container, `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, `--scratch-path` under `/tmp`, at `430f700`)
+| Package | Result |
+|---|---|
+| `Packages/TendCore` | exit 0, `✔ Test run with 141 tests in 18 suites passed` |
+| `Packages/TendIngestion` | exit 0, `✔ Test run with 571 tests in 67 suites passed`; "AC-M2-09 scan: 61 files in total, 0 violations"; "AC-M2-12 vocabulary scan: 61 files, 9 exempted, 0 violations" (matches B2) |
+| `MicrophoneCaptureState` scratch package | the new state file, the 9 old state tests, the developer's `stateRules` and 6 interleaving tests of my own: all pass; 4/4 mutants killed; m7 reproduced as a recorded known issue in my scratch test only (not in the repo) |
+| `Packages/TendAI` | Not run: Apple-only (`AVFAudio`, `Speech`). B4/B5 in the Mac record are the evidence. |
+
+### Round 4 findings
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| I-1 (SP-1 review) | — (was escalated Info, P-4) | `SpeechTranscriptionAdapter.swift:195`, `MicrophoneCaptureState.swift:54-83`, `MicrophoneAudioSource.swift:66-68` | An early stop is now kept, and the microphone never opens (interleavings 1-8 above; tests and mutants). | — | **Closed** (code). SP-1 B4 on device still confirms it; the probe's M-1 re-stop should now show `restops=0`. |
+| m7 | Minor | `MicrophoneCaptureState.swift:54-59` | `arm()` does nothing while an earlier capture on the same source is `starting`/`stopRequested`/`running`/`stopping`. If a second capture is started then and the first finishes its teardown before the second asks for audio, a stop for the second in that gap is dropped, and the microphone then opens and stays on (P-4). The I-1 defect returns in a narrower window (interleaving 9, reproduced at state level). It cannot happen when the caller waits for `.finished` before the next Start (interleaving 8), as the SP-1 probe does (`current == nil` guard). | Before M3 builds the capture screen, do one of two things. (a) Make arming independent of the current phase, for example a pending "next capture armed / stopped" flag that `begin` reads, with a test of interleaving 9. (b) Write the contract on `CaptureAudioSource.captureWillStart` / `SpeechCapture.events(from:)` ("start a new capture on a source only after the previous one delivered `.finished`") and send it to the Designer/Planner for the M3 capture screen. Not required for this PR. | Open (non-blocking) |
+| m8 | Minor (older code, outside the diff's lines) | `SpeechTranscriptionAdapter.swift:226-227` | `run` does not check `Task.isCancelled` after the awaited choice and format. A capture cancelled during the transcriber choice (a consumer that stops by cancelling the events, which SP-1 review I-1 lists as an M3 design option) still calls `source.audio(in:)`. That opens the session and engine synchronously, and the cancellation chain then tears them down: the microphone indicator can flash on after the person cancelled (P-4 consent). It is not persistent, and nothing is recorded. | Return `.cancelled` before `emit(.transcriberChosen)` / `source.audio(in:)` when `Task.isCancelled`, plus a test that a capture cancelled while the choice is gated never calls `audio(in:)` (the `GatedEngine` here makes this easy). Can come with m7. | Open (non-blocking) |
+| n5 | Nit | `EarlyStopTests.swift:12-63` | The adapter tests drive a copy of the source's rules (`StateBackedSource`), not `MicrophoneAudioSource`. An empty `MicrophoneAudioSource.captureWillStart()` would pass every automated test. | Optional: note in the test header that DS-1 / SP-1 B4 cover the real source's arm step, or factor the lock-and-state part of `MicrophoneAudioSource` so the test uses it. | Open (optional) |
+| n6 | Nit | `MicrophoneCaptureState.swift:61-62`, `:11-13` | The header still says "`begin` gives a token only in `idle`", but it now also gives one in `armed`/`armedStopped`. Also, a direct `audio(in:)` caller that never arms can inherit a stray `armedStopped` left by an earlier `.unavailable` capture and get an empty stream. `SpeechCapture` always arms first, so this is not reachable through the product path. | Optional: update the header line, and note that `audio(in:)` is meant to be called after `captureWillStart()`. | Open (optional) |
+
+Round-3 Nits n3 and n4 are still open (optional). Info i1–i8 stand. AC-M2-11 and AC-M2-25 stay **AWAITING-DEVICE**.
+
+### Checklist (round 4)
+- [x] Correctness vs ACs: FR-A1 start/stop order now holds for a stop before the source start. AC-M2-09 scan: 61
+  files, 0 violations. The Mac halves of AC-M2-11/AC-M2-25 are built and tested in B4/B5 (36 TendAI tests).
+- [x] Tests meaningful: 4/4 state mutants killed (my run), the adapter mutant was traced, and no test was weakened. n5
+  is optional.
+- [x] Swift 6 concurrency safe: one new lock-guarded access, no lock held across `finish()`, and the `@unchecked
+  Sendable` sign-off holds. The test-only `@unchecked` types are justified.
+- [x] No force unwraps / `try!` in the changed product files (`grep`).
+- [x] Privacy (P-1…P-4): on device only, no networking, nothing written or logged. An early stop no longer leaves the
+  microphone on. m7 and m8 are narrow, non-blocking P-4 follow-ups.
+- [x] UX-2/UX-3: UX-2 n.a. UX-3: no new user-facing name (`beforeAudio` and `armed` are internal).
+- [ ] Accessibility (UI): n.a. (no UI).
+- [x] Performance: one extra lock acquisition per capture.
+- [x] No new dependency without ADR.
+
+### Law check (round 4)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Voice capture (FR-A1), no form. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No new outcome, reason or copy. An early stop ends as `nothingHeard`, as a quick stop does. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | `SpeechAnalyzer` path unchanged; AC-M2-09 scan Rule 5 exception off, 0 violations. |
+| P-2 No data leaves device | pass | No networking, no download added. |
+| P-3 Cloud escalation per ADR | n.a. | No cloud step. |
+| P-4 Media not persisted without consent | pass (minor concerns m7, m8) | SP-1 I-1 closed in code: a stop before the source start keeps the microphone closed. Left open: a second capture started before the first's `.finished` (m7), and a brief microphone open after a cancel during the choice (m8). Both are narrow and non-persistent in m8's case. They are for the Developer and for the M3 capture-screen contract, and are verified on device in SP-1 B4 / DS-1. |
+
+### Handoff log (round 4)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Developer | Reviewer (via Orchestrator) | accepted for review | PR #44 at `430f700` (code `e100496`); fix for SP-1 probe review I-1 (early stop dropped, P-4). |
+| 2026-11-27 | Reviewer | Merge Gatekeeper / Acceptance Tester / Developer (via Orchestrator) | accepted | Round 4: **APPROVE**. I-1 closed in code; `@unchecked Sendable` sign-off holds. New Minors m7 (arm ignored while a previous capture is not yet idle) and m8 (a cancel during the choice still opens the microphone briefly), not blocking; Nits n5, n6 optional. Tester: SP-1 B4 should show no microphone indicator and `restops=0`. Add a DS-1 step "Start, Stop, then Start and Stop again at once, before the first result shows", and AC-M2-11/25 stay AWAITING-DEVICE. Designer/Planner: the M3 capture screen must start a new capture only after the previous `.finished` (m7 option b) unless m7 is fixed in the adapter. |
