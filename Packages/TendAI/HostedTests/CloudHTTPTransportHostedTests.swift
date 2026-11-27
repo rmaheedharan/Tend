@@ -300,6 +300,8 @@ struct CloudHTTPTransportHostedTests {
 
     @Test("AC-M2-23: the mapping table, code by code (every listed code, cancellation is not a failure)")
     func mappingTable() {
+        #expect(CloudFailureMapping.dnsLookup == .dnsLookupFailed)
+        #expect(CloudFailureMapping.secureConnection == .secureConnectionFailed)
         for (code, reason) in Self.errors { #expect(CloudFailureMapping.reason(for: code) == reason) }
         #expect(CloudFailureMapping.reason(for: .cancelled) == nil)
         for (status, reason) in Self.statuses { #expect(CloudFailureMapping.reason(forStatus: status) == reason) }
