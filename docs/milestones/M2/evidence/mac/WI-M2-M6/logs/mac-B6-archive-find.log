@@ -1,0 +1,4 @@
+find build/Tend.xcarchive -iname '*TendEval*' (must print nothing):
+--- end
+Products/Applications:
+Tend.app
