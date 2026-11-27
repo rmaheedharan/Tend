@@ -132,3 +132,138 @@ sandbox are the host's, as before). Checked:
 | 2026-11-27 | Reviewer | Orchestrator → Developer | returned | CHANGES REQUIRED: M-1 (bounded, reported quick-stop tries; working [Stop]), M-2 (scaffold test against the prefix). Minors m-1…m-3 to ticket or fold in; re-run D5 at the new commit and name it as `SP1-COMMIT`. |
 | 2026-11-27 | Reviewer | Orchestrator → Developer + PR #44 Reviewer | sent (info) | I-1: early stop dropped in `MicrophoneCaptureState` (P-4 concern), visible in code before the device run. |
 | 2026-11-27 | Reviewer | Orchestrator → Acceptance Tester | sent (info) | After the fix: new `SP1-COMMIT`, the new quick-stop field (M-1) for the reading rules, I-2 note. Not ready for the owner yet. |
+
+---
+
+# Round 2 — branch `m2/sp1-probe`, head `ccfebb3`; diff `8a7ff1f..ccfebb3`
+
+- **Owner:** Reviewer  ·  **Verdict:** APPROVE  ·  **Round:** 2
+- **Scope:** `git diff 8a7ff1f ccfebb3`: `b4a4ec4` (code: `SP1SpeechScreen.swift`, new
+  `Apps/TendAITestHost/Support/Info.plist`, `project.yml`, `SP1TimingProbe.swift`, `TendAIHostedScaffoldTests.swift`;
+  plus a `dev-notes.md` section) and `ccfebb3` (docs only: `dev-notes.md`, Mac record `evidence/mac/SP-1-r2/`).
+  `5869f59..8a7ff1f` checked only to confirm it is the merge: `8a7ff1f` has parents `5869f59` (round-1 head) and
+  `430f700` (`m2/speech-adapter-v2`); `git merge-tree` of those two gives a conflict only in `dev-notes.md`, and the
+  committed tree differs from the automatic result only there (3 lines, the conflict markers); no code was edited in
+  the merge. The early-stop fix `e100496` is reviewed under PR #44 round 4; here only how the probe uses it.
+- **Spec:** `docs/milestones/M2/device-scripts/SP-1.md` v2 (`origin/main` `475cc27`; not on this branch) Part D;
+  round-1 findings above.
+- **IDs:** FR-A1, R-1, SP-1, AC-M2-07, AC-M2-11, AC-M2-16 (stays AWAITING-DEVICE), AC-M2-25, T-27, Q20, plan B5/B6,
+  MS-2, review PR #48 n2; P-1…P-4, UX-3.
+
+## Summary
+
+Both Majors are closed in code and evidence. M-1: every quick-stop try is now bounded (worst case about 25 s), the
+time is taken at the `finished` event from the first stop, dropped stops show as `restops=<n>` and, after 3 re-stops,
+the try is cancelled and printed as `finished=none`; [Stop] works during the test. With the adapter fix merged
+(`captureWillStart()` is called synchronously in `SpeechCapture.events(from:)`, before anything is awaited), the stop
+right after `events(from:)` in tries 1-5 and the stop at `transcriberChosen` in tries 6-10 both land in the `armed`
+state and are kept, so the expected device result is `restops=0` on every try. M-2: the host has
+`TendBundlePrefix = $(TEND_BUNDLE_PREFIX)` in a partial Info.plist and the scaffold test compares against
+`"<prefix>.aitesthost"`, with a `#require` and a non-empty check; B5 passes with the default prefix and with
+`org.example.owner`. m-2, m-3, n-1, n-2, n-3 closed; m-1 is ticketed in dev-notes as asked.
+
+One new Minor (m-4): in tries 6-10 the 5 s limit is counted from the start of the try, not from the stop, so a slow
+transcriber choice can produce a `restops=1` that does not mean a dropped stop. It does not affect the time field and
+does not hide a defect (it can only over-report), so it does not block. One Nit (n-4).
+
+## Round-1 findings, re-checked
+
+| # | Round-1 severity | Evidence in `8a7ff1f..ccfebb3` | Status |
+|---|---|---|---|
+| M-1 | Major | `SP1SpeechScreen.swift:154-212`. Per try: a `@MainActor` consumer task reads the events and records `stoppedAt` (tries 6-10 at `transcriberChosen`), `finishedAt` and the outcome at the `finished` event (`:164-180`); the main loop polls every 50 ms (`:183-203`): with no `finished` 5 s after the (first) stop it calls `source.stop()` again, up to 3 times (`restops`), then `consumer.cancel()` (the stream's `onTermination` cancels the adapter task, whose source stream's `onTermination` tears the microphone down); if `transcriberChosen` never comes within 5 s it stops anyway. The line (`:209-210`) prints `ms_stop_to_finished` from the **first** stop to the `finished` event (`none` if there was none) and `restops=<n>`. Worst case per try: 5 s + 4 × 5 s = 25 s, so the test always reaches `quickstop|done`. `stop()` (`:135-140`) now runs when `busy` (quick stop test) as well as with a capture. Root cause fixed in the adapter (I-1, `e100496`, merged): `events(from:)` calls `source.captureWillStart()` before its first await (`SpeechTranscriptionAdapter.swift:194-195`), so both D4.7 stop points are kept. Caveat: m-4 below. | **Closed** |
+| M-2 | Major | `Apps/TendAITestHost/Support/Info.plist` (key `TendBundlePrefix`, value `$(TEND_BUNDLE_PREFIX)`); `project.yml:110-113` (`GENERATE_INFOPLIST_FILE: YES` + `INFOPLIST_FILE`, merged with the generated keys; the file is outside `Sources`, so it is not copied as a resource); `TendAIHostedScaffoldTests.swift:13-18` (`try #require` the key, `#expect(!prefix.isEmpty)`, `#expect(bundleIdentifier == "\(prefix).aitesthost")`). The test fails if the key is missing (wrong host), unexpanded, or does not match. `logs/mac-B5-hosted.log`: 5 tests in 3 suites passed, bundle ID `com.tend.aitesthost`; `d5/d5-b5-custom-prefix.log`: command line has `TEND_BUNDLE_PREFIX=org.example.owner`, bundle ID `org.example.owner.aitesthost`, "The tests run inside the TendAITestHost app" passed, 5 tests in 3 suites, `TEST SUCCEEDED`. | **Closed** |
+| m-1 | Minor | `dev-notes.md` "Link change kept": must be undone or isolated before the Keychain / `URLProtocol` hosted tests (WI-M2-M4, WI-M2-M5) share the host; two options named (own SP-1 target with `BUNDLE_LOADER: "$(TEST_HOST)"` restored, or a DECISIONS entry); "Ticket: Planner, before the M4/M5 branches are merged with this one". This is what round 1 asked. | **Closed** (ticketed; Planner owns it) |
+| m-2 | Minor | `start()` `:97-99`: refused when `current != nil`, `starting` or `busy`; `starting` is set before the first `await` (`requestMicrophone`) and cleared by `defer` after `current` is set. `quickStopTest()` `:147-149` also refuses while `starting`, and sets `busy` before its first `await`. The capture task clears `current` only if `captureNumber == n` (`:130`). | **Closed** |
+| m-3 | Minor | README names `SP1-COMMIT = b4a4ec4658c2ad52c8f9c77d23112bf5b560bc85`; `logs/mac-B0-header.log` and `d5/d5-header.log` print that SHA with an empty `git status --porcelain`; `logs/mac-B9-after.log` and `d5/d5-after.log` empty after. `ccfebb3` adds only `docs/` files (`git diff --stat b4a4ec4 ccfebb3`). The Simulator panel still could not be tapped, stated plainly; [Quick stop test] was not run there (allowed, information only). | **Closed** |
+| n-1 | Nit | `SP1TimingProbe.swift:137-163`: `timeout` only when `work.isCancelled` and the summary's outcome is `cancelled`/`nil` (or `finished` was not seen). A capture that finished by itself just before the watchdog fired keeps its real outcome. | **Closed** |
+| n-2 | Nit | `SP1TimingProbe.swift:241`: comment "upper middle value for an even count (the 13th of 24)"; name kept because the script uses it (reasonable). | **Closed** |
+| n-3 | Nit | `SP1SpeechScreen.swift:253`: `.title3.monospaced()`. | **Closed** |
+| I-1 | Info | Fixed on `m2/speech-adapter-v2` (`e100496`), merged at `8a7ff1f`; reviewed separately (PR #44 round 4). The probe's re-stop stays as the safety net, as round 1 suggested. | **Closed** here |
+| I-2, I-3 | Info | Unchanged: D5.2 again shows `model=available` with every capture `noModel` in the Simulator (25 of 25). | Info (no action) |
+
+## New findings (round 2)
+
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| m-4 | Minor | `Apps/TendAITestHost/Sources/SP1SpeechScreen.swift:182-194` | For tries 6-10 (`atChosen`) `waited` starts counting when the try starts and is not reset when the consumer sets `stoppedAt` at `transcriberChosen`. So the first re-stop comes 5 s after the **start**, not 5 s after the stop: if the transcriber choice takes, say, 4.5 s and the stop-to-finished 1 s, the line reads `restops=1` with `ms_stop_to_finished≈1000` although the stop was not dropped. The doc comment (`:143-145`) and dev-notes say "within 5 s of the stop". It can only over-report (never hides a dropped stop) and the time field stays honest, and on a warm phone the choice is far below 5 s, so not Major. Also, the "transcriber never chosen within 5 s: stop now" path (`:187-192`) is not marked on the line, so a try 6-10 stopped by the timer looks like one stopped at `transcriberChosen`. | Measure the limit from the stop: e.g. compare `clock.now` with `attemptState.stoppedAt + .seconds(5)` (and the last re-stop), instead of the shared `waited`; optionally print `stop=timer` (or similar) when the timer made the first stop. If fixed before the owner's run, re-run B5 and D5 and name the new `SP1-COMMIT`; if not, the Acceptance Tester reads it as below. | Open (non-blocking) |
+| n-4 | Nit | `SP1SpeechScreen.swift:135-139` | [Stop] during the quick stop test (or during [Get speech model], where `busy` is also true) prints `capture|n=<last manual capture number>|stop_tapped`, which names a capture that is not running (or `n=0`). Harmless; could confuse a reader of the file. | Optional: print `quickstop|stop_tapped` while `busy`. | Open |
+| I-4 | Info | `evidence/mac/SP-1-r2/logs/mac-B4-tendai-macos.log` (and every earlier `mac-B4` log on `main`) | The `xcodebuild` destination list prints the Mac's hardware identifier (`id:` of "My Mac"). Not personal data under the MS-1 token list and pre-existing in every record, so out of scope here; no name, e-mail, user path, team ID or device UDID of the phone appears. | None for SP-1. PO/Documenter may decide whether MS-1 should also replace that `id:` with a token in future records. | Info |
+
+## SP-1 script vs the printed lines (for the Acceptance Tester)
+
+The `quickstop` line is now
+`SP1|seq=..|quickstop|try=<n>|when=<beforeChosen or atChosen>|finished=<outcome or none>|ms_stop_to_finished=<ms or none>|restops=<0-3>`.
+All other line shapes (header, cold, warm, summary, footer, speech-status, capture) are unchanged. `SP-1.md` v2 does not
+yet match. The Tester must update it (on `main`; protected-file rules do not apply, it is under `docs/milestones/`):
+1. **D4.6 example:** add `|restops=0` to the `quickstop` example line.
+2. **"How the Tester reads" / Decision rules, row "B4, B5 quick stop":** add "every `quickstop` line has `restops=0`
+   and a real `finished=` outcome". `restops` ≥ 1 together with `ms_stop_to_finished` ≥ 5000 (or `none`), or
+   `finished=none` (try cancelled after 3 re-stops), means a stop was dropped: same Major against WI-M2-M3 (P-4). While
+   m-4 is open: on a `when=atChosen` line, `restops=1` with `ms_stop_to_finished` < 5000 is a timing artefact of the
+   probe (slow transcriber choice), not a dropped stop; record it as information.
+3. **B5 owner step:** "about 15 seconds" holds when every stop works; if stops are dropped the test can take up to about
+   4-5 minutes (10 × 25 s). Tell the owner to wait for `quickstop|done` and not to close the app; if the orange dot is
+   still on after the countdown, tap **[Stop]** (it now works during and after the test) and write that down.
+4. **Run identity:** the build to use is `SP1-COMMIT = b4a4ec4658c2ad52c8f9c77d23112bf5b560bc85` (record
+   `evidence/mac/SP-1-r2/`); the owner's commands (Part A/B) are unchanged (D5.4, round 1).
+5. **B4 by hand:** a second quick [Start] while one is being set up is now silently refused (m-2); the script needs no
+   change, but the Tester should not expect two `capture|n=` starts from a double tap.
+
+## Other checks (round 2)
+- **Evidence record.** All 23 SHA-256 lines in `evidence/mac/SP-1-r2/README.md` verify (`sha256sum -c`: 23 OK).
+  B1 141 tests / 18 suites; B2 572 / 67, scan 67 files, 0 violations; B4 90 / 15 (includes "Early stop (SP-1 review
+  I-1; P-4)"); B5 5 / 3 with `SP1TimingProbe` skipped by design; B6 as MS-1 (eval archive exit 66 expected).
+  `timings.txt` exit codes match. Only non-compiler `warning:` lines (AppIntents metadata notice, orientation notice for
+  B6). D5.2: 28 `SP1|` lines (header, cold, 24 warm, summary, footer), all 25 captures `noModel` (Simulator, MS-1).
+  D5.3: the `speech-status` line reached the Terminal (self-check variable).
+- **Personal data.** Scan of the whole diff (10 620 lines): no user home path (paths use `$HOME`/`$REPO`), no e-mail
+  other than `noreply@anthropic.com`, no person's name or user name, team shown only as `FAKETEAMID`, no phone UDID,
+  no signing identity. See I-4 for the Mac's destination `id:`.
+- **Authorship.** `8a7ff1f`, `b4a4ec4`, `ccfebb3`: author and committer `Claude <noreply@anthropic.com>`.
+- **Frozen eval (D6).** No path under `Fixtures/`, no `MANIFEST.sha256`, `inputs.json` or `golden.json` in the diff;
+  `git grep` for `Fixtures/M2/eval|inputs.json|golden.json` in `Apps/TendAITestHost` and `Packages/TendAI/HostedTests`
+  at `ccfebb3` prints nothing. No `@Guide`, instruction or eval code touched. Pass.
+- **Linux runs (this review, Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, at `ccfebb3`, read-only mount,
+  scratch paths `/tmp/sp1r2c` and `/tmp/sp1r2i` inside the container):** TendCore "141 tests in 18 suites passed", exit
+  0; TendIngestion "572 tests in 67 suites passed", exit 0; 0 `warning:` lines in either log. Same counts as Mac B1/B2.
+  TendAI and the hosted bundle are Mac-only: taken from the committed Mac logs, not re-run here.
+- **Swift 6 concurrency.** `SP1SpeechModel` and the new `QuickStopAttempt` are `@MainActor`; the consumer task is
+  `Task { @MainActor in … }`, so the poll loop and the consumer never race on the attempt state (they interleave only at
+  awaits, and every read after an await re-checks the state). The shared `MicrophoneAudioSource` is captured as a
+  `let` and its state is under its own lock. `consumer` is always awaited before the next try, so no try outlives its
+  line. Hosted build has `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES` and compiles clean in B5. No new `@unchecked Sendable` or
+  `nonisolated(unsafe)`; the two existing `@unchecked Sendable` test helpers are unchanged (signed off in round 1).
+- **No network, no new dependency.** No `URLSession`/`URLRequest` in the host or probe; the only URL is the plist DTD.
+  No new package.
+
+## Checklist (round 2)
+- [x] Correctness vs ACs (spec D1-D6): D2.1 met (M-2 closed); D4.7 bounded and reported (M-1 closed; m-4 is a reading caveat)
+- [x] Tests meaningful: the scaffold test fails on a missing, empty or mismatched prefix; shown passing with two prefixes
+- [x] Swift 6 concurrency safe
+- [x] No force unwraps / `try!` in product code paths (no product code changed in this diff)
+- [x] Privacy (P-1…P-4): microphone always stops or the try is cancelled; [Stop] works during the test
+- [x] UX-2/UX-3 enforced in engine (n.a.; no engine change; no banned word in new strings)
+- [x] Accessibility (UI): not product UI; larger monospaced text (n-3)
+- [x] Performance: 50 ms main-actor poll in a debug host only; n.a. otherwise
+- [x] No new dependency without ADR (link model ticketed, m-1)
+
+## Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Debug buttons in a never-shipped test host. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | New output strings (`restops=`, `finished=none`) and comments use no banned word (scanned: overdue, late, missed, failed, behind, penalty). |
+| UX-4 Design craft | n.a. | Test host, not product UI (SP-1 Part D). |
+| P-1 On-device inference | pass | Unchanged: `FoundationModelsOnDeviceSource` and `SpeechAnalyzer` on device only. |
+| P-2 No data leaves device (except user iCloud) | pass | No network code; the bundle prefix goes only into the host's own Info.plist. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | n.a. | No cloud path. |
+| P-4 Media not persisted without consent | pass | Round-1 concern resolved: each quick-stop try re-stops and finally cancels (which tears the microphone down), [Stop] works during the test, and the adapter now keeps an early stop (I-1). Nothing is stored; no audio is kept. Device confirmation stays with SP-1 B4/B5 (AWAITING-DEVICE). |
+
+## Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Orchestrator | Reviewer | accepted | Round 2 of `m2/sp1-probe`, `8a7ff1f..ccfebb3`, merge `8a7ff1f` checked. |
+| 2026-11-27 | Reviewer | Orchestrator → Merge Gatekeeper | APPROVE | M-1, M-2, m-2, m-3, n-1…n-3 closed with evidence; m-1 ticketed (Planner). No open Blocker/Major. Open: m-4 (Minor), n-4 (Nit), I-4 (Info). |
+| 2026-11-27 | Reviewer | Orchestrator → Acceptance Tester | sent | Update SP-1.md: `restops` field (D4.6 and the B4/B5 rule), the m-4 reading caveat, B5 duration and [Stop] note, `SP1-COMMIT = b4a4ec4`. |
+| 2026-11-27 | Reviewer | Orchestrator → Developer | sent (optional) | m-4: count the 5 s limit from the stop; if done before the owner's run, re-run B5/D5 and name the new `SP1-COMMIT`. |
+| 2026-11-27 | Reviewer | Orchestrator → Planner | sent | m-1 ticket: undo or isolate the host link change before WI-M2-M4/M5 hosted tests share the host. |
