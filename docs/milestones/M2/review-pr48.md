@@ -126,3 +126,76 @@ diff review of `m2/sp1-probe`. All testable. Small gaps in m4 and n2.
 |---|---|---|---|---|
 | 2026-11-27 | Orchestrator | Reviewer | accepted | Review PR #48 at `b5492a6` against `41bf8fa`. |
 | 2026-11-27 | Reviewer | Orchestrator → Acceptance Tester | returned | CHANGES REQUIRED: M1 (unique result-bundle and log names per attempt, keep every file). m1-m4 should be fixed in the same round. n1, n2, i1, i2 optional. Re-review the same file as round 2. |
+
+---
+
+## Round 2 (@ `475cc27`, diff `git diff fed0998 475cc27`)
+
+- **Owner:** Reviewer (fresh context)  ·  **Verdict:** **APPROVE**  ·  **Round:** 2
+- **Scope:** `SP-1.md` (+95/−30 across both files, v2) and `acceptance.md` (2 wording lines). Docs only, no protected
+  path. Across the whole PR (`origin/main...475cc27`), only two lines are removed: the Screenshots row (re-added with
+  `ds1-c14-restart.png`, as in round 1) and the DS-1 "Xcode 26" line (now "Xcode 26 or later … the Mac mini has Xcode
+  27.2"; i2). Neither weakens a rule. The AC results table is still unchanged, and AC-M2-16 stays AWAITING-DEVICE.
+
+### Round-1 findings, checked in the new diff
+| # | Round-1 finding | What changed | Verified | Status |
+|---|---|---|---|---|
+| M1 | Fixed `-resultBundlePath` broke the A1 retry and the Run 1/2 re-run, and `tee` overwrote kept logs | S9 defines `sp1run <name>`. It refuses a name whose `full-<name>.log` or `SP1-<name>.xcresult` already exists, and builds both paths from the name. A1, A3, A4 and V3 use it. Retries are `run0b`/`run0c`/`run1b`/`run2b`. A5 and B9 loop over every `full-run*.log` / `full-speech*.log`. R2 sends every `sp1-*.txt`. The run record lists every name. Tester step 5: the first valid try counts, earlier tries are kept with their reason, and no try is made after a valid one. | I ran the function and the A5 loop in bash with an `xcodebuild` stub (scratchpad). `sp1run run0` twice: the second refused with "The name run0 is already used… run0b", rc=1, and the first files were untouched. `run0b` and `runv1` each made their own log, and the loop made `sp1-run0.txt`, `sp1-run0b.txt` and `sp1-runv1.txt`. A failed `xcodebuild` still leaves the `tee` log, so the guard fires even when no bundle was written. The syntax (`name() {}`, `[ -e ]`, `${n#full-}`, globs that always match here) is also valid in zsh, the macOS default shell. zsh itself is not installed in this container, so that part is read, not run. | Closed |
+| m1 | DS-1 Part C "Do not speak in steps 11 and 12" contradicted step 12 | `acceptance.md:249-250` now reads "Do not speak during a quick stop (step 11, and the first capture in step 12)." | Read in the diff | Closed |
+| m2 | No rule for a non-`completed` outcome on a clean phone | New paragraph under "Run valid?": it is not re-run, it is kept and reported to the Developer and PO with all numbers, and R-1 is **not met** until they rule. Also: "A run is never repeated to get better numbers." Environment re-runs use new names. | Read in the diff. It matches the PO ruling (a miss goes to the PO) and closes the cherry-picking route. | Closed |
+| m3 | D6 was stricter than the PO's technical alternative and did not say so | New D7, Part V and T4b (details below). | See "Variant run" below | Closed |
+| m4 | `-only-testing` ID depended on the probe being a type | D3 now says `@Suite struct SP1TimingProbe` and explains why. | Read in the diff | Closed |
+| n1 | The certificate lookup prints only the first match | S5.3 adds: with more than one Apple ID or team, use the Personal Team's Team ID from Xcode → Settings → Accounts. | Read in the diff | Closed |
+| n2 | The scaffold test hard-codes `com.tend.aitesthost` | D2.1 requires the scaffold test to compare against the prefix setting (for example an `Info.plist` value). | Read in the diff | Closed |
+| i1 | Device stdout might not reach the `xcodebuild` log | A5: with 0 lines, do not re-run; tell the Orchestrator. Tester step 4: take the `SP1|` lines from the kept bundle (`xcrun xcresulttool get log --type console …`, or the form checked in D5.4). | Read in the diff | Closed |
+| i2 | DS-1 said "Xcode 26" | Now "Xcode 26 or later … Xcode 27.2". | Read in the diff | Closed |
+
+### Variant run (D7, Part V, T4b): information only, baseline is the shipping setup
+- **The baseline is the shipping setup.** D6 now says "`SP1-COMMIT` is the baseline: the shipping setup with option
+  (a), nothing else." "Run valid?" still requires the build to be `SP1-COMMIT`, so a variant try can never be a valid
+  Run 1 or Run 2.
+- **The variant is kept apart.** It is a separate unmerged commit `SP1-VARIANT-COMMIT` on top of `SP1-COMMIT`. Its
+  header carries `variant=…` (D7.1). Part V runs last, after Part B, "never before Run 1 and Run 2", with its own names
+  (`runv1`, `runv2`) and its own header file. Tester step 5 says variant tries are "reported in their own block and
+  never mixed with the baseline". V5 switches back to the baseline.
+- **It never closes R-1.** D7.4 says it "never decides R-1, and it is not merged because of SP-1 without a PO ruling".
+  The decision table adds: variant runs are "information only … They never close R-1. If the baseline is not met and
+  the variant meets the rule, the PO decides". This matches PO ruling (b): the technical alternative is allowed in
+  SP-1 if the parity test still compares the same sentences and the cloud bytes are unchanged.
+- **The PO's conditions are checked.** D7.2 and T4b: no path under `Fixtures/` changes (`git diff --stat`), B2
+  (AC-M2-20 golden bytes) and the parity test pass, and the meaning sentences are word for word the same (D7.3, T4b).
+  Option (b) stays on HOLD (no new wording).
+
+### New findings (round 2)
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| n3 | Nit | `SP-1.md` T4b | D7.2 says the one-call rule is unchanged in the variant, but T4b does not check it. A variant that loosened the cap would look faster. It cannot close R-1, but the PO might be misled when comparing. | Optional: add to T4b that `git diff SP1-COMMIT SP1-VARIANT-COMMIT` does not touch the duplicate-lookup cap code, and that the variant lines show `tool_answered` ≤ 1. | Open |
+| n4 | Nit | `SP-1.md` "How the Tester reads the results" step 2 | The header check names only `sp1-mac-header.txt`. The new `sp1-mac-header-variant.txt` should show `SP1-VARIANT-COMMIT` and a clean status. | Optional: extend step 2 to the variant header. | Open |
+
+No Blocker, Major or Minor is open. The Nits do not block.
+
+### Checklist (round 2)
+- [x] Owner steps exact: M1 and m1 closed. Every try has its own name, and no file is overwritten (checked by running the steps with a stub).
+- [x] No weakening: the two removed lines are a re-added row and a wording widening. No AC, gate or scoring rule changed.
+- [x] SP-1 information only; AC-M2-16 AWAITING-DEVICE; the variant never closes R-1; the baseline is the shipping setup with option (a).
+- [x] Decision rules still match PO ruling (d), with brief Q4 per-capture strictness. No re-run to improve numbers (m2).
+- [x] Frozen eval unused (baseline D3.2, T2; variant D7.2, T4b).
+- [x] Privacy: unchanged; R2 sends only the short `sp1-*.txt` files; full logs and bundles stay on the Mac.
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No banned word in the added text (the refusal message is calm: "Use a new name"). |
+| UX-4 Design craft | concern (watch) | As in round 1; AC-M2-16 held, not relaxed. |
+| P-1 On-device inference | pass | The baseline and the variant are both on-device only. |
+| P-2 No data leaves device (except user iCloud) | pass | Only `SP1|` lines are sent; the Tester checks for personal data before commit. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | n.a. | No cloud path; the variant must leave the cloud bytes unchanged (B2). |
+| P-4 Media not persisted without consent | pass | Unchanged; no audio stored. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Orchestrator | Reviewer | accepted | Round 2 at `475cc27` (`git diff fed0998 475cc27`). |
+| 2026-11-27 | Reviewer | Orchestrator → Merge Gatekeeper | accepted | APPROVE. M1, m1-m4, n1, n2, i1, i2 closed. n3 and n4 optional. Next: Merge Gatekeeper. Then the Developer builds D1-D6 (and optionally D7) on `m2/sp1-probe`. |
