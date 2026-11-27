@@ -1,0 +1,1 @@
+SP1|seq=1|speech-status|readiness=ready(dictationTranscriber)|mic=notAsked

@@ -1,0 +1,423 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -project Tend.xcodeproj -scheme TendAIHostedTests -destination "platform=iOS Simulator,name=iPhone 17 Pro" SWIFT_TREAT_WARNINGS_AS_ERRORS=YES TEND_BUNDLE_PREFIX=org.example.owner
+
+Build settings from command line:
+    SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+    TEND_BUNDLE_PREFIX = org.example.owner
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  TendIngestion: $REPO/Packages/TendIngestion
+  TendSourceScan: $REPO/Packages/TendSourceScan @ local
+  TendCore: $REPO/Packages/TendCore
+  TendAI: $REPO/Packages/TendAI
+
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (8 targets)
+    Target 'TendAIHostedTests' in project 'Tend'
+        ➜ Explicit dependency on target 'TendAITestHost' in project 'Tend'
+        ➜ Explicit dependency on target 'TendAI-product' in project 'TendAI'
+    Target 'TendAITestHost' in project 'Tend'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+        ➜ Explicit dependency on target 'TendIngestion-product' in project 'TendIngestion'
+        ➜ Explicit dependency on target 'TendAI-product' in project 'TendAI'
+    Target 'TendAI-product' in project 'TendAI'
+        ➜ Explicit dependency on target 'TendAI' in project 'TendAI'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+        ➜ Explicit dependency on target 'TendIngestion-product' in project 'TendIngestion'
+    Target 'TendAI' in project 'TendAI'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+        ➜ Explicit dependency on target 'TendIngestion-product' in project 'TendIngestion'
+    Target 'TendIngestion-product' in project 'TendIngestion'
+        ➜ Explicit dependency on target 'TendIngestion' in project 'TendIngestion'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+    Target 'TendIngestion' in project 'TendIngestion'
+        ➜ Explicit dependency on target 'TendCore-product' in project 'TendCore'
+    Target 'TendCore-product' in project 'TendCore'
+        ➜ Explicit dependency on target 'TendCore' in project 'TendCore'
+    Target 'TendCore' in project 'TendCore' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.2.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: 88bdfef4663231ef9552b432f479a3f3
+Build description path: $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/XCBuildData/88bdfef4663231ef9552b432f479a3f3.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.2.sdk $HOME/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator27.2-24B8118-cc78df9d8a9de6526dea716b1c70fd8e.sdkstatcache
+    cd $REPO/Tend.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.2.sdk -o $HOME/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator27.2-24B8118-cc78df9d8a9de6526dea716b1c70fd8e.sdkstatcache
+
+WriteAuxiliaryFile $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/DerivedSources/Entitlements-Simulated.plist (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    write-file $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/DerivedSources/Entitlements-Simulated.plist
+
+ProcessProductPackaging "" $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.app-Simulated.xcent (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    
+    Entitlements:
+    
+    {
+    "application-identifier" = "FAKETEAMID.org.example.owner.aitesthost";
+}
+    
+    builtin-productPackagingUtility -entitlements -format xml -o $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.app-Simulated.xcent
+
+ProcessProductPackagingDER $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.app-Simulated.xcent $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.app-Simulated.xcent.der (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    /usr/bin/derq query -f xml -i $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.app-Simulated.xcent -o $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.app-Simulated.xcent.der --raw
+
+ProcessInfoPlistFile $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/Info.plist $REPO/Apps/TendAITestHost/Support/Info.plist (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    builtin-infoPlistUtility $REPO/Apps/TendAITestHost/Support/Info.plist -producttype com.apple.product-type.application -genpkginfo $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -o $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/Info.plist
+
+Ld $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost.debug.dylib normal (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -dynamiclib -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.2.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -L$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator -F$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -F$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/PackageFrameworks -F$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator -filelist $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/Objects-normal/arm64/TendAITestHost.LinkFileList -install_name @rpath/TendAITestHost.debug.dylib -Xlinker -rpath -Xlinker @loader_path -Xlinker -rpath -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/PackageFrameworks -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -Xlinker -object_path_lto -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/Objects-normal/arm64/TendAITestHost_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -Xlinker -dependency_info -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/Objects-normal/arm64/TendAITestHost_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphonesimulator -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/Objects-normal/arm64/TendAITestHost.swiftmodule -Xlinker -alias -Xlinker _main -Xlinker ___debug_main_executable_dylib_entry_point -Xlinker -no_adhoc_codesign -o $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost.debug.dylib
+
+ConstructStubExecutorLinkFileList $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost-ExecutorLinkFileList-normal-arm64.txt (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    construct-stub-executor-link-file-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost.debug.dylib /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libPreviewsJITStubExecutor_no_swift_entry_point.a /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libPreviewsJITStubExecutor.a --output $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost-ExecutorLinkFileList-normal-arm64.txt
+note: Using stub executor library with Swift entry point. (in target 'TendAITestHost' from project 'Tend')
+
+Ld $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost normal (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.2.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator -F$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/PackageFrameworks -F$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator -Xlinker -rpath -Xlinker @executable_path -Xlinker -rpath -Xlinker @loader_path -Xlinker -rpath -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/PackageFrameworks -Xlinker -rpath -Xlinker @executable_path/Frameworks -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -e ___debug_blank_executor_main -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_dylib -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost-DebugDylibPath-normal-arm64.txt -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_instlnm -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost-DebugDylibInstallName-normal-arm64.txt -Xlinker -filelist -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost-ExecutorLinkFileList-normal-arm64.txt -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __entitlements -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.app-Simulated.xcent -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __ents_der -Xlinker $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.app-Simulated.xcent.der $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost.debug.dylib -Xlinker -no_adhoc_codesign -o $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost
+
+ExtractAppIntentsMetadata (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name TendAITestHost --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.2.sdk --xcode-version 27B52 --platform-family iOS --deployment-target 26.0 --bundle-identifier org.example.owner.aitesthost --output $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app --target-triple arm64-apple-ios26.0-simulator --binary-file $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost --dependency-file $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/Objects-normal/arm64/TendAITestHost_dependency_info.dat --stringsdata-file $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/Objects-normal/arm64/TendAITestHost.SwiftFileList --metadata-file-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.DependencyMetadataFileList --static-metadata-file-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.DependencyStaticMetadataFileList --swift-const-vals-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/Objects-normal/arm64/TendAITestHost.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-11-27 22:14:06.692 appintentsmetadataprocessor[7903:6446962] Starting App Intents metadata extraction
+2026-11-27 22:14:06.693 appintentsmetadataprocessor[7903:6446962] warning: Metadata extraction skipped, no AppIntents.framework dependency found
+
+CopySwiftLibs $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost.debug.dylib --scan-folder $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/Frameworks --scan-folder $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns --scan-folder $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/SystemExtensions --scan-folder $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/Extensions --platform iphonesimulator --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+AppIntentsSSUTraining (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/Info.plist --temp-dir-path $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/ssu --bundle-id org.example.owner.aitesthost --product-path $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app --extracted-metadata-path $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/Metadata.appintents --metadata-file-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAITestHost.build/TendAITestHost.DependencyMetadataFileList --source-file $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/Info.plist --archive-ssu-assets
+2026-11-27 22:14:06.718 appintentsnltrainingprocessor[7904:6446963] Parsing options for appintentsnltrainingprocessor
+2026-11-27 22:14:06.718 appintentsnltrainingprocessor[7904:6446963] Starting AppIntents SSU YAML Generation
+2026-11-27 22:14:06.718 appintentsnltrainingprocessor[7904:6446963] No AppShortcuts found - Skipping.
+
+ProcessInfoPlistFile $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/Info.plist $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/empty-TendAIHostedTests.plist (in target 'TendAIHostedTests' from project 'Tend')
+    cd $REPO
+    builtin-infoPlistUtility $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/empty-TendAIHostedTests.plist -producttype com.apple.product-type.bundle.unit-test -expandbuildsettings -format binary -platform iphonesimulator -o $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/Info.plist
+
+ExtractAppIntentsMetadata (in target 'TendAIHostedTests' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name TendAIHostedTests --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.2.sdk --xcode-version 27B52 --platform-family iOS --deployment-target 26.0 --bundle-identifier org.example.owner.aihostedtests --output $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest --target-triple arm64-apple-ios26.0-simulator --binary-file $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests --dependency-file $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/Objects-normal/arm64/TendAIHostedTests_dependency_info.dat --stringsdata-file $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/Objects-normal/arm64/TendAIHostedTests.SwiftFileList --metadata-file-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/TendAIHostedTests.DependencyMetadataFileList --static-metadata-file-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/TendAIHostedTests.DependencyStaticMetadataFileList --swift-const-vals-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/Objects-normal/arm64/TendAIHostedTests.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-11-27 22:14:06.737 appintentsmetadataprocessor[7905:6446964] Starting App Intents metadata extraction
+2026-11-27 22:14:06.739 appintentsmetadataprocessor[7905:6446964] warning: Metadata extraction skipped, no AppIntents.framework dependency found
+
+CopySwiftLibs $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest (in target 'TendAIHostedTests' from project 'Tend')
+    cd $REPO
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests --scan-folder $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/Frameworks --scan-folder $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/PlugIns --scan-folder $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/SystemExtensions --scan-folder $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/Extensions --platform iphonesimulator --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/Frameworks --strip-bitcode --scan-executable /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+AppIntentsSSUTraining (in target 'TendAIHostedTests' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/Info.plist --temp-dir-path $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/ssu --bundle-id org.example.owner.aihostedtests --product-path $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest --extracted-metadata-path $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/Metadata.appintents --metadata-file-list $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/Tend.build/Debug-iphonesimulator/TendAIHostedTests.build/TendAIHostedTests.DependencyMetadataFileList --source-file $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/Info.plist --archive-ssu-assets
+2026-11-27 22:14:06.764 appintentsnltrainingprocessor[7906:6446965] Parsing options for appintentsnltrainingprocessor
+2026-11-27 22:14:06.764 appintentsnltrainingprocessor[7906:6446965] Starting AppIntents SSU YAML Generation
+2026-11-27 22:14:06.764 appintentsnltrainingprocessor[7906:6446965] No AppShortcuts found - Skipping.
+
+CodeSign $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest (in target 'TendAIHostedTests' from project 'Tend')
+    cd $REPO
+    
+    Signing Identity:     "Sign to Run Locally"
+    
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der --strip-disallowed-xattrs $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest
+$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest: replacing existing signature
+
+CodeSign $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost.debug.dylib (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    
+    Signing Identity:     "Sign to Run Locally"
+    
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der --strip-disallowed-xattrs $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/TendAITestHost.debug.dylib
+
+CodeSign $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/__preview.dylib (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    
+    Signing Identity:     "Sign to Run Locally"
+    
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der --strip-disallowed-xattrs $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/__preview.dylib
+$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app/__preview.dylib: replacing existing signature
+
+CodeSign $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    
+    Signing Identity:     "Sign to Run Locally"
+    
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der --strip-disallowed-xattrs $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app
+
+Validate $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app (in target 'TendAITestHost' from project 'Tend')
+    cd $REPO
+    builtin-validationUtility $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Products/Debug-iphonesimulator/TendAITestHost.app -shallow-bundle -infoplist-subpath Info.plist
+
+PruneExplicitPrecompiledModules $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules $HOME/Library/Developer/Xcode/DerivedData/SDKExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules $HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+objc[7911]: Class _TtC6TendAI15RedirectRefuser is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d0d378) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486d488). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC6TendAI19KeychainAPIKeyStore is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d11898) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486e188). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC6TendAI23DuplicateLookupRecorder is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d11ba8) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486e498). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC6TendAI26FoundationModelsGeneration is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d11d68) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486e658). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC6TendAI19PreparedGenerations is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d11e10) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486e700). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC6TendAI21MicrophoneAudioSource is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d12580) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486ee70). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC6TendAI13AudioEndWatch is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d12908) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486f1f8). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC6TendAI13AudioEndState is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d129b0) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486f2a0). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC8TendCore27InMemoryHouseholdRepository is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d0df38) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486f988). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC8TendCore27JSONFileHouseholdRepository is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d0e040) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x10486fa90). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC13TendIngestion19InMemoryAPIKeyStore is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d104e8) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x104871f38). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC13TendIngestion25InMemoryCloudConsentStore is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d105c8) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x104872018). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[7911]: Class _TtC13TendIngestion11ModelRouter is implemented in both $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/TendAITestHost.debug.dylib (0x101d10748) and $HOME/Library/Developer/CoreSimulator/Devices/$SIM_DEVICE/data/Containers/Bundle/Application/$APP_CONTAINER/TendAITestHost.app/PlugIns/TendAIHostedTests.xctest/TendAIHostedTests (0x104872198). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+Test Suite 'All tests' started at 2026-11-27 22:14:08.353.
+Test Suite 'All tests' passed at 2026-11-27 22:14:08.354.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+◇ Test run started.
+↳ Testing Library Version: 2403
+↳ Target Platform: arm64-apple-ios17.0-simulator
+◇ Suite "Cloud HTTPS transport (WI-M2-M4; AC-M2-22, AC-M2-23)" started.
+◇ Test "AC-M2-22: each attempt uses an ephemeral configuration with no cookies, cache or credentials, and its timeouts" started.
+✔ Test "AC-M2-22: each attempt uses an ephemeral configuration with no cookies, cache or credentials, and its timeouts" passed after 0.001 seconds.
+◇ Test "AC-M2-22: a 2xx body arrives in order, in chunks cut at event ends; no cut makes a single-byte chunk" started.
+◇ Test case passing 1 argument provider → .openAI to "AC-M2-22: a 2xx body arrives in order, in chunks cut at event ends; no cut makes a single-byte chunk" started.
+​◇ Test case passing 1 argument provider → .anthropic to "AC-M2-22: a 2xx body arrives in order, in chunks cut at event ends; no cut makes a single-byte chunk" started.
+​◇ Test case passing 1 argument provider → .gemini to "AC-M2-22: a 2xx body arrives in order, in chunks cut at event ends; no cut makes a single-byte chunk" started.
+​✔ Test "AC-M2-22: a 2xx body arrives in order, in chunks cut at event ends; no cut makes a single-byte chunk" with 3 test cases passed after 0.029 seconds.
+◇ Test "AC-M2-22 Headers: User-Agent: Tend and Accept-Language: en-US are set explicitly; only the builder's headers are sent" started.
+◇ Test case passing 1 argument provider → .openAI to "AC-M2-22 Headers: User-Agent: Tend and Accept-Language: en-US are set explicitly; only the builder's headers are sent" started.
+​◇ Test case passing 1 argument provider → .anthropic to "AC-M2-22 Headers: User-Agent: Tend and Accept-Language: en-US are set explicitly; only the builder's headers are sent" started.
+​◇ Test case passing 1 argument provider → .gemini to "AC-M2-22 Headers: User-Agent: Tend and Accept-Language: en-US are set explicitly; only the builder's headers are sent" started.
+​✔ Test "AC-M2-22 Headers: User-Agent: Tend and Accept-Language: en-US are set explicitly; only the builder's headers are sent" with 3 test cases passed after 0.003 seconds.
+◇ Test "AC-M2-22: a request to a host other than the provider's is refused before sending (nothing reaches the network)" started.
+◇ Test case passing 1 argument host → "api.example.com" to "AC-M2-22: a request to a host other than the provider's is refused before sending (nothing reaches the network)" started.
+​◇ Test case passing 1 argument host → "api.openai.com.example.net" to "AC-M2-22: a request to a host other than the provider's is refused before sending (nothing reaches the network)" started.
+​◇ Test case passing 1 argument host → "generativelanguage.googleapis.com" to "AC-M2-22: a request to a host other than the provider's is refused before sending (nothing reaches the network)" started.
+​◇ Test case passing 1 argument host → "" to "AC-M2-22: a request to a host other than the provider's is refused before sending (nothing reaches the network)" started.
+​✔ Test "AC-M2-22: a request to a host other than the provider's is refused before sending (nothing reaches the network)" with 4 test cases passed after 0.001 seconds.
+◇ Test "AC-M2-22: a non-HTTPS URL is refused before sending: a host that would change the scheme or authority" started.
+◇ Test case passing 1 argument host → "http://api.openai.com" to "AC-M2-22: a non-HTTPS URL is refused before sending: a host that would change the scheme or authority" started.
+​◇ Test case passing 1 argument host → "api.openai.com:80" to "AC-M2-22: a non-HTTPS URL is refused before sending: a host that would change the scheme or authority" started.
+​◇ Test case passing 1 argument host → "user@api.openai.com" to "AC-M2-22: a non-HTTPS URL is refused before sending: a host that would change the scheme or authority" started.
+​✔ Test "AC-M2-22: a non-HTTPS URL is refused before sending: a host that would change the scheme or authority" with 3 test cases passed after 0.001 seconds.
+◇ Test "A header value with a line break is refused before sending (no header injection; review R28-F5)" started.
+✔ Test "A header value with a line break is refused before sending (no header injection; review R28-F5)" passed after 0.001 seconds.
+◇ Test "AC-M2-22: a redirect to another host is not followed and ends requestNotSent; nothing is sent there" started.
+✔ Test "AC-M2-22: a redirect to another host is not followed and ends requestNotSent; nothing is sent there" passed after 0.001 seconds.
+◇ Test "A redirect on the same host is not followed either; it ends unexpectedResponse" started.
+✔ Test "A redirect on the same host is not followed either; it ends unexpectedResponse" passed after 0.001 seconds.
+◇ Test "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+◇ Test case passing 1 argument code → 401 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 403 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 429 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 500 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 502 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 503 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 599 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 400 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 404 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 408 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 304 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​◇ Test case passing 1 argument code → 199 to "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" started.
+​✔ Test "AC-M2-23: each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" with 12 test cases passed after 0.010 seconds.
+◇ Test "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+◇ Test case passing 1 argument raw → -1009 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.409597+0530 TendAITestHost[7911:6447221] [Default] Task <AA401CF5-8297-46DE-94EE-2D82081F2EA1>.<1> finished with error [-1009] Error Domain=NSURLErrorDomain Code=-1009 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <AA401CF5-8297-46DE-94EE-2D82081F2EA1>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <AA401CF5-8297-46DE-94EE-2D82081F2EA1>.<1>}
+​◇ Test case passing 1 argument raw → -1005 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.412065+0530 TendAITestHost[7911:6447220] [Default] Task <1B014A69-C3E6-474C-B24D-9640439AC661>.<1> finished with error [-1005] Error Domain=NSURLErrorDomain Code=-1005 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <1B014A69-C3E6-474C-B24D-9640439AC661>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <1B014A69-C3E6-474C-B24D-9640439AC661>.<1>}
+​◇ Test case passing 1 argument raw → -1020 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.412965+0530 TendAITestHost[7911:6447221] [Default] Task <6FE9C926-AC7D-4A56-A30B-91B674BB75DD>.<1> finished with error [-1020] Error Domain=NSURLErrorDomain Code=-1020 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <6FE9C926-AC7D-4A56-A30B-91B674BB75DD>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <6FE9C926-AC7D-4A56-A30B-91B674BB75DD>.<1>}
+​◇ Test case passing 1 argument raw → -1001 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.413823+0530 TendAITestHost[7911:6447221] [Default] Task <3D5CEA3F-BE54-4428-8A15-FB64FE795B8C>.<1> finished with error [-1001] Error Domain=NSURLErrorDomain Code=-1001 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <3D5CEA3F-BE54-4428-8A15-FB64FE795B8C>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <3D5CEA3F-BE54-4428-8A15-FB64FE795B8C>.<1>}
+​◇ Test case passing 1 argument raw → -1003 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.414558+0530 TendAITestHost[7911:6447221] [Default] Task <5127B58F-E51C-47C1-AA07-7420FCEE3860>.<1> finished with error [-1003] Error Domain=NSURLErrorDomain Code=-1003 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <5127B58F-E51C-47C1-AA07-7420FCEE3860>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <5127B58F-E51C-47C1-AA07-7420FCEE3860>.<1>}
+​◇ Test case passing 1 argument raw → -1006 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.415300+0530 TendAITestHost[7911:6447200] [Default] Task <213C0FB6-1598-4A18-BE8F-E678E9CEAF67>.<1> finished with error [-1006] Error Domain=NSURLErrorDomain Code=-1006 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <213C0FB6-1598-4A18-BE8F-E678E9CEAF67>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <213C0FB6-1598-4A18-BE8F-E678E9CEAF67>.<1>}
+​◇ Test case passing 1 argument raw → -1200 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.416873+0530 TendAITestHost[7911:6447206] [Default] Task <B9B45B3A-A6FA-4403-AD5E-C861A9ED69AD>.<1> finished with error [-1200] Error Domain=NSURLErrorDomain Code=-1200 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <B9B45B3A-A6FA-4403-AD5E-C861A9ED69AD>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <B9B45B3A-A6FA-4403-AD5E-C861A9ED69AD>.<1>}
+​◇ Test case passing 1 argument raw → -1202 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.417777+0530 TendAITestHost[7911:6447221] [Default] Task <47AF8FCF-2C92-41BC-8DA8-AB50CF1F9736>.<1> finished with error [-1202] Error Domain=NSURLErrorDomain Code=-1202 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <47AF8FCF-2C92-41BC-8DA8-AB50CF1F9736>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <47AF8FCF-2C92-41BC-8DA8-AB50CF1F9736>.<1>}
+​◇ Test case passing 1 argument raw → -1201 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.418580+0530 TendAITestHost[7911:6447200] [Default] Task <B165127B-BA5F-4A9B-9BA2-AABA168CE471>.<1> finished with error [-1201] Error Domain=NSURLErrorDomain Code=-1201 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <B165127B-BA5F-4A9B-9BA2-AABA168CE471>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <B165127B-BA5F-4A9B-9BA2-AABA168CE471>.<1>}
+​◇ Test case passing 1 argument raw → -1004 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.419354+0530 TendAITestHost[7911:6447200] [Default] Task <4C7A32CF-D736-4129-A717-16ABA63EAA2C>.<1> finished with error [-1004] Error Domain=NSURLErrorDomain Code=-1004 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <4C7A32CF-D736-4129-A717-16ABA63EAA2C>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <4C7A32CF-D736-4129-A717-16ABA63EAA2C>.<1>}
+​◇ Test case passing 1 argument raw → -1011 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.420246+0530 TendAITestHost[7911:6447206] [Default] Task <F16C5845-949C-4346-B277-EA1180434662>.<1> finished with error [-1011] Error Domain=NSURLErrorDomain Code=-1011 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <F16C5845-949C-4346-B277-EA1180434662>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <F16C5845-949C-4346-B277-EA1180434662>.<1>}
+​◇ Test case passing 1 argument raw → -1018 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.421506+0530 TendAITestHost[7911:6447200] [Default] Task <73FC3DD4-9C6E-43EF-8F3C-E3AED3B73F32>.<1> finished with error [-1018] Error Domain=NSURLErrorDomain Code=-1018 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <73FC3DD4-9C6E-43EF-8F3C-E3AED3B73F32>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <73FC3DD4-9C6E-43EF-8F3C-E3AED3B73F32>.<1>}
+​◇ Test case passing 1 argument raw → -1019 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.422837+0530 TendAITestHost[7911:6447221] [Default] Task <348B7DB0-ECBE-45A6-B469-DA6DEFAE13BE>.<1> finished with error [-1019] Error Domain=NSURLErrorDomain Code=-1019 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <348B7DB0-ECBE-45A6-B469-DA6DEFAE13BE>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <348B7DB0-ECBE-45A6-B469-DA6DEFAE13BE>.<1>}
+​◇ Test case passing 1 argument raw → -1203 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.423726+0530 TendAITestHost[7911:6447213] [Default] Task <6E7AB63B-C261-49CC-A4DE-FCA019D021B7>.<1> finished with error [-1203] Error Domain=NSURLErrorDomain Code=-1203 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <6E7AB63B-C261-49CC-A4DE-FCA019D021B7>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <6E7AB63B-C261-49CC-A4DE-FCA019D021B7>.<1>}
+​◇ Test case passing 1 argument raw → -1204 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.424564+0530 TendAITestHost[7911:6447206] [Default] Task <A7036B12-31A0-4635-93FC-BED65B78FF96>.<1> finished with error [-1204] Error Domain=NSURLErrorDomain Code=-1204 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <A7036B12-31A0-4635-93FC-BED65B78FF96>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <A7036B12-31A0-4635-93FC-BED65B78FF96>.<1>}
+​◇ Test case passing 1 argument raw → -1205 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.425400+0530 TendAITestHost[7911:6447213] [Default] Task <F7D83304-5BFB-437C-A66C-ED2B9B1E7FF7>.<1> finished with error [-1205] Error Domain=NSURLErrorDomain Code=-1205 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <F7D83304-5BFB-437C-A66C-ED2B9B1E7FF7>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <F7D83304-5BFB-437C-A66C-ED2B9B1E7FF7>.<1>}
+​◇ Test case passing 1 argument raw → -1206 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.426336+0530 TendAITestHost[7911:6447213] [Default] Task <FF05F5BE-2948-4867-BA6B-694224CED2EA>.<1> finished with error [-1206] Error Domain=NSURLErrorDomain Code=-1206 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <FF05F5BE-2948-4867-BA6B-694224CED2EA>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <FF05F5BE-2948-4867-BA6B-694224CED2EA>.<1>}
+​◇ Test case passing 1 argument raw → -1022 to "AC-M2-23: each URLError through the session maps to its neutral reason" started.
+2026-11-27 22:14:08.427128+0530 TendAITestHost[7911:6447213] [Default] Task <FF708688-1A0B-4E62-8FDE-6533E5B6E859>.<1> finished with error [-1022] Error Domain=NSURLErrorDomain Code=-1022 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <FF708688-1A0B-4E62-8FDE-6533E5B6E859>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <FF708688-1A0B-4E62-8FDE-6533E5B6E859>.<1>}
+​✔ Test "AC-M2-23: each URLError through the session maps to its neutral reason" with 18 test cases passed after 0.018 seconds.
+◇ Test "AC-M2-23: the mapping table, code by code (every listed code, cancellation is not a failure)" started.
+✔ Test "AC-M2-23: the mapping table, code by code (every listed code, cancellation is not a failure)" passed after 0.001 seconds.
+◇ Test "AC-M2-22 (R30-F5): a stub that never answers ends timedOut at the attempt's resource timeout" started.
+2026-11-27 22:14:09.430160+0530 TendAITestHost[7911:6447221] [Default] Task <D335BFBE-7047-419D-9CA7-CD424DCD0755>.<1> finished with error [-1001] Error Domain=NSURLErrorDomain Code=-1001 "The request timed out." UserInfo={_kCFStreamErrorCodeKey=-2103, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <D335BFBE-7047-419D-9CA7-CD424DCD0755>.<1>, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <D335BFBE-7047-419D-9CA7-CD424DCD0755>.<1>"
+), NSLocalizedDescription=The request timed out., NSErrorFailingURLStringKey=https://api.openai.com/v1/chat/completions, NSErrorFailingURLKey=https://api.openai.com/v1/chat/completions, _kCFStreamErrorDomainKey=4}
+✔ Test "AC-M2-22 (R30-F5): a stub that never answers ends timedOut at the attempt's resource timeout" passed after 1.003 seconds.
+◇ Test "AC-M2-22 (R30-F5): a body that stops arriving ends timedOut, inside the resource timeout" started.
+2026-11-27 22:14:10.434849+0530 TendAITestHost[7911:6447220] [Default] Task <E2B37067-E54B-4D3C-BB62-FE7DEACE4A7A>.<1> finished with error [-1001] Error Domain=NSURLErrorDomain Code=-1001 "The request timed out." UserInfo={_kCFStreamErrorCodeKey=-2102, NSUnderlyingError=0x108ca2130 {Error Domain=kCFErrorDomainCFNetwork Code=-1001 "(null)" UserInfo={_kCFStreamErrorCodeKey=-2102, _kCFStreamErrorDomainKey=4}}, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <E2B37067-E54B-4D3C-BB62-FE7DEACE4A7A>.<1>, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <E2B37067-E54B-4D3C-BB62-FE7DEACE4A7A>.<1>"
+), NSLocalizedDescription=The request timed out., NSErrorFailingURLStringKey=https://api.anthropic.com/v1/messages, NSErrorFailingURLKey=https://api.anthropic.com/v1/messages, _kCFStreamErrorDomainKey=4}
+✔ Test "AC-M2-22 (R30-F5): a body that stops arriving ends timedOut, inside the resource timeout" passed after 1.004 seconds.
+◇ Test "Contract 4 and 5 (R30-F2): cancelling mid-body ends without a failure, and CloudResponseBody ends with CancellationError" started.
+✔ Test "Contract 4 and 5 (R30-F2): cancelling mid-body ends without a failure, and CloudResponseBody ends with CancellationError" passed after 0.640 seconds.
+◇ Test "A stream created inside a cancelled task sends nothing" started.
+✔ Test "A stream created inside a cancelled task sends nothing" passed after 0.213 seconds.
+◇ Test "A response's Set-Cookie is never kept or sent back on the next attempt" started.
+✔ Test "A response's Set-Cookie is never kept or sent back on the next attempt" passed after 0.005 seconds.
+◇ Test "An event ends at a blank line, LF or CRLF; a single line end does not end it" started.
+✔ Test "An event ends at a blank line, LF or CRLF; a single line end does not end it" passed after 0.001 seconds.
+◇ Test "PR #46 m2: over raw values −3000…0, only URLError.cancelled (−999) maps to nil" started.
+✔ Test "PR #46 m2: over raw values −3000…0, only URLError.cancelled (−999) maps to nil" passed after 0.003 seconds.
+◇ Test "R28-F5: an auth key outside U+0021…U+007E is refused before sending; nothing reaches the stub" started.
+◇ Test case passing 1 argument provider → .openAI to "R28-F5: an auth key outside U+0021…U+007E is refused before sending; nothing reaches the stub" started.
+​◇ Test case passing 1 argument provider → .anthropic to "R28-F5: an auth key outside U+0021…U+007E is refused before sending; nothing reaches the stub" started.
+​◇ Test case passing 1 argument provider → .gemini to "R28-F5: an auth key outside U+0021…U+007E is refused before sending; nothing reaches the stub" started.
+​✔ Test "R28-F5: an auth key outside U+0021…U+007E is refused before sending; nothing reaches the stub" with 3 test cases passed after 0.012 seconds.
+✔ Suite "Cloud HTTPS transport (WI-M2-M4; AC-M2-22, AC-M2-23)" passed after 2.954 seconds.
+◇ Suite "R28-F5 pasted keys with the real Keychain; review PR #45 m1, n2" started.
+◇ Test "A padded key is stored trimmed (the item's bytes are the trimmed key) and its mask is from the trimmed key" started.
+◇ Test case passing 1 argument raw → "
+sk-test_AbC123xyzWXYZ" to "A padded key is stored trimmed (the item's bytes are the trimmed key) and its mask is from the trimmed key" started.
+​◇ Test case passing 1 argument raw → "sk-test_AbC123xyzWXYZ
+" to "A padded key is stored trimmed (the item's bytes are the trimmed key) and its mask is from the trimmed key" started.
+​◇ Test case passing 1 argument raw → "  sk-test_AbC123xyzWXYZ	" to "A padded key is stored trimmed (the item's bytes are the trimmed key) and its mask is from the trimmed key" started.
+​◇ Test case passing 1 argument raw → "﻿sk-test_AbC123xyzWXYZ​" to "A padded key is stored trimmed (the item's bytes are the trimmed key) and its mask is from the trimmed key" started.
+​◇ Test case passing 1 argument raw → " sk-test_AbC123xyzWXYZ " to "A padded key is stored trimmed (the item's bytes are the trimmed key) and its mask is from the trimmed key" started.
+​✔ Test "A padded key is stored trimmed (the item's bytes are the trimmed key) and its mask is from the trimmed key" with 5 test cases passed after 0.031 seconds.
+◇ Test "A refused key is not saved, the earlier item is kept byte for byte, and the result is keyTextNotAccepted" started.
+◇ Test case passing 1 argument raw → "sk new key" to "A refused key is not saved, the earlier item is kept byte for byte, and the result is keyTextNotAccepted" started.
+​◇ Test case passing 1 argument raw → "sk
+new" to "A refused key is not saved, the earlier item is kept byte for byte, and the result is keyTextNotAccepted" started.
+​◇ Test case passing 1 argument raw → "clé-1" to "A refused key is not saved, the earlier item is kept byte for byte, and the result is keyTextNotAccepted" started.
+​◇ Test case passing 1 argument raw → "sk​◇ Test case passing 1 argument raw → "   " to "A refused key is not saved, the earlier item is kept byte for byte, and the result is keyTextNotAccepted" started.
+​◇ Test case passing 1 argument raw → "" to "A refused key is not saved, the earlier item is kept byte for byte, and the result is keyTextNotAccepted" started.
+​✔ Test "A refused key is not saved, the earlier item is kept byte for byte, and the result is keyTextNotAccepted" with 6 test cases passed after 0.021 seconds.
+◇ Test "A short key is accepted; a key of every character U+0021…U+007E is kept exactly" started.
+✔ Test "A short key is accepted; a key of every character U+0021…U+007E is kept exactly" passed after 0.004 seconds.
+◇ Test "PR #45 m1 (K2): a synchronizable item with the same names is never read, matched or replaced" started.
+✔ Test "PR #45 m1 (K2): a synchronizable item with the same names is never read, matched or replaced" passed after 0.005 seconds.
+◇ Test "PR #45 n2: stored data that is not UTF-8 reads as storeUnavailable, never as a key" started.
+✔ Test "PR #45 n2: stored data that is not UTF-8 reads as storeUnavailable, never as a key" passed after 0.002 seconds.
+◇ Test "The neutral refusal never shows the key, in any formatting (AC-M2-21 key-holding types)" started.
+✔ Test "The neutral refusal never shows the key, in any formatting (AC-M2-21 key-holding types)" passed after 0.006 seconds.
+✔ Suite "R28-F5 pasted keys with the real Keychain; review PR #45 m1, n2" passed after 0.071 seconds.
+◇ Suite "Keychain key store (WI-M2-M5; AC-M2-21, AC-M2-18 (a))" started.
+◇ Test "AC-M2-21: save, read, replace and delete, with the item's attributes read back from the Keychain" started.
+◇ Test case passing 1 argument provider → .openAI to "AC-M2-21: save, read, replace and delete, with the item's attributes read back from the Keychain" started.
+​◇ Test case passing 1 argument provider → .anthropic to "AC-M2-21: save, read, replace and delete, with the item's attributes read back from the Keychain" started.
+​◇ Test case passing 1 argument provider → .gemini to "AC-M2-21: save, read, replace and delete, with the item's attributes read back from the Keychain" started.
+​✔ Test "AC-M2-21: save, read, replace and delete, with the item's attributes read back from the Keychain" with 3 test cases passed after 0.018 seconds.
+◇ Test "Keys are kept per provider: saving or deleting one never touches another" started.
+✔ Test "Keys are kept per provider: saving or deleting one never touches another" passed after 0.004 seconds.
+◇ Test "A key of any length in U+0021…U+007E is stored and read back exactly (no length or prefix check)" started.
+◇ Test case passing 1 argument text → "a" to "A key of any length in U+0021…U+007E is stored and read back exactly (no length or prefix check)" started.
+​◇ Test case passing 1 argument text → "short-key" to "A key of any length in U+0021…U+007E is stored and read back exactly (no length or prefix check)" started.
+​◇ Test case passing 1 argument text → "sk-ant-api03-0123456789_abc" to "A key of any length in U+0021…U+007E is stored and read back exactly (no length or prefix check)" started.
+​◇ Test case passing 1 argument text → "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" to "A key of any length in U+0021…U+007E is stored and read back exactly (no length or prefix check)" started.
+​✔ Test "A key of any length in U+0021…U+007E is stored and read back exactly (no length or prefix check)" with 4 test cases passed after 0.008 seconds.
+◇ Test "AC-M2-18 (a) with the real Keychain: turning cloud off deletes the item" started.
+✔ Test "AC-M2-18 (a) with the real Keychain: turning cloud off deletes the item" passed after 0.005 seconds.
+◇ Test "AC-M2-18 (a) with the real Keychain: removing the key deletes the item" started.
+✔ Test "AC-M2-18 (a) with the real Keychain: removing the key deletes the item" passed after 0.003 seconds.
+◇ Test "An orphan key restored without consent is deleted from the Keychain at the first route choice (T-14)" started.
+✔ Test "An orphan key restored without consent is deleted from the Keychain at the first route choice (T-14)" passed after 0.005 seconds.
+◇ Test "AC-M2-21: no formatting of any key-holding value shows the key" started.
+✔ Test "AC-M2-21: no formatting of any key-holding value shows the key" passed after 0.007 seconds.
+✔ Suite "Keychain key store (WI-M2-M5; AC-M2-21, AC-M2-18 (a))" passed after 0.053 seconds.
+◇ Suite "SP-1 timing probe (information only; runs only with TEND_SP1=1)" started.
+​➜ Test "SP-1: cold dev1, then 3 warm rounds over dev1…dev8 (prints SP1 lines; no timing is asserted)" skipped.
+​✔ Suite "SP-1 timing probe (information only; runs only with TEND_SP1=1)" passed after 0.001 seconds.
+◇ Suite "Speech adapter in the iOS Simulator host (WI-M2-M3)" started.
+◇ Test "A voice capture ends with exactly one finished event, last, and no transcript from silence" started.
+✔ Test "A voice capture ends with exactly one finished event, last, and no transcript from silence" passed after 0.259 seconds.
+◇ Test "Reading the microphone permission does not ask (no prompt in a test)" started.
+✔ Test "Reading the microphone permission does not ask (no prompt in a test)" passed after 0.002 seconds.
+✔ Suite "Speech adapter in the iOS Simulator host (WI-M2-M3)" passed after 0.262 seconds.
+◇ Suite "TendAI hosted scaffold (WI-M2-M1, AC-M2-13(b) groundwork)" started.
+◇ Test "The tests run inside the TendAITestHost app" started.
+✔ Test "The tests run inside the TendAITestHost app" passed after 0.001 seconds.
+◇ Test "The TendAI module links into the hosted test bundle" started.
+✔ Test "The TendAI module links into the hosted test bundle" passed after 0.001 seconds.
+✔ Suite "TendAI hosted scaffold (WI-M2-M1, AC-M2-13(b) groundwork)" passed after 0.001 seconds.
+✔ Test run with 37 tests in 6 suites passed after 3.345 seconds.
+2026-11-27 22:14:11.992 xcodebuild[7889:6446840] [MT] IDETestOperationsObserverDebug: 5.142 elapsed -- Testing started completed.
+2026-11-27 22:14:11.992 xcodebuild[7889:6446840] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-11-27 22:14:11.992 xcodebuild[7889:6446840] [MT] IDETestOperationsObserverDebug: 5.142 sec, +5.142 sec -- end
+
+Test session results, code coverage, and logs:
+	$HOME/Library/Developer/Xcode/DerivedData/Tend-bbghaukrynhgsibqjdygzogzqgsm/Logs/Test/Test-TendAIHostedTests-2026.11.27_22-14-05-+0530.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

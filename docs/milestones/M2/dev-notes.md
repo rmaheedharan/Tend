@@ -6307,3 +6307,20 @@ The clean run at `94d02fe` (`build/`, every package `.build` and the project's D
   TendIngestion 572, scan 67 files, 0 violations; B4 TendAI 90; B5 hosted 5 (probe skipped by design), also with a custom
   prefix; B6 as MS-1; D5.2 28 `SP1|` lines in the Simulator; D5.3 the console line reaches the Terminal. All at this commit
   with a clean tree.
+
+### SP-1 round 4 — the final speech branch merged; final SP1-COMMIT
+- `origin/m2/speech-adapter-v2` at `8c324a6` (PR #44 round 5: m7, m8, n5, n6, and main up to `9e50012`) merged as `88921e8`.
+  dev-notes.md conflicted; it was rebuilt by section: the speech branch's text (which holds main's) as it is, then this
+  branch's own sections (WI-M2-M2, WI-M2-M2 round 2, SP-1 probe, SP-1 probe round 2 with its round 2 and 3 parts), with no
+  section twice. Build fix `c07e12a`: the Keychain hosted test helper from main now implements
+  `OnDeviceModelSource.model(household:)` (PR #43 rename); test helper only.
+- **SP1-COMMIT = `c07e12a9647c7612b720a4d598d9f535870ca1b6`.** Record: [`evidence/mac/SP-1-r4/`](evidence/mac/SP-1-r4/README.md). B1 TendCore 141; B2
+  TendIngestion 580, scan 72 files, 0 violations; B4 TendAI 96 tests in 17 suites; B5 hosted 37 tests in 6 suites (the
+  Keychain and transport hosted tests from main now run on this host too; the probe is skipped by design), also with
+  `TEND_BUNDLE_PREFIX=org.example.owner`; B6 as MS-1; D5.2 28 `SP1|` lines in the Simulator; D5.3 the console line reaches
+  the Terminal. All at this commit with a clean tree.
+- **The link change now matters:** with main merged, the Keychain and `URLProtocol` hosted tests run on the host that
+  holds its own package copies (`BUNDLE_LOADER: ""`); they pass, with 13 "Class … is implemented in both" runtime
+  warnings in B5. As noted in round 2, this must be undone or isolated before this branch's `project.yml` reaches
+  `main` (ticket for the Planner).
+- The quickstop line format is unchanged from round 3.
