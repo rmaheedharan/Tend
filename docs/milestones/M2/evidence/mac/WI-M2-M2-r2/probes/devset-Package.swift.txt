@@ -1,0 +1,10 @@
+// Package.swift of the dev-set probe; the 'before' copy pointed at a worktree of ff79f9c, the 'after' copy at fad715a.
+// swift-tools-version: 6.2
+import PackageDescription
+let package = Package(name: "DevSet", platforms: [.macOS(.v26)],
+  dependencies: [.package(path: "$SCRATCH/wt-ondevice/Packages/TendAI"),
+                 .package(path: "$SCRATCH/wt-ondevice/Packages/TendIngestion"),
+                 .package(path: "$SCRATCH/wt-ondevice/Packages/TendCore")],
+  targets: [.executableTarget(name: "DevSet", dependencies: [
+    .product(name: "TendAI", package: "TendAI"), .product(name: "TendIngestion", package: "TendIngestion"),
+    .product(name: "TendCore", package: "TendCore")], path: "Sources/DevSet")], swiftLanguageModes: [.v6])

@@ -1,0 +1,370 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild build -project Tend.xcodeproj -scheme Tend -configuration Release -destination generic/platform=iOS -derivedDataPath build/dd-release CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  TendSourceScan: $REPO/Packages/TendSourceScan @ local
+  TendCore: $REPO/Packages/TendCore
+  TendAI: $REPO/Packages/TendAI
+  TendIngestion: $REPO/Packages/TendIngestion
+
+2026-11-27 12:00:36.405 xcodebuild[70105:5980818] [MT] IDESchemeActionsInvocationRecord: Device <DVTiPhonePlaceholder: 0x7b263f2580 (Any iOS Device | undefined_arch)> is missing operatingSystemVersion, operatingSystemVersionWithBuildNumber.
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (1 target)
+    Target 'Tend' in project 'Tend' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: 10300f80c1913497c334071e79203b0a
+Build description path: $REPO/build/dd-release/Build/Intermediates.noindex/XCBuildData/10300f80c1913497c334071e79203b0a.xcbuilddata
+CreateBuildDirectory $REPO/build/dd-release/SDKExplicitPrecompiledModules
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/SDKExplicitPrecompiledModules
+
+CreateBuildDirectory $REPO/build/dd-release/CompilationCache.noindex
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/CompilationCache.noindex
+
+CreateBuildDirectory $REPO/build/dd-release/Build/Intermediates.noindex
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/Build/Intermediates.noindex
+
+CreateBuildDirectory $REPO/build/dd-release/Build/Products
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/Build/Products
+
+CreateBuildDirectory $REPO/build/dd-release/ModuleCache.noindex
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/ModuleCache.noindex
+
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk $REPO/build/dd-release/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache
+    cd $REPO/Tend.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -o $REPO/build/dd-release/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache
+
+CreateBuildDirectory $REPO/build/dd-release/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+CreateBuildDirectory $REPO/build/dd-release/Build/Intermediates.noindex/PrecompiledHeaders
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/Build/Intermediates.noindex/PrecompiledHeaders
+
+CreateBuildDirectory $REPO/build/dd-release/Build/Intermediates.noindex/ExplicitPrecompiledModules
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+CreateBuildDirectory $REPO/build/dd-release/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend-73dba576e6168fa1555f64fd32289b57-VFS-iphoneos/all-product-headers.yaml
+    cd $REPO/Tend.xcodeproj
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend-73dba576e6168fa1555f64fd32289b57-VFS-iphoneos/all-product-headers.yaml
+
+CreateBuildDirectory $REPO/build/dd-release/Build/Products/Release-iphoneos
+    cd $REPO/Tend.xcodeproj
+    builtin-create-build-directory $REPO/build/dd-release/Build/Products/Release-iphoneos
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend.hmap (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/empty-Tend.plist (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/empty-Tend.plist
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-own-target-headers.hmap (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-own-target-headers.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-generated-files.hmap (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-generated-files.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend.DependencyStaticMetadataFileList (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-project-headers.hmap (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-project-headers.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend.DependencyMetadataFileList (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend.DependencyMetadataFileList
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-all-target-headers.hmap (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-all-target-headers.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-all-non-framework-target-headers.hmap (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-all-non-framework-target-headers.hmap
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.SwiftConstValuesFileList (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.SwiftConstValuesFileList
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-OutputFileMap.json (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-OutputFileMap.json
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.SwiftFileList (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.SwiftFileList
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend_const_extract_protocols.json (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend_const_extract_protocols.json
+
+WriteAuxiliaryFile $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.LinkFileList (in target 'Tend' from project 'Tend')
+    cd $REPO
+    write-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.LinkFileList
+
+MkDir $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app (in target 'Tend' from project 'Tend')
+    cd $REPO
+    /bin/mkdir -p $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app
+
+ProcessInfoPlistFile $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Info.plist $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/empty-Tend.plist (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-infoPlistUtility $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/empty-Tend.plist -producttype com.apple.product-type.application -genpkginfo $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/PkgInfo -expandbuildsettings -format binary -platform iphoneos -requiredArchitecture arm64 -o $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Info.plist
+
+SwiftDriver Tend normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Tend -O -whole-module-optimization @$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.SwiftFileList -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-release/ModuleCache.noindex -Xfrontend -serialize-debugging-options -warnings-as-errors -swift-version 6 -I $REPO/build/dd-release/Build/Products/Release-iphoneos -F $REPO/build/dd-release/Build/Products/Release-iphoneos -parse-as-library -c -num-threads 8 -Xcc -ivfsstatcache -Xcc $REPO/build/dd-release/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-release/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-release/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-release/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-release/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend_const_extract_protocols.json -Xcc -iquote -Xcc $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-generated-files.hmap -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-own-target-headers.hmap -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-all-target-headers.hmap -Xcc -iquote -Xcc $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-project-headers.hmap -Xcc -I$REPO/build/dd-release/Build/Products/Release-iphoneos/include -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources -emit-objc-header -emit-objc-header-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-Swift.h -working-directory $REPO -no-emit-module-separately-wmo
+
+SwiftDriver\ Compilation Tend normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Tend -O -whole-module-optimization @$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.SwiftFileList -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-release/ModuleCache.noindex -Xfrontend -serialize-debugging-options -warnings-as-errors -swift-version 6 -I $REPO/build/dd-release/Build/Products/Release-iphoneos -F $REPO/build/dd-release/Build/Products/Release-iphoneos -parse-as-library -c -num-threads 8 -Xcc -ivfsstatcache -Xcc $REPO/build/dd-release/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-release/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-release/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-release/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-release/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend_const_extract_protocols.json -Xcc -iquote -Xcc $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-generated-files.hmap -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-own-target-headers.hmap -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-all-target-headers.hmap -Xcc -iquote -Xcc $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-project-headers.hmap -Xcc -I$REPO/build/dd-release/Build/Products/Release-iphoneos/include -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources -emit-objc-header -emit-objc-header-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-Swift.h -working-directory $REPO -no-emit-module-separately-wmo
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stddef-D7KMGV1G33YYIUUIPKO4T3JTI.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_float-BSQ8CPDEH4IM7MKDLP4DJTEMC.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/DeveloperToolsSupport-AVVJT0VZO1TBYQJ4KVEOCHS0F.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stdarg-7PW7ZV9ICDUST4JJ7YJXHEEO1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-53OQQISRTTGPI1J5H9MA2UTZ4.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_AvailabilityInternal-5VYTP3MAB00XWFW4TL7X29V69.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/ptrauth-83JUO3PLUEC0PTJYO7B74ZF85.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/SwiftShims-BJ8QBSAANTE9V9JBZ33RK64EX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/ptrcheck-9E681TOGHBYCWWR4M39BO2C05.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stdbool-1XN4ZSU39NOTXV5AQXPN8N7NI.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_DarwinFoundation1-2MGF190FN4JYHPPIRFFSS1QN5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_limits-84E27E9L7B0RLF6H0I2LPO5O5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_DarwinFoundation2-DDAZOHTIQQ8J6B0RCGDPA6CX9.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stdint-ATODA1IK0NLYNXAWKFR4PL8JH.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_tgmath-6MM2ZG4SRHMGXV8RNYNO0UPQF.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/string_h-2KGH5VOQEFG1993ZY1BTW28XH.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/sys_types-1UGKQT29X7QMBHPGSEUN51B1I.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_DarwinFoundation3-9QR9SF5GJLXTGLYF2PJ2I54PD.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_intrinsics-AJHY6VSWSOSMP7RD6YHG7FCCU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stdatomic-94ZEFXG7EO9U0KDICM3US1XEH.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_inttypes-CQW20IGMNCQTHSGNRC5441NN3.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/Darwin-4RXHTO1AOOF7M8Z0U42AO5UPZ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/simd-88S64MNDXV504GLNKM285UMOU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/MachO-6XH3042SKTZ8RP40MHKJPEQAA.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/ObjectiveC-EUMB98R3C9E0I0KIAEUY1GVAU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/os_object-XLWDFPLCARJWVVTGXDREWC4K.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/os_workgroup-7JBOP20TH6G0B1X7J3NTK9P79.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/Spatial-6VXSLNWTOL2HK0160J7NSGXOD.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/Dispatch-E1EEEBPL0UUBWL4IX1J9KUG7P.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreFoundation-56ESXVUSY92VDYMT17X4MYVJ7.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/XPC-DHTQFYNFDQ1J1UBM3ZI11AYR9.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/os-D2JN5YYD6XYYW480EDOC8VMRC.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CFNetwork-70HXAFH8DR2V1EO9TRF8WMOBG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/Security-560XYP14PEAJV9GIC2Z16PA5F.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreAudioTypes-EMK7MDCIXXXOZTJZOL8BZ9GZF.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreGraphics-90LGH0ZEXJ2ZJU6LT8AJ6QA2H.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreAudio-8PB0VMYZS1MM8P43Q2Q4X3OWE.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/Foundation-6IBOFAZSK2YCPP7V8TS2ESGMF.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/ImageIO-5ECL37V1DHAHWGZ93J1NMIWUZ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreText-AHDRV9JG9AVJR5GIUQITCNP30.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/DataDetection-CV4CZYGX4RJRYK2AA4NJM1KEP.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreTransferable-C05F3S02JWNUGOV6XGUM2BXVY.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/Accessibility-5IUMZ7KURQ4N0CRC3IRN27G0N.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/FileProvider-18FM5SU2Y33VEKLQY39PW6VOO.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/Symbols-67EFZ15ACX3NKY3XGPTM0OS17.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/OSLog-6YPXVSACM9NVXB70JZGQ60N1P.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/_LocationEssentials-BPZQ4HUX8KOG7NZCEIBEZV1X7.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreData-5O791YOTDLK8LQT30JYIYIRDT.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/UIUtilities-15C67DBZZJ6II84IH6SK3VNOJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/IOSurface-608SPI373EFWKN54PG3RF6ZXE.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/UserNotifications-1CJMF02Q9R32GUB678X9KGE3W.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/UniformTypeIdentifiers-4QYNMVRZV9VX2Q1X78TXCWEET.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreLocation-1Q3F7NEME861PIVFTKL35BNJ7.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/Metal-ADMHJ7J6K4SJDOQONO28RW70H.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/OpenGLES-48GUS1Y2YGQJQVVBB7LDRFYQE.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreMotion-EZSRF2HXRAM9UHKYKG83ONEZ6.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreVideo-8RU5W485NR3MHKWLTOPO8VAA0.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/QuartzCore-B6B3T2VFPB074M6KKJJM72L45.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreMedia-1U1UXZ93AGXVP9KYVKSZWSZTU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreImage-ANCI46NEJBIINNJZ298U2HBZN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/SwiftUICore-5YF9B1V31WMMPCXQFJV98D2M0.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/UIKit-63GXTJPOKO0GX4939PZZV9IIT.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 $REPO/build/dd-release/SDKExplicitPrecompiledModules/SwiftUI-BHLI68XR8DPTZ1P5GAIV19VC9.pcm
+
+SwiftCompile normal arm64 Compiling\ TendApp.swift $REPO/Apps/Tend/Sources/TendApp.swift /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreData.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Symbols.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreVideo.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Darwin.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/_StringProcessing.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/UIKit.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Accessibility.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/System.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/_DarwinFoundation1.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreMotion.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/XPC.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/FileProvider.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/_Concurrency.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreImage.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/DataDetection.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/UniformTypeIdentifiers.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/_DarwinFoundation3.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreTransferable.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Dispatch.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreText.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/_DarwinFoundation2.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreAudio.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/_Builtin_float.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Metal.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Swift.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreGraphics.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/DeveloperToolsSupport.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/ObjectiveC.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreLocation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Spatial.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/simd.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/SwiftUICore.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/os.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/QuartzCore.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreMedia.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/SwiftUI.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/OSLog.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Combine.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/CoreFoundation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Observation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/Foundation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.2/ImageIO.swiftmodule/arm64e-apple-ios.swiftmodule $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreData-5O791YOTDLK8LQT30JYIYIRDT.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stdarg-7PW7ZV9ICDUST4JJ7YJXHEEO1.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CFNetwork-70HXAFH8DR2V1EO9TRF8WMOBG.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreMotion-EZSRF2HXRAM9UHKYKG83ONEZ6.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_intrinsics-AJHY6VSWSOSMP7RD6YHG7FCCU.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/UserNotifications-1CJMF02Q9R32GUB678X9KGE3W.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/XPC-DHTQFYNFDQ1J1UBM3ZI11AYR9.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/IOSurface-608SPI373EFWKN54PG3RF6ZXE.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreAudioTypes-EMK7MDCIXXXOZTJZOL8BZ9GZF.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/simd-88S64MNDXV504GLNKM285UMOU.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_LocationEssentials-BPZQ4HUX8KOG7NZCEIBEZV1X7.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/os_object-XLWDFPLCARJWVVTGXDREWC4K.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_AvailabilityInternal-5VYTP3MAB00XWFW4TL7X29V69.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_inttypes-CQW20IGMNCQTHSGNRC5441NN3.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreMedia-1U1UXZ93AGXVP9KYVKSZWSZTU.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_DarwinFoundation2-DDAZOHTIQQ8J6B0RCGDPA6CX9.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/Metal-ADMHJ7J6K4SJDOQONO28RW70H.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/Security-560XYP14PEAJV9GIC2Z16PA5F.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stdbool-1XN4ZSU39NOTXV5AQXPN8N7NI.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreAudio-8PB0VMYZS1MM8P43Q2Q4X3OWE.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/OpenGLES-48GUS1Y2YGQJQVVBB7LDRFYQE.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/Darwin-4RXHTO1AOOF7M8Z0U42AO5UPZ.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/OSLog-6YPXVSACM9NVXB70JZGQ60N1P.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreGraphics-90LGH0ZEXJ2ZJU6LT8AJ6QA2H.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/UIKit-63GXTJPOKO0GX4939PZZV9IIT.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreLocation-1Q3F7NEME861PIVFTKL35BNJ7.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stdatomic-94ZEFXG7EO9U0KDICM3US1XEH.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/FileProvider-18FM5SU2Y33VEKLQY39PW6VOO.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_limits-84E27E9L7B0RLF6H0I2LPO5O5.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/ptrauth-83JUO3PLUEC0PTJYO7B74ZF85.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/DataDetection-CV4CZYGX4RJRYK2AA4NJM1KEP.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreVideo-8RU5W485NR3MHKWLTOPO8VAA0.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/Symbols-67EFZ15ACX3NKY3XGPTM0OS17.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stddef-D7KMGV1G33YYIUUIPKO4T3JTI.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/MachO-6XH3042SKTZ8RP40MHKJPEQAA.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_DarwinFoundation3-9QR9SF5GJLXTGLYF2PJ2I54PD.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/SwiftShims-BJ8QBSAANTE9V9JBZ33RK64EX.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/sys_types-1UGKQT29X7QMBHPGSEUN51B1I.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_tgmath-6MM2ZG4SRHMGXV8RNYNO0UPQF.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/UIUtilities-15C67DBZZJ6II84IH6SK3VNOJ.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/string_h-2KGH5VOQEFG1993ZY1BTW28XH.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/UniformTypeIdentifiers-4QYNMVRZV9VX2Q1X78TXCWEET.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreFoundation-56ESXVUSY92VDYMT17X4MYVJ7.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_float-BSQ8CPDEH4IM7MKDLP4DJTEMC.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/DeveloperToolsSupport-AVVJT0VZO1TBYQJ4KVEOCHS0F.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/SwiftUICore-5YF9B1V31WMMPCXQFJV98D2M0.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreTransferable-C05F3S02JWNUGOV6XGUM2BXVY.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-53OQQISRTTGPI1J5H9MA2UTZ4.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/SwiftUI-BHLI68XR8DPTZ1P5GAIV19VC9.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreImage-ANCI46NEJBIINNJZ298U2HBZN.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/Spatial-6VXSLNWTOL2HK0160J7NSGXOD.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/os_workgroup-7JBOP20TH6G0B1X7J3NTK9P79.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_Builtin_stdint-ATODA1IK0NLYNXAWKFR4PL8JH.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/_DarwinFoundation1-2MGF190FN4JYHPPIRFFSS1QN5.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/QuartzCore-B6B3T2VFPB074M6KKJJM72L45.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/Foundation-6IBOFAZSK2YCPP7V8TS2ESGMF.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/ptrcheck-9E681TOGHBYCWWR4M39BO2C05.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/os-D2JN5YYD6XYYW480EDOC8VMRC.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/Dispatch-E1EEEBPL0UUBWL4IX1J9KUG7P.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/Accessibility-5IUMZ7KURQ4N0CRC3IRN27G0N.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/CoreText-AHDRV9JG9AVJR5GIUQITCNP30.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/ImageIO-5ECL37V1DHAHWGZ93J1NMIWUZ.pcm $REPO/build/dd-release/SDKExplicitPrecompiledModules/ObjectiveC-EUMB98R3C9E0I0KIAEUY1GVAU.pcm $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-dependencies-1.json (in target 'Tend' from project 'Tend')
+
+SwiftCompile normal arm64 (in target 'Tend' from project 'Tend')
+    cd $REPO
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling TendApp.swift (in target 'Tend' from project 'Tend')
+
+SwiftDriver\ Compilation\ Requirements Tend normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Tend -O -whole-module-optimization @$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.SwiftFileList -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -target arm64-apple-ios26.0 -g -module-cache-path $REPO/build/dd-release/ModuleCache.noindex -Xfrontend -serialize-debugging-options -warnings-as-errors -swift-version 6 -I $REPO/build/dd-release/Build/Products/Release-iphoneos -F $REPO/build/dd-release/Build/Products/Release-iphoneos -parse-as-library -c -num-threads 8 -Xcc -ivfsstatcache -Xcc $REPO/build/dd-release/SDKStatCaches.noindex/iphoneos27.2-24B8118-6890c9e4970e00494a266ff652f095d9.sdkstatcache -output-file-map $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path $REPO/build/dd-release/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path $REPO/build/dd-release/ModuleCache.noindex -sdk-module-cache-path $REPO/build/dd-release/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file $REPO/build/dd-release/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend_const_extract_protocols.json -Xcc -iquote -Xcc $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-generated-files.hmap -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-own-target-headers.hmap -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-all-target-headers.hmap -Xcc -iquote -Xcc $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend-project-headers.hmap -Xcc -I$REPO/build/dd-release/Build/Products/Release-iphoneos/include -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources-normal/arm64 -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources/arm64 -Xcc -I$REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources -emit-objc-header -emit-objc-header-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-Swift.h -working-directory $REPO -no-emit-module-separately-wmo
+
+SwiftMergeGeneratedHeaders $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources/Tend-Swift.h $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-Swift.h (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-swiftHeaderTool -arch arm64 $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend-Swift.h -o $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/DerivedSources/Tend-Swift.h
+
+Copy $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.swiftmodule/arm64-apple-ios.swiftdoc $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftdoc (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftdoc $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.swiftmodule/arm64-apple-ios.swiftdoc
+
+Copy $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.swiftmodule/arm64-apple-ios.abi.json $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.abi.json (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.abi.json $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.swiftmodule/arm64-apple-ios.abi.json
+
+Copy $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.swiftmodule/arm64-apple-ios.swiftmodule $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftmodule (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftmodule $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.swiftmodule/arm64-apple-ios.swiftmodule
+
+Copy $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftsourceinfo (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftsourceinfo $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo
+
+Ld $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Tend normal (in target 'Tend' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk -Os -Xlinker -no_warn_duplicate_libraries -L$REPO/build/dd-release/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos -L$REPO/build/dd-release/Build/Products/Release-iphoneos -F$REPO/build/dd-release/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos -F$REPO/build/dd-release/Build/Products/Release-iphoneos -filelist $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.LinkFileList -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -Xlinker -object_path_lto -Xlinker $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend_lto.o -Xlinker -dependency_info -Xlinker $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.swiftmodule -o $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Tend
+
+CopySwiftLibs $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-swiftStdLibTool --copy --verbose --scan-executable $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Tend --scan-folder $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Frameworks --scan-folder $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/PlugIns --scan-folder $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/SystemExtensions --scan-folder $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Extensions --platform iphoneos --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+Ignoring --strip-bitcode because --sign was not passed
+
+ExtractAppIntentsMetadata (in target 'Tend' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name Tend --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.2.sdk --xcode-version 27B52 --platform-family iOS --deployment-target 26.0 --bundle-identifier com.tend.app --output $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app --target-triple arm64-apple-ios26.0 --binary-file $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Tend --dependency-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend_dependency_info.dat --stringsdata-file $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.SwiftFileList --metadata-file-list $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend.DependencyMetadataFileList --static-metadata-file-list $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend.DependencyStaticMetadataFileList --swift-const-vals-list $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Objects-normal/arm64/Tend.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-11-27 12:00:40.505 appintentsmetadataprocessor[70181:5981176] Starting App Intents metadata extraction
+2026-11-27 12:00:40.506 appintentsmetadataprocessor[70181:5981176] warning: Metadata extraction skipped, no AppIntents.framework dependency found
+
+GenerateDSYMFile $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app.dSYM $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Tend (in target 'Tend' from project 'Tend')
+    cd $REPO
+    export PATH\=/Applications/Xcode.app/Contents/SharedFrameworks/SwiftBuild.framework/Versions/A/PlugIns/SWBBuildService.bundle/Contents/PlugIns/SWBUniversalPlatformPlugin.bundle/Contents/Frameworks/SWBUniversalPlatform.framework/Resources:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/bin:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/usr/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/usr/local/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/local/bin:/Applications/Xcode.app/Contents/Developer/usr/bin:/Applications/Xcode.app/Contents/Developer/usr/local/bin:/opt/homebrew/Cellar/openjdk@25/25.0.3/libexec/openjdk.jdk/Contents/Home/bin:$HOME/.local/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/dsymutil $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Tend -o $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app.dSYM
+
+AppIntentsSSUTraining (in target 'Tend' from project 'Tend')
+    cd $REPO
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Info.plist --temp-dir-path $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/ssu --bundle-id com.tend.app --product-path $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app --extracted-metadata-path $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Metadata.appintents --metadata-file-list $REPO/build/dd-release/Build/Intermediates.noindex/Tend.build/Release-iphoneos/Tend.build/Tend.DependencyMetadataFileList --source-file $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app/Info.plist --archive-ssu-assets
+2026-11-27 12:00:40.536 appintentsnltrainingprocessor[70183:5981178] Parsing options for appintentsnltrainingprocessor
+2026-11-27 12:00:40.536 appintentsnltrainingprocessor[70183:5981178] Starting AppIntents SSU YAML Generation
+2026-11-27 12:00:40.537 appintentsnltrainingprocessor[70183:5981178] No AppShortcuts found - Skipping.
+
+RegisterExecutionPolicyException $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-RegisterExecutionPolicyException $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app
+
+Validate $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app (in target 'Tend' from project 'Tend')
+    cd $REPO
+    builtin-validationUtility $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app -shallow-bundle -infoplist-subpath Info.plist
+warning: All interface orientations must be supported unless the app requires full screen. (in target 'Tend' from project 'Tend')
+
+Touch $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app (in target 'Tend' from project 'Tend')
+    cd $REPO
+    /usr/bin/touch -c $REPO/build/dd-release/Build/Products/Release-iphoneos/Tend.app
+
+PruneExplicitPrecompiledModules $REPO/build/dd-release/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules $REPO/build/dd-release/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules $REPO/build/dd-release/SDKExplicitPrecompiledModules
+
+** BUILD SUCCEEDED **
+

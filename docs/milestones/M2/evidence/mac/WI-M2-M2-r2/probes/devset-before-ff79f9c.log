@@ -1,0 +1,10 @@
+availability available
+in1 toolCalls 2 ["dishwasher tablets", "bin"] ttfi 7.20 drafts 2: [dishwasher → none] [bin → none]
+in2 toolCalls 2 ["Kettle needs descaling", "wipe the oven door"] ttfi 5.87 drafts 2: [kettle → none] [oven → none]
+in3 toolCalls 2 ["mow the lawn", "trim the hedge"] ttfi 6.06 drafts 2: [lawn → Mow the lawn] [hedge → none]
+in4 toolCalls 2 ["water bill", "phone bill"] ttfi 5.78 drafts 2: [water → Pay the water bill] [phone → none]
+in5 toolCalls 2 ["change its battery", "buy more olive oil"] ttfi 5.80 drafts 2: [smoke: no draft] [olive → Buy olive oil]
+in6 toolCalls 2 ["shower glass", "bathroom floor"] ttfi 5.52 drafts 2: [shower → Clean the shower glass] [floor → none]
+in7 toolCalls 3 ["boiler service", "dentist appointment", "buy coffee"] ttfi 6.21 drafts 3: [boiler → Book the boiler service] [dentist → none] [coffee → none]
+in8 toolCalls 2 ["water the plants", "wash the car"] ttfi 5.58 drafts 2: [plants → none] [car → none]
+SUMMARY expected 17 matched 16 duplicatesCreated 2 falseMerges 0 toolCalls 17 ttfiMedian 5.87 min 5.52 max 7.20

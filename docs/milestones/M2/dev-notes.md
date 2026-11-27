@@ -5724,3 +5724,65 @@ The clean run at `94d02fe` (`build/`, every package `.build` and the project's D
 |---|---|---|---|---|
 | 2026-11-27 | Coordinator | Developer (owner's Mac) | accepted | MS-2 brief, items M2, M3, M5, M4 in that order. |
 | 2026-11-27 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR. R-1 numbers for the Planner and PO. |
+
+## WI-M2-M2 round 2 — review PR #41 m1 (framework cancel), PO R-1 ruling (a) (one Tool call per capture), nits n1 and n3
+
+- **Branch:** `m2/on-device-adapter-v2` (the orchestrator re-created the branch with a neutral commit identity; same
+  trees as `m2/on-device-adapter`), on top of the review commit `ff79f9c`  ·  **Code commit:** `fad715a3d1f81cadd17a9403b96dca12c3ba231d`  ·
+  **Mac evidence record:** [`evidence/mac/WI-M2-M2-r2/`](evidence/mac/WI-M2-M2-r2/README.md).
+- Review PR #41 M1 (commit identity) is handled by the re-created branch and the repo-local identity
+  `Claude <noreply@anthropic.com>`; every commit here uses it.
+
+### What changed
+- **m1** (`OnDeviceIngestionModel.swift`): only a parse the consumer cancelled finishes the model stream quietly. A
+  `CancellationError` the framework throws while the parse is not cancelled now goes through `OnDeviceStopMapping`
+  (`otherModelError`), so it ends `interrupted` after a draft and `noModel` before one (AC-M2-05, AC-M2-10), never
+  `completed`.
+- **PO R-1 ruling (a): the duplicate-lookup Tool is answered at most once per capture, enforced in code.**
+  `DuplicateLookupRecorder.answeredCallLimit = 1`. The first call gets exactly the shortlist and is recorded; every
+  later call gets no entries, is **not** recorded (so `IngestionSnapshot.lookupQueries` and the rules' replay hold
+  exactly what the model was shown, D1 unchanged), and is counted in `refusedCalls` (information). Re-mark on log
+  growth is unchanged. A repeat that only a refused call would have found is still marked by the word-match floor.
+  The instructions now say "call findExistingTasks once, with the main words of all the chores together"; the Tool's
+  description and argument guide say the same.
+- **n1:** the order comment no longer says `title` first helps TTFI (emission is at item completion).
+- **n3:** the test script's `.hang` sleeps instead of spinning; it can also throw `CancellationError` on cancel, for the
+  m1 tests.
+- One existing test changed its expectation because the rule changed (not a weakening): "The Tool records the answered
+  query …" now expects `["pods"]` and one refused call; the contract-4 snapshot test now expects `["pods"]` in every
+  snapshot.
+
+### AC → test (B4)
+| Item | Test(s) | Result |
+|---|---|---|
+| m1 | `OnDeviceFollowUpTests`: "a CancellationError the consumer did not ask for, after a draft, ends interrupted", "… before any draft, ends noModel", "a cancel the consumer asked for still ends cancelled, even when the framework then throws CancellationError", "the model stream itself finishes without an error when its parse was cancelled and the framework throws" | PASS |
+| R-1 (a) | "the first Tool call is answered with the shortlist; every later call gets no entries and is not recorded", "the snapshots carry only the one answered query, so the rules replay exactly what the model saw" (title claim still marks `ofExisting`), "a repeat that only a refused second call would have found is still marked, by the word-match floor", "the instructions and the Tool description ask for one call …" | PASS |
+
+**Mutants (killed):** no cap (limit 100, R1, 5 tests); a refused call still answered (R2, 5 tests); framework
+`CancellationError` read as a normal end (C1, 2 tests).
+
+### Developer dev set (information only; never the frozen eval)
+A throwaway probe in the session scratchpad ([`probes/`](evidence/mac/WI-M2-M2-r2/probes/)): 8 captures I wrote, a
+household of 8 tasks in 3 rooms, 17 expected chores (8 repeats of an existing task, 9 new). Same Mac, real session,
+prewarmed, one run each, before (`ff79f9c`) and after (`fad715a`):
+
+| | Before (no cap) | After (one call) |
+|---|---|---|
+| Tool calls answered | 17 (one per chore) | 8 (one per capture; the model asked once with all the words) |
+| Duplicates created (a repeat left unmarked) | 2 | 2 (the same two: "dishwasher tablets" vs "Buy dishwasher pods", "Kettle needs descaling" vs "Descale the kettle") |
+| False merges | 0 | 0 |
+| Chores found | 16 of 17 | 16 of 17 (the smoke-alarm battery chore got a title without "smoke" in both runs) |
+| TTFI median (range), s | 5.87 (5.52–7.20) | 5.31 (4.95–5.67) |
+
+No worse on duplicates or false merges; about 0.5 s faster to the first item. Still far above AC-M2-16's 1.5 s on
+this Mac (R-1 stays likely; the iPhone 15 Pro is the gate).
+
+### Eval manifest (for the PO; asked by the orchestrator)
+- `Fixtures/M2/eval/MANIFEST.sha256` lists **4 files**: `golden.json`, `household.json`, `inputs.json`,
+  `results-v1.schema.json` (not itself). This branch changes none of them.
+- The AC-M2-14 freeze test pins **3** of them by SHA-256 in `EvalFreeze.approvedSHA256`,
+  `Packages/TendIngestion/Tests/TendIngestionTests/EvalFreezeTests.swift:34-38` (`inputs.json` line 35,
+  `household.json` line 36, `golden.json` line 37). `results-v1.schema.json` is covered by the manifest only.
+
+### Test runs
+At `fad715a` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 572 in 67, AC-M2-09 scan 63 files (TendAI 7), 0 violations; B4 TendAI 55 tests in 7 suites; B5 hosted 2; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
