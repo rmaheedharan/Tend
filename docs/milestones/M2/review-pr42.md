@@ -178,3 +178,137 @@ in `Packages/TendAI` (`grep -rn` over `Sources` and `Tests`).
 |---|---|---|---|---|
 | 2026-11-27 | Developer | Reviewer (via Orchestrator) | accepted for review | PR #42 at `d5d9c97`; sign-off asked for the one `@unchecked Sendable`. |
 | 2026-11-27 | Reviewer | Developer (via Orchestrator) | returned | Round 1: CHANGES REQUIRED (M1). `@unchecked Sendable` not signed off until M1 and m3 are fixed. Minors m1–m5 to be fixed or ticketed; Nits optional. Tester: add the M1 quick-stop step to DS-1. |
+
+---
+
+## Round 2 — PR #44 (`m2/speech-adapter-v2`, head `7479152`, base `origin/main` `41bf8fa`)
+
+- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** **CHANGES REQUIRED**  ·  **Round:** 2
+- **Scope:** `git diff 895f5c1 7479152`: `118fcbe` (code and tests, `Packages/TendAI` only: 6 files, one new source
+  `MicrophoneCaptureState.swift`, one new test file) and `7479152` (docs only: the dev-notes round-2 section and the
+  Mac evidence record `evidence/mac/WI-M2-M3-r2/`). Same requirements as round 1: AC-M2-09 (Rules 2 and 5, T-27
+  exception off), the Mac halves of AC-M2-11 and AC-M2-25, T-27, FR-A1, P-1, P-4, UX-3.
+- **Milestone lock:** `STATUS.md` shows M1 `ACCEPTED`, M2 `IN-BUILD`; an `m2/` work item is allowed (CLAUDE.md §5).
+  No protected path is touched (`git diff --name-only 895f5c1 7479152` lists only `Packages/TendAI/**` and
+  `docs/milestones/M2/**`).
+
+### Summary
+Most of round 1 is fixed well. The new `MicrophoneCaptureState` is a clean, AVFoundation-free state machine with
+real unit tests for stop-before-start, stop-during-start, stop-twice, one-at-a-time and per-token teardown. m1, m2,
+m4, m5, n1 and n2 are closed. But the **M1 fix is not complete**: the source marks the capture `running` and
+publishes the engine *before* it calls `engine.prepare()` / `engine.start()`. A `stop()` (or the stream's
+termination) in that window takes the engine and tears it down on its own thread while the start path is still
+calling `prepare()`/`start()` on the same engine on another thread. That is the same check-then-act class as round-1
+M1, moved later in `start()`, and it makes the new `@unchecked Sendable` justification ("no two threads ever call one
+engine at the same time") false. I therefore keep M1 open (narrowed, below as **M1-r2**) and **do not sign off the
+`@unchecked Sendable` in round 2**.
+
+### Round-1 findings, verified in the new diff
+| # | Round-1 ask | What I found at `118fcbe` | Status |
+|---|---|---|---|
+| M1 | Sticky stop via a lock-guarded lifecycle, checked before session activation and when the engine is stored; unit-tested without AVFoundation; stop-during-start tested | `MicrophoneCaptureState` (`MicrophoneCaptureState.swift:216-295`) has `idle/starting/running/stopRequested`; `stop()` while starting is remembered (`:249-251`); `mayActivate` (`:260-268`) is asked before the iOS session (`MicrophoneAudioSource.swift:76`) and `markRunning` (`:272-282`) when the engine is stored (`:122-126`). Unit tests: `MicrophoneCaptureStateTests.swift:10-36` (stop before activation, stop after activation before store), `:38-54` (stop while running, stop twice), `:99-106` (idle stop). Termination-before-start is covered by `end(token)` and the per-token tests (`:76-97`). **But** `markRunning` runs *before* `engine.prepare()`/`engine.start()` (`MicrophoneAudioSource.swift:122-135`), so a stop in that window is not sticky — see M1-r2. | **Open (narrowed → M1-r2)** |
+| m1 | Refuse a second capture, or tie teardown to its own engine | Both done. `begin()` returns nil unless `idle` (`MicrophoneCaptureState.swift:239-244`); the source finishes the second stream with `audioNotStarted` without touching the first (`MicrophoneAudioSource.swift:47-50`). Engine and continuation are stored with their token; `takeEngine(token)` (`:182-188`), `end(token)` (`:156-163`) and `finishStart` (`:145-153`) only touch their own capture. Rule documented in the type comment (`:8-9`). Tested: `oneAtATime`, `endIsPerToken`. | **Closed** |
+| m2 | (a) session inactive on every early exit; (b) conversion-stop teardown off the tap thread | (a) `finishStart(…, sessionActive: true)` on the session-activation failure (`:87`), the converter failure (`:95`), and the stopped-before-store path (`:130`); `tearDown` deactivates after an engine-start failure (`:137-139`). (b) `conversionStopped` (`:166-179`) does the state change, teardown and `finish(throwing:)` in a `Task`, not in the tap. Untestable headless; B5 builds the iOS paths. | **Closed** |
+| m3 | Comment says exactly what the lock guards and why unlocked engine calls cannot overlap | The comment (`:31-37`) now names the three guarded fields correctly. Its second claim — only the token owner calls engine methods, "the start path until `markRunning` succeeds, then whoever takes the engine out" — is **not what the code does**: the start path keeps calling `prepare()`/`start()` (`:134-135`) *after* `markRunning` has published the engine for `stop()`/`end()` to take. The comment will be true once M1-r2 is fixed. (Also: the tap now captures `[weak self]` (`:99`), so "the tap block only reads the converter … and calls the continuation" should mention it.) | **Open (folds into M1-r2)** |
+| m4 | Try the next transcriber when the chosen one has no audio format | `run` loops with an `excluded` set (`SpeechTranscriptionAdapter.swift:198-214`); `TranscriberChoice.choose(…excluding:)` (`:113-119`) marks excluded kinds unusable, so the loop ends in at most three passes. The kind actually used is emitted and carried in the final transcript. Tests: `SpeechRoundTwoTests.formatFallback` checks `.transcriberChosen(.dictationTranscriber)` first and the final `FinalTranscript(…, transcriber: .dictationTranscriber)`; `noFormatAnywhere` checks no audio was ever requested; `noFallback`; `exclusion`. | **Closed** |
+| m5 | Thrown asset request = not installed; both branches tested | `AssetCheck.installed` (`SpeechTranscriptionAdapter.swift:386-394`) returns true only for a nil request; a non-nil request and a throw both return false, which leads to `assetsMissing` → `stopped(transcriptionStopped)` (`:318-323`). Tested for nil, non-nil and throw (`SpeechCaptureTests.swift` `assetCheck`). No download call added (`grep` for `downloadAndInstall`/`reserve(` in `Sources`: 0). | **Closed** |
+| n1 | Oracle not independent | "independent table" dropped from the test name. | **Closed** |
+| n2 | `say` temp file leak on failure | `make()` deletes the file on any thrown error (`SpeechRealEngineTests.swift:57-65`). | **Closed** |
+
+### No tests weakened
+`git diff 895f5c1 118fcbe -- Packages/TendAI/Tests | grep '^-'` shows only: the two `ScriptedEngine` methods replaced
+for the new `choice(for:excluding:)` signature (behaviour for `excluding: []` unchanged), the n1 rename, and the n2
+`say` lines moved into a `do/catch` (same `#require`). No assertion removed; no test skipped or disabled.
+
+### `@unchecked Sendable` decision (`MicrophoneAudioSource.swift:30`) — **NOT SIGNED OFF in round 2**
+Field by field: `lock` is a `let NSLock`; `state`, `engine`, `continuation` are read and written only inside
+`lock.withLock` (`:47`, `:51`, `:60-67`, `:76`, `:122-126`, `:137`, `:147-150`, `:157-161`, `:169-174`, `:183-187`).
+No stored-field race. The tap block captures `[weak self]`, the `Sendable` continuation, `format`, `ratio`, the
+token and the tap-confined `converter`; that part is fine. What fails is the one non-field claim the type rests on:
+exclusive ownership of the `AVAudioEngine` object. The interleaving (stop from the main actor while `audio(in:)` runs
+inside `SpeechCapture.run` on the cooperative pool):
+
+1. Start thread: `markRunning(token)` → `running`, `self.engine = (token, engine)` (`:122-126`), lock released.
+2. Main thread: `stop()` → `state.stop()` returns `.wasRunning(token)` (`:62`), takes the continuation, then
+   `tearDown(takeEngine(token))` → `removeTap(onBus:)`, `engine.stop()`, session set inactive (`:190-195`), then
+   `continuation.finish()`.
+3. Start thread, concurrently with 2: `engine.prepare()`; `try engine.start()` (`:134-135`).
+
+Steps 2 and 3 call `removeTap`/`stop` and `prepare`/`start` on one engine from two threads, which `AVAudioEngine`
+does not document as safe. If step 3 wins after step 2, the engine starts *after* the person stopped (on iOS it can
+re-activate the session the stop just released), with no tap and no owner, until it is released at the end of
+`start()`. The same applies to the stream's termination (`end(token)`, `:156-163`) in that window. `prepare()` and
+`start()` are the slowest calls in the path (hardware I/O set-up), so the window is not negligible, and it is exactly
+the "stop during start" case round-1 M1 asked to make sticky.
+
+I sign off when M1-r2 is fixed and the comment matches. The test-only `nonisolated(unsafe) var given` stays signed
+off from round 1; no other `@unchecked Sendable` or `nonisolated(unsafe)` exists in `Packages/TendAI`
+(`grep -rn` over `Sources` and `Tests`).
+
+### Evidence record (`evidence/mac/WI-M2-M3-r2/`)
+- **Commit named:** `README.md` and `logs/mac-B0-header.log` both give `118fcbee2b6049c72eb9cfabb638600341701939`,
+  which is `7479152^`.
+- **`7479152` is docs only:** `git diff --numstat 118fcbe 7479152` lists only paths under `docs/` (the dev-notes
+  section and the 20 evidence files).
+- **SHA-256:** the README lists 16 files; `sha256sum -c` on those lines: **16/16 OK**.
+- **No personal data:** `grep -rniE 'dharanbro|maheed|Mac-mini|/Users/|/var/folders'` over the folder: 0 hits. The
+  only `.local` hits are the `$HOME/.local/...` token path for XcodeGen and in the build `PATH`, not a hostname.
+  Paths use the MS-1 tokens.
+- **Commit identities neutral:** `git log --format='%an <%ae> | %cn <%ce>' 41bf8fa..7479152`: every commit is
+  `Claude <noreply@anthropic.com>` for author and committer.
+- **Logs agree with the claims:** B4 `✔ Test run with 29 tests in 8 suites passed`, including the suites "Microphone
+  capture state (WI-M2-M3; review PR #42 M1, m1)" and "Speech round 2 (WI-M2-M3; review PR #42 m4, m5)" and both
+  real-engine tests; B5 4 tests in 2 suites; `timings.txt` exits match the README (B6-eval-archive 66 as expected).
+  The only `warning:` lines are the non-compiler `appintentsmetadataprocessor` and interface-orientation notices
+  already ticketed in MS-1.
+
+### What I ran (Linux container, `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, at `7479152`)
+| Package | Result |
+|---|---|
+| `Packages/TendCore` | exit 0, `✔ Test run with 141 tests in 18 suites passed`; 0 `warning:`, 0 `✘`; the "skipped" text hits are test output, not skipped tests |
+| `Packages/TendIngestion` | exit 0, `✔ Test run with 571 tests in 67 suites passed`; 0 `warning:`, 0 `✘`. Scan: "Rule 5 T-27 exception OFF"; "TendAI (required) Packages/TendAI/Sources: 5 files scanned" (incl. `MicrophoneCaptureState.swift`); TendIngestion 55, TendEval 1; "61 files in total, 0 violations" (matches B2) |
+| `Packages/TendSourceScan` | exit 0, `✔ Test run with 63 tests in 4 suites passed`; 0 `warning:`, 0 `✘` |
+| `Packages/TendAI` | Not run: Apple-only (`AVFAudio`, `Speech`). B4/B5 in the Mac record are the evidence. |
+
+### Round 2 findings
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| M1-r2 | **Major** | `MicrophoneAudioSource.swift:122-140`, `:31-37` | **Stop during engine start is still not sticky, and two threads can call one `AVAudioEngine`.** `markRunning` moves the state to `running` and publishes the engine before `engine.prepare()`/`engine.start()`. A `stop()` or stream termination in that window tears the engine down on its own thread while the start path calls `prepare()`/`start()` on it; if `start()` lands last, the microphone starts after the person stopped (FR-A1 hold-to-talk, P-4 consent). The `@unchecked Sendable` comment claims this overlap cannot happen. | Keep the phase `starting` until the engine has started: install the tap, `prepare()`, `try start()`, and only then call `markRunning(token)` and store the engine under the lock. If `markRunning` answers false (a stop or termination arrived meanwhile), the start path itself removes the tap, stops its own engine, sets the session inactive and finishes the stream normally. Then only the start path ever touches the engine before `markRunning` succeeds, and the comment is true (also mention the tap's `[weak self]`). Update the `MicrophoneCaptureState` doc comment (`:208-210`, "`markRunning` when it stores the engine") to "after the engine has started". The existing `stopDuringStart` state test already covers the state rule; add a line in dev-notes naming the new order, and keep the DS-1 quick-stop step. | Open |
+| m6 | Minor | `MicrophoneAudioSource.swift:62-70`, `:156-163`; `MicrophoneCaptureState.swift:252-254`, `:263-265`, `:278-279`, `:288-289` | The state goes back to `idle` *before* the old capture's teardown has run, so a new `audio(in:)` can begin while the previous `tearDown`/`finishStart` is still about to call `deactivateSession()`. On iOS, deactivating the shared session with running I/O stops the new capture's engine (it would then end "nothing heard"). Needs a very fast re-press, so it does not block. | Either hold a `stopping(token)` phase that `begin()` refuses until the teardown is done (then `idle`), or record in dev-notes why the window is acceptable and add a DS-1 note (stop, then start again at once). | Open |
+| i5 | Info | `MicrophoneAudioSource.swift:99-119` | After a conversion failure each later buffer also schedules a `conversionStopped` task until the teardown runs; only the first acts (the others find the state ended). Harmless; noted for the Tester's DS-1 error path. | — | — |
+
+Round-1 Info items i1–i4 stand unchanged (permission check before capture and `NSMicrophoneUsageDescription` for
+M3 / WI-M2-M7; AC-M2-11 and AC-M2-25 stay **AWAITING-DEVICE**; TRACEABILITY rows for the WI-M2-M3 tests).
+
+### Checklist (round 2)
+- [x] Correctness vs ACs: transcriber order with format fallback (m4), transcriber reported, final transcript only,
+  T-27, AC-M2-09 scan (61 files, 0 violations, T-27 exception off).
+- [x] Tests meaningful: the state tests would fail on a lost sticky stop or a shared teardown (the dev notes' mutants
+  agree); m4/m5 tests check exact events and every branch. No test weakened.
+- [ ] Swift 6 concurrency safe: no stored-field race, no compiler warning, but the engine-ownership claim fails
+  (M1-r2); `@unchecked Sendable` not signed off.
+- [x] No force unwraps / `try!` in product code (`grep`).
+- [x] Privacy (P-1…P-4): on-device only, no `SFSpeech*`, no networking, no download, nothing written or logged;
+  M1-r2 is a consent concern.
+- [x] UX-2/UX-3: UX-2 n.a.; UX-3 names unchanged and tested against `BannedTokens`.
+- [ ] Accessibility (UI): n.a. (no UI).
+- [x] Performance: unchanged; the per-buffer allocation is needed.
+- [x] No new dependency without ADR.
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | pass | Voice capture, no form. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No new outcome or reason name; existing names checked against `BannedTokens`. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | `SpeechAnalyzer` with `SpeechTranscriber`/`DictationTranscriber` only; scan Rule 5 exception off. |
+| P-2 No data leaves device | pass | No networking; a thrown or pending asset request now ends the capture, never a download (m5). |
+| P-3 Cloud escalation per ADR | n.a. | No cloud step. |
+| P-4 Media not persisted without consent | concern | Nothing persisted or logged (pass). Concern: M1-r2 can still start the microphone after the person stopped. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Developer | Reviewer (via Orchestrator) | accepted for review | PR #44 at `7479152` (code `118fcbe`); round-1 fixes; `@unchecked Sendable` sign-off asked again. |
+| 2026-11-27 | Reviewer | Developer (via Orchestrator) | returned | Round 2: **CHANGES REQUIRED** (M1-r2 Major: mark running only after `engine.start()`). m1, m2, m4, m5, n1, n2 closed; m3 folds into M1-r2; new Minor m6. `@unchecked Sendable` not signed off. Tester: keep the DS-1 quick-stop step and add stop-then-start-at-once (m6). |
