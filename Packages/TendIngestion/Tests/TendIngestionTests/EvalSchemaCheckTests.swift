@@ -221,8 +221,12 @@ struct EvalSchemaCheckTests {
     /// The self-test file plus one cloud request, so every schema node has a value (`cloudRequests` items included).
     static func maximalInstance() throws -> EvalJSON {
         try EvalSelfTest.resultsRoot().setting("/inputs/0/cloudRequests/0", to: .object([
+            .init("arrayCounts", .array([.object([.init("count", .integer(2)), .init("path", .string("$.messages"))])])),
             .init("attempt", .integer(1)), .init("bytes", .integer(120)),
             .init("keyPaths", .array([.string("$.messages[].content"), .string("$.model")])),
+            .init("userContentArrayCounts", .array([
+                .object([.init("count", .integer(1)), .init("path", .string("$.rooms"))]),
+            ])),
         ]))
     }
 
@@ -261,6 +265,7 @@ struct EvalSchemaCheckTests {
     static let patternLocations = [
         "/run/startedAtUTC", "/run/appCommitSHA", "/run/fixturesSHA256", "/inputs/0/drafts/0/windowStart",
         "/inputs/0/drafts/0/windowEnd", "/inputs/0/cloudRequests/0/keyPaths/0",
+        "/inputs/0/cloudRequests/0/arrayCounts/0/path", "/inputs/0/cloudRequests/0/userContentArrayCounts/0/path",
     ]
 
     static func patternCount(_ schema: EvalJSON) -> Int {
@@ -272,7 +277,7 @@ struct EvalSchemaCheckTests {
         }
     }
 
-    @Test("R27-F1: the list covers every pattern in the committed schema (6)")
+    @Test("R27-F1: the list covers every pattern in the committed schema (8)")
     func patternListComplete() throws {
         let schemaJSON = try EvalJSONReader.parse(try EvalSelfTest.data(EvalSelfTest.schemaPath))
         #expect(Self.patternCount(schemaJSON) == Self.patternLocations.count)

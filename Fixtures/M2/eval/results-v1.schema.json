@@ -494,11 +494,37 @@
               "type": "object",
               "additionalProperties": false,
               "required": [
+                "arrayCounts",
                 "attempt",
                 "bytes",
-                "keyPaths"
+                "keyPaths",
+                "userContentArrayCounts"
               ],
               "properties": {
+                "arrayCounts": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "count",
+                      "path"
+                    ],
+                    "properties": {
+                      "count": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "path": {
+                        "type": "string",
+                        "pattern": "^\\$(\\.[A-Za-z0-9_-]+|\\[(0|[1-9][0-9]*)\\])*$"
+                      }
+                    }
+                  }
+                },
                 "attempt": {
                   "type": "integer",
                   "minimum": 1
@@ -514,6 +540,30 @@
                     "pattern": "^\\$(\\.[A-Za-z0-9_-]+|\\[\\])*$"
                   },
                   "uniqueItems": true
+                },
+                "userContentArrayCounts": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "count",
+                      "path"
+                    ],
+                    "properties": {
+                      "count": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "path": {
+                        "type": "string",
+                        "pattern": "^\\$(\\.[A-Za-z0-9_-]+|\\[(0|[1-9][0-9]*)\\])*$"
+                      }
+                    }
+                  }
                 }
               }
             }

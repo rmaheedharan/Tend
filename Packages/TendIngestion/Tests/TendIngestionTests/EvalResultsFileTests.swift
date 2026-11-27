@@ -103,14 +103,57 @@ struct EvalResultsFileTests {
         }
         // The file never holds a body, header value or key: an extra member is refused (additionalProperties).
         let withBody = root.setting("/inputs/0/cloudRequests/0", to: .object([
-            .init("attempt", .integer(1)), .init("bytes", .integer(3)), .init("keyPaths", .array([])),
-            .init("body", .string("{}")),
+            .init("arrayCounts", .null), .init("attempt", .integer(1)), .init("bytes", .integer(3)),
+            .init("body", .string("{}")), .init("keyPaths", .array([])), .init("userContentArrayCounts", .null),
         ]))
         do {
             _ = try Self.read(try EvalSelfTest.canonical(withBody))
             Issue.record("a request body was accepted")
         } catch let EvalRejection.schemaIssues(issues) {
             #expect(issues.contains { $0.keyword == "additionalProperties" && $0.path == "/inputs/0/cloudRequests/0/body" })
+        }
+        // D-059: both count members are required; each entry is {count >= 0, path}, the path a concrete array path.
+        func request(_ arrayCounts: EvalJSON?, _ content: EvalJSON?) -> EvalJSON {
+            var members: [EvalJSON.Member] = []
+            if let arrayCounts { members.append(.init("arrayCounts", arrayCounts)) }
+            members += [.init("attempt", .integer(1)), .init("bytes", .integer(3)), .init("keyPaths", .array([]))]
+            if let content { members.append(.init("userContentArrayCounts", content)) }
+            return .object(members)
+        }
+        func entry(_ count: EvalJSON, _ path: EvalJSON) -> EvalJSON {
+            .object([.init("count", count), .init("path", path)])
+        }
+        let good = EvalJSON.array([entry(.integer(1), .string("$.rooms"))])
+        let countCases: [(String, EvalJSON, String, String)] = [
+            ("arrayCounts missing", request(nil, .null), "/inputs/0/cloudRequests/0", "required"),
+            ("userContentArrayCounts missing", request(.null, nil), "/inputs/0/cloudRequests/0", "required"),
+            ("a count list that is a string", request(.string("$.messages"), .null),
+             "/inputs/0/cloudRequests/0/arrayCounts", "type"),
+            ("an entry without a count", request(.array([.object([.init("path", .string("$.a"))])]), .null),
+             "/inputs/0/cloudRequests/0/arrayCounts/0", "required"),
+            ("an entry with an extra member", request(.array([.object([
+                .init("count", .integer(1)), .init("extra", .integer(1)), .init("path", .string("$.a"))])]), .null),
+             "/inputs/0/cloudRequests/0/arrayCounts/0/extra", "additionalProperties"),
+            ("a negative count", request(.null, .array([entry(.integer(-1), .string("$.rooms"))])),
+             "/inputs/0/cloudRequests/0/userContentArrayCounts/0/count", "minimum"),
+            ("a count that is a string", request(.array([entry(.string("1"), .string("$.a"))]), good),
+             "/inputs/0/cloudRequests/0/arrayCounts/0/count", "type"),
+            ("a path with a wildcard index", request(.array([entry(.integer(1), .string("$.messages[]"))]), .null),
+             "/inputs/0/cloudRequests/0/arrayCounts/0/path", "pattern"),
+            ("a path with a leading-zero index", request(.array([entry(.integer(1), .string("$.a[01]"))]), .null),
+             "/inputs/0/cloudRequests/0/arrayCounts/0/path", "pattern"),
+            ("a path without the root", request(.null, .array([entry(.integer(1), .string("rooms"))])),
+             "/inputs/0/cloudRequests/0/userContentArrayCounts/0/path", "pattern"),
+        ]
+        for (name, value, path, keyword) in countCases {
+            let broken = root.setting("/inputs/0/route", to: .string("openai"))
+                .setting("/inputs/0/cloudRequests/0", to: value)
+            do {
+                _ = try Self.read(try EvalSelfTest.canonical(broken))
+                Issue.record("\(name) was accepted")
+            } catch let EvalRejection.schemaIssues(issues) {
+                #expect(issues.contains { $0.keyword == keyword && $0.path == path }, "\(name): \(issues)")
+            }
         }
         #expect(throws: EvalRejection.notCanonical) { try Self.read(try EvalSelfTest.prettyResults()) }
         let canonical = try EvalSelfTest.canonical(root)
@@ -185,14 +228,34 @@ struct EvalResultsFileTests {
         ("a cancelled capture with commits", [("/inputs/4/outcome", .string("cancelled"))],
          .committedMismatch(inputID: "in04", attempt: 1)),
         ("a cloud request on the on-device route", [("/inputs/0/cloudRequests/0", .object([
-            .init("attempt", .integer(1)), .init("bytes", .integer(3)), .init("keyPaths", .array([]))]))],
+            .init("arrayCounts", .null), .init("attempt", .integer(1)), .init("bytes", .integer(3)),
+            .init("keyPaths", .array([])), .init("userContentArrayCounts", .null)]))],
          .cloudRequestsInconsistent(inputID: "in01", attempt: 1)),
         ("key paths not sorted", [("/inputs/0/route", .string("openai")), ("/inputs/0/cloudRequests/0", .object([
-            .init("attempt", .integer(1)), .init("bytes", .integer(3)),
-            .init("keyPaths", .array([.string("$.b"), .string("$.a")]))]))],
+            .init("arrayCounts", .null), .init("attempt", .integer(1)), .init("bytes", .integer(3)),
+            .init("keyPaths", .array([.string("$.b"), .string("$.a")])), .init("userContentArrayCounts", .null)]))],
          .cloudRequestsInconsistent(inputID: "in01", attempt: 1)),
         ("request attempts not numbered 1, 2", [("/inputs/0/route", .string("openai")), ("/inputs/0/cloudRequests/0",
-            .object([.init("attempt", .integer(2)), .init("bytes", .integer(3)), .init("keyPaths", .array([]))]))],
+            .object([.init("arrayCounts", .null), .init("attempt", .integer(2)), .init("bytes", .integer(3)),
+                     .init("keyPaths", .array([])), .init("userContentArrayCounts", .null)]))],
+         .cloudRequestsInconsistent(inputID: "in01", attempt: 1)),
+        ("array counts not sorted by path (D-059)", [("/inputs/0/route", .string("openai")),
+            ("/inputs/0/cloudRequests/0", .object([
+                .init("arrayCounts", .array([
+                    .object([.init("count", .integer(1)), .init("path", .string("$.tools"))]),
+                    .object([.init("count", .integer(2)), .init("path", .string("$.messages"))]),
+                ])),
+                .init("attempt", .integer(1)), .init("bytes", .integer(3)), .init("keyPaths", .array([])),
+                .init("userContentArrayCounts", .null)]))],
+         .cloudRequestsInconsistent(inputID: "in01", attempt: 1)),
+        ("user-content counts with a repeated path (D-059)", [("/inputs/0/route", .string("openai")),
+            ("/inputs/0/cloudRequests/0", .object([
+                .init("arrayCounts", .null), .init("attempt", .integer(1)), .init("bytes", .integer(3)),
+                .init("keyPaths", .array([])),
+                .init("userContentArrayCounts", .array([
+                    .object([.init("count", .integer(1)), .init("path", .string("$.rooms"))]),
+                    .object([.init("count", .integer(1)), .init("path", .string("$.rooms"))]),
+                ]))]))],
          .cloudRequestsInconsistent(inputID: "in01", attempt: 1)),
         ("start time not real", [("/run/startedAtUTC", .string("2026-02-30T00:00:00Z"))], .invalidStartTime),
         ("cold start names an unknown input", [("/coldStart/inputID", .string("in99"))], .unknownColdStartInput),

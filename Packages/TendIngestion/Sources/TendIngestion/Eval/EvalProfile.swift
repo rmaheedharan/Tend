@@ -141,10 +141,13 @@ public struct EvalScoringRequest: Sendable, Hashable {
     public var profile: EvalProfile
     /// The provider's allowed key-path list (AC-M2-26), needed by `ds2-gated` only.
     public var allowedKeyPaths: Set<String>?
+    /// The provider's `g1-outcome-empty-<provider>.body.json` golden body, needed by `ds2-gated` only: every sent
+    /// body's array counts must equal its counts (PO ruling on per-array element counts, D-059).
+    public var goldenBody: Data?
 
     public init(
         results: Data, schema: Data, inputs: Data, household: Data, golden: Data, expectedFixturesSHA256: String,
-        profile: EvalProfile, allowedKeyPaths: Set<String>? = nil
+        profile: EvalProfile, allowedKeyPaths: Set<String>? = nil, goldenBody: Data? = nil
     ) {
         self.results = results
         self.schema = schema
@@ -154,6 +157,7 @@ public struct EvalScoringRequest: Sendable, Hashable {
         self.expectedFixturesSHA256 = expectedFixturesSHA256
         self.profile = profile
         self.allowedKeyPaths = allowedKeyPaths
+        self.goldenBody = goldenBody
     }
 }
 
@@ -195,7 +199,8 @@ extension EvalScorer {
         }
         let score = score(file, fixtures: fixtures)
         let result = EvalProfileChecks.evaluate(request.profile, file: file, score: score, fixtures: fixtures,
-                                                allowedKeyPaths: request.allowedKeyPaths)
+                                                allowedKeyPaths: request.allowedKeyPaths,
+                                                goldenBody: request.goldenBody)
         let log = EvalScoreLog.render(file: file, score: score, result: result)
         return EvalReport(file: file, score: score, profileResult: result, log: log)
     }
@@ -210,9 +215,12 @@ enum EvalProfileChecks {
     /// AC-M2-17, AC-M2-26: at most 1 false merge in total.
     static let maximumFalseMerges = 1
 
+    /// The Q12 = yes cap on shortlist titles (D-050).
+    static let maximumExistingTasks = 10
+
     static func evaluate(
         _ profile: EvalProfile, file: EvalResultsFileV1, score: EvalScore, fixtures: EvalFixtures,
-        allowedKeyPaths: Set<String>?
+        allowedKeyPaths: Set<String>?, goldenBody: Data? = nil
     ) -> EvalProfileResult {
         var checks: [EvalCheck] = []
         func check(_ name: String, _ holds: Bool, _ detail: String) {
@@ -322,7 +330,66 @@ enum EvalProfileChecks {
             } else {
                 check("sent key paths are a subset of the allowed list (AC-M2-26)", false, "no allowed list given")
             }
+            let failures = arrayCountFailures(score.inputs, goldenBody: goldenBody, roomCount: fixtures.rooms.count)
+            check("per-array element counts match the golden body and the seeded household (AC-M2-26, D-059)",
+                  failures.isEmpty, failures.isEmpty ? "ok" : failures.joined(separator: "; "))
         }
         return EvalProfileResult(profile: profile, checks: checks)
+    }
+}
+
+extension EvalProfileChecks {
+    /// PO ruling on per-array element counts (D-059), for every cloud request: both members present; `arrayCounts`
+    /// equal, path for path and count for count, to the golden body's; `userContentArrayCounts` exactly
+    /// `$.existingTasks` and `$.rooms`, with `rooms` equal to the seeded household's room count and `existingTasks` at
+    /// most 10. Each failure names the input, attempt, path, expected and seen count.
+    static func arrayCountFailures(_ inputs: [EvalInputScore], goldenBody: Data?, roomCount: Int) -> [String] {
+        guard let goldenBody else { return ["no golden body given"] }
+        guard let golden = CloudRequestKeyPaths.arrayCounts(ofBody: goldenBody) else {
+            return ["the golden body is not strict JSON"]
+        }
+        let expected = Dictionary(uniqueKeysWithValues: golden.map { ($0.path, $0.count) })
+        var failures: [String] = []
+        for input in inputs {
+            for request in input.cloudRequests {
+                let at = "\(input.inputID) attempt \(input.attempt) request \(request.attempt)"
+                guard let counts = request.arrayCounts else {
+                    failures.append("\(at): arrayCounts is null")
+                    continue
+                }
+                let seen = Dictionary(counts.map { ($0.path, $0.count) }, uniquingKeysWith: { first, _ in first })
+                for path in Set(expected.keys).union(seen.keys).sorted(by: TextFolding.utf8Precedes) {
+                    let want = expected[path], got = seen[path]
+                    if want != got {
+                        failures.append("\(at): \(path) expected \(want.map(String.init) ?? "absent"), seen "
+                            + (got.map(String.init) ?? "absent"))
+                    }
+                }
+                guard let content = request.userContentArrayCounts else {
+                    failures.append("\(at): userContentArrayCounts is null")
+                    continue
+                }
+                let contentSeen = Dictionary(content.map { ($0.path, $0.count) }, uniquingKeysWith: { first, _ in first })
+                for path in contentSeen.keys.sorted(by: TextFolding.utf8Precedes)
+                where path != "$.existingTasks" && path != "$.rooms" {
+                    failures.append("\(at): user content \(path) expected absent, seen \(contentSeen[path] ?? 0)")
+                }
+                let rooms = contentSeen["$.rooms"]
+                if rooms != roomCount {
+                    failures.append("\(at): user content $.rooms expected \(roomCount), seen "
+                        + (rooms.map(String.init) ?? "absent"))
+                }
+                if let titles = contentSeen["$.existingTasks"] {
+                    if titles > maximumExistingTasks {
+                        failures.append("\(at): user content $.existingTasks expected at most \(maximumExistingTasks), "
+                            + "seen \(titles)")
+                    }
+                } else {
+                    failures.append("\(at): user content $.existingTasks expected at most \(maximumExistingTasks), "
+                        + "seen absent")
+                }
+            }
+        }
+        return failures
     }
 }

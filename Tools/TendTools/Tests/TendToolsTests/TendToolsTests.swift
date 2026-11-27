@@ -145,14 +145,18 @@ struct TendToolsTests {
         #expect(box.err.contains("cannot read"))
     }
 
-    @Test("tend-eval-score: usage errors exit 64 (missing option, unknown profile, ds2-gated without a key-path list)")
+    @Test("tend-eval-score: usage errors exit 64 (missing option, unknown profile, ds2-gated without a key-path list or golden body)")
     func scoreUsage() {
         let box = Captured()
         #expect(EvalScoreCommand.run([], io: Repo.io(box)) == 64)
         #expect(EvalScoreCommand.run(Repo.scoreArguments(profile: "gated"), io: Repo.io(box)) == 64)
         #expect(EvalScoreCommand.run(Repo.scoreArguments(profile: "ds2-gated"), io: Repo.io(box)) == 64)
         #expect(box.err.contains("--allowed-key-paths is required"))
+        let withList = Repo.scoreArguments(profile: "ds2-gated") + ["--allowed-key-paths", "/tmp/list.json"]
+        #expect(EvalScoreCommand.run(withList, io: Repo.io(box)) == 64)
+        #expect(box.err.contains("--golden-body is required for ds2-gated (AC-M2-26, D-059)"))
         #expect(EvalScoreCommand.run(["--help"], io: Repo.io(box)) == 0)
+        #expect(box.out.contains("--golden-body"))
     }
 
     static let acceptedSubsets: [(SubsetCommandCase, String)] = [
