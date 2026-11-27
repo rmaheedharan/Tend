@@ -6396,3 +6396,40 @@ before and after.
 |---|---|---|---|---|
 | 2026-11-28 | Coordinator | Developer (owner's Mac) | accepted | WI-M2-M6; Gemini recording reused, OpenAI and Anthropic owner-pending. |
 | 2026-11-28 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR (the orchestrator opens it). |
+
+## WI-M2-M6 round 1 — PR #50 review round 1: deadline from receipt, safe recording script (AC-M2-22, AC-M2-24, P-3)
+Code commit `990fffc` on `m2/cloud-adapters`; Mac record
+[`evidence/mac/WI-M2-M6-round1/`](evidence/mac/WI-M2-M6-round1/README.md).
+
+| Finding | Change | Test |
+|---|---|---|
+| R50-F1 (Major) deadline started after the consent check and the Keychain read | `CloudModelSource` now has `receive() -> any CloudCaptureReceipt`. `ModelRouter.events(...)` calls it first, before the route choice and before any consent or Keychain read. The receipt (`CloudAdapters.Receipt`) reads the start once, on the adapters' injected clock, and builds the routed model with it (`start:` on `CloudIngestionModel` and the three provider types). The router stays clock-free. The model never reads its own start. Headers of `CloudIngestionModel`, `CloudAdapters` and `ModelRouter` corrected. No product meaning changed: this is the brief's "from the moment the pipeline receives the input". | `CloudAdapterTests.deadlineFromReceipt` × 3 providers: on a manual clock, the Keychain read takes 2.5 s, the first attempt's timeouts are exactly resource 7.5 s / request 4.0 s. Kills m10 (start + 30 s), m11 (start at the model call, the round-1 code), m12 (start at model build). `CloudReceiptTests` (TendIngestion, Linux): the receipt comes before any store read, one receipt per capture, each model built from its own receipt after the key read; on-device captures build no cloud model. Kills m13 (receipt after the status read). |
+| R50-F2 (Major) the commands could echo the key and store it in zsh history | The commands are replaced by `Tools/Recording/record-provider-stream.sh`, run as `zsh <script>` or `bash <script>` (comments stay comments; nothing reaches interactive history). A hidden prompt that works in both shells (`stty -echo` on a terminal), stop if no key is read, the auth header on curl's stdin (`-H @-`, so not in any argv), the key cleared at the end, the stream deleted if it contains the key. The request is the golden head and body. Variable names avoid zsh's special `path` and `status`. | Probe in zsh 5.9 and bash with a fake key against a local server and an invalid endpoint: 90/90 (`probe.log`); on a pty from interactive zsh and bash with history on: 14/14 (`tty-probe.log`). Control: the round-1 line reproduces the review's echo and history leak. No real key, no network call. |
+| R50-F3 (Minor) `-D` saved headers; no Gemini command | No `-D`: only the stream is saved, the status code is printed. All three commands are written out. | Probe: only `<provider>.sse` in the out folder. |
+| R50-F4 (Minor) owner's "Gemini now, others later" not recorded | Not a Developer change: for the PO or Planner (`DECISIONS.md` or the plan row). AC-M2-24 stays open until both recordings are in. | — |
+| R50-N1 | `try #require(transport.requests.count == 2)` before indexing. | `retryOnce` |
+| R50-N2 | The no-Tool check walks every stored member and type to 4 levels (and checks the walk reaches `cloud.model` and `cloud.transport`); the guarantee itself is by type. | `noTool` |
+| R50-N3 | The WI-M2-M6 README states its date is UTC and the logs are in the Mac's local time; the record script now writes the UTC date with that note. | — |
+| R50-N4 | A comment on why setting `onTermination` after the task starts is safe (the stream is handed out only after the build closure returns). | — |
+
+### Test runs (clean, at `990fffc`)
+B1 TendCore 141; B2 TendIngestion 582 in 69 suites, AC-M2-09 scan 77 files, 0 violations; B4 TendAI 109 tests in 18
+suites; B5 hosted 36 tests in 5 suites; B6 as MS-1 (TendEval archive 66, expected). All passed, 0 skipped, no compiler
+warnings; clean tree before and after.
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1, UX-2, UX-4 | n.a. | No UI. |
+| UX-3 | pass | No new user-facing string; the script's messages are neutral. |
+| P-1 | pass | Routing unchanged; the receipt is taken for every capture but a cloud model is built only on route `cloud`. |
+| P-2 | pass | No networking type in Swift; the script talks only to the provider's golden host (or a test base URL). No dependency. |
+| P-3 | pass | The deadline now holds from receipt (AC-M2-27's total depends on it). The key is typed hidden, never echoed, never in argv, a file or history (probe). |
+| P-4 | pass | Only the response stream is saved; no headers. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Coordinator | Developer (owner's Mac) | accepted | PR #50 round 1 (CHANGES REQUIRED, review at `463572d`). WI-M2-M7 paused at `1260c4a` (D-059 commit). |
+| 2026-11-27 | Developer | Reviewer (via the coordinator) | sent | F1, F2, F3, N1–N4 addressed; F4 for the PO or Planner. Re-review: m10 killed, zsh and bash probes in the record. |
+

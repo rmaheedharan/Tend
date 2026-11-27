@@ -1,0 +1,4 @@
+m10-start-30s-later KILLED 1 ✘ Test "AC-M2-22, Q22 (R50-F1): the deadline runs from receipt, so 2.5 s of consent and Keychain reads leave 7
+m11-start-read-at-model-call KILLED 1 ✘ Test "AC-M2-22, Q22 (R50-F1): the deadline runs from receipt, so 2.5 s of consent and Keychain reads leave 7
+m12-start-at-model-build KILLED 1 ✘ Test "AC-M2-22, Q22 (R50-F1): the deadline runs from receipt, so 2.5 s of consent and Keychain reads leave 7
+m13-router-receipt-after-status KILLED (CloudReceiptTests x2)

@@ -1,0 +1,15 @@
+PASS zsh pty: prompt shown
+PASS zsh pty: request sent with the typed key
+PASS zsh pty: stream saved
+PASS zsh pty: typed key not echoed on the terminal
+PASS zsh pty: history file written
+PASS zsh pty: key not in shell history
+PASS zsh pty: terminal echo restored after
+PASS bash pty: prompt shown
+PASS bash pty: request sent with the typed key
+PASS bash pty: stream saved
+PASS bash pty: typed key not echoed on the terminal
+PASS bash pty: history file written
+PASS bash pty: key not in shell history
+PASS bash pty: terminal echo restored after
+tty probe: 14 passed, 0 not passed
