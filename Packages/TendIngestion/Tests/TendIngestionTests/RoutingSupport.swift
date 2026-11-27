@@ -117,6 +117,10 @@ final class RecordingCloudModels: CloudModelSource {
 final class FixedOnDevice: OnDeviceModelSource {
     let current: OnDeviceAvailability
     let scripted: ScriptedModel
+    private let households = Mutex<[Household]>([])
+
+    /// Every household a model was asked for, in order (WI-M2-M2: the Tool must read the capture's household).
+    var askedHouseholds: [Household] { households.withLock { $0 } }
 
     init(_ availability: OnDeviceAvailability,
          steps: [ScriptStep] = [.snapshot([StreamFixtures.full("Buy dishwasher pods")]), .finish]) {
@@ -125,7 +129,10 @@ final class FixedOnDevice: OnDeviceModelSource {
     }
 
     func availability() -> OnDeviceAvailability { current }
-    func model() -> any IngestionModel { scripted }
+    func model(household: Household) -> any IngestionModel {
+        households.withLock { $0.append(household) }
+        return scripted
+    }
 }
 
 // MARK: - Stored-state fixtures (plan "Route matrix", S0…S8)
