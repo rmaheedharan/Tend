@@ -95,10 +95,18 @@ targets:
     platform: iOS
     sources:
       - path: Apps/TendAITestHost/Sources
+    dependencies:
+      # The SP-1 speech screen (SP-1.md Part D4) uses the product speech adapter.
+      - package: TendCore
+      - package: TendIngestion
+      - package: TendAI
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.tend.aitesthost
+        # SP-1 (Q20): a free Apple account needs a unique prefix; the owner passes TEND_BUNDLE_PREFIX on the command line.
+        TEND_BUNDLE_PREFIX: com.tend
+        PRODUCT_BUNDLE_IDENTIFIER: $(TEND_BUNDLE_PREFIX).aitesthost
         PRODUCT_NAME: TendAITestHost
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "TendAITestHost uses the microphone to test voice capture. Nothing is saved."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
 
@@ -113,9 +121,12 @@ targets:
       - package: TendAI
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.tend.aihostedtests
+        TEND_BUNDLE_PREFIX: com.tend
+        PRODUCT_BUNDLE_IDENTIFIER: $(TEND_BUNDLE_PREFIX).aihostedtests
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TendAITestHost.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TendAITestHost"
-        BUNDLE_LOADER: "$(TEST_HOST)"
+        # Not resolved against the host (it links TendAI for the SP-1 speech screen, and Xcode would then leave the
+        # packages out of this bundle): the bundle links its own copies; the host still runs it (TEST_HOST).
+        BUNDLE_LOADER: ""
 
 schemes:
   # The shipped app. It builds and archives Tend only (AC-M2-28).
