@@ -182,3 +182,124 @@ change the tested tree, so no new Mac run is needed (see M1).
 |---|---|---|---|---|
 | 2026-11-27 | Orchestrator | Reviewer | accepted | Review PR #41 at `2515c7c` (base `41bf8fa`). |
 | 2026-11-27 | Reviewer | Developer (owner's Mac), via Orchestrator | returned | CHANGES REQUIRED: M1 (commit identity, no rerun needed). m1 recommended in the same push. n1–n3 optional. i1 to Planner/PO (R-1, prewarm wiring in WI-M2-M7). i2/i3 to Tester, i5 to Documenter. |
+
+---
+
+# Round 2 — PR #43 (`m2/on-device-adapter-v2`, head `d5e7938`, base `origin/main` `41bf8fa`)
+
+- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** **APPROVE**  ·  **Round:** 2
+- **Scope:** PR #43 re-creates PR #41 with the same trees and a neutral commit identity. Round-2 changes are
+  `git diff ff79f9c d5e7938`: `fad715a` (code and tests: m1, PO R-1 ruling (a), n1, n3) and `d5e7938` (docs only: the
+  Mac evidence record `evidence/mac/WI-M2-M2-r2/` and the dev-notes section). Requirements: AC-M2-05, AC-M2-07,
+  AC-M2-10 (Mac halves); R-1 / PO ruling 2026-11-27 option (a) (`po-m2-r1-latency.md`); po-m2-wi07 ruling 1 (word-match
+  floor); po-m2-wi0607 (re-mark on log growth); FR-A1; P-1…P-4; UX-3.
+- **Inputs read:** `CLAUDE.md`; this skill; the round-1 review above; the PO ruling `po-m2-r1-latency.md`; the full
+  round-2 code and test diff; the new dev-notes section; the r2 evidence README, run script, B0 header, timings, B4 log
+  and the dev-set probes; `OnDeviceIngestionModel.swift` (stream and `PreparedGenerations`), `OnDeviceTestSupport.swift`.
+- **Milestone lock:** `STATUS.md` shows M2 `IN-BUILD`; an `m2/` build item is allowed. No protected path is touched.
+  Merge route unchanged (D-032: Mac-only PR, owner merges with the evidence record for the exact head).
+
+## Summary
+Every round-1 finding that needed action is fixed and verified. The commit identity leak (M1) is gone. An unrequested
+framework `CancellationError` is now a model stop (m1), with tests for both outcomes. The PO's one-Tool-call rule is
+enforced in code in the recorder actor, not only in the prompt. D1 and the re-mark-on-growth path are unchanged. A test
+proves that the word-match floor still marks a repeat that only a refused second call would have found. The frozen eval
+is untouched, the evidence hashes match, the docs commit is docs-only, and the four Linux packages pass with warnings
+as errors. I have only Nits left. **APPROVE.**
+
+## Verification of round-1 findings
+| # | Round-1 severity | Verified how | Status |
+|---|---|---|---|
+| M1 | Major | `git log --format='%an %ae %cn %ce' 41bf8fa..HEAD`: all five commits read `Claude noreply@anthropic.com` for author and committer. No `.local` address. In `evidence/mac/WI-M2-M2-r2/` and the new dev-notes section, a grep for `/Users/`, `/var/folders`, `*s-Mac*` hostnames, `USER=`/`LOGNAME=`/`HOSTNAME=` and e-mail addresses finds nothing. Paths show only the `$HOME`/`$REPO`/`$SCRATCH` tokens. The `PATH` lines in the B6 logs are generic system paths plus `$HOME/.local/bin`. | **Closed** |
+| m1 | Minor | `OnDeviceIngestionModel.swift:114`: the catch now tests only `Task.isCancelled`. Any other error, `CancellationError` included, goes through `OnDeviceStopMapping` (`otherModelError`). `OnDeviceFollowUpTests`: "…after a draft, ends interrupted (AC-M2-05)" expects `.interrupted(.otherModelError, discardedItem: .stoppedBeforeComplete)`. "…before any draft, ends noModel (AC-M2-10)" expects `.stoppedBeforeFirstDraft(.otherModelError)`. A consumer cancel still ends `.cancelled` even when the framework then throws (new `.throwOnCancel` script mode), at the pipeline level and at the stream level. All four tests passed in the Mac B4 log. The Developer's mutant C1 (restore the old clause) kills two of them; I agree from reading, since the old clause turns both into `completed`. | **Closed** |
+| n1 | Nit | `OnDeviceOutput.swift:11-13` now says a draft is emitted at item completion and that `title` placement does not change TTFI. Same in dev-notes. | **Closed** |
+| n2 | Nit | Not taken (optional). | Open (optional, non-blocking) |
+| n3 | Nit | `OnDeviceTestSupport.swift:139`: `.hang` now loops on `Task.sleep(for: .seconds(3_600))`, so it no longer busy-waits. | **Closed** |
+| i1–i5 | Info | i1 was answered by the PO ruling (option (a) now, then SP-1). The others stay with the roles named in round 1. | — |
+
+## PO ruling R-1 (a): checked against each Developer duty in the ruling
+1. **Enforced in code:** `DuplicateLookupTool.swift:37-53`. `DuplicateLookupRecorder.answeredCallLimit = 1`, guarded by
+   `log.queries.count < limit` inside the actor, so the check and the record happen in one step with no `await`
+   between them. Concurrent Tool calls cannot both get through. Later calls return `nil`, which the Tool turns into an
+   empty result, and they are counted in `refusedCalls` but not recorded. The instruction text and the Tool
+   description and `@Guide` also ask for a single call. That wording is checked by a test, but the code rule does not
+   depend on it.
+2. **D1 and re-mark unchanged:** the rules still replay `recorder.queries`, which now holds only the answered query.
+   "snapshots carry only the one answered query…" checks that every snapshot carries `["pods"]` and that a title claim
+   the Tool returned still marks `ofExisting(uuid 3)`. The re-mark path in `OnDeviceIngestionModel.swift:95-111` is not
+   touched. Recorder lifetime is one per capture: `PreparedGenerations.take` empties the slot, and
+   `makeGeneration` builds a fresh recorder, so the cap cannot carry over into the next capture.
+3. **Tests:** "the first Tool call is answered…; every later call gets no entries and is not recorded" (second and
+   third calls are empty, `queries == ["pods"]`, `refusedCalls == 2`). "a repeat that only a refused second call would
+   have found is still marked, by the word-match floor": the answered query `pods` does not shortlist "Water the
+   plants", the refused call's result is empty, D1 cannot accept the claim, and the draft is still `ofExisting(uuid 42)`,
+   so the floor marked it. Mutants R1 (limit 100) and R2 (refused call still answered) each break that test and
+   `secondCallRefused`. I agree from reading: under either mutant, `second.tasks` and the last lookup result are
+   non-empty.
+4. **Dev-set check (information only, never the frozen eval):** `probes/devset-{before-ff79f9c,after-fad715a}.log`.
+   Tool calls drop from 17 to 8. Duplicates created stay at 2 (the same two synonym misses in both runs), false merges
+   stay at 0, and median TTFI on the Mac drops from 5.87 s to 5.31 s. Nothing got worse. This is Mac information, not
+   AC-M2-16 evidence. AC-M2-16 stays `AWAITING-DEVICE`, and SP-1 is next.
+5. **VERIFY (manifest scope)** is answered in dev-notes with file and line. `MANIFEST.sha256` covers four files and the
+   freeze test pins three (`EvalFreezeTests.swift:34-38`). Neither covers `payload/golden/` or the instruction text.
+   The PO decides what this means for (b).
+
+Changed existing expectations: two tests (`recordsQueries` and the contract-4 snapshot test) now expect `["pods"]`
+where they used to expect both queries. That follows from the PO-mandated rule change, and the new assertions are
+stricter equalities, so this is not a weakening.
+
+## Evidence checks
+- `mac-B0-header.log` names `fad715a3d1f8…`. `git diff --name-only fad715a d5e7938` lists only files under `docs/`.
+  `git status` is empty before and after the run.
+- All 20 SHA-256 lines in the r2 README match the committed files (`sha256sum -c`: 20 OK, 0 failed). The folder holds
+  21 files, the 20 hashed files plus the README.
+- Mac results at `fad715a`: B1 141/18, B2 572/67 (AC-M2-09 scan 63 files, 0 violations), B4 55/7 (`TEST SUCCEEDED`,
+  all eight new tests listed as passed), B5 2/1, B6 as MS-1 (TendEval archive exit 66 as expected). No compiler
+  warnings. 0 skipped.
+- Frozen eval untouched: `git diff 41bf8fa HEAD -- Fixtures/M2/eval` is empty (`MANIFEST.sha256` is unchanged).
+- Linux (this container, `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, at `d5e7938`): TendCore 141 tests in 18
+  suites; TendIngestion 572 in 67; TendSourceScan 63 in 4; TendTools (`Tools/TendTools`) 11 in 1. All passed, exit 0,
+  0 `warning:` lines. TendAI needs FoundationModels, so it is Mac-only; its evidence is the B4 log above.
+
+## Findings (round 2)
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| n4 | Nit | `OnDeviceOutput.swift:13` (160 cols); `OnDeviceIngestionModel.swift:118` (122); `OnDeviceFollowUpTests.swift:55,91` (124, 126) | These lines run past the 120-column width used elsewhere. n1's rewording left line 13 un-reflowed. | Optional: reflow. | Open |
+| n5 | Nit | `OnDeviceFollowUpTests.swift:136` | `floorCatchesWhatTheSecondCallMissed` checks that `pods` does not shortlist "Water the plants". It does not check the other half of its premise, that `water plants` would. The R1 and R2 mutants depend on that premise. | Optional: add `#expect(DuplicateLookup.entries(for: "water plants", in: household).contains { $0.title == "Water the plants" })`. | Open |
+| n6 | Nit | `probes/devset-Package.swift.txt:1` | The copy puts a comment line before `// swift-tools-version:`, so it does not run as a `Package.swift` verbatim. It is information only. | None needed. Optionally note it in the README. | Open |
+| i6 | Info (PO / Planner / Tester) | — | The DECISIONS.md entry the PO ruling asks for ("Tool called at most once per capture…") and the Planner's WI-M2-M2 and SP-1 ordering belong to a human-merged governance PR. They are not part of this PR. Next steps: the Tester scripts SP-1 on this build and the owner runs it. AC-M2-16 stays `AWAITING-DEVICE`. | Planner/PO: land the governance entry. Tester: SP-1 script. | — |
+| i7 | Info (Tester) | `DuplicateLookupTool.swift:52` | A refused call returns an empty list, so the model may read "nothing found" for chores it asks about late. The floor still covers word matches. Synonym repeats the single lookup misses are not marked, as in the dev set (the same 2 before and after). AC-M2-07, AC-M2-08 and AC-M2-17 on the frozen eval decide this. | Tester: watch duplicates created per input in DS-1. | — |
+
+No Blocker, no Major, no Minor open.
+
+## Checklist (round 2)
+- [x] Correctness vs ACs: AC-M2-05 and AC-M2-10 (m1 outcomes) tested; AC-M2-07 with the one-call rule (D1, floor,
+  re-mark) tested; PO R-1 (a) duties 1–4 met.
+- [x] Tests meaningful: the C1, R1 and R2 mutants are killed (the Developer ran them on the Mac, and I agree from
+  reading). Changed expectations follow the mandated rule and are not weaker.
+- [x] Swift 6 concurrency safe: the cap check and the record happen in one actor step with no suspension. The new
+  `script` capture in test support is a `final class` in the test target. No new `@unchecked Sendable` in Sources.
+- [x] No force unwraps / `try!` in product code paths.
+- [x] Privacy (P-1…P-4): code is unchanged in kind. The evidence and commit metadata are now clean (M1 closed).
+- [x] UX-2/UX-3: no selection surface. New Tool and instruction text passes `BannedTokens`, which ran in B4.
+- [ ] Accessibility (UI): n.a., no UI.
+- [x] Performance: fewer Tool round trips before the first token (8 vs 17 on the dev set). R-1 is decided by SP-1.
+- [x] No new dependency without ADR.
+
+## Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No "what to do now" surface. |
+| UX-3 Zero-Guilt | pass | Duplicate protection is kept (one lookup plus the floor on every path). New texts pass the banned-token test. Outcome names are unchanged and neutral. |
+| UX-4 Design craft | n.a. (watch R-1) | No UI. TTFI on the Mac is still far above 1.5 s. SP-1 on iPhone 15 Pro decides. |
+| P-1 On-device inference | pass | Only FoundationModels. A framework cancel now ends `interrupted` or `noModel` and never escalates silently to cloud. Routing is unchanged. |
+| P-2 No data leaves device (except user iCloud) | pass | No networking in TendAI (AC-M2-09 scan, 0 violations). Repo metadata is clean (M1 closed). |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | Only the on-device instruction changed. No cloud payload golden or fixture changed. The Tool is never given to a cloud model. |
+| P-4 Media not persisted without consent | pass | The recorder, the session and the answers stay in memory for one capture. |
+
+## Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Orchestrator | Reviewer | accepted | Round 2 of PR #43 at `d5e7938` (round 1 at `ff79f9c`; base `41bf8fa`). |
+| 2026-11-27 | Reviewer | Orchestrator → owner (D-032 merge), Tester, Planner/PO | sent | **APPROVE.** M1, m1, n1 and n3 are closed. n2 and n4–n6 are optional. i6: governance entry and SP-1. i7: Tester to watch DS-1. An APPROVE accepts no AC. |
