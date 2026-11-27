@@ -107,6 +107,10 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: $(TEND_BUNDLE_PREFIX).aitesthost
         PRODUCT_NAME: TendAITestHost
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "TendAITestHost uses the microphone to test voice capture. Nothing is saved."
+        # A partial Info.plist with TendBundlePrefix, so the hosted scaffold test can check the bundle ID with any
+        # owner prefix (SP-1 review M-2). Merged with the generated Info.plist.
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Apps/TendAITestHost/Support/Info.plist
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
 

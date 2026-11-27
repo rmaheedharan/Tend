@@ -6045,3 +6045,28 @@ the previous stop; the microphone indicator must go off each time and the next c
   tests in 9 suites; B5 hosted 4; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
 - **For SP-1 (B4 "tap Start then Stop at once"):** the microphone indicator must not come on, and the capture ends
   `nothingHeard`.
+
+## SP-1 probe round 2 — review-sp1-probe.md M-1, M-2, m-2, m-3, n-1…n-3; the fixed speech branch merged
+
+- **Branch:** `m2/sp1-probe`, review commit `5869f59`, with `origin/m2/speech-adapter-v2` at `430f700` (the I-1
+  early-stop fix, code `e100496`) merged in (`8a7ff1f`). New **SP1-COMMIT** and its record: see the next section's
+  evidence record, [`evidence/mac/SP-1-r2/`](evidence/mac/SP-1-r2/README.md).
+- **M-1 (quick stop froze at try 1).** The root cause was the dropped early stop (I-1), now fixed in the adapter. The
+  screen also gives each try a time limit: if no `finished` arrives within 5 s of the stop, it stops the source again
+  (up to 3 more times; the line's new field `restops=<n>`), and then cancels the try. The time is always from the first
+  stop to the `finished` event. [Stop] works during the test (it stops the current try).
+- **M-2.** `TendAITestHost` has a partial `Info.plist` (`Apps/TendAITestHost/Support/Info.plist`, merged with the
+  generated one) with `TendBundlePrefix = $(TEND_BUNDLE_PREFIX)`. The scaffold test reads it and checks
+  `Bundle.main.bundleIdentifier == "<prefix>.aitesthost"`. B5 passes with the default prefix and with
+  `TEND_BUNDLE_PREFIX=org.example.owner` (the record has both logs).
+- **m-2.** [Start] is refused while a capture runs, while one is being set up (a `starting` flag set before the first
+  `await`), and during the quick stop test; only the capture's own task clears `current`.
+- **n-1.** A capture is labelled `timeout` only if the watchdog's cancel ended it (outcome `cancelled`), never when it
+  finished by itself just before. **n-2.** `ttfi_median_ms` stays the line's name (the Tester's parser and the script
+  use it); it is the upper middle value of an even count (the 13th of 24), noted in the code. **n-3.** The screen's lines
+  use `.title3.monospaced()`.
+- **Link change kept (reviewer: safe for SP-1).** It **must be undone or isolated before the Keychain and `URLProtocol`
+  hosted tests (WI-M2-M4, WI-M2-M5) land on the same host**: either move the speech screen to its own never-shipped
+  target and restore the blank host with `BUNDLE_LOADER: "$(TEST_HOST)"`, or record the link model (host and bundle
+  each with their own package copies, no host code shared with tests) as a DECISIONS entry. Ticket: Planner, before the
+  M4/M5 branches are merged with this one.

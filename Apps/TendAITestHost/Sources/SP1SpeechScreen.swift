@@ -25,6 +25,7 @@ final class SP1SpeechModel {
     private let source = MicrophoneAudioSource()
     private var askedMicrophone = false
     private var current: Task<Void, Never>?
+    private var starting = false
     private var stopTappedAt: ContinuousClock.Instant?
 
     func emit(_ fields: String) {
@@ -91,7 +92,11 @@ final class SP1SpeechModel {
     }
 
     func start() async {
-        guard current == nil else { return }
+        // One capture at a time: refuse while a capture runs, while one is being set up (before the first await),
+        // or during the quick stop test (SP-1 review m-2).
+        guard current == nil, !starting, !busy else { return }
+        starting = true
+        defer { starting = false }
         captureNumber += 1
         let n = captureNumber
         emit("capture|n=\(n)|start|mic_before=\(Self.name(SpeechPermission.microphone()))")
@@ -121,21 +126,25 @@ final class SP1SpeechModel {
                     self.emit(fields)
                 }
             }
-            self?.current = nil
+            // Only the task of this capture clears it (SP-1 review m-2).
+            if self?.captureNumber == n { self?.current = nil }
         }
     }
 
+    /// [Stop]: stops the running capture, or the quick stop test's current try.
     func stop() {
-        guard current != nil else { return }
+        guard current != nil || busy else { return }
         stopTappedAt = ContinuousClock.now
         emit("capture|n=\(captureNumber)|stop_tapped")
         source.stop()
     }
 
     /// Ten tries with the same source, 1 s apart: 1-5 stop right after the capture starts, 6-10 at
-    /// `transcriberChosen` (the review PR #42 M1-r2 window).
+    /// `transcriberChosen` (the review PR #42 M1-r2 window). Each try has a time limit: if no `finished` arrives within
+    /// 5 s of the stop, the source is stopped again (up to 3 more times, counted as `restops`), and after that the
+    /// try is cancelled. The time is always measured from the first stop (SP-1 review M-1). [Stop] works meanwhile.
     func quickStopTest() async {
-        guard current == nil, !busy else { return }
+        guard current == nil, !busy, !starting else { return }
         busy = true
         defer { busy = false }
         if !askedMicrophone {
@@ -145,29 +154,60 @@ final class SP1SpeechModel {
         for attempt in 1...10 {
             let atChosen = attempt > 5
             let clock = ContinuousClock()
-            var stoppedAt: ContinuousClock.Instant?
-            var outcome = "none"
+            let attemptState = QuickStopAttempt()
             let events = capture.events(from: source)
             if !atChosen {
-                stoppedAt = clock.now
+                attemptState.stoppedAt = clock.now
                 source.stop()
             }
-            for await event in events {
-                switch event {
-                case .transcriberChosen:
-                    if atChosen, stoppedAt == nil {
-                        stoppedAt = clock.now
-                        source.stop()
+            let source = source
+            let consumer = Task { @MainActor in
+                for await event in events {
+                    switch event {
+                    case .transcriberChosen:
+                        if atChosen, attemptState.stoppedAt == nil {
+                            attemptState.stoppedAt = clock.now
+                            source.stop()
+                        }
+                    case .textSoFar:
+                        break
+                    case let .finished(result):
+                        attemptState.finishedAt = clock.now
+                        attemptState.outcome = Self.name(result)
                     }
-                case .textSoFar:
-                    break
-                case let .finished(result):
-                    outcome = Self.name(result)
+                }
+                attemptState.ended = true
+            }
+            var restops = 0
+            var waited = Duration.zero
+            while !attemptState.ended {
+                try? await Task.sleep(for: .milliseconds(50))
+                waited += .milliseconds(50)
+                guard attemptState.stoppedAt != nil || waited >= .seconds(5) else { continue }
+                if attemptState.stoppedAt == nil {
+                    // The transcriber was never chosen within 5 s: stop now.
+                    attemptState.stoppedAt = clock.now
+                    source.stop()
+                    waited = .zero
+                    continue
+                }
+                if waited >= .seconds(5) {
+                    if restops == 3 {
+                        consumer.cancel()
+                        break
+                    }
+                    restops += 1
+                    source.stop()
+                    waited = .zero
                 }
             }
-            let ms = stoppedAt.map { Self.ms($0.duration(to: clock.now)) }
-            emit("quickstop|try=\(attempt)|when=\(atChosen ? "atChosen" : "beforeChosen")|finished=\(outcome)"
-                 + "|ms_stop_to_finished=\(ms.map(String.init) ?? "none")")
+            await consumer.value
+            var ms: Int?
+            if let stopped = attemptState.stoppedAt, let finished = attemptState.finishedAt {
+                ms = Self.ms(stopped.duration(to: finished))
+            }
+            emit("quickstop|try=\(attempt)|when=\(atChosen ? "atChosen" : "beforeChosen")|finished=\(attemptState.outcome)"
+                 + "|ms_stop_to_finished=\(ms.map(String.init) ?? "none")|restops=\(restops)")
             try? await Task.sleep(for: .seconds(1))
         }
         emit("quickstop|done")
@@ -177,6 +217,15 @@ final class SP1SpeechModel {
         }
         countdown = nil
     }
+}
+
+/// One quick-stop try's progress (main actor only).
+@MainActor
+final class QuickStopAttempt {
+    var stoppedAt: ContinuousClock.Instant?
+    var finishedAt: ContinuousClock.Instant?
+    var outcome = "none"
+    var ended = false
 }
 
 struct SP1SpeechScreen: View {
@@ -201,7 +250,7 @@ struct SP1SpeechScreen: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(model.lines.enumerated()), id: \.offset) { index, line in
-                            Text(line).font(.body.monospaced()).textSelection(.enabled).id(index)
+                            Text(line).font(.title3.monospaced()).textSelection(.enabled).id(index)
                         }
                     }
                 }

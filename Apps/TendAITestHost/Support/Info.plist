@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- TendAITestHost partial Info.plist (merged with the generated one). TendBundlePrefix records the bundle ID prefix
+     in use, so the hosted scaffold test passes with the owner's own prefix too (SP-1 review M-2). -->
+<plist version="1.0">
+<dict>
+	<key>TendBundlePrefix</key>
+	<string>$(TEND_BUNDLE_PREFIX)</string>
+</dict>
+</plist>

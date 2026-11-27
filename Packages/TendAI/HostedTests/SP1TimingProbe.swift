@@ -134,23 +134,33 @@ struct SP1TimingProbe {
         let model = source.model(household: household)
         let clock = ContinuousClock()
         let start = clock.now
-        let work = Task { () -> (Duration?, DraftStreamSummary) in
+        let work = Task { () -> (Duration?, DraftStreamSummary, Bool) in
             var ttfi: Duration?
             var summary = DraftStreamSummary()
+            var sawFinished = false
             for await event in pipeline.events(from: .onDevice(model)) {
                 if case .emitted = event, ttfi == nil { ttfi = start.duration(to: clock.now) }
+                if case .finished = event { sawFinished = true }
                 summary.apply(event)
             }
-            return (ttfi, summary)
+            return (ttfi, summary, sawFinished)
         }
         let watchdog = Task {
             // Cancelled when the capture ends first; only a real 30 s timeout cancels the capture.
             guard (try? await Task.sleep(for: .seconds(30))) != nil else { return }
             work.cancel()
         }
-        let (ttfi, summary) = await work.value
+        let (ttfi, summary, sawFinished) = await work.value
         watchdog.cancel()
         let total = start.duration(to: clock.now)
+        // A timeout only when the watchdog cancelled the capture before its own `finished` (review n-1).
+        // The watchdog's cancel shows as a `cancelled` outcome; any other finished outcome means the capture ended
+        // first, even if the watchdog fired just after.
+        let endedByItself: Bool = switch summary.outcome {
+        case .completed?, .interrupted?, .noModel?: sawFinished
+        case .cancelled?, nil: false
+        }
+        let timedOut = work.isCancelled && !endedByItself
         let recorder = generations.last()?.recorder
         let answered = await recorder?.queries.count ?? 0
         let refused = await recorder?.refusedCalls ?? 0
@@ -172,8 +182,8 @@ struct SP1TimingProbe {
         case nil: "none"
         }
         return Result(ttfi: ttfi.map(ms), total: ms(total), answered: answered, refused: refused,
-                      outcome: work.isCancelled ? "timeout" : outcome, drafts: summary.drafts.count,
-                      duplicatesCreated: created, falseMerges: falseMerges, timedOut: work.isCancelled)
+                      outcome: timedOut ? "timeout" : outcome, drafts: summary.drafts.count,
+                      duplicatesCreated: created, falseMerges: falseMerges, timedOut: timedOut)
     }
 
     static func fields(_ r: Result) -> String {
@@ -228,6 +238,7 @@ struct SP1TimingProbe {
         }
         let ttfis = warm.compactMap(\.ttfi).sorted()
         let totals = warm.map(\.total).sorted()
+        // The upper middle value for an even count (the 13th of 24; review n-2): information only.
         func median(_ values: [Int]) -> String { values.isEmpty ? "none" : String(values[values.count / 2]) }
         out.emit("summary|warm_n=\(warm.count)|ttfi_min_ms=\(ttfis.first.map(String.init) ?? "none")"
                  + "|ttfi_median_ms=\(median(ttfis))|ttfi_max_ms=\(ttfis.last.map(String.init) ?? "none")"

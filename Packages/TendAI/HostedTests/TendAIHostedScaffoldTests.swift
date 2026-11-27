@@ -10,8 +10,12 @@ import TendAI
 struct TendAIHostedScaffoldTests {
 
     @Test("The tests run inside the TendAITestHost app")
-    func hostApp() {
-        #expect(Bundle.main.bundleIdentifier == "com.tend.aitesthost")
+    func hostApp() throws {
+        // The host's bundle ID is `$(TEND_BUNDLE_PREFIX).aitesthost` (default `com.tend`; the owner's own prefix on
+        // the phone, SP-1 Q20). The prefix in use is in the host's Info.plist (SP-1 review M-2).
+        let prefix = try #require(Bundle.main.object(forInfoDictionaryKey: "TendBundlePrefix") as? String)
+        #expect(!prefix.isEmpty)
+        #expect(Bundle.main.bundleIdentifier == "\(prefix).aitesthost")
     }
 
     @Test("The TendAI module links into the hosted test bundle")
