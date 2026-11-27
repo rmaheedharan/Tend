@@ -36,6 +36,9 @@ public enum CloudStoreError: Error, CaseIterable, Hashable, Sendable {
     case notAccessibleNow
     /// The store is not working.
     case storeUnavailable
+    /// The pasted key holds characters a provider key cannot hold, or nothing once trimmed (PO R28-F5,
+    /// `APIKeyText`). Nothing was saved; any earlier key is kept. It holds no character of the key.
+    case keyTextNotAccepted
 }
 
 /// Where the provider keys live: one key per provider (ADR-0005 Decision 5).
@@ -44,7 +47,8 @@ public protocol APIKeyStore: Sendable {
     func hasKey(for provider: CloudProvider) async throws(CloudStoreError) -> Bool
     /// The stored key, or nil.
     func key(for provider: CloudProvider) async throws(CloudStoreError) -> APIKey?
-    /// Stores `key` for `provider`, replacing any earlier key.
+    /// Stores `key` for `provider`, trimmed by `APIKeyText.cleaned`, replacing any earlier key. A key that
+    /// `APIKeyText` refuses is not saved (the earlier key is kept) and throws `keyTextNotAccepted`.
     func save(_ key: APIKey, for provider: CloudProvider) async throws(CloudStoreError)
     /// Deletes the key for `provider`. Deleting a key that is not there is not an error.
     func deleteKey(for provider: CloudProvider) async throws(CloudStoreError)
@@ -72,7 +76,10 @@ public actor InMemoryAPIKeyStore: APIKeyStore {
 
     public func hasKey(for provider: CloudProvider) -> Bool { keys[provider] != nil }
     public func key(for provider: CloudProvider) -> APIKey? { keys[provider] }
-    public func save(_ key: APIKey, for provider: CloudProvider) { keys[provider] = key }
+    public func save(_ key: APIKey, for provider: CloudProvider) throws(CloudStoreError) {
+        guard let cleaned = APIKeyText.cleaned(key) else { throw .keyTextNotAccepted }
+        keys[provider] = cleaned
+    }
     public func deleteKey(for provider: CloudProvider) { keys[provider] = nil }
 }
 

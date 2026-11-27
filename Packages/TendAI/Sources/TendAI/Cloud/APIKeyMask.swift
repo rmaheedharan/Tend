@@ -11,8 +11,11 @@ public enum APIKeyMask {
     /// The four dots shown in place of the hidden part.
     public static let dots = "\u{2022}\u{2022}\u{2022}\u{2022}"
 
+    /// The mask of the key as it is stored: trimmed by `APIKeyText` first (PO R28-F5). A key the store would refuse
+    /// shows the dots only.
     public static func masked(_ key: APIKey) -> String {
-        key.withSecret { text in
+        guard let cleaned = APIKeyText.cleaned(key) else { return dots }
+        return cleaned.withSecret { text in
             text.count >= 12 ? dots + String(text.suffix(4)) : dots
         }
     }
