@@ -1,0 +1,10 @@
+// Package.swift of the pipeline probe (the split probe's is the same with the name Probe2 and the three adapter files copied in).
+// swift-tools-version: 6.2
+import PackageDescription
+let package = Package(name: "Probe", platforms: [.macOS(.v26)],
+  dependencies: [.package(path: "$REPO/Packages/TendAI"),
+                 .package(path: "$REPO/Packages/TendIngestion"),
+                 .package(path: "$REPO/Packages/TendCore")],
+  targets: [.executableTarget(name: "Probe", dependencies: [
+    .product(name: "TendAI", package: "TendAI"), .product(name: "TendIngestion", package: "TendIngestion"),
+    .product(name: "TendCore", package: "TendCore")], path: "Sources/Probe")], swiftLanguageModes: [.v6])

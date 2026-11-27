@@ -5803,3 +5803,228 @@ At `d447eb4` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 5
 | UX-3 | pass | One neutral refusal (`keyTextNotAccepted`) that blames nobody; M3 copy by the Designer. |
 | P-2, P-3 | pass | A key that is not plain printable ASCII never reaches a header; nothing else is sent; the Keychain item stays this-device-only and not synchronised (K2 test). |
 | P-4 | pass | Nothing written or logged; the refusal holds no key text (sentinel tests). |
+
+## WI-M2-M2 — on-device adapter: `@Generable` schema, `PartiallyGenerated` mapping, availability and error mapping, duplicate `Tool`, prewarm (MS-2)
+
+- **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/on-device-adapter`, based on
+  `main` at `41bf8fa`  ·  **PR:** none yet (the owner merges Mac-only PRs under D-032)  ·  **ADRs:** ADR-0005,
+  ADR-0006 (layout followed; the new files sit in `Packages/TendAI/Sources/TendAI/OnDevice/`, scanned by Rule 2).
+- **Requirements:** ● AC-M2-05, ● AC-M2-07, ● AC-M2-10 (the Mac halves; the Linux halves are WI-M2-06, 07, 09); GR-9
+  (eval-composition, `@Guide` parity). FR-A1, P-1, P-3, P-4, UX-3. R-1, R-4.
+- **Mac evidence record:** [`evidence/mac/WI-M2-M2/`](evidence/mac/WI-M2-M2/README.md), for the code commit
+  `94d02fe9b87cbc21b0608cc017c598c74f20eac2`.
+
+### What changed
+- **`TendAI/OnDevice/OnDeviceOutput.swift`** — the `@Generable` answer `{items: [OnDeviceItem]}`.
+  - Field set and shape as the cloud schema (PO WI-M2-12 ruling 2): `title`, `room` and `sourcePhrase` are required
+    strings (`""` = none), `time` is a required object with a required `anchor` (`none` = no time), the two claims are
+    optional. Enum raw values equal the neutral ones (tested value by value).
+  - **Declaration order is generation order:** `title`, `sourcePhrase`, `kind`, `room`, `effort`, `time`,
+    `sameAsItem`, `sameAsExisting`, `isCritical`, `isDeepClean`, `isWeatherDependent`. `title` first (R-1); the claims
+    before the flags (WI-M2-06 I4 suggestion, so they are usually known at emission); a `Bool` last (see below).
+  - The fixed session instructions (`OnDeviceInstructions.text`) are short and hold no household data. The capture and
+    the room names go in the **prompt** as a JSON object (`{"capture":…,"rooms":[…]}`), never in the instructions.
+- **GR-9, one shared constant.** `TendIngestion` now has `ItemFieldMeaning`, one sentence per output field. The cloud
+  instruction text is built from it (`- <field>: \(ItemFieldMeaning.<field>)`), and every on-device `@Guide` uses the
+  same constant (the macro takes a constant expression; checked). The cloud text is **byte-identical** to `main`
+  (compared directly in the session: equal, 2,030 bytes; and every golden-request test in B2 passes unchanged). Only
+  `sameAsExisting` differs by route (on device: "the title of a task that findExistingTasks returned …", WI-M2-07 D1).
+- **`OnDeviceSnapshotMapping.swift`** — `PartiallyGenerated` → `IngestionSnapshot`, **finished values only** (J2, PO
+  WI-M2-12 ruling 1). Probed on this Mac: a `PartiallyGenerated` value shows a string while it grows (`"Buy di"`) and
+  an integer while it grows; it never shows half an enum value (that prefix does not parse). Rule: a property is
+  finished when a later property of the same item has started, or the item is not the last one (rule b), or the stream
+  finished normally (rule c). The last property is a `Bool`, shown only once written. So rule (a) fires only when every
+  field is whole, and the `""` / `"Late"` prefixes of WI-M2-12 J2 never reach the assembler.
+- **`OnDeviceStopMapping.swift`** — exhaustive switches with no `default`:
+  - `SystemLanguageModel.Availability` (frozen) and its `UnavailableReason` (not frozen, so a `@unknown default`,
+    read as `modelNotReady`) and `supportsLocale` → `OnDeviceAvailability` (an unavailable model wins over the locale).
+  - `LanguageModelSession.GenerationError`, every case (iOS 26) → `ModelStopReason`.
+  - **SDK note:** the Mac has Xcode 27.2 with the iOS 27.2 / macOS 27.2 SDK (deployment target 26.0). iOS 27 deprecates
+    `GenerationError` in favour of `LanguageModelError`, `LanguageModelSession.Error`, `SystemLanguageModel.Error` and
+    `GeneratedContent.ParsingError`. The B4 host runs macOS 27.2, so it throws the new family. Both families are mapped
+    (the new one behind `#available`), every case. No deprecation warning at the 26.0 target.
+- **`DuplicateLookupTool.swift`** — the `findExistingTasks` `Tool`. Its `call` returns `DuplicateLookupLog.lookUp` (WI-M2-07)
+  as `{tasks: [{title, kind, room?}]}`: exactly the shortlist, reduced to title, kind and room name. The log lives in
+  an actor (`DuplicateLookupRecorder`), so the Tool is `Sendable` with no lock and no `@unchecked`.
+- **`OnDeviceIngestionModel.swift`** — the `IngestionModel` (contract items 1–4): one `LanguageModelSession` per
+  capture (`streamResponse(to:generating:options:)`, greedy sampling); stops thrown as `ModelStopReason`; no reference
+  kept to the stream; `onTermination` cancels the generation task; a stream made inside a cancelled task starts nothing;
+  every snapshot carries the Tool's queries so far, and after a normal end one more snapshot carries the whole answer
+  (`isFinal`) and the final queries.
+- **`FoundationModelsOnDeviceSource.swift`** — the `OnDeviceModelSource` for `ModelRouter`, and `prewarm(household:)`
+  (Q4): it prepares and prewarms the next capture's session; the next `model(household:)` with an **equal** household
+  takes it once (an actor slot, no lock).
+- **`TendIngestion`, two small API changes:**
+  - `OnDeviceModelSource.model()` → `model(household:)`. The router passes the capture's household, the one its
+    `DraftDuplicateRules.onDevice(household:)` reads, so the Tool reads exactly that value (contract item 4). Before
+    this the adapter had no way to get it. The test-only `events(for:preference:)` gained a defaulted `household:`.
+  - `ItemFieldMeaning` (above).
+- **Tests:** `TendAITests` grew from 1 to 47 tests (6 suites). `TendIngestionTests` +1 (`RouteWiringTests`:
+  "WI-M2-M2: the on-device model is asked for with the capture's own household"), and the test source
+  `FixedOnDevice` records the households it was asked for.
+- **Scan:** AC-M2-09 over 63 files (TendIngestion 55, TendAI 7, TendEval 1), 0 violations. A first draft used
+  `AsyncThrowingStream.makeStream(of:)`, which the AC-M1-23 `Stream(` call rule catches (only the `AsyncThrowingStream(`
+  initialiser is exempt); it now uses the initialiser.
+
+### AC → test (command: B4 for `TendAITests`, B2 for `TendIngestionTests`)
+| AC | Test(s) | Result |
+|---|---|---|
+| AC-M2-05 (on-device mapping) | `OnDeviceSnapshotMappingTests`: "A title still being written is not shown …", "The prefix \"Late\" of \"Later: call the plumber\" never appears …", "A number still being written …", "Rule (a) fires only when the last property is written …", "An item is whole once the next item has started (rule b) …", "A field never changes once shown, over every growing prefix …" (steps 1, 2, 3, 7); `OnDeviceModelTests` through the real `DraftPipeline`: "\"Later: call the plumber\" streamed in small steps gives one emitted with the whole title, never a skip" (steps 1, 2, 3, 5), "emission happens at completion …", "an item in progress when the stream finishes normally is completed (rule c) …", "at a normal finish the last answer's last string is whole (rule c) …", "a throw mid-item after a draft gives interrupted …", "cancelling ends with cancelled and ends the model's work" | PASS (B4) |
+| AC-M2-07 (`Tool` conformance) | `DuplicateLookupToolTests`: "the Tool returns exactly the duplicate shortlist for its query, as title, kind and room name" (8 queries: > 10 eligible, completed left out, room-only, stop-word-only, empty), "More than 10 eligible tasks give the first 10 …", "Each entry holds only title, kind and room …" (Mirror and schema), "records each query … never changes it (Q7)", "name, description and argument schema hold no household data"; `OnDeviceModelTests`: "a title the Tool returned marks the draft ofExisting; the Tool's log equals the final queries", "a title the Tool never returned is not a claim …", "A repeat within one input collapses into its first draft", "Contract 4 …" (2 tests), "The source gives a model whose Tool reads exactly the capture's household", router test | PASS (B4) |
+| AC-M2-10 (adapter mapping) | `OnDeviceStopMappingTests`: every `Availability` case × `supportsLocale` (all four neutral reasons reached), every `GenerationError` case, every iOS 27 error case, pass-through; `OnDeviceModelTests`: "generation that throws before the first draft ends noModel, on device …" (9 errors), "Through the router: an unavailable on-device model with cloud off ends noModel and starts no generation" (cloud source never asked) | PASS (B4) |
+| GR-9 | `OnDeviceSchemaTests`: "every on-device @Guide description is the cloud instruction line for the same field, word for word" (10 fields, read from the encoded `GenerationSchema`), "the isCritical sentence is PO ruling 3's …", "sameAsExisting on device names a title the Tool returned …" | PASS (B4) |
+| Schema shape | `OnDeviceSchemaTests`: generation order, required fields, closed lists, prompt and instructions, calm words (AC-M2-12) | PASS (B4) |
+| Router passes the household | `RouteWiringTests` "WI-M2-M2: …" | PASS (B2) |
+
+**Mutants (each run, then reverted; all killed):** open string counted as a value (M1, 5 tests fail); no final
+`isFinal` snapshot (M2); `onTermination` does not cancel (M3); locale ignored (M4); guardrail read as refusal (M5); no
+cancelled-at-creation check (M6); prepared session given to any household (M7) or reused (M10); title claim dropped
+(M8); no extra snapshot for a late Tool call (M9); Tool drops the room (M11); `/` escaped in the prompt (M12). M2 first
+survived; the test "at a normal finish the last answer's last string is whole (rule c) …" was added and kills it.
+
+### Real model on this Mac (information only, never evidence; R-1)
+A throwaway probe in the session scratchpad ran the real session on macOS 27.2.1 (M1 Mac mini, availability
+`available`), with the Outcome sentence, a household of 2 rooms and 1 task ("Buy dishwasher pods", Kitchen), prewarmed,
+4 runs (logs: [`probes/`](evidence/mac/WI-M2-M2/probes/)).
+- **Behaviour:** every run gave the same 3 drafts, route `onDevice`, outcome `completed`. The model called the Tool 3
+  times (`"dishwasher pods"`, `"AC servicing"`, `"mop kitchen floor"`) before the answer. Draft 1 was marked
+  `ofExisting` the pods task through its Tool title claim. No skip, no update.
+- **Timing (pipeline TTFI = first `emitted`):** run 1 (cold) 7.94 s; runs 2–4 6.32, 6.37, 6.32 s. Total 10.8–12.5 s.
+- **Split (same prompt, raw session, 3 runs each):** with the Tool, first snapshot 4.21–4.31 s, first item complete
+  6.24–6.35 s; with no Tool, first snapshot 2.27–2.83 s, first item complete 3.46–4.01 s (runs 2 and 3 overlapped a
+  compile in the session; an earlier quiet run gave 2.33–2.35 s and 3.51–3.56 s).
+- **What it says:** the Tool calls cost about 2 s before the first token, and the schema with the shared guide
+  sentences costs about 1 s more than the MS-1 7-field probe (1.35 s to a first non-empty title, which is not item
+  completion). On this Mac the adapter misses the AC-M2-16 bound (TTFI < 1.5 s) by a wide margin. The iPhone 15 Pro is
+  the gate, not this Mac, and AC-M2-16 is never relaxed; R-1 is now **likely**. Technical levers that keep the
+  product meaning (my next steps if the Planner agrees): ask for at most one Tool call per capture (all the main words
+  at once), shorten the guide sentences in both routes together (GR-9 keeps them equal; changes the golden bytes, so
+  before the AC-M2-14 freeze), and measure on the iPhone in SP-1. Dropping the Tool would change AC-M2-07 and is a PO
+  matter.
+
+### Test runs (R-18; the evidence record has the logs)
+The clean run at `94d02fe` (`build/`, every package `.build` and the project's DerivedData deleted first).
+
+| Command | Result | Runtime |
+|---|---|---|
+| B1 `swift test` TendCore | 141 tests in 18 suites passed, 0 skipped, 0 warnings | 44 s wall |
+| B2 `swift test` TendIngestion | 572 tests in 67 suites passed, 0 skipped, 0 warnings; scan 63 files, 0 violations | 98 s wall (tests 71.4 s) |
+| B4 `xcodebuild test -scheme TendAI` (macOS) | 47 tests in 6 suites passed, `TEST SUCCEEDED` | 14 s |
+| B5 `xcodebuild test -scheme TendAIHostedTests` (iPhone 17 Pro, iOS 26.5) | 2 tests passed, `TEST SUCCEEDED` | 19 s |
+| B6 Release build and archive of `Tend`; `TendEval` Debug build; `TendEval` archive refused (66) | as MS-1; both `find`s print nothing | 5 + 3 + 11 + 1 s |
+
+### Verification environment
+| Check | Linux `swift test` | macOS (owner-run Mac) | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| TendCore | not rerun | pass (B1) | n.a. | n.a. | — |
+| TendIngestion (incl. AC-M2-09 scan, goldens) | not rerun (CI runs it) | pass (B2) | n.a. | n.a. | — |
+| TendAI on-device adapter | n.a. (Apple-only) | pass (B4, 47 tests) | B5 builds TendAI for iOS; no hosted on-device test (the Simulator has no usable model, MS-1) | n.a. | The real model's answers: information-only probe above; DS-1 runs it |
+| AC-M2-16 timing | n.a. | probe only (misses on the Mac) | n.a. | DS-1 | SP-1 / DS-1 |
+
+### Things the reviewer should look at closely
+- The finished-values rule rests on FoundationModels generating properties in declaration order and never showing
+  half a `Bool` or enum value. Both are what the framework documents and what the probe and tests show; if a later SDK
+  breaks it, `OnDeviceSchemaTests` "Generation order …" and the mapping tests fail.
+- `@unknown default` appears five times, only where the framework enum is not frozen (Swift 6 requires it). None is a
+  plain `default`, and each switch still lists every known case (a missing one is a warning, an error here).
+- `unsupportedGuide` / `unsupportedGenerationGuide`, `unsupportedCapability`, `unsupportedTranscriptContent` and
+  `transcriptMutationWhileResponding` map to `otherModelError` (a defect on our side, not the person's).
+  `LanguageModelError.timeout` maps to `timedOut`.
+- `prewarm(household:)` prewarms a session for one household; a capture for a different household gets a fresh,
+  unwarmed session (correctness over speed: the Tool must read the capture's household).
+- The protocol change in `TendIngestion` is the only change to an accepted Linux API.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| R-1: on this Mac the on-device TTFI is about 6.3 s with the Tool (probe above) | **Major risk for AC-M2-16** (information only; the gate is the iPhone) | Planner / PO: SP-1 on the iPhone 15 Pro; technical levers above before the AC-M2-14 freeze |
+| Orientation build-validation warning for `Tend` and `TendEval` (review PR #38 m1(a)) is still in B6 | Minor | Designer decides the iPad orientation set (CLAUDE.md §9 Q1); `project.yml` change after that |
+| The device check that a real iPhone shows no partial value and calls the Tool | — | DS-1 (Tester) |
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface; the draft stream is a capture review (Q11). |
+| UX-3 Zero-Guilt | pass | No new outcome or reason name; every guide, instruction and Tool text passes the banned-token rule (test). No partial "Late" title reaches the guard. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | The adapter runs `FoundationModels` only; an on-device error is thrown as a stop reason and never reaches the cloud (router test: cloud source never asked). |
+| P-2 No data leaves device | pass | No networking (Rule 2 scan, 0 violations). |
+| P-3 Cloud AI opt-in, minimised | pass | The cloud instruction bytes are unchanged; the on-device and cloud models are asked the same thing (GR-9). |
+| P-4 Media not persisted | pass | The prompt and answers live in memory for the capture; nothing is written or logged. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Coordinator | Developer (owner's Mac) | accepted | MS-2 brief, items M2, M3, M5, M4 in that order. |
+| 2026-11-27 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR. R-1 numbers for the Planner and PO. |
+
+## WI-M2-M2 round 2 — review PR #41 m1 (framework cancel), PO R-1 ruling (a) (one Tool call per capture), nits n1 and n3
+
+- **Branch:** `m2/on-device-adapter-v2` (the orchestrator re-created the branch with a neutral commit identity; same
+  trees as `m2/on-device-adapter`), on top of the review commit `ff79f9c`  ·  **Code commit:** `fad715a3d1f81cadd17a9403b96dca12c3ba231d`  ·
+  **Mac evidence record:** [`evidence/mac/WI-M2-M2-r2/`](evidence/mac/WI-M2-M2-r2/README.md).
+- Review PR #41 M1 (commit identity) is handled by the re-created branch and the repo-local identity
+  `Claude <noreply@anthropic.com>`; every commit here uses it.
+
+### What changed
+- **m1** (`OnDeviceIngestionModel.swift`): only a parse the consumer cancelled finishes the model stream quietly. A
+  `CancellationError` the framework throws while the parse is not cancelled now goes through `OnDeviceStopMapping`
+  (`otherModelError`), so it ends `interrupted` after a draft and `noModel` before one (AC-M2-05, AC-M2-10), never
+  `completed`.
+- **PO R-1 ruling (a): the duplicate-lookup Tool is answered at most once per capture, enforced in code.**
+  `DuplicateLookupRecorder.answeredCallLimit = 1`. The first call gets exactly the shortlist and is recorded; every
+  later call gets no entries, is **not** recorded (so `IngestionSnapshot.lookupQueries` and the rules' replay hold
+  exactly what the model was shown, D1 unchanged), and is counted in `refusedCalls` (information). Re-mark on log
+  growth is unchanged. A repeat that only a refused call would have found is still marked by the word-match floor.
+  The instructions now say "call findExistingTasks once, with the main words of all the chores together"; the Tool's
+  description and argument guide say the same.
+- **n1:** the order comment no longer says `title` first helps TTFI (emission is at item completion).
+- **n3:** the test script's `.hang` sleeps instead of spinning; it can also throw `CancellationError` on cancel, for the
+  m1 tests.
+- One existing test changed its expectation because the rule changed (not a weakening): "The Tool records the answered
+  query …" now expects `["pods"]` and one refused call; the contract-4 snapshot test now expects `["pods"]` in every
+  snapshot.
+
+### AC → test (B4)
+| Item | Test(s) | Result |
+|---|---|---|
+| m1 | `OnDeviceFollowUpTests`: "a CancellationError the consumer did not ask for, after a draft, ends interrupted", "… before any draft, ends noModel", "a cancel the consumer asked for still ends cancelled, even when the framework then throws CancellationError", "the model stream itself finishes without an error when its parse was cancelled and the framework throws" | PASS |
+| R-1 (a) | "the first Tool call is answered with the shortlist; every later call gets no entries and is not recorded", "the snapshots carry only the one answered query, so the rules replay exactly what the model saw" (title claim still marks `ofExisting`), "a repeat that only a refused second call would have found is still marked, by the word-match floor", "the instructions and the Tool description ask for one call …" | PASS |
+
+**Mutants (killed):** no cap (limit 100, R1, 5 tests); a refused call still answered (R2, 5 tests); framework
+`CancellationError` read as a normal end (C1, 2 tests).
+
+### Developer dev set (information only; never the frozen eval)
+A throwaway probe in the session scratchpad ([`probes/`](evidence/mac/WI-M2-M2-r2/probes/)): 8 captures I wrote, a
+household of 8 tasks in 3 rooms, 17 expected chores (8 repeats of an existing task, 9 new). Same Mac, real session,
+prewarmed, one run each, before (`ff79f9c`) and after (`fad715a`):
+
+| | Before (no cap) | After (one call) |
+|---|---|---|
+| Tool calls answered | 17 (one per chore) | 8 (one per capture; the model asked once with all the words) |
+| Duplicates created (a repeat left unmarked) | 2 | 2 (the same two: "dishwasher tablets" vs "Buy dishwasher pods", "Kettle needs descaling" vs "Descale the kettle") |
+| False merges | 0 | 0 |
+| Chores found | 16 of 17 | 16 of 17 (the smoke-alarm battery chore got a title without "smoke" in both runs) |
+| TTFI median (range), s | 5.87 (5.52–7.20) | 5.31 (4.95–5.67) |
+
+No worse on duplicates or false merges; about 0.5 s faster to the first item. Still far above AC-M2-16's 1.5 s on
+this Mac (R-1 stays likely; the iPhone 15 Pro is the gate).
+
+### Eval manifest (for the PO; asked by the orchestrator)
+- `Fixtures/M2/eval/MANIFEST.sha256` lists **4 files**: `golden.json`, `household.json`, `inputs.json`,
+  `results-v1.schema.json` (not itself). This branch changes none of them.
+- The AC-M2-14 freeze test pins **3** of them by SHA-256 in `EvalFreeze.approvedSHA256`,
+  `Packages/TendIngestion/Tests/TendIngestionTests/EvalFreezeTests.swift:34-38` (`inputs.json` line 35,
+  `household.json` line 36, `golden.json` line 37). `results-v1.schema.json` is covered by the manifest only.
+
+### Test runs
+At `fad715a` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 572 in 67, AC-M2-09 scan 63 files (TendAI 7), 0 violations; B4 TendAI 55 tests in 7 suites; B5 hosted 2; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
+
+### WI-M2-M2: brought up to date with main (PRs #45, #46, #47 merged)
+- `origin/main` (`9e50012`) merged into `m2/on-device-adapter-v2` as `bd7be36` (merge commit; no rebase). The only
+  conflict was this file: main's text is kept as it is and the two WI-M2-M2 sections follow it. Build fix `f4dd2ab`: the
+  PR #45 hosted Keychain test helper now implements `OnDeviceModelSource.model(household:)` (the PR #43 rename); test
+  helper only. Mac evidence record for `f4dd2ab`: [`evidence/mac/WI-M2-M2-main-merge/`](evidence/mac/WI-M2-M2-main-merge/README.md):
+  B1 TendCore 141; B2 TendIngestion 580, scan 68 files, 0 violations; B4 TendAI 57; B5 hosted 34; B6 as MS-1; all passed,
+  0 skipped, clean tree before and after.

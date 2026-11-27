@@ -1,0 +1,19 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild archive -project Tend.xcodeproj -scheme TendEval -destination generic/platform=iOS -archivePath build/TendEval.xcarchive CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  TendIngestion: $REPO/Packages/TendIngestion
+  TendSourceScan: $REPO/Packages/TendSourceScan @ local
+  TendAI: $REPO/Packages/TendAI
+  TendCore: $REPO/Packages/TendCore
+
+2026-11-27 21:49:05.544 xcodebuild[3179:6406457] Writing error result bundle to $TMPDIR/ResultBundle_2026-27-11_21-49-0005.xcresult
+xcodebuild: error: Scheme TendEval is not currently configured for the archive action.
+

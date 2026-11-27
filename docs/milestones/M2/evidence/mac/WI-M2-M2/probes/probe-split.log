@@ -1,0 +1,8 @@
+Building for production...
+Build complete! (0.35 secs)
+tool 1 firstSnapshot 4.240396041 seconds firstItemComplete 6.2687905 seconds total 10.798909041 seconds queries ["AC servicing", "dishwasher pods", "mop kitchen floor"]
+tool 2 firstSnapshot 4.310099125 seconds firstItemComplete 6.346622084 seconds total 10.860683750000002 seconds queries ["dishwasher pods", "AC servicing", "mop kitchen floor"]
+tool 3 firstSnapshot 4.206105875 seconds firstItemComplete 6.238992916999999 seconds total 10.741956 seconds queries ["dishwasher pods", "AC servicing", "mop kitchen floor"]
+noTool 1 firstSnapshot 2.271189375 seconds firstItemComplete 3.464022083 seconds total 6.601362375000001 seconds queries []
+noTool 2 firstSnapshot 2.604635334 seconds firstItemComplete 3.802748917 seconds total 6.925238459000001 seconds queries []
+noTool 3 firstSnapshot 2.829193667 seconds firstItemComplete 4.007375125 seconds total 7.244263542 seconds queries []

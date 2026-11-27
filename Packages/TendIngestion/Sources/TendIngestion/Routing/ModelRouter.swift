@@ -27,7 +27,9 @@ import TendCore
 public protocol OnDeviceModelSource: Sendable {
     /// The availability for this capture (`SystemLanguageModel.availability` and `supportsLocale`, mapped neutrally).
     func availability() -> OnDeviceAvailability
-    func model() -> any IngestionModel
+    /// The on-device model for one capture. Its duplicate `Tool` must read exactly this `household`, the value the
+    /// capture's `DraftDuplicateRules.onDevice(household:)` was given (`IngestionModel` contract item 4; WI-M2-M2).
+    func model(household: Household) -> any IngestionModel
 }
 
 /// Builds the cloud model for one provider with the key read for this request (the `TendAI` cloud adapters,
@@ -108,7 +110,7 @@ public actor ModelRouter {
     /// - Parameter titleSharing: the Q12 answer in force (PO default `.shortlistTitles`).
     public func events(input: String, household: Household, now: Date, calendar: Calendar, timeZone: TimeZone,
                        titleSharing: CloudTitleSharing, preference: RoutePreference) async -> RoutedDraftEvents {
-        await events(preference: preference) { route in
+        await events(preference: preference, household: household) { route in
             let rules: DraftDuplicateRules = switch route {
             case .cloud: .cloud(titleSharing, capture: input, household: household)
             // Route `none` emits no draft; the on-device rules are given only so the pipeline has a check.
@@ -121,26 +123,27 @@ public actor ModelRouter {
 
     /// The same, with a pipeline the caller built (tests only: the caller is responsible for matching its rules to
     /// the route, which the public method above makes impossible to get wrong).
-    func events(for pipeline: DraftPipeline, preference: RoutePreference) async -> RoutedDraftEvents {
-        await events(preference: preference) { _ in pipeline }
+    func events(for pipeline: DraftPipeline, preference: RoutePreference,
+                household: Household = Household(tasks: [], rooms: [])) async -> RoutedDraftEvents {
+        await events(preference: preference, household: household) { _ in pipeline }
     }
 
-    private func events(preference: RoutePreference,
+    private func events(preference: RoutePreference, household: Household,
                         makePipeline: (Route) -> DraftPipeline) async -> RoutedDraftEvents {
         let availability = onDevice.availability()
         let route = RouteRules.route(availability: availability, preference: preference, cloud: await cloudStatus())
         let pipeline = makePipeline(route)
         switch route {
         case .onDevice:
-            return RoutedDraftEvents(events: pipeline.events(from: .onDevice(onDevice.model())), route: route,
-                                     watch: nil)
+            let model = onDevice.model(household: household)
+            return RoutedDraftEvents(events: pipeline.events(from: .onDevice(model)), route: route, watch: nil)
         case .none:
             // `RouteRules` gives `none` only when the on-device model is unavailable. The `else` branch cannot be
             // reached; it stays on device (never the cloud).
             let routed: RoutedModel = if case let .unavailable(reason) = availability {
                 .none(reason)
             } else {
-                .onDevice(onDevice.model())
+                .onDevice(onDevice.model(household: household))
             }
             return RoutedDraftEvents(events: pipeline.events(from: routed), route: routed.route, watch: nil)
         case let .cloud(provider):

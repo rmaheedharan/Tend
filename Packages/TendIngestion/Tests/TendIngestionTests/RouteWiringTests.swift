@@ -79,4 +79,22 @@ struct RouteWiringTests {
         let rules = try #require(events.events.pipeline.duplicateCheck as? DraftDuplicateRules)
         #expect(rules.path == .onDevice(Self.household))
     }
+
+    @Test("WI-M2-M2: the on-device model is asked for with the capture's own household, the one its rules read")
+    func onDeviceModelGetsTheHousehold() async throws {
+        for availability in [OnDeviceAvailability.available, .unavailable(.modelNotReady)] {
+            let state = StoredState(selected: nil, consents: [], keys: [], row: "S0")
+            let (router, _, _, cloud, onDevice) = R.router(state, availability)
+            let events = await routedEvents(router, .shortlistTitles, .onDeviceFirst)
+            if availability == .available {
+                #expect(events.route == .onDevice)
+                #expect(onDevice.askedHouseholds == [Self.household])
+            } else {
+                // Route `none`: no model is made at all, so no Tool reads anything.
+                #expect(events.route == .none)
+                #expect(onDevice.askedHouseholds.isEmpty)
+            }
+            #expect(cloud.askedProviders.isEmpty)
+        }
+    }
 }
