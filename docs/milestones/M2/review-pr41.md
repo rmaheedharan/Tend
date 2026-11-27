@@ -303,3 +303,120 @@ No Blocker, no Major, no Minor open.
 |---|---|---|---|---|
 | 2026-11-27 | Orchestrator | Reviewer | accepted | Round 2 of PR #43 at `d5e7938` (round 1 at `ff79f9c`; base `41bf8fa`). |
 | 2026-11-27 | Reviewer | Orchestrator → owner (D-032 merge), Tester, Planner/PO | sent | **APPROVE.** M1, m1, n1 and n3 are closed. n2 and n4–n6 are optional. i6: governance entry and SP-1. i7: Tester to watch DS-1. An APPROVE accepts no AC. |
+
+---
+
+# Round 3 (main merge) — PR #43 (`m2/on-device-adapter-v2`, head `cf262a9`, approved at `8c18178`, main `9e50012`)
+
+| Field | Value |
+|---|---|
+| Milestone | M2 (STATUS.md: **IN-BUILD**; the branch is `m2/…`, so the lock allows it) |
+| Scope of this round | Only what is new since `8c18178`: merge `bd7be36` (`origin/main` `9e50012` merged in), build fix `f4dd2ab`, docs `cf262a9` |
+| Requirements | AC-M2-05, AC-M2-07, AC-M2-10 (WI-M2-M2, unchanged); AC-M2-09 (scan), AC-M2-12 (calm vocabulary), AC-M2-22 (hosted transport, from main); P-1…P-4, UX-3 |
+| Reviewer | Reviewer agent (fresh context; did not write this code) |
+| Verdict | **APPROVE** |
+
+## Summary
+The merge brings no change of its own. `git diff 9e50012 bd7be36` matches the approved #43 diff
+(`git diff 41bf8fa 8c18178`, where `41bf8fa` is the merge base) line for line. `git diff 8c18178 bd7be36` matches main's
+own diff (`git diff 41bf8fa 9e50012`). Nothing from main was lost. `f4dd2ab` changes one hosted test helper to follow the
+`model()` → `model(household:)` rename (round 1, §6). `cf262a9` adds docs only. Linux tests pass at `cf262a9`. The Mac
+record names `f4dd2ab` and all its hashes check out.
+
+## 1. Merge resolution (`bd7be36`)
+- **Same file set:** `--name-only` for both diffs gives the same 62 files, and `--stat` matches (21281+, 31−).
+- **Same content per file:** for each of the 62 files I compared the `+`/`-` lines of `git diff 41bf8fa 8c18178 -- f`
+  with those of `git diff 9e50012 bd7be36 -- f`. All 62 match.
+- **Main is intact:** for each file main changed, the `+`/`-` lines of `git diff 41bf8fa 9e50012 -- f` equal those of
+  `git diff 8c18178 bd7be36 -- f`, and the two file lists are identical. Two files were changed on both sides:
+  - `ModelRouter.swift`: main's `APIKeyText.cleaned` guard in `turnCloudOn` (PO R28-F5) is kept. #43's
+    `model(household:)` change is kept.
+  - `dev-notes.md`: this was the conflict. `git diff 9e50012 bd7be36 -- dev-notes.md` deletes 0 lines and adds one hunk
+    after main's last line (`@@ -5803,3 +5803,220 @@`). That hunk is #43's two WI-M2-M2 sections, the same lines as in the
+    approved diff. Main's text is byte-for-byte unchanged.
+- No conflict markers in the tree at `cf262a9` (`git grep` for `<<<<<<<`, `=======`, `>>>>>>>` outside logs: none).
+- Expected side effect: at `bd7be36` itself, the hosted target (`TendAIHostedTests`) does not compile. Main's PR #45
+  helper still uses the old `model()` requirement. It is a test target that builds only on the Mac, and Linux is not
+  affected. `f4dd2ab` fixes it, and the Mac record is taken at `f4dd2ab`.
+
+## 2. Build fix (`f4dd2ab`): test-only and correct
+- One file, `Packages/TendAI/HostedTests/KeychainAPIKeyStoreHostedTests.swift`, with 2 lines added and 1 removed.
+  `import TendCore` is added for `Household`. `UnavailableOnDevice.model()` becomes `model(household: Household)`. It
+  still returns `NeverModel()`, and `availability()` is still `.unavailable(.deviceNotEligible)`.
+- No assertion, argument list, `#expect` or trait was touched, and no test was disabled or removed. The helper still
+  keeps routing off the device path, so the Keychain routing tests check the same thing as before. **Not weakened.**
+- Coverage: the only other `OnDeviceModelSource` conformers are `FixedOnDevice` (TendIngestion tests, already
+  `model(household:)` in #43) and `FoundationModelsOnDeviceSource` (Sources). No `func model()` is left anywhere in
+  `Packages/`.
+- `import TendCore` in a TendAI test target is in line with ADR-0006. TendAI already depends on TendCore through
+  TendIngestion, so no dependency is added.
+
+## 3. Evidence record and docs (`cf262a9`)
+- `git show --name-only cf262a9` lists only paths under `docs/` (17 files in `evidence/mac/WI-M2-M2-main-merge/`, plus
+  `dev-notes.md`, which only gains 8 lines).
+- `mac-B0-header.log` names `f4dd2abe4205062cbf372911f59344d7e5329d56`. The README's "Commit tested" row says the same.
+  `git status --porcelain` is empty before the run (B0) and after it (`mac-B9-after.log`).
+- SHA-256: all 16 lines in the README pass `sha256sum -c` (16 OK, 0 failed).
+- Results agree with the logs and with `timings.txt`:
+  - B1: 141 tests in 18 suites.
+  - B2: 580 tests in 68 suites. AC-M2-09 scan: 56 + 11 + 1 = 68 files, 0 violations.
+  - B4: 57 tests in 8 suites, `TEST SUCCEEDED`.
+  - B5: 34 tests in 4 suites, `TEST SUCCEEDED`.
+  - B6: as MS-1. The TendEval archive exits 66, as expected.
+  - No compiler warnings. The only `warning` lines are the appintentsmetadataprocessor notice and xcodebuild's
+    destination notice, neither from the compiler.
+  - 0 skipped.
+- Personal data: I found no personal names, usernames, emails or host home paths in the new folder or the new dev-notes
+  line. Machine paths are tokenised (`$HOME`, `$REPO`, …).
+  - The one email-shaped string, `user@api.openai.com`, is an AC-M2-22 test argument (in
+    `CloudHTTPTransportHostedTests.swift:225`).
+  - `…/Contents/Home/bin` in the B6 `PATH` lines is part of the JDK bundle path, not a user home.
+- Authorship: the three new commits (`bd7be36`, `f4dd2ab`, `cf262a9`) are authored and committed by
+  `Claude <noreply@anthropic.com>`. All three carry the attribution trailers.
+- The new dev-notes paragraph describes the merge, the fix and the record correctly.
+
+## 4. What I ran (Linux container, worktree detached at `cf262a9`)
+`swift:6.2-noble`, source mounted read-only, `-Xswiftc -warnings-as-errors`:
+- `swift test --package-path Packages/TendCore --scratch-path /tmp/r43mc` exited 0. 141 tests in 18 suites passed.
+- `swift test --package-path Packages/TendIngestion --scratch-path /tmp/r43mi` exited 0. 580 tests in 68 suites passed.
+  - The AC-M2-09 scan covered TendIngestion 56, TendAI 11 and TendEval 1 files (68), all passing.
+  - The AC-M2-12 calm vocabulary scan passed.
+- Both logs have 0 `warning:` lines, 0 failures and 0 skipped tests.
+
+TendAI and the hosted tests need FoundationModels and the iOS Simulator, so they run only on the Mac. Their evidence
+is B4 and B5 above.
+
+## Findings (round 3)
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| i8 | Info | — | At `bd7be36` alone the Mac hosted target does not compile (old `model()` in the PR #45 helper), so the merge commit by itself is not green on the Mac. `f4dd2ab` fixes it in the next commit, and the head is green. | None. | — |
+
+Round 2's open Nits (n2, n4–n6) and Infos (i6, i7) are unchanged. No Blocker, no Major, no Minor open.
+
+## Checklist (round 3)
+- [x] Merge resolution matches the approved diff, with nothing from main lost (per-file comparison in both directions).
+- [x] `dev-notes.md` keeps main's text unchanged, with #43's sections appended (0 deletions).
+- [x] `f4dd2ab` is test-only and complete. No test is weakened, skipped or removed.
+- [x] The evidence names `f4dd2ab`. Hashes verify. The tree was clean before and after. No personal data. The commits
+  are authored by `Claude <noreply@anthropic.com>`.
+- [x] Linux TendCore and TendIngestion are green at `cf262a9`, with warnings as errors.
+- [x] No new dependency. No change in Sources beyond the approved diff.
+- [ ] Accessibility (UI): n.a., no UI.
+
+## Law check (round 3)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No "what to do now" surface. |
+| UX-3 Zero-Guilt | pass | No new copy. The AC-M2-12 calm vocabulary scan passes at `cf262a9`. |
+| UX-4 Design craft | n.a. | No UI. R-1 is still decided by SP-1 on the device. |
+| P-1 On-device inference | pass | Routing is unchanged apart from main's own key guard. The on-device path is still FoundationModels only. |
+| P-2 No data leaves device (except user iCloud) | pass | AC-M2-09 scan: 68 files, 0 violations (Linux and Mac). The evidence holds no personal data. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | Main's `turnCloudOn` guard (a key the store would refuse records no consent) is kept in the merge. |
+| P-4 Media not persisted without consent | pass | No change. |
+
+## Handoff log (round 3)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Orchestrator | Reviewer | accepted | Round 3: main merge `bd7be36`, fix `f4dd2ab`, docs `cf262a9` on PR #43 (approved at `8c18178`). |
+| 2026-11-27 | Reviewer | Orchestrator → owner (D-032 merge), Tester | sent | **APPROVE.** The merge is faithful in both directions. The fix is test-only and correct. The evidence verifies. Linux is green. An APPROVE accepts no AC. |
