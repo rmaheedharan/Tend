@@ -112,7 +112,7 @@ in `Packages/TendAI` (`grep -rn` over `Sources` and `Tests`).
   dev-notes section and the evidence folder).
 - **SHA-256:** the README lists 16 files (every file in the folder except the README itself). `sha256sum -c` on the
   listed lines: **16/16 OK**.
-- **No personal data:** `grep -rniE 'dharanbro|Mac-mini|/Users/'` over the evidence folder and the new dev-notes
+- **No personal data:** `grep -rniE '<owner login>|Mac-mini|/Users/'` over the evidence folder and the new dev-notes
   section: **0 hits**. Also 0 hits for `maheed`, `/var/folders`, or `.local` host names. Paths are the `$REPO`,
   `$HOME`, `$TMPDIR` tokens. The README names the machine model ("M1 Mac mini, `Macmini9,1`"), which is hardware,
   not a hostname.
@@ -251,7 +251,7 @@ off from round 1; no other `@unchecked Sendable` or `nonisolated(unsafe)` exists
 - **`7479152` is docs only:** `git diff --numstat 118fcbe 7479152` lists only paths under `docs/` (the dev-notes
   section and the 20 evidence files).
 - **SHA-256:** the README lists 16 files; `sha256sum -c` on those lines: **16/16 OK**.
-- **No personal data:** `grep -rniE 'dharanbro|maheed|Mac-mini|/Users/|/var/folders'` over the folder: 0 hits. The
+- **No personal data:** `grep -rniE '<owner login>|<owner name>|Mac-mini|/Users/|/var/folders'` over the folder: 0 hits. The
   only `.local` hits are the `$HOME/.local/...` token path for XcodeGen and in the build `PATH`, not a hostname.
   Paths use the MS-1 tokens.
 - **Commit identities neutral:** `git log --format='%an <%ae> | %cn <%ce>' 41bf8fa..7479152`: every commit is
