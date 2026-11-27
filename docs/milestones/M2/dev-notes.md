@@ -6070,3 +6070,12 @@ the previous stop; the microphone indicator must go off each time and the next c
   target and restore the blank host with `BUNDLE_LOADER: "$(TEST_HOST)"`, or record the link model (host and bundle
   each with their own package copies, no host code shared with tests) as a DECISIONS entry. Ticket: Planner, before the
   M4/M5 branches are merged with this one.
+
+### SP-1 round 2: evidence and D5 at the new SP1-COMMIT
+- **SP1-COMMIT = `b4a4ec4658c2ad52c8f9c77d23112bf5b560bc85`.** Record: [`evidence/mac/SP-1-r2/`](evidence/mac/SP-1-r2/README.md).
+  B0–B6 and every D5 step ran at this exact commit with a clean tree before and after (review m-3).
+- Results: B1 TendCore 141; B2 TendIngestion 572, scan 67 files, 0 violations; B4 TendAI 90 tests in 15 suites; B5
+  hosted 5 (probe skipped by design), also with `TEND_BUNDLE_PREFIX=org.example.owner`; B6 as MS-1. D5.2: 28 `SP1|`
+  lines in the Simulator (all `noModel`, expected). D5.3: the console line reaches the Terminal (self-check variable;
+  the Simulator panel could not be tapped, so [Quick stop test] was not run there). The owner's commands are unchanged
+  from round 1 (D5.4). The `quickstop` line has one new field, `restops=<n>`, for the Tester's reading.
