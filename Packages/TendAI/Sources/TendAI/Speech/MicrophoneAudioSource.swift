@@ -3,8 +3,10 @@
 //
 // The input node's tap gives buffers in the hardware format; each is converted to the transcriber's format and passed
 // straight on as an `AnalyzerInput`. No buffer is kept after it is passed on, and nothing is written or logged (P-4).
-// - `stop()` (the person is done speaking) ends the utterance: the stream finishes normally. A stop (or a stream
-//   termination) that comes while the capture is still starting is remembered: the engine is published only after
+// - `stop()` (the person is done speaking) ends the utterance: the stream finishes normally. A stop that comes after
+//   the capture started but before it asked for audio (while the transcriber is chosen) is kept too: the audio then
+//   ends at once, empty, and the microphone is never opened (SP-1 review I-1). A stop (or a stream termination)
+//   that comes while the capture is still starting is remembered: the engine is published only after
 //   `engine.start()` succeeded, and if a stop came meanwhile the start path stops its own engine at once, so the
 //   microphone never keeps running after a stop and no other thread touches an engine that is starting (review PR #42
 //   M1, M1-r2).
@@ -60,8 +62,13 @@ public final class MicrophoneAudioSource: CaptureAudioSource, @unchecked Sendabl
         }
     }
 
+    /// A capture started (before its transcriber is chosen): a stop from now on ends it (SP-1 review I-1).
+    public func captureWillStart() {
+        lock.withLock { state.arm() }
+    }
+
     /// The person is done speaking: ends the utterance (the stream finishes normally). While the capture is still
-    /// starting, the stop is remembered and the start path ends it.
+    /// starting, or has not asked for audio yet, the stop is remembered and the capture ends empty.
     public func stop() {
         let result = lock.withLock { state.stop() }
         guard case let .wasRunning(token) = result else { return }
