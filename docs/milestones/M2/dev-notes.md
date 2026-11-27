@@ -6179,6 +6179,32 @@ The clean run at `94d02fe` (`build/`, every package `.build` and the project's D
 - `prewarm(household:)` prewarms a session for one household; a capture for a different household gets a fresh,
   unwarmed session (correctness over speed: the Tool must read the capture's household).
 - The protocol change in `TendIngestion` is the only change to an accepted Linux API.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| R-1: on this Mac the on-device TTFI is about 6.3 s with the Tool (probe above) | **Major risk for AC-M2-16** (information only; the gate is the iPhone) | Planner / PO: SP-1 on the iPhone 15 Pro; technical levers above before the AC-M2-14 freeze |
+| Orientation build-validation warning for `Tend` and `TendEval` (review PR #38 m1(a)) is still in B6 | Minor | Designer decides the iPad orientation set (CLAUDE.md §9 Q1); `project.yml` change after that |
+| The device check that a real iPhone shows no partial value and calls the Tool | — | DS-1 (Tester) |
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry surface. |
+| UX-2 Rule of Three | n.a. | No selection surface; the draft stream is a capture review (Q11). |
+| UX-3 Zero-Guilt | pass | No new outcome or reason name; every guide, instruction and Tool text passes the banned-token rule (test). No partial "Late" title reaches the guard. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | The adapter runs `FoundationModels` only; an on-device error is thrown as a stop reason and never reaches the cloud (router test: cloud source never asked). |
+| P-2 No data leaves device | pass | No networking (Rule 2 scan, 0 violations). |
+| P-3 Cloud AI opt-in, minimised | pass | The cloud instruction bytes are unchanged; the on-device and cloud models are asked the same thing (GR-9). |
+| P-4 Media not persisted | pass | The prompt and answers live in memory for the capture; nothing is written or logged. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Coordinator | Developer (owner's Mac) | accepted | MS-2 brief, items M2, M3, M5, M4 in that order. |
+| 2026-11-27 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR. R-1 numbers for the Planner and PO. |
+
 ## WI-M2-M2 round 2 — review PR #41 m1 (framework cancel), PO R-1 ruling (a) (one Tool call per capture), nits n1 and n3
 
 - **Branch:** `m2/on-device-adapter-v2` (the orchestrator re-created the branch with a neutral commit identity; same
@@ -6205,7 +6231,49 @@ The clean run at `94d02fe` (`build/`, every package `.build` and the project's D
 - One existing test changed its expectation because the rule changed (not a weakening): "The Tool records the answered
   query …" now expects `["pods"]` and one refused call; the contract-4 snapshot test now expects `["pods"]` in every
   snapshot.
-| 2026-11-27 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR. Reviewer sign-off asked for the one `@unchecked Sendable`. |
+
+### AC → test (B4)
+| Item | Test(s) | Result |
+|---|---|---|
+| m1 | `OnDeviceFollowUpTests`: "a CancellationError the consumer did not ask for, after a draft, ends interrupted", "… before any draft, ends noModel", "a cancel the consumer asked for still ends cancelled, even when the framework then throws CancellationError", "the model stream itself finishes without an error when its parse was cancelled and the framework throws" | PASS |
+| R-1 (a) | "the first Tool call is answered with the shortlist; every later call gets no entries and is not recorded", "the snapshots carry only the one answered query, so the rules replay exactly what the model saw" (title claim still marks `ofExisting`), "a repeat that only a refused second call would have found is still marked, by the word-match floor", "the instructions and the Tool description ask for one call …" | PASS |
+
+**Mutants (killed):** no cap (limit 100, R1, 5 tests); a refused call still answered (R2, 5 tests); framework
+`CancellationError` read as a normal end (C1, 2 tests).
+
+### Developer dev set (information only; never the frozen eval)
+A throwaway probe in the session scratchpad ([`probes/`](evidence/mac/WI-M2-M2-r2/probes/)): 8 captures I wrote, a
+household of 8 tasks in 3 rooms, 17 expected chores (8 repeats of an existing task, 9 new). Same Mac, real session,
+prewarmed, one run each, before (`ff79f9c`) and after (`fad715a`):
+
+| | Before (no cap) | After (one call) |
+|---|---|---|
+| Tool calls answered | 17 (one per chore) | 8 (one per capture; the model asked once with all the words) |
+| Duplicates created (a repeat left unmarked) | 2 | 2 (the same two: "dishwasher tablets" vs "Buy dishwasher pods", "Kettle needs descaling" vs "Descale the kettle") |
+| False merges | 0 | 0 |
+| Chores found | 16 of 17 | 16 of 17 (the smoke-alarm battery chore got a title without "smoke" in both runs) |
+| TTFI median (range), s | 5.87 (5.52–7.20) | 5.31 (4.95–5.67) |
+
+No worse on duplicates or false merges; about 0.5 s faster to the first item. Still far above AC-M2-16's 1.5 s on
+this Mac (R-1 stays likely; the iPhone 15 Pro is the gate).
+
+### Eval manifest (for the PO; asked by the orchestrator)
+- `Fixtures/M2/eval/MANIFEST.sha256` lists **4 files**: `golden.json`, `household.json`, `inputs.json`,
+  `results-v1.schema.json` (not itself). This branch changes none of them.
+- The AC-M2-14 freeze test pins **3** of them by SHA-256 in `EvalFreeze.approvedSHA256`,
+  `Packages/TendIngestion/Tests/TendIngestionTests/EvalFreezeTests.swift:34-38` (`inputs.json` line 35,
+  `household.json` line 36, `golden.json` line 37). `results-v1.schema.json` is covered by the manifest only.
+
+### Test runs
+At `fad715a` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 572 in 67, AC-M2-09 scan 63 files (TendAI 7), 0 violations; B4 TendAI 55 tests in 7 suites; B5 hosted 2; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
+
+### WI-M2-M2: brought up to date with main (PRs #45, #46, #47 merged)
+- `origin/main` (`9e50012`) merged into `m2/on-device-adapter-v2` as `bd7be36` (merge commit; no rebase). The only
+  conflict was this file: main's text is kept as it is and the two WI-M2-M2 sections follow it. Build fix `f4dd2ab`: the
+  PR #45 hosted Keychain test helper now implements `OnDeviceModelSource.model(household:)` (the PR #43 rename); test
+  helper only. Mac evidence record for `f4dd2ab`: [`evidence/mac/WI-M2-M2-main-merge/`](evidence/mac/WI-M2-M2-main-merge/README.md):
+  B1 TendCore 141; B2 TendIngestion 580, scan 68 files, 0 violations; B4 TendAI 57; B5 hosted 34; B6 as MS-1; all passed,
+  0 skipped, clean tree before and after.
 
 ## SP-1 probe (device spike, information only): SP-1.md Part D, D1–D6
 
@@ -6310,9 +6378,11 @@ The clean run at `94d02fe` (`build/`, every package `.build` and the project's D
 
 ### SP-1 round 4 — the final speech branch merged; final SP1-COMMIT
 - `origin/m2/speech-adapter-v2` at `8c324a6` (PR #44 round 5: m7, m8, n5, n6, and main up to `9e50012`) merged as `88921e8`.
-  dev-notes.md conflicted; it was rebuilt by section: the speech branch's text (which holds main's) as it is, then this
-  branch's own sections (WI-M2-M2, WI-M2-M2 round 2, SP-1 probe, SP-1 probe round 2 with its round 2 and 3 parts), with no
-  section twice. Build fix `c07e12a`: the Keychain hosted test helper from main now implements
+  dev-notes.md conflicted. The rebuild in that merge kept the speech branch's text (which holds main's) as it is, but took
+  this branch's own older copies of the two WI-M2-M2 sections, which had lost 61 lines in an earlier conflict merge
+  (review round 3 M-3). Corrected in a later docs commit: both WI-M2-M2 sections are now word for word the
+  `m2/on-device-adapter-v2` text (`d4d1a95`), and every section of that branch, of `m2/speech-adapter-v2` and of
+  `main` appears exactly once, unchanged (checked by section comparison). Build fix `c07e12a`: the Keychain hosted test helper from main now implements
   `OnDeviceModelSource.model(household:)` (PR #43 rename); test helper only.
 - **SP1-COMMIT = `c07e12a9647c7612b720a4d598d9f535870ca1b6`.** Record: [`evidence/mac/SP-1-r4/`](evidence/mac/SP-1-r4/README.md). B1 TendCore 141; B2
   TendIngestion 580, scan 72 files, 0 violations; B4 TendAI 96 tests in 17 suites; B5 hosted 37 tests in 6 suites (the
@@ -6321,6 +6391,6 @@ The clean run at `94d02fe` (`build/`, every package `.build` and the project's D
   the Terminal. All at this commit with a clean tree.
 - **The link change now matters:** with main merged, the Keychain and `URLProtocol` hosted tests run on the host that
   holds its own package copies (`BUNDLE_LOADER: ""`); they pass, with 13 "Class … is implemented in both" runtime
-  warnings in B5. As noted in round 2, this must be undone or isolated before this branch's `project.yml` reaches
-  `main` (ticket for the Planner).
+  warnings in B5. It must be undone or isolated before the M2 gate, or before any hosted test uses host code or state,
+  whichever comes first (Planner ticket).
 - The quickstop line format is unchanged from round 3.
