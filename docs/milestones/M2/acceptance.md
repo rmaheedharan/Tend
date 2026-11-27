@@ -122,9 +122,11 @@ the named subset?"* Read the profile rules in the tool's usage and ran the score
 
 ## Device test scripts (for the human owner)
 
+**SP-1 (information only, R-1; not evidence for any AC, AC-M2-16 stays AWAITING-DEVICE):** the iPhone 15 Pro spike script is [`device-scripts/SP-1.md`](device-scripts/SP-1.md) (on-device TTFI on the dev set, one `Tool` call per capture, T-27 prompt, quick stop; PO R-1 ruling 2026-11-27).
+
 ### Read this first (both scripts)
 
-**What you need.** The Mac with Xcode 26 (MacBook Air M4 or Mac mini M1), a free Apple Developer account (your Apple
+**What you need.** The Mac with Xcode 26 or later (MacBook Air M4 or Mac mini M1; the Mac mini has Xcode 27.2), a free Apple Developer account (your Apple
 ID), the iPhone 15 Pro and the iPhone 13, both on iOS 26, both with a Lightning or USB-C cable. A quiet room for the
 voice inputs. About 2 hours for DS-1 and 3 hours for DS-2.
 
@@ -242,6 +244,23 @@ network. None has a repeat inside the input; that case is gated on all 20 inputs
 9. Tap **[Export]**. This is a second file (it holds only the 3 inputs). Take a screenshot of the export confirmation.
 10. Turn Airplane Mode off. Copy the file to the Mac.
 
+#### Part C: quick stop, and stop then start again (review PR #42 M1 / M1-r2; AC-M2-11 voice path; P-4), about 5 minutes
+Do this after Part B, with Airplane Mode off. Use TendEval's **[Record]** and **[Stop]** on a capture that is **not**
+written to any results file (the Tester confirms the control for this with the WI-M2-M7 build, AQ-1). Do not speak
+during a quick stop (step 11, and the first capture in step 12).
+11. **Quick stop by hand (3 times).** Tap **[Record]** and then **[Stop]** at once, as fast as you can. Look at the top
+    of the screen: the small **orange dot** (or the microphone sign in the Dynamic Island) must go away within
+    **3 seconds** and stay away for **10 seconds**. TendEval must show the capture as ended. Write down, for each time,
+    "dot gone" or "dot stayed".
+12. **Quick stop, then start again.** Tap **[Record]** and **[Stop]** at once; right away tap **[Record]** again, say
+    **"Water the plants and wash the car"**, tap **[Stop]**. The second capture must show your words as its transcript.
+    Then check the orange dot is gone.
+13. **Stop, then start again.** Tap **[Record]**, say **"Kettle needs descaling, also wipe the oven door"**, tap
+    **[Stop]**. Right away tap **[Record]**, say **"Water the plants and wash the car"**, tap **[Stop]**. Both must show
+    your words. Then check the orange dot is gone.
+14. Take a **screenshot** after step 13: `ds1-c14-restart.png`. (These two sentences are from the Developer's dev set,
+    not the frozen eval.)
+
 #### What to record (DS-1 run record, filled in by you; the Tester completes the scoring rows)
 | Field | Value |
 |---|---|
@@ -256,7 +275,8 @@ network. None has a repeat inside the input; that case is gated on all 20 inputs
 | Environment faults and repeated runs (reason) | none / … |
 | Part A results file name and SHA-256 | (Tester fills in SHA-256) |
 | Part B results file name and SHA-256 | (Tester fills in SHA-256) |
-| Screenshots | `ds1-p7-start.png`, `ds1-b6-airplane.png`, export confirmation |
+| Part C: steps 11, 12, 13: dot gone / dot stayed each time; did each second capture show your words? | |
+| Screenshots | `ds1-p7-start.png`, `ds1-b6-airplane.png`, export confirmation, `ds1-c14-restart.png` |
 
 #### Scoring (Acceptance Tester, Linux, repo root, after the files are committed)
 - S1. `(cd Fixtures/M2/eval && sha256sum -c MANIFEST.sha256)` → every line `OK`, exit 0 (the manifest lists bare file names, so the check runs inside the folder; review F1). Then, from the repo root, `H=$(sha256sum Fixtures/M2/eval/MANIFEST.sha256 | cut -d' ' -f1)`; `H` must equal `FIXTURE-HASH` and the file's `run.fixturesSHA256`.
@@ -278,6 +298,10 @@ network. None has a repeat inside the input; that case is gated on all 20 inputs
 | AC-M2-16 | Every one of the 20 scored inputs: TTFI < 1500 ms and total ≤ 5000 ms. Cold start reported, not scored. | S2 check "every input TTFI < 1500 ms and total <= 5000 ms (AC-M2-16)" |
 | AC-M2-17 | 0 duplicates created, false merges ≤ 1, over all 20 inputs. | S2 checks "0 duplicates created", "false merges <= 1"; S4 |
 | AC-M2-11 | S3 exits 0 (each of the 3: outcome `completed`, route `onDevice`, every golden item found, 0 extras, all drafts valid, 0 introduced banned tokens, 0 duplicates created), **and** S5 holds. | S3 log, S5 |
+
+Part C (steps 11-14) must hold: every quick stop ends the capture and the orange dot is gone within 3 s and stays gone
+10 s; every second capture shows the spoken words. If not, it is a defect, **Major**, owner Developer (WI-M2-M3,
+review PR #42 M1; P-4), and M2 cannot pass while it is open. It adds to the AC pass rules above and changes none of them.
 
 Note: `ds1-gated` covers AC-M2-15, 16 and 17 in one exit code. I record each AC from its own check lines, so one AC can
 PASS while another FAILs.

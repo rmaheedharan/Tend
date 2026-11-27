@@ -166,6 +166,9 @@ public actor ModelRouter {
     /// result is `.off`. Otherwise the result is the cloud status after the call.
     @discardableResult
     public func turnCloudOn(_ provider: CloudProvider, key: APIKey) async throws(CloudStoreError) -> CloudStatus {
+        // A key the store would refuse changes nothing: no consent is recorded and any earlier key and consent stay
+        // (PO R28-F5).
+        guard APIKeyText.cleaned(key) != nil else { throw .keyTextNotAccepted }
         let number = nextActionNumber()
         try await consents.recordConsent(for: provider)
         do throws(CloudStoreError) {
