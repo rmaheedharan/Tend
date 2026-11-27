@@ -43,6 +43,15 @@ public struct CloudRequestHeader: Equatable, Sendable, CustomStringConvertible, 
         return false
     }
 
+    /// False only for an auth header whose key holds a character outside U+0021…U+007E, or is empty: the transport
+    /// refuses such a request before sending (PO R28-F5; AC-M2-23 `requestNotSent`).
+    public var keyIsSendable: Bool {
+        switch content {
+        case .text: true
+        case let .key(_, key): APIKeyText.isSendable(key)
+        }
+    }
+
     /// Gives the header's value to `body` only (the transport sets it; tests compare it).
     public func withValue<Result>(_ body: (String) throws -> Result) rethrows -> Result {
         switch content {

@@ -5570,6 +5570,240 @@ are in the fix commit on top of `02c1d84`; no file outside `docs/` changed, so t
 | 2026-11-25 | Reviewer | Developer | accepted | PR #38 round 1: CHANGES REQUIRED (M1, m1, m2, m3, m4, n1, n2). |
 | 2026-11-25 | Developer | Reviewer (via Orchestrator) | sent | Docs-only fix: `$REPO` redaction (2,248 occurrences), 22 hashes recomputed (9 changed), README warning sentence, zip digest aligned with ADR-0003 (and ADR zip size corrected), PR #38 noted; tickets above. Not pushed. |
 
+## WI-M2-M5 — Keychain key store: generic password, data-protection keychain, this device only, not synchronised; masked form; delete on turn-off and remove-key (MS-2)
+
+- **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/keychain-key-store`, based on
+  `main` at `41bf8fa`  ·  **PR:** #45 (owner merge under D-032)  ·  **ADRs:** ADR-0005 Decision 5, ADR-0006.
+- **Requirements:** ● AC-M2-21, ● AC-M2-18 (the real-Keychain half of (a)). P-3, P-4, UX-3. T-14, T-16.
+- **Mac evidence record:** [`evidence/mac/WI-M2-M5/`](evidence/mac/WI-M2-M5/README.md), for the code commit
+  `73905869b83714e310ed4cb4397dddc9d8301b6b`.
+- **Commit identity:** from this item on, the repo-local git identity is `Claude <noreply@anthropic.com>` (the
+  orchestrator's instruction; the earlier two branches are re-created as `-v2` by the orchestrator).
+
+### What changed
+- **`TendAI/Cloud/KeychainAPIKeyStore.swift`** (allowlist file 3; the only file that imports `Security`) — an actor
+  conforming to `APIKeyStore`:
+  - one item per provider: `kSecClassGenericPassword`, service `tend.ai.key` (reverse-DNS, not host-like under Rule 4),
+    account = the provider's raw name, `kSecUseDataProtectionKeychain = true`, `kSecAttrSynchronizable = false`,
+    `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`;
+  - `save` updates in place (data and accessibility) and adds only when no item exists, so a failed replace never
+    leaves the provider without its old key;
+  - `hasKey` asks for attributes only, never the data (WI-M2-09 ticket); `key` reads the data back;
+  - `deleteKey` treats `errSecItemNotFound` as done;
+  - every Keychain status becomes a neutral `CloudStoreError` (`errSecInteractionNotAllowed` → `notAccessibleNow`,
+    anything else → `storeUnavailable`); no error holds the key or the status text.
+  - The key is stored **exactly as given** (AC-M2-21 "Reading it back after save returns the same key"). Trimming or
+    refusing surrounding whitespace and control characters is the open PO decision R28-F5; WI-M2-M4's transport
+    refuses a header value with a line break before sending, so a pasted newline can never inject a header.
+- **`TendAI/Cloud/APIKeyMask.swift`** — the only display form: `••••` plus the last 4 `Character`s for a key of 12 or
+  more characters, `••••` alone for shorter keys (T-16). Not allowlisted (no `Security`, no networking).
+- **Tests:** `TendAIHostedTests` +6 tests (iOS 26.5 Simulator, each with its own Keychain service, cleaned up);
+  `TendAITests` +2 (the mask). Hosted tests use `ModelRouter` with the real store for AC-M2-18 (a).
+
+### AC → test
+| AC | Test(s) | Command | Result |
+|---|---|---|---|
+| AC-M2-21 item kind and attributes (read back with `kSecReturnAttributes`, T-16) | `KeychainAPIKeyStoreHostedTests` "AC-M2-21: save, read, replace and delete, with the item's attributes read back from the Keychain" (3 providers): after save and after replace, exactly one item; `kSecAttrAccessible` = `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`; `kSecAttrSynchronizable` false; service and account; found by a generic-password search and by a search with `kSecUseDataProtectionKeychain`, and not by an internet-password search (the class is not among the returned attributes) | B5 | PASS |
+| AC-M2-21 read back, replace, delete → `errSecItemNotFound` | same test; "Keys are kept per provider …"; "A key of any length and any characters is stored and read back exactly" (empty, 1 char, short, non-ASCII with emoji, 4,096 chars) | B5 | PASS |
+| AC-M2-21 masked form | `APIKeyMaskTests` (6 keys: 0, 3, 11, 12, 26 characters, non-ASCII) and "never more than the last four" | B4 | PASS |
+| AC-M2-21 no key in any formatting | "AC-M2-21: no formatting of any key-holding value shows the key": `String(describing:)`, `String(reflecting:)`, interpolation, `dump` and `Mirror` of `APIKey` and of the store, every `CloudStoreError`, the mask | B5 | PASS |
+| AC-M2-18 (a) real Keychain | "turning cloud off deletes the item", "removing the key deletes the item" (lookup gives `errSecItemNotFound`; cloud status off), "An orphan key restored without consent is deleted from the Keychain at the first route choice (T-14)" | B5 | PASS |
+
+**Mutants (each run in the Simulator host, then reverted):** accessibility `AfterFirstUnlock` on replace (K1),
+item added as synchronizable (K2b), delete does nothing (K3), mask shows 5 characters (K4), mask threshold 11 (K5):
+all killed. K2 (the query's `kSecAttrSynchronizable` widened to "any") survived round 1: the query is used by every
+lookup, by `hasKey`, by `deleteKey` and by the **update** path of `save`, so the mutant would read, delete or overwrite a
+synchronizable item with the same names; no round-1 test planted one. **Killed in `m2/key-paste-cleanup`** (review PR #45
+m1): a planted synchronizable item holding a sentinel is not seen by `hasKey` or `key`, is still intact after `save`
+(which adds a separate non-synchronizable item) and after `deleteKey`.
+
+### Test runs (R-18; the evidence record has the logs)
+The clean run at `7390586`.
+
+| Command | Result | Runtime |
+|---|---|---|
+| B1 `swift test` TendCore | 141 tests in 18 suites passed, 0 skipped | 43 s wall |
+| B2 `swift test` TendIngestion | 571 tests in 67 suites passed, 0 skipped; scan 59 files (TendAI 3), 0 violations | 95 s wall |
+| B4 `xcodebuild test -scheme TendAI` (macOS) | 3 tests in 2 suites passed | 8 s |
+| B5 `xcodebuild test -scheme TendAIHostedTests` (iPhone 17 Pro, iOS 26.5) | 9 tests in 2 suites passed | 9 s |
+| B6 | as MS-1; both `find`s print nothing; `TendEval` archive refused (66) | 5 + 3 + 11 + 1 s |
+
+### Things the reviewer should look at closely
+- `kSecUseDataProtectionKeychain` is set on every query (it is what selects the data-protection keychain on macOS;
+  on iOS every item is in it).
+- The hosted tests' `UnavailableOnDevice` uses `OnDeviceModelSource.model()` as on `main`. If
+  `m2/on-device-adapter-v2` merges first (it renames it to `model(household:)`), this test helper needs the one-line
+  rename at merge.
+- Personal data: the key never reaches a log, an error or a formatted value (test above); the Keychain item is not
+  synchronised and not restorable to another device.
+## WI-M2-M4 — cloud transport and failure mapping: ephemeral HTTPS to the routed host only, redirects refused, fixed client headers, `URLError` and status to neutral reasons (MS-2)
+
+- **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/cloud-transport`, based on
+  `main` at `41bf8fa`  ·  **PR:** #46 (owner merge under D-032)  ·  **ADRs:** ADR-0005 Decisions 6 and 7,
+  ADR-0006.
+- **Requirements:** ● AC-M2-22, ● AC-M2-23 (the Mac halves; the deadline and retry arithmetic and the outcomes are
+  WI-M2-14 and WI-M2-06 on Linux). P-2, P-3, P-4, UX-3. Tickets closed here: R28-F4 / GR-3 (explicit headers on the
+  wire), R29-N2 (no single-byte chunks), R30-F2 (cancellation is not a failure), R30-F5 (a silent attempt ends at the
+  resource timeout), PO Q3 (refusals send nothing), round 1 (timeouts per attempt, raw `Retry-After`, never retry),
+  and the transport half of R28-F5 (a header value with a line break is refused).
+- **Mac evidence record:** [`evidence/mac/WI-M2-M4/`](evidence/mac/WI-M2-M4/README.md), for the code commit
+  `1854d549c3fb89b9378a23ea83857550f142ccd3` (the branch has two code commits: `d406a7d` and the AC-M2-12 naming fix `1854d54`; an earlier evidence run at `d406a7d` stopped at B2 on that scan and was discarded).
+
+### What changed
+- **`TendAI/Cloud/CloudHTTPTransport.swift`** (allowlist file 1) — `CloudTransport` conformance:
+  - **One attempt per call, its own session:** `URLSessionConfiguration.ephemeral` with `httpCookieStorage = nil`,
+    `httpShouldSetCookies = false`, cookie policy `.never`, `urlCache = nil`, `urlCredentialStorage = nil`, cache
+    policy `.reloadIgnoringLocalAndRemoteCacheData`, `waitsForConnectivity = false`, and
+    `timeoutIntervalForResource` / `timeoutIntervalForRequest` from the attempt's `CloudAttemptTimeouts`. No retry.
+  - **HTTPS to the routed host only:** the URL is built with `URLComponents` (scheme `https`, the builder's bare host,
+    path and fixed query `alt=sse` through `query`, no `URLQueryItem`). The request host must equal the ADR-0005 host
+    of the request's provider (`CloudProviderTable.hosts`), and the built URL must be `https` to that host; a
+    header name or value with CR, LF or NUL is refused. Each refusal throws `CloudTransportFailure(.requestNotSent)`
+    before a session exists.
+  - **Redirects:** `RedirectRefuser` (a stateless `URLSessionTaskDelegate`, passed to `bytes(for:delegate:)`) answers
+    every redirect with nil. The 3xx is then the final response: `requestNotSent` when its `Location` names another
+    host, else `unexpectedResponse`.
+  - **Headers:** exactly the builder's, each set with `setValue(_:forHTTPHeaderField:)` (the builder already ends with
+    `User-Agent: Tend` and `Accept-Language: en-US`, so the device defaults are replaced).
+  - **Body:** for a 2xx, bytes go on in chunks cut after each blank line (`\n\n` or `\n\r\n`, the end of a server-sent
+    event) or at 4 KiB, so a whole event goes on at once and no chunk is a single byte (R29-N2). Other statuses throw
+    `CloudTransportFailure(reason, retryAfter:)`, with the raw `Retry-After` value only for 429 and 5xx.
+  - **Cancellation:** `onTermination` cancels the task and `invalidateAndCancel()`s the session; a cancelled attempt
+    (or `URLError.cancelled`) finishes without an error (R30-F2). A stream created in a cancelled task sends nothing.
+  - Naming note: the AC-M1-23 `Host(` call rule catches any called function whose name ends in `Host`; the two
+    helpers are `routedHostName` and `pointsElsewhere`.
+- **`TendAI/Cloud/CloudFailureMapping.swift`** (allowlist file 2) — `URLError.Code` → reason (offline: not connected,
+  connection lost, data not allowed, roaming off, call active; `timedOut`; host not found: cannot find host, DNS; secure
+  connection: TLS and certificate codes and ATS; `cancelled` → nil; everything else `unexpectedResponse`; `URLError.Code`
+  is a struct, so this one switch needs a `default`). Status: 2xx → nil, 401/403 → `keyNotAccepted`, 429 →
+  `rateLimited`, 5xx → `serviceUnavailable`, else `unexpectedResponse`.
+- **Tests:** `TendAIHostedTests` +17 (iOS 26.5 Simulator), over a `URLProtocol` stub installed only through the
+  transport's test hook (`adjust`), so no source names `URLProtocol`. The stub records every request that reaches it.
+
+### AC → test (all B5)
+| AC | Test(s) | Result |
+|---|---|---|
+| AC-M2-22 ephemeral, no cookies or cache, timeouts | "each attempt uses an ephemeral configuration with no cookies, cache or credentials, and its timeouts"; "A response's Set-Cookie is never kept or sent back on the next attempt" | PASS |
+| AC-M2-22 HTTPS to the routed host; refusals send nothing (PO Q3) | "a 2xx body arrives in order …" (3 providers: scheme, host, path, method, body bytes, Gemini query); "a request to a host other than the provider's is refused before sending" (4 hosts, 0 requests at the stub); "a non-HTTPS URL is refused before sending" (3 forms, 0 requests); "a redirect to another host is not followed and ends requestNotSent" (1 request, only to the routed host); "A redirect on the same host is not followed either"; "A header value with a line break is refused" | PASS |
+| AC-M2-22 Headers (R28-F4, GR-3) | "User-Agent: Tend and Accept-Language: en-US are set explicitly; only the builder's headers are sent" (3 providers; every header the stub sees is the builder's or transport-set) | PASS |
+| AC-M2-22 timeouts applied per attempt (R30-F5) | "a stub that never answers ends timedOut at the attempt's resource timeout" (1.0 s, under 5 s); "a body that stops arriving ends timedOut" | PASS |
+| AC-M2-23 mapping | "each HTTP status maps to its neutral reason; Retry-After is passed on raw for 429 and 5xx only" (12 statuses, exactly 1 request each: never retried); "each URLError through the session maps to its neutral reason" (11 codes); "the mapping table, code by code" | PASS |
+| Contract 4, 5 (R30-F2) | "cancelling mid-body ends without a failure, and CloudResponseBody ends with CancellationError"; "A stream created inside a cancelled task sends nothing" | PASS |
+| R29-N2 | body test (no 1-byte chunk, ≤ 4 KiB), "An event ends at a blank line, LF or CRLF …" | PASS |
+
+**Mutants (each run in the Simulator host, then reverted; all killed):** no host check (T1); redirect followed (T2);
+`Accept-Language` not set (T3); `Retry-After` passed for every status (T4); resource timeout not applied (T5); cookie
+storage kept (T6); cancellation mapped to a failure (T7); line breaks allowed in headers (T8); 403 not read as a key
+problem (T9).
+
+### Test runs (R-18; the evidence record has the logs)
+The clean run at `1854d54`.
+
+| Command | Result | Runtime |
+|---|---|---|
+| B1 `swift test` TendCore | 141 tests in 18 suites passed, 0 skipped | 45 s wall |
+| B2 `swift test` TendIngestion | 571 tests in 67 suites passed, 0 skipped; AC-M2-09 scan 59 files (TendAI 3), 0 violations; AC-M2-12 vocabulary scan 0 violations | 110 s wall |
+| B4 `xcodebuild test -scheme TendAI` (macOS) | 1 test passed (the scaffold; this item's tests are all hosted) | — |
+| B5 `xcodebuild test -scheme TendAIHostedTests` (iPhone 17 Pro, iOS 26.5) | 19 tests in 2 suites passed | — |
+| B6 | as MS-1; both `find`s print nothing; `TendEval` archive refused (66) | — |
+
+**AC-M2-12 note:** Foundation names two codes `dnsLookupFailed` and `secureConnectionFailed`; the calm-vocabulary scan
+does not allow that word in our source identifiers, so `CloudFailureMapping` names them by raw value
+(`dnsLookup` = -1006, `secureConnection` = -1200), and a hosted test checks they equal the Foundation codes.
+
+### Things the reviewer should look at closely
+- The `URLProtocol` stub sees the request before the lowest network layer, so it shows the headers the session will
+  send from the request and configuration; that the OS adds no `User-Agent` or `Accept-Language` of its own when they
+  are set explicitly is Apple's documented behaviour, not something a stub can prove. DS-2's provider runs are the
+  end-to-end check (Reviewer confirmation asked by the R28-F4 ticket).
+- A redirect is answered with nil, and the 3xx response's `Location` decides `requestNotSent` vs `unexpectedResponse`.
+- The test-only `adjust` hook is internal; the app uses `CloudHTTPTransport()`.
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| R28-F5: trim or refuse a key with surrounding whitespace or a control character | Minor | PO decision; then a one-line change in `save` with a test |
+| The durable consent store (not restorable from a backup) | — | M3 (Q21) |
+| R28-F5 trim or refuse at save (key store) | Minor | PO decision; the transport already refuses line breaks |
+| Real provider streams over this transport | — | WI-M2-M6 (needs the owner's keys) |
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 … UX-4 | n.a. | No UI; the error names are neutral (UX-3). |
+| P-1 | n.a. | No model. |
+| P-2 | pass | No networking; `Security` only in the allowlisted file. |
+| P-3 | pass | Keychain only, this device only, not synchronised; deleted on turn-off, remove-key and orphan (tests). |
+| P-4 | pass | Nothing written outside the Keychain item; nothing logged. |
+| UX-1, UX-2, UX-4 | n.a. | No UI. |
+| UX-3 | pass | Reason names are neutral (unchanged neutral types). |
+| P-1 | pass | The transport is only reached on route `cloud` (router, WI-M2-09). |
+| P-2 | pass | Networking only in the two allowlisted files (scan 0 violations); one host per provider; nothing else is reachable. |
+| P-3 | pass | Only the builder's bytes are sent; no cookie, cache or credential store; the key only in its header. |
+| P-4 | pass | Body bytes live in memory for one attempt; nothing logged or written. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR. |
+
+## Pasted-key cleanup (PO ruling R28-F5) and the open review asks on the key store (PR #45 m1, n2) and transport (PR #46 m1, m2, n1, n2)
+
+- **Branch:** `m2/key-paste-cleanup`, from `origin/m2/cloud-transport` (`87e5710`) with `origin/m2/keychain-key-store`
+  merged in (merge commit `c60b335`; PR #45 and PR #46 were not yet merged to `main`). The only merge conflict was the
+  end of this file; both sections are kept.  ·  **Code commit:** `d447eb49ecb6299e4b9b10eea84f6b3a45756281`  ·  **Mac evidence
+  record:** [`evidence/mac/key-paste-cleanup/`](evidence/mac/key-paste-cleanup/README.md).
+- **Requirements:** AC-M2-21, AC-M2-23 (and AC-M2-18 through the router). P-3, UX-3.
+
+### PO ruling R28-F5, as built
+- **`TendIngestion/Routing/APIKeyText.swift`** (pure, Linux-tested): trims at both ends every Unicode whitespace
+  (including line breaks, U+2028, NBSP), every control character (Cc, so NUL and DEL too) and U+200B, U+200C, U+200D,
+  U+2060, U+FEFF; then refuses unless the result is non-empty and every character is in U+0021…U+007E. No length or
+  prefix check.
+- **One neutral result:** `CloudStoreError.keyTextNotAccepted` (a case with no payload: no key character, no
+  position). `CloudStoreError` has 3 cases now; the case-count test changed from 2 to 3 for that reason.
+- **Where it applies:** `InMemoryAPIKeyStore.save` and `KeychainAPIKeyStore.save` store the trimmed key or throw before
+  writing anything (an earlier key is kept); `ModelRouter.turnCloudOn` checks first, so a refused key records no consent
+  and leaves an earlier key and consent as they were; `APIKeyMask` masks the trimmed key (a refused key shows the dots
+  only).
+- **Transport:** `CloudRequestHeader.keyIsSendable`; `CloudHTTPTransport` refuses a request whose auth key is empty or
+  outside U+0021…U+007E before any session exists (`requestNotSent`, 0 requests at the stub).
+- **Expectations changed by the ruling (not weakened):** the WI-M2-M5 hosted test "any length and any characters"
+  is now "any length in U+0021…U+007E" (empty and non-ASCII keys are refused and tested as such); the mask case for a
+  non-ASCII key now expects the dots only, and a padded key's mask is from the trimmed key.
+
+### Review asks
+- **PR #45 m1 (kills mutant K2):** a synchronizable item with the same service and account, holding a sentinel, is not
+  seen by `hasKey` or `key`; after `save` it still holds the sentinel and a separate non-synchronizable item holds the
+  new key; `deleteKey` leaves it too. The Simulator accepted the planted synchronizable item. The K2 sentence in the
+  WI-M2-M5 section now names the update path.
+- **PR #45 n2:** stored data that is not UTF-8 reads as `storeUnavailable` (and `hasKey` is true).
+- **PR #46 m1:** the headers test now checks every builder header's exact value at the stub (auth byte for byte).
+- **PR #46 m2:** rows for the 7 untested codes, and a sweep over raw values −3000…0: only −999 (`cancelled`) maps to nil.
+- **PR #46 n1:** the comment and the test name say no cut makes a single-byte chunk; only the final remainder can be
+  shorter. **n2:** the WI-M2-M4 header backtick is closed and both sections name their PRs (#45, #46).
+
+### AC → test
+| Item | Test(s) | Command | Result |
+|---|---|---|---|
+| R28-F5 rule | `APIKeyTextTests`: 11 trimmed cases (`\n`, `\r\n`, spaces, tab, BOM, U+200B/U+200C, NBSP, U+2028, U+2060/U+200D, NUL/DEL, mixed); 12 refused cases (inner space, `\n`, tab, NUL, U+200B, é, DEL, empty, all-junk); every U+0021…U+007E kept; one-character key accepted; property seed `0x5EED_F5`, 2,000 padded keys, 0 mismatches | B2 | PASS |
+| In-memory store and router | "padded key stored trimmed; refused key … keeps the earlier key"; "The refusal holds no character of the key and no position (sentinel)"; "Router: turning cloud on with a refused key changes nothing"; "An auth header is sendable only for a key in U+0021…U+007E" | B2 | PASS |
+| Real Keychain | `KeyPasteCleanupHostedTests`: stored trimmed (item bytes read back raw) and mask from the trimmed key (5 cases); refused keeps the earlier item byte for byte (6 cases); short and full-ASCII keys; K2; non-UTF-8; the refusal never shows the key | B5 | PASS |
+| Transport | `CloudHTTPTransportHostedTests`: "an auth key outside U+0021…U+007E is refused before sending; nothing reaches the stub" (3 providers × 4 keys); exact header values; 18 code rows; the −3000…0 sweep | B5 | PASS |
+
+**Mutants (killed):** no trim (P1, 4 tests); invisible marks not trimmed (P1b, 2); transport check removed (P2); the
+Keychain store skips the rule (P3); the query matches synchronizable items (K2).
+
+### Test runs
+At `d447eb4` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 579 in 68, AC-M2-09 scan 62 files, 0 violations, AC-M2-12 0 violations; B4 TendAI 3 tests; B5 hosted 34 tests in 4 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-3 | pass | One neutral refusal (`keyTextNotAccepted`) that blames nobody; M3 copy by the Designer. |
+| P-2, P-3 | pass | A key that is not plain printable ASCII never reaches a header; nothing else is sent; the Keychain item stays this-device-only and not synchronised (K2 test). |
+| P-4 | pass | Nothing written or logged; the refusal holds no key text (sentinel tests). |
+
 ## WI-M2-M2 — on-device adapter: `@Generable` schema, `PartiallyGenerated` mapping, availability and error mapping, duplicate `Tool`, prewarm (MS-2)
 
 - **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/on-device-adapter`, based on
