@@ -267,3 +267,193 @@ yet match. The Tester must update it (on `main`; protected-file rules do not app
 | 2026-11-27 | Reviewer | Orchestrator → Acceptance Tester | sent | Update SP-1.md: `restops` field (D4.6 and the B4/B5 rule), the m-4 reading caveat, B5 duration and [Stop] note, `SP1-COMMIT = b4a4ec4`. |
 | 2026-11-27 | Reviewer | Orchestrator → Developer | sent (optional) | m-4: count the 5 s limit from the stop; if done before the owner's run, re-run B5/D5 and name the new `SP1-COMMIT`. |
 | 2026-11-27 | Reviewer | Orchestrator → Planner | sent | m-1 ticket: undo or isolate the host link change before WI-M2-M4/M5 hosted tests share the host. |
+
+---
+
+# Round 3 — branch `m2/sp1-probe`, head `849d6db`; code diffs `e20ba9f..ea3d195` and `88921e8..c07e12a`
+
+- **Owner:** Reviewer  ·  **Verdict:** CHANGES REQUIRED  ·  **Round:** 3
+- **Scope:** `ea3d195` (code: `SP1SpeechScreen.swift`, round-2 m-4 and n-4), `eca2327` (docs: Mac record
+  `evidence/mac/SP-1-r3/`, dev-notes), merge `88921e8` (`eca2327` + `origin/m2/speech-adapter-v2` at `8c324a6`, which
+  holds `main` up to `9e50012`), `c07e12a` (build fix in `KeychainAPIKeyStoreHostedTests.swift`), `849d6db` (docs: Mac
+  record `evidence/mac/SP-1-r4/`, dev-notes). The speech adapter at `8c324a6` is reviewed under PR #44; here only that
+  the merge carries it unchanged.
+- **Final SP1-COMMIT named by the Developer:** `c07e12a9647c7612b720a4d598d9f535870ca1b6`.
+- **Spec:** `docs/milestones/M2/device-scripts/SP-1.md` v2 (read from `origin/main`) Part D and Part T; round-2 findings.
+- **IDs:** FR-A1, R-1, SP-1, AC-M2-11, AC-M2-16 (stays AWAITING-DEVICE), AC-M2-18, AC-M2-21, AC-M2-22, AC-M2-23,
+  AC-M2-25, T-27, Q20, plan B5/B6, MS-2; P-1…P-4, UX-3.
+
+## Summary
+
+The code is good. m-4 and n-4 are closed: the re-stop limit now counts from the latest stop, a timer-made first stop
+is marked `firststop=timer`, and [Stop] during a try prints `quickstop|try=<n>|stop_tapped` and stops that try. The
+three printed shapes match the format given to the Tester exactly. The merge `88921e8` carries every code file
+unchanged (its tree differs from the automatic `git merge-tree` result only in `dev-notes.md`, and every speech
+adapter file equals `8c324a6`). `c07e12a` is the same one-line helper fix already on `m2/on-device-adapter-v2`. Both
+evidence records verify (23 of 23 SHA-256 lines each, every file covered) and name the right commits with a clean tree
+before and after. B5 passes with the default prefix and with `org.example.owner` (37 tests in 6 suites). TendCore and
+TendIngestion pass here in Docker with warnings as errors.
+
+One **Major** stops the merge: the dev-notes rebuild in `88921e8` **lost 61 lines of WI-M2-M2 text**, including
+WI-M2-M2's **Law check** and **Handoff log**, and left one stray table row (M-3). The dev-notes text says "no section
+twice", which is true, but sections were dropped. It is a docs-only fix; the build under test (`c07e12a`) does not
+change and nothing has to be re-run.
+
+The `BUNDLE_LOADER: ""` link change now also covers the Keychain and `URLProtocol` hosted tests from `main` (13 "Class
+… is implemented in both" runtime messages). My judgement: **it does not block merging this branch to `main`**; it
+should be a tracked ticket (m-6). One new Minor (m-5: [Stop] after the last try is a silent no-op) and one Nit (n-5).
+
+## Round-2 findings, re-checked
+
+| # | Round-2 severity | Evidence at `849d6db` | Status |
+|---|---|---|---|
+| m-4 | Minor | `SP1SpeechScreen.swift:196-218`. `lastStopAt` starts as the planned stop (tries 1-5) and otherwise picks up `attemptState.stoppedAt` as soon as the consumer sets it at `transcriberChosen` (`:200`, `lastStopAt ?? attemptState.stoppedAt`). The 5 s check is `since.duration(to: clock.now) >= .seconds(5)` (`:211`), and every re-stop resets `lastStopAt = clock.now` (`:217`). So `restops` goes above 0 only when a stop really got no `finished` for 5 s. The no-`transcriberChosen` path (`:200-208`) counts 5 s from `tryStart` (`:202`), sets `firstStop = "timer"` and the stop time, and from then on the normal re-stop rule applies. The consumer and the poll loop are both `@MainActor`, and the consumer only stops when `stoppedAt == nil`, so there is never a double first stop. Worst case per try is still 5 s + 4 × 5 s = 25 s; the time field is still first stop → `finished`. | **Closed** |
+| n-4 | Nit | `SP1SpeechScreen.swift:137-148`: with `busy` and a running try (`quickStopTry`, set at `:169`), [Stop] prints `quickstop|try=<n>|stop_tapped` and calls `source.stop()`. The old `capture|n=<old>|stop_tapped` line is gone. See m-5 for the time after try 10. | **Closed** |
+| m-1 | Minor (ticketed) | Its condition has now been reached: `main`'s Keychain and transport hosted tests share the host (see m-6). | Superseded by m-6 |
+| I-4 | Info | Unchanged: `mac-B4` logs in `SP-1-r3`/`SP-1-r4` again print the Mac's destination `id:`. | Info |
+
+## Merge `88921e8`: is it faithful?
+
+- **Parents:** `eca2327` (this branch) and `8c324a6` (= `origin/m2/speech-adapter-v2`). `git merge-tree --write-tree
+  eca2327 8c324a6` conflicts only in `dev-notes.md` (`ModelRouter.swift` merges cleanly). The committed tree differs
+  from the automatic result **only** in `dev-notes.md`, so no code was edited in the merge.
+- **Speech adapter:** `git diff 8c324a6 88921e8 -- Packages/TendAI/Sources/TendAI/Speech` and the speech tests
+  (`SpeechCaptureTests`, `SpeechPermissionTests`, `SpeechRealEngineTests`, `EarlyStopTests`,
+  `MicrophoneCaptureStateTests`, `RoundFiveStopTests`, `HostedTests/SpeechHostedTests.swift`) are empty. `c07e12a` and
+  `849d6db` do not touch them. **Equal to `8c324a6`.**
+- **dev-notes.md:** **not faithful** (M-3). Lines 1-6052 of the merged file are byte-for-byte `8c324a6`'s file
+  (good). The rest is this branch's own sections, but only the parts that sat under their own `##` headings in
+  `eca2327`. In `eca2327` the earlier merge had left part of WI-M2-M2 *inside* the WI-M2-M3 sections (WI-M2-M2's
+  "Known limitations / follow-ups", "Law check" and "Handoff log" under WI-M2-M3, and WI-M2-M2 round 2's "AC → test
+  (B4)", "Developer dev set", "Eval manifest" and "Test runs" under WI-M2-M3 round 3). Taking WI-M2-M3 from the speech
+  branch dropped those parts. A line-level three-way count (base `430f700`, both parents, result) shows 34 distinct
+  non-blank lines added by this branch that are missing from `88921e8` (and from `849d6db`), and 0 lines from the
+  speech branch lost. Compared with the clean WI-M2-M2 text on `origin/m2/on-device-adapter-v2` (`d4d1a95`, lines
+  5807-6023), the merged lines 6053-6209 are short by 61 lines and have 1 extra line. All 34 lost lines are on
+  `origin/m2/on-device-adapter-v2`.
+
+## New findings (round 3)
+
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| M-3 | **Major** | `docs/milestones/M2/dev-notes.md:6181-6209` (at `88921e8` and `849d6db`) | The dev-notes rebuild in merge `88921e8` dropped 61 lines of WI-M2-M2 text. After line 6181 these WI-M2-M2 subsections are missing: "Known limitations / follow-ups" (R-1 TTFI 6.3 s risk row for AC-M2-16, B6 orientation row, DS-1 row), **"Law check"** and **"Handoff log"**. In WI-M2-M2 round 2 these are missing: "AC → test (B4)" (m1 and R-1 (a) test names, mutants), "Developer dev set" (the before/after table), "Eval manifest" (4 files listed, 3 pinned in `EvalFreezeTests.swift:34-38`) and "Test runs" (`fad715a` counts). Line 6208 is a stray WI-M2-M3 handoff row ("Reviewer sign-off asked for the one `@unchecked Sendable`") left at the end of WI-M2-M2 round 2's "What changed"; it is already in WI-M2-M3's handoff log at line 5916. Why Major: CLAUDE.md §4 rules 3 and 4 (every artifact keeps its Law Check; traceability FR → AC → test), and the lost text is the only place on this branch that records WI-M2-M2's AC → test mapping and R-1 follow-ups. When this branch merges into `main` after PR #43, git can apply the deletion with no conflict, so `main` could silently lose WI-M2-M2's Law Check. The round-4 dev-notes line "rebuilt by section … with no section twice" says nothing was lost, which is not true. | Docs-only commit: replace merged lines 6053-6209 (`## WI-M2-M2 …` through the end of `## WI-M2-M2 round 2` "What changed", stray row included) with lines 5807-6023 of `docs/milestones/M2/dev-notes.md` from `origin/m2/on-device-adapter-v2` (`d4d1a95`). Stop just before its `### WI-M2-M2: brought up to date with main` part, which belongs to that branch. Then check that `git diff origin/m2/on-device-adapter-v2 <new> -- docs/milestones/M2/dev-notes.md` shows no deletion inside the two WI-M2-M2 sections. Fix the round-4 sentence ("rebuilt by section"). `SP1-COMMIT` stays `c07e12a`; no Mac re-run needed. | **Open** |
+| m-5 | Minor | `Apps/TendAITestHost/Sources/SP1SpeechScreen.swift:137-145, 230-236` | `quickStopTry` is cleared at `:230`, before the 10 s "Look at the top of the screen now" countdown, while `busy` stays true. In that window [Stop] reaches `guard current != nil` and returns without calling `source.stop()` or printing anything. In round 2 it called `source.stop()` there. Round 2 told the Tester that [Stop] "works during and after the test", and SP-1 B5 is exactly when the owner looks for the orange dot. Each try now ends `finished` or is cancelled (and cancel tears the microphone down), so the lever matters only if that teardown itself goes wrong, and a dot that stays is already a Major under the B4/B5 rule. Not blocking. Also, between tries (the 1 s pause) [Stop] prints `try=<n>` for the try that has just ended; harmless. | Optional (any new code commit means a new `SP1-COMMIT` and a re-run of B5/D5): clear `quickStopTry` after the countdown (then [Stop] prints `quickstop|try=10|stop_tapped`, which is still the given format). Otherwise the Tester's B5 step must say: if the dot stays after the countdown, write "dot stayed" and close the app from the app switcher; do not rely on [Stop] there. | Open (non-blocking) |
+| m-6 | Minor | `project.yml:131-133` (`TendAIHostedTests`: `BUNDLE_LOADER: ""`); `docs/milestones/M2/dev-notes.md` round 4, "The link change now matters" | With `main` merged, the Keychain (`KeychainAPIKeyStoreHostedTests`, AC-M2-18, AC-M2-21) and transport (`CloudHTTPTransportHostedTests`, AC-M2-22, AC-M2-23) hosted tests run in a host that has its own copies of the packages. B5 prints 13 "Class … is implemented in both" runtime messages (TendAI, TendIngestion and TendCore classes). **Judgement: not a merge blocker; make it a ticket.** Why: (1) Swift code in each image binds to its own copy at link time, so every test exercises one self-consistent copy (the package code under test). (2) The only runtime lookup by class is `configuration.protocolClasses = [StubProtocol.self]` (`CloudHTTPTransportHostedTests.swift:121`), and `StubProtocol` lives only in the test bundle. No hosted test or `TendAI` source uses `NSClassFromString`, keyed archiving or `Bundle(for:)` (grep at `849d6db`). (3) The Keychain entitlement and access group come from the host process either way. (4) B5 passes 37/37 with both prefixes, and the product targets `Tend`/`TendEval` are not affected. (5) These are runtime messages, not compiler warnings (CLAUDE.md §3 "no warnings" is met: `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES` builds clean). The risk is for later: any hosted test that comes to depend on host code, host statics or ObjC lookup by name would see undefined class choice. The dev-notes text contradicts this, though: "must be undone or isolated before this branch's `project.yml` reaches `main`". | Developer, in the M-3 docs commit: reword that sentence to a ticket. Planner: ticket with owner and a due point, **before the M2 gate or before any hosted test uses host-side code or state, whichever comes first**. Fix is option (a) from round 2 (move the speech screen to its own never-shipped target and restore `BUNDLE_LOADER: "$(TEST_HOST)"` for the blank host) or option (b) (a DECISIONS entry; human merge, since `docs/governance/**` is protected). | Open (ticket) |
+| n-5 | Nit | `SP1SpeechScreen.swift:138-143` | A person's [Stop] during tries 6-10 before `transcriberChosen` does not set `stoppedAt`, so that try prints `firststop=planned` … `ms_stop_to_finished=none` with a real `finished=` outcome. The `stop_tapped` line just before it makes this readable. | None needed; the Tester reads a try right after a `quickstop|try=<n>|stop_tapped` line as information only (below). | Open |
+| I-5 | Info | `evidence/mac/SP-1-r3/`, `SP-1-r4/` logs | System log lines carry the Mac's local UTC offset, as every earlier Mac record on `main` does. Not on the MS-1 token list. Same handling as I-4 (PO/Documenter may decide for future records). | None for SP-1. | Info |
+
+## Printed format check (task item)
+
+At `c07e12a` the code prints exactly:
+- `SP1|seq=<n>|quickstop|try=<1-10>|when=<beforeChosen|atChosen>|firststop=<planned|timer>|finished=<outcome>|ms_stop_to_finished=<ms|none>|restops=<0-3>`
+  (`:225-227`; `emit` adds `SP1|seq=<n>|`; `finished` is `none` when no `finished` event came, i.e. the try was
+  cancelled after 3 re-stops; otherwise `transcribed`, `nothingHeard`, `unavailable(<r>)`, `stopped(<r>)` or
+  `cancelled`);
+- `SP1|seq=<n>|quickstop|done` (`:231`);
+- `SP1|seq=<n>|quickstop|try=<n>|stop_tapped` (`:140`), only while a try is set (see m-5 for after try 10).
+Match: yes. The quick stop test was not run in the Simulator (the panel cannot be tapped there; information only, as in
+round 2), so this is checked by reading the code, not from a log.
+
+## What the Acceptance Tester must change in `SP-1.md` (v2 on `origin/main`)
+
+1. **D4.6 example block (line 115):** replace the quickstop example with
+   `SP1|seq=..|quickstop|try=1|when=beforeChosen|firststop=planned|finished=nothingHeard|ms_stop_to_finished=40|restops=0`
+   and add, as optional, `SP1|seq=..|quickstop|try=<n>|stop_tapped` (only when [Stop] is tapped during the test).
+2. **D4.7 (lines 120-123):** add the per-try limit. If no `finished` comes within 5 s of the latest stop, the source is
+   stopped again, up to 3 times (`restops`), and then the try is cancelled (`finished=none`). If tries 6-10 see no
+   `transcriberChosen` within 5 s of their start, the timer makes the first stop (`firststop=timer`).
+   `ms_stop_to_finished` is always from the first stop to `finished`.
+3. **Decision rules, row "B4, B5 quick stop" (line 428).** For B5, every `quickstop|try=` line must have
+   `firststop=planned`, `restops=0`, a real `finished=` outcome (not `none`) and `ms_stop_to_finished` ≤ 2000. Then:
+   - `restops` ≥ 1, or `finished=none`, means a stop went unanswered for 5 s: same Major, owner Developer (WI-M2-M3;
+     P-4).
+   - `firststop=timer` on a try 6-10 means the transcriber was not chosen within 5 s, so that try did not test the
+     `transcriberChosen` window. Report it to the Developer as information, and judge the try's
+     `ms_stop_to_finished` the same way.
+   - A try that comes right after a `quickstop|try=<n>|stop_tapped` line is information only (n-5).
+   - **Delete the round-2 m-4 caveat** ("on a `when=atChosen` line, `restops=1` with `ms_stop_to_finished` < 5000 is a
+     probe artefact"). It no longer applies: from `ea3d195` on, any `restops` ≥ 1 is a real unanswered stop.
+4. **B5 owner step (lines 319-321).** "About 15 seconds" holds only when every stop works. If stops are dropped, the test
+   can take up to about 4-5 minutes (10 × 25 s). Tell the owner: wait for "Look at the top of the screen now", do not
+   close the app before then, and do not tap [Stop] during the test. If the dot is still there after the countdown,
+   write "dot stayed" and close the app from the app switcher. [Stop] does nothing in the countdown (m-5), unless the
+   Developer ships the m-5 fix and a new `SP1-COMMIT`.
+5. **Values table (line 176):** `SP1-COMMIT` = `c07e12a9647c7612b720a4d598d9f535870ca1b6` (record
+   `docs/milestones/M2/evidence/mac/SP-1-r4/`). The M-3 fix is docs-only and does not change it; only a new code commit
+   (for example for m-5) would. The owner's Part A/B commands are unchanged (the probe still runs with
+   `-only-testing:TendAIHostedTests/SP1TimingProbe`, so `main`'s Keychain/transport hosted tests do not run on the phone).
+6. **Part T at `c07e12a`.** I checked T1-T3 here, but the Tester must re-run them and record them:
+   - T1: `git merge-base --is-ancestor fad715a c07e12a` and `… 8c324a6 c07e12a` both succeed. The Tester must also
+     confirm that the PR #44 review of `8c324a6` (round 5) is APPROVE, since D1 needs "a round the Reviewer has
+     approved".
+   - T2: the `git grep` prints nothing.
+   - T3: `NSMicrophoneUsageDescription` is present and there is no `NSSpeechRecognitionUsageDescription`.
+   - T4: B5 at `SP-1-r4` is **37 tests in 6 suites** with the probe skipped (no longer 5 tests); D5.2 has 28 `SP1|`
+     lines.
+7. **B4 by hand:** no change (it uses `capture|n=` lines, unchanged; a second fast [Start] is refused, as in round 2).
+
+## Other checks (round 3)
+
+- **Evidence records.** `SP-1-r3`: `sha256sum -c` 23 of 23 OK, every file except README covered. B0 and D5 headers
+  print `ea3d195b1734df73117447756f95c3562671be63` with an empty porcelain, and both "after" files are empty. `SP-1-r4`:
+  23 of 23 OK, all files covered, headers print `c07e12a9647c7612b720a4d598d9f535870ca1b6`, clean before and after.
+  `timings.txt` in both: B1-B6 exit 0, eval archive exit 66 (expected, MS-1). `SP-1-r4` counts: B1 141/18, B2 580/68,
+  B4 96/17, B5 37/6 (`com.tend.aitesthost`), `d5-b5-custom-prefix.log` 37/6 with `TEND_BUNDLE_PREFIX =
+  org.example.owner` and bundle `org.example.owner.aitesthost`, `TEST SUCCEEDED`. No `✘` lines. The only `warning:`
+  lines are the AppIntents metadata notice.
+- **`c07e12a`.** Adds `import TendCore` and the `model(household: Household)` signature to the test-only
+  `UnavailableOnDevice`. Identical to the same helper on `origin/m2/on-device-adapter-v2` (empty diff). Test helper
+  only, no product code.
+- **Linux runs (this review, Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, at `849d6db`, read-only mount,
+  scratch `/tmp/sp1r3c` and `/tmp/sp1r3i` inside the container).** TendCore: "141 tests in 18 suites passed", exit 0,
+  0 `warning:` lines. TendIngestion: "580 tests in 68 suites passed", exit 0, 0 `warning:` lines. Same counts as Mac
+  B1/B2 in `SP-1-r4`. TendAI and the hosted bundle are Mac-only and are taken from the committed logs.
+- **Personal data.** I scanned the added lines of `e20ba9f..eca2327` and `eca2327..849d6db` (code, dev-notes, both
+  records; about 23 900 lines). No user home path (`$HOME`, `$SIM_DEVICE`, `$APP_CONTAINER` tokens). The only e-mail
+  is `noreply@anthropic.com`; `user@api.openai.com` is a test URL argument in main's transport test. No person's name
+  or user name, no team ID, no phone UDID, no signing identity. The UUIDs are URLSession task IDs and test fixtures.
+  I-4 and I-5 are as noted.
+- **Authorship.** `ea3d195`, `eca2327`, `88921e8`, `c07e12a`, `849d6db`: author and committer `Claude
+  <noreply@anthropic.com>`. The other commits in the range come in from `main`/PR #44 and were reviewed there.
+- **Frozen eval (D6).** No path under `Fixtures/` and no `MANIFEST.sha256`, `inputs.json`, `golden.json`,
+  `household.json` or `results-v1` in `git diff --name-only e20ba9f 849d6db`. `Fixtures/` is identical to
+  `origin/main`. The Part T2 `git grep` at `c07e12a` prints nothing. Pass.
+- **Swift 6.** The new state (`quickStopTry`, `firstStop`, `lastStopAt`) is main-actor only (`SP1SpeechModel`,
+  `QuickStopAttempt` are `@MainActor`; `lastStopAt`/`tryStart` are locals). The consumer task is `@MainActor`. Every
+  read after `Task.sleep` re-checks `attemptState.ended`. No new `@unchecked Sendable` or `nonisolated(unsafe)`. The
+  hosted build compiles with warnings as errors (B5).
+- **UX-3 words.** The new strings and identifiers (`firststop`, `timer`, `planned`, `stop_tapped`) contain no banned
+  word. "latest" appears only in code comments (not UI copy) and is not the word "late".
+- **No network, no new dependency.** No `URLSession`/`URLRequest` in `Apps/TendAITestHost`. No new package.
+
+## Checklist (round 3)
+- [x] Correctness vs ACs (SP-1 Part D): m-4/n-4 closed; printed format matches; D1 commit contents present (T1)
+- [x] Tests meaningful: scaffold test passes with two prefixes; no test changed or weakened in this range (only the `c07e12a` helper signature)
+- [x] Swift 6 concurrency safe
+- [x] No force unwraps / `try!` added
+- [x] Privacy (P-1…P-4): each try bounded and cancelled at worst; m-5 is a reduced fallback only
+- [x] UX-2/UX-3 (n.a. / no banned word)
+- [x] Accessibility (UI): not product UI
+- [x] Performance: n.a. (debug host)
+- [x] No new dependency without ADR (link model: m-6 ticket)
+- [ ] **Merge faithful and docs complete: no** (M-3, dev-notes lost WI-M2-M2 Law check, Handoff log and AC → test)
+
+## Law check (round 3)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Debug buttons in a never-shipped test host. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | New output fields and comments use no banned word (scanned: overdue, late, missed, failed, behind, penalty; "latest" in comments only). |
+| UX-4 Design craft | n.a. | Test host, not product UI (SP-1 Part D). |
+| P-1 On-device inference | pass | Unchanged; the speech adapter equals `8c324a6` (on-device `SpeechAnalyzer`); `FoundationModels` on device. |
+| P-2 No data leaves device (except user iCloud) | pass | No network code in the host. Main's transport hosted tests use `StubProtocol` only (timeouts in B5 are stubbed, no real request). No personal data in the records. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | n.a. | No cloud path in the probe; main's cloud code is unchanged by this branch. |
+| P-4 Media not persisted without consent | pass (with m-5 note) | Each quick-stop try is bounded and at worst cancelled, which tears the microphone down; nothing is stored. m-5: [Stop] is a no-op during the closing countdown, so the fallback there is closing the app. Device proof stays with SP-1 B4/B5 (AWAITING-DEVICE). |
+
+## Handoff log (round 3)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Orchestrator | Reviewer | accepted | Round 3 of `m2/sp1-probe` at `849d6db`: `e20ba9f..ea3d195`, merge `88921e8`, `88921e8..c07e12a`, records SP-1-r3/r4. |
+| 2026-11-27 | Reviewer | Orchestrator → Developer | returned | CHANGES REQUIRED: M-3 (restore the 61 lost WI-M2-M2 dev-notes lines from `origin/m2/on-device-adapter-v2` 5807-6023, drop the stray row, fix the "rebuilt by section" sentence, reword the link-change sentence per m-6). Docs only; `SP1-COMMIT` stays `c07e12a`. Optional m-5 (needs a new `SP1-COMMIT` and B5/D5 re-run). |
+| 2026-11-27 | Reviewer | Orchestrator → Planner | sent | m-6 ticket: undo or isolate `BUNDLE_LOADER: ""` before the M2 gate or before any hosted test uses host code/state; not a merge blocker. |
+| 2026-11-27 | Reviewer | Orchestrator → Acceptance Tester | sent | SP-1.md changes 1-7 above (format, D4.7, B4/B5 rule without the m-4 caveat, B5 duration and closing step, `SP1-COMMIT = c07e12a`, Part T incl. PR #44 round-5 approval, B5 37 tests). M-3 blocks the merge only, not the device run (the build `c07e12a` is unchanged by its fix); ready for the owner once these edits are in and the PR #44 round-5 review is APPROVE. |
