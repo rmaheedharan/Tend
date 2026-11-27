@@ -26,6 +26,8 @@ final class SP1SpeechModel {
     private var askedMicrophone = false
     private var current: Task<Void, Never>?
     private var starting = false
+    /// The quick stop test's current try, while it runs.
+    private var quickStopTry: Int?
     private var stopTappedAt: ContinuousClock.Instant?
 
     func emit(_ fields: String) {
@@ -133,7 +135,13 @@ final class SP1SpeechModel {
 
     /// [Stop]: stops the running capture, or the quick stop test's current try.
     func stop() {
-        guard current != nil || busy else { return }
+        if busy, let attempt = quickStopTry {
+            // During the quick stop test, [Stop] stops the current try (SP-1 review n-4).
+            emit("quickstop|try=\(attempt)|stop_tapped")
+            source.stop()
+            return
+        }
+        guard current != nil else { return }
         stopTappedAt = ContinuousClock.now
         emit("capture|n=\(captureNumber)|stop_tapped")
         source.stop()
@@ -141,8 +149,10 @@ final class SP1SpeechModel {
 
     /// Ten tries with the same source, 1 s apart: 1-5 stop right after the capture starts, 6-10 at
     /// `transcriberChosen` (the review PR #42 M1-r2 window). Each try has a time limit: if no `finished` arrives within
-    /// 5 s of the stop, the source is stopped again (up to 3 more times, counted as `restops`), and after that the
-    /// try is cancelled. The time is always measured from the first stop (SP-1 review M-1). [Stop] works meanwhile.
+    /// 5 s of the latest stop, the source is stopped again (up to 3 more times, counted as `restops`), and after that
+    /// the try is cancelled. If tries 6-10 see no `transcriberChosen` within 5 s of their start, the timer makes the
+    /// first stop (`firststop=timer`). The time is always from the first stop to `finished` (SP-1 review M-1, m-4).
+    /// [Stop] works meanwhile and prints `quickstop|try=<n>|stop_tapped` (n-4).
     func quickStopTest() async {
         guard current == nil, !busy, !starting else { return }
         busy = true
@@ -154,7 +164,9 @@ final class SP1SpeechModel {
         for attempt in 1...10 {
             let atChosen = attempt > 5
             let clock = ContinuousClock()
+            let tryStart = clock.now
             let attemptState = QuickStopAttempt()
+            quickStopTry = attempt
             let events = capture.events(from: source)
             if !atChosen {
                 attemptState.stoppedAt = clock.now
@@ -178,38 +190,44 @@ final class SP1SpeechModel {
                 }
                 attemptState.ended = true
             }
+            // The re-stop limit counts from the latest stop, never from the start of the try (SP-1 review m-4), so
+            // restops is above 0 only when a stop really went unanswered for 5 s.
             var restops = 0
-            var waited = Duration.zero
+            var lastStopAt = attemptState.stoppedAt
             while !attemptState.ended {
                 try? await Task.sleep(for: .milliseconds(50))
-                waited += .milliseconds(50)
-                guard attemptState.stoppedAt != nil || waited >= .seconds(5) else { continue }
-                if attemptState.stoppedAt == nil {
-                    // The transcriber was never chosen within 5 s: stop now.
-                    attemptState.stoppedAt = clock.now
-                    source.stop()
-                    waited = .zero
+                if attemptState.ended { break }
+                guard let since = lastStopAt ?? attemptState.stoppedAt else {
+                    // No planned stop yet (tries 6-10 wait for transcriberChosen): after 5 s the timer stops instead.
+                    if tryStart.duration(to: clock.now) >= .seconds(5) {
+                        attemptState.stoppedAt = clock.now
+                        attemptState.firstStop = "timer"
+                        lastStopAt = attemptState.stoppedAt
+                        source.stop()
+                    }
                     continue
                 }
-                if waited >= .seconds(5) {
-                    if restops == 3 {
-                        consumer.cancel()
-                        break
-                    }
-                    restops += 1
-                    source.stop()
-                    waited = .zero
+                lastStopAt = since
+                guard since.duration(to: clock.now) >= .seconds(5) else { continue }
+                if restops == 3 {
+                    consumer.cancel()
+                    break
                 }
+                restops += 1
+                lastStopAt = clock.now
+                source.stop()
             }
             await consumer.value
             var ms: Int?
             if let stopped = attemptState.stoppedAt, let finished = attemptState.finishedAt {
                 ms = Self.ms(stopped.duration(to: finished))
             }
-            emit("quickstop|try=\(attempt)|when=\(atChosen ? "atChosen" : "beforeChosen")|finished=\(attemptState.outcome)"
-                 + "|ms_stop_to_finished=\(ms.map(String.init) ?? "none")|restops=\(restops)")
+            emit("quickstop|try=\(attempt)|when=\(atChosen ? "atChosen" : "beforeChosen")|firststop=\(attemptState.firstStop)"
+                 + "|finished=\(attemptState.outcome)|ms_stop_to_finished=\(ms.map(String.init) ?? "none")"
+                 + "|restops=\(restops)")
             try? await Task.sleep(for: .seconds(1))
         }
+        quickStopTry = nil
         emit("quickstop|done")
         for remaining in stride(from: 10, through: 1, by: -1) {
             countdown = remaining
@@ -224,6 +242,9 @@ final class SP1SpeechModel {
 final class QuickStopAttempt {
     var stoppedAt: ContinuousClock.Instant?
     var finishedAt: ContinuousClock.Instant?
+    /// `planned`: the try's own stop (at once for 1-5, at transcriberChosen for 6-10); `timer`: no transcriberChosen
+    /// came within 5 s of the try's start, so the timer made the first stop.
+    var firstStop = "planned"
     var outcome = "none"
     var ended = false
 }
