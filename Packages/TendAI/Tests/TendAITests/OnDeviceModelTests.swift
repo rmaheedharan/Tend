@@ -150,12 +150,9 @@ struct OnDeviceModelTests {
         // Cumulative, in call order: each snapshot carries a prefix of the final list that holds the call made before
         // its answer (the list is read when the snapshot is made, so it may already hold a later call), and the last
         // snapshot carries both calls.
+        // Since the R-1 (a) ruling only the first call is answered and recorded, so every snapshot carries ["pods"].
         #expect(snapshots.count == 2)
-        for snapshot in snapshots {
-            #expect(Array(["pods", "garage"].prefix(snapshot.lookupQueries.count)) == snapshot.lookupQueries)
-            #expect(snapshot.lookupQueries.first == "pods")
-        }
-        #expect(snapshots.last?.lookupQueries == ["pods", "garage"])
+        #expect(snapshots.allSatisfy { $0.lookupQueries == ["pods"] })
         #expect(snapshots.last?.items.first?.title == "Buy pods")
     }
 

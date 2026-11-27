@@ -84,14 +84,17 @@ struct DuplicateLookupToolTests {
         #expect(Set((object["properties"] as? [String: Any])?.keys.map { $0 } ?? []) == ["title", "kind", "room"])
     }
 
-    @Test("The Tool records each query in call order, reads only its household, and never changes it (Q7)")
+    @Test("The Tool records the answered query, reads only its household, and never changes it (Q7)")
     func recordsQueries() async throws {
         let household = try LookupHouseholds.big()
         let recorder = DuplicateLookupRecorder(household: household)
         let tool = DuplicateLookupTool(recorder: recorder)
         _ = try await tool.call(arguments: .init(query: "pods"))
         _ = try await tool.call(arguments: .init(query: "garage"))
-        #expect(await recorder.queries == ["pods", "garage"])
+        // Since the PO's R-1 ruling (a) only the first call of a capture is answered and recorded
+        // (`OnDeviceFollowUpTests` covers the refusal).
+        #expect(await recorder.queries == ["pods"])
+        #expect(await recorder.refusedCalls == 1)
         #expect(await recorder.household == household)
         // Another household's tasks never appear.
         let other = DuplicateLookupTool(recorder: DuplicateLookupRecorder(household: Household(tasks: [], rooms: [])))

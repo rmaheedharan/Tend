@@ -100,8 +100,14 @@ final class ScriptedGeneration: OnDeviceGeneration {
     let steps: [GenerationStep]
     let log: GenerationLog
     let tool: DuplicateLookupTool
+    let cancelBehaviour: CancelBehaviour
 
-    init(household: Household, steps: [GenerationStep], log: GenerationLog) {
+    /// What the scripted framework does when the parse is cancelled while it hangs.
+    enum CancelBehaviour: Sendable { case endQuietly, throwOnCancel }
+
+    init(household: Household, steps: [GenerationStep], log: GenerationLog,
+         cancelBehaviour: CancelBehaviour = .endQuietly) {
+        self.cancelBehaviour = cancelBehaviour
         let recorder = DuplicateLookupRecorder(household: household)
         self.recorder = recorder
         self.steps = steps
@@ -118,6 +124,7 @@ final class ScriptedGeneration: OnDeviceGeneration {
         let steps = steps
         let tool = tool
         let log = log
+        let script = self
         let task = Task {
             for step in steps {
                 switch step {
@@ -130,7 +137,9 @@ final class ScriptedGeneration: OnDeviceGeneration {
                     continuation.finish(throwing: error)
                     return
                 case .hang:
-                    while !Task.isCancelled { await Task.yield() }
+                    // Waits without spinning; cancellation ends the sleep (review PR #41 n3).
+                    while !Task.isCancelled { try? await Task.sleep(for: .seconds(3_600)) }
+                    if case .throwOnCancel = script.cancelBehaviour { continuation.finish(throwing: CancellationError()) }
                     return
                 }
             }
@@ -162,10 +171,10 @@ enum OnDeviceFixtures {
     }
 
     /// A model over a scripted generation for `household`.
-    static func model(household: Household, steps: [GenerationStep],
-                      log: GenerationLog = GenerationLog()) -> OnDeviceIngestionModel {
+    static func model(household: Household, steps: [GenerationStep], log: GenerationLog = GenerationLog(),
+                      cancelBehaviour: ScriptedGeneration.CancelBehaviour = .endQuietly) -> OnDeviceIngestionModel {
         OnDeviceIngestionModel(household: household, prepared: PreparedGenerations()) { household in
-            ScriptedGeneration(household: household, steps: steps, log: log)
+            ScriptedGeneration(household: household, steps: steps, log: log, cancelBehaviour: cancelBehaviour)
         }
     }
 

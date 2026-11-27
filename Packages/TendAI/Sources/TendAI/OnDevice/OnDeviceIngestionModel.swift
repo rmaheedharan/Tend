@@ -112,8 +112,10 @@ struct OnDeviceIngestionModel: IngestionModel {
                     }
                     continuation.finish()
                 } catch {
-                    if Task.isCancelled || error is CancellationError {
-                        // A cancelled parse is not a model stop (the pipeline reports `cancelled`).
+                    if Task.isCancelled {
+                        // A parse the consumer cancelled is not a model stop (the pipeline reports `cancelled`). A
+                        // `CancellationError` the framework throws while this parse is not cancelled is a stop like
+                        // any other (`otherModelError`: interrupted after a draft, noModel before one; review PR #41 m1).
                         continuation.finish()
                     } else {
                         continuation.finish(throwing: OnDeviceStopMapping.reason(for: error))

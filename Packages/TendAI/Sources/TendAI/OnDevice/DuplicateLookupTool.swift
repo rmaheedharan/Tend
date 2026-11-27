@@ -27,17 +27,30 @@ struct OnDeviceLookupTask: Equatable {
     var room: String?
 }
 
-/// The parse's lookups, in call order (one per Tool call).
+/// The parse's lookups. **At most one call per capture is answered** (PO R-1 ruling, option (a)): the first call gets
+/// exactly the shortlist and is recorded; every later call gets no entries and is not recorded, so the duplicate rules
+/// replay exactly what the model was shown (D1). A repeat the model could only have found with a later call is still
+/// marked by the word-match floor (WI-M2-07 ruling 1).
 actor DuplicateLookupRecorder {
+    /// The most Tool calls answered in one capture.
+    static let answeredCallLimit = 1
+
     private var log: DuplicateLookupLog
+    /// Calls after the limit (not answered, not recorded). Information for the probes and tests.
+    private(set) var refusedCalls = 0
 
     init(household: Household) {
         log = DuplicateLookupLog(household: household)
     }
 
-    /// One Tool call: exactly `DuplicateLookup.entries(for: query, in: household)`, recorded.
-    func lookUp(_ query: String) -> [DuplicateLookupEntry] {
-        log.lookUp(query)
+    /// One Tool call: exactly `DuplicateLookup.entries(for: query, in: household)`, recorded, while under the limit;
+    /// otherwise nil.
+    func lookUp(_ query: String) -> [DuplicateLookupEntry]? {
+        guard log.queries.count < Self.answeredCallLimit else {
+            refusedCalls += 1
+            return nil
+        }
+        return log.lookUp(query)
     }
 
     /// Every query so far, in call order (`IngestionSnapshot.lookupQueries`).
@@ -49,19 +62,20 @@ actor DuplicateLookupRecorder {
 
 struct DuplicateLookupTool: Tool {
     let name = OnDeviceInstructions.toolName
-    let description = "Finds tasks already on the person's list that match a few words. Returns the title, kind and "
-        + "room of each."
+    let description = "Finds tasks already on the person's list that match some words. Call it once, with the main "
+        + "words of every chore together. Returns the title, kind and room of each."
 
     @Generable
     struct Arguments {
-        @Guide(description: "The chore's main words, such as dishwasher pods.")
+        @Guide(description: "The main words of every chore in the capture, such as dishwasher pods AC service.")
         var query: String
     }
 
     let recorder: DuplicateLookupRecorder
 
     func call(arguments: Arguments) async throws -> OnDeviceLookupResult {
-        Self.result(await recorder.lookUp(arguments.query))
+        // A call after the first is answered with no entries (the one-call rule above).
+        Self.result(await recorder.lookUp(arguments.query) ?? [])
     }
 
     /// The model-facing form of the entries, field for field.
