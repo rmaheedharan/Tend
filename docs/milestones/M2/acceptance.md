@@ -126,7 +126,7 @@ the named subset?"* Read the profile rules in the tool's usage and ran the score
 
 ### Read this first (both scripts)
 
-**What you need.** The Mac with Xcode 26 (MacBook Air M4 or Mac mini M1), a free Apple Developer account (your Apple
+**What you need.** The Mac with Xcode 26 or later (MacBook Air M4 or Mac mini M1; the Mac mini has Xcode 27.2), a free Apple Developer account (your Apple
 ID), the iPhone 15 Pro and the iPhone 13, both on iOS 26, both with a Lightning or USB-C cable. A quiet room for the
 voice inputs. About 2 hours for DS-1 and 3 hours for DS-2.
 
@@ -246,8 +246,8 @@ network. None has a repeat inside the input; that case is gated on all 20 inputs
 
 #### Part C: quick stop, and stop then start again (review PR #42 M1 / M1-r2; AC-M2-11 voice path; P-4), about 5 minutes
 Do this after Part B, with Airplane Mode off. Use TendEval's **[Record]** and **[Stop]** on a capture that is **not**
-written to any results file (the Tester confirms the control for this with the WI-M2-M7 build, AQ-1). Do not speak in
-steps 11 and 12.
+written to any results file (the Tester confirms the control for this with the WI-M2-M7 build, AQ-1). Do not speak
+during a quick stop (step 11, and the first capture in step 12).
 11. **Quick stop by hand (3 times).** Tap **[Record]** and then **[Stop]** at once, as fast as you can. Look at the top
     of the screen: the small **orange dot** (or the microphone sign in the Dynamic Island) must go away within
     **3 seconds** and stay away for **10 seconds**. TendEval must show the capture as ended. Write down, for each time,

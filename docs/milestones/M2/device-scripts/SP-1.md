@@ -2,6 +2,7 @@
 
 - **Owner:** Acceptance Tester  ·  **Run by:** the human owner  ·  **Date written:** 2026-11-27  ·  **Base:** `origin/main`
   `41bf8fa`, branch `m2/sp1-device-script`
+- **Version:** v2 (2026-11-27), answers review PR #48 round 1 (M1, m1-m4, n1, n2, i1, i2).
 - **Status:** READY FOR THE DEVELOPER (Part D below). The owner runs it only after the Tester has filled in the
   "Values" table and done the pre-run checks (Part T).
 - **What it is:** a short spike that answers R-1: "is the on-device time to first item (TTFI) under 1.5 s on the real
@@ -39,7 +40,9 @@ say so in the PR and name both heads.
    `TendAIHostedTests` become `$(TEND_BUNDLE_PREFIX).aitesthost` and `$(TEND_BUNDLE_PREFIX).aihostedtests`. A free
    Apple account needs bundle IDs that nobody else has used, so the owner passes his own prefix on the command line
    (Q20). Using the same setting for `Tend` and `TendEval` is recommended (MS-3 needs it too), but SP-1 needs only these
-   two.
+   two. The scaffold test that checks `Bundle.main.bundleIdentifier == "com.tend.aitesthost"`
+   (`TendAIHostedScaffoldTests`) must compare against the prefix setting instead (for example an `Info.plist` value set
+   from `TEND_BUNDLE_PREFIX`), so the whole bundle still passes with the owner's prefix (review PR #48 n2).
 2. `TendAITestHost` gets `INFOPLIST_KEY_NSMicrophoneUsageDescription` with one short calm sentence (for example
    "TendAITestHost uses the microphone to test voice capture. Nothing is saved."). No banned word (UX-3).
 3. **No** `NSSpeechRecognitionUsageDescription` in any target. Reason: T-27 says the speech-recognition permission is
@@ -47,7 +50,10 @@ say so in the PR and name both heads.
    it. Do not add the key "to be safe".
 4. B5 and B6 still pass unchanged (the probe is skipped in B5; `Tend` Release and Archive still hold no `TendEval`).
 
-**D3. The timing probe: a hosted test `SP1TimingProbe`** (file `Packages/TendAI/HostedTests/SP1TimingProbe.swift`).
+**D3. The timing probe: a Swift Testing suite `@Suite struct SP1TimingProbe`** (as in `TendAIHostedScaffoldTests`;
+file `Packages/TendAI/HostedTests/SP1TimingProbe.swift`). It must be a type, so that
+`-only-testing:TendAIHostedTests/SP1TimingProbe` selects it (a bare `@Test func` would need `.../SP1TimingProbe()`;
+review PR #48 m4).
 1. **Off by default.** It runs only when the environment variable `TEND_SP1` is `1` (set by the owner with
    `TEST_RUNNER_TEND_SP1=1`, which `xcodebuild` passes to the test process). In B5 it reports as skipped.
 2. **Inputs: the Developer dev set only.** The 8 captures and the household (8 tasks, 3 rooms) of
@@ -130,7 +136,20 @@ say so in the PR and name both heads.
 5. Record D5 in `dev-notes.md` (information only) and give the Tester `SP1-COMMIT`.
 
 **D6. Do not change** the frozen eval, any `@Guide` text or instruction (option (b) is on HOLD, PO ruling), or the
-one-call rule, to make SP-1 look better.
+one-call rule, to make SP-1 look better. `SP1-COMMIT` is the baseline: the shipping setup with option (a), nothing else.
+
+**D7. Optional variant build (the PO's technical alternative; review PR #48 m3).** The PO ruling allows the Developer to
+try, in SP-1, stating the shared meanings once in the on-device session instructions or a prewarmed prompt prefix instead
+of in each `@Guide`, if the `isCritical` sentence parity test still compares the same sentences and the cloud bytes are
+unchanged. If you want this tried, give it as a **separate commit** `SP1-VARIANT-COMMIT` (branch `m2/sp1-variant`, not
+merged), on top of `SP1-COMMIT`, so the baseline stays exactly the shipping setup. Rules:
+1. Its probe header line adds `variant=sessionInstructions` (or `variant=prewarmedPrefix`); every other line is the same
+   shape as D3.
+2. No change under `Fixtures/`, including `Fixtures/M2/payload/golden/` and `Fixtures/M2/eval/`; B2 (AC-M2-20 golden
+   bytes) passes unchanged; the parity test passes unchanged; the one-call rule is unchanged.
+3. The meanings (po-m2-wi16 rulings 3, 4, 5, 9 and EC-Q8) are word for word the same sentences, only moved.
+4. It is information only. It never decides R-1, and it is not merged because of SP-1 without a PO ruling.
+If you do not provide D7, the owner skips Part V.
 
 ---
 
@@ -143,6 +162,8 @@ one-call rule, to make SP-1 look better.
 - T3. `project.yml` at `SP1-COMMIT` has `NSMicrophoneUsageDescription` for `TendAITestHost` and no
   `NSSpeechRecognitionUsageDescription` anywhere.
 - T4. D5 is recorded: B5 passes with the probe skipped; the line format above appears in the dry-run log.
+- T4b. Only if D7 exists: `git diff --stat SP1-COMMIT SP1-VARIANT-COMMIT` lists no path under `Fixtures/`; the
+  Developer's B2 and parity-test logs at `SP1-VARIANT-COMMIT` pass; the moved meaning sentences are the same words.
 - T5. Fill in the "Values" table and correct any command the Developer reported in D5.4. Then tell the Orchestrator
   "SP-1 ready for the owner".
 
@@ -153,6 +174,7 @@ one-call rule, to make SP-1 look better.
 | Name | Value |
 |---|---|
 | `SP1-COMMIT` (the commit to build) | *to be filled in* |
+| `SP1-VARIANT-COMMIT` (optional, D7; empty = skip Part V) | *to be filled in, or "none"* |
 | Dev-set source | `devset-main.swift` (PR #43 evidence), 8 inputs `dev1`-`dev8` |
 
 The owner picks two more values on the day (they are **not** written into this file or into any committed file):
@@ -192,6 +214,8 @@ hold only the `SP1|` lines.
      ```
      It prints a line with `OU=` and 10 letters and numbers, for example `OU=AB12CD34EF`. Those 10 characters are your
      `TEAM`. Do not paste the line anywhere else.
+     If you have more than one Apple ID or team in Xcode, this may show the wrong one. Then use the Team ID shown for
+     your **Personal Team** in Xcode → Settings → Accounts instead (review PR #48 n1).
 - [ ] S6. **Connect the iPhone.** Plug it into the Mac with the cable. Unlock it. If it asks **"Trust This
   Computer?"**, tap **Trust** and type your passcode. In Xcode, open **Window → Devices and Simulators** and wait until
   the iPhone is shown as ready (the first time this can take some minutes).
@@ -208,8 +232,18 @@ hold only the `SP1|` lines.
   ```bash
   PREFIX=com.yourword.tend
   TEAM=AB12CD34EF
-  mkdir -p ~/tend-sp1-out
+  mkdir -p ~/tend-sp1-out build/results
   xcodegen generate --spec project.yml
+  sp1run() {
+    if [ -e ~/tend-sp1-out/full-$1.log ] || [ -e build/results/SP1-$1.xcresult ]; then
+      echo "The name $1 is already used. Use a new name, for example $1""b."; return 1
+    fi
+    TEST_RUNNER_TEND_SP1=1 xcodebuild test -project Tend.xcodeproj -scheme TendAIHostedTests \
+      -destination "platform=iOS,id=$DEV" -only-testing:TendAIHostedTests/SP1TimingProbe \
+      -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+      DEVELOPMENT_TEAM="$TEAM" TEND_BUNDLE_PREFIX="$PREFIX" \
+      -resultBundlePath "build/results/SP1-$1.xcresult" 2>&1 | tee ~/tend-sp1-out/full-$1.log
+  }
   xcodebuild -showdestinations -project Tend.xcodeproj -scheme TendAIHostedTests | grep 'platform:iOS,'
   ```
   The last command lists your iPhone like `{ platform:iOS, arch:arm64e, id:00008130-…, name:… }`. Copy the text after
@@ -218,6 +252,11 @@ hold only the `SP1|` lines.
   DEV=00008130-paste-your-id-here
   ```
   (Do not use a line that says "Any iOS Device" or "Simulator".)
+
+  `sp1run` is a short name for the long test command. You give it a **name for each try**, for example `sp1run run1`.
+  **Every try gets a new name**, and no file is ever overwritten: if you have to try again, add a letter (`run0b`, then
+  `run0c`; `run1b`; `run2b`). If you use a name twice, it stops and tells you. Write every name you used in the run
+  record. (If you open a new Terminal window, do S9 again first.)
 - [ ] S10. **Mac header** (for the record):
   ```bash
   { git rev-parse HEAD; git status --porcelain; sw_vers; xcodebuild -version; } > ~/tend-sp1-out/sp1-mac-header.txt
@@ -227,38 +266,34 @@ hold only the `SP1|` lines.
 
 The phone stays plugged in and unlocked for all of Part A. Do not use it while a run is going.
 
-- [ ] A1. **Run 0 (install and trust).** Paste:
+- [ ] A1. **Run 0 (install and trust).** Type:
   ```bash
-  TEST_RUNNER_TEND_SP1=1 xcodebuild test -project Tend.xcodeproj -scheme TendAIHostedTests \
-    -destination "platform=iOS,id=$DEV" -only-testing:TendAIHostedTests/SP1TimingProbe \
-    -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
-    DEVELOPMENT_TEAM="$TEAM" TEND_BUNDLE_PREFIX="$PREFIX" \
-    -resultBundlePath build/results/SP1-run0.xcresult 2>&1 | tee ~/tend-sp1-out/full-run0.log
+  sp1run run0
   ```
   - If it stops and says the developer is **not trusted**, or the iPhone says **"Untrusted Developer"**: on the iPhone
     go to Settings → General → **VPN & Device Management** → under **Developer App** tap your Apple ID → **Trust**.
-    Then paste the same command again.
+    Then try again with a new name: `sp1run run0b` (next time `run0c`).
   - If it shows a red error about the bundle identifier ("not available" or "cannot be registered"), pick another word
-    in S4, set `PREFIX` again, and paste the command again.
+    in S4, set `PREFIX` again, and try again with a new name (`sp1run run0b`).
   - If it ends with `** TEST SUCCEEDED **`, Run 0 is done. Any other ending: copy the last 30 lines into a text file
     and tell the Orchestrator.
 - [ ] A2. **Restart the iPhone** (hold the side button and a volume button → slide to power off → turn it on again).
   Unlock it. Wait **2 minutes** with the screen on. (This makes Run 1 a true cold start.)
-- [ ] A3. **Run 1.** Paste the same command with `run1` in both names:
+- [ ] A3. **Run 1.** Type:
   ```bash
-  TEST_RUNNER_TEND_SP1=1 xcodebuild test -project Tend.xcodeproj -scheme TendAIHostedTests \
-    -destination "platform=iOS,id=$DEV" -only-testing:TendAIHostedTests/SP1TimingProbe \
-    -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
-    DEVELOPMENT_TEAM="$TEAM" TEND_BUNDLE_PREFIX="$PREFIX" \
-    -resultBundlePath build/results/SP1-run1.xcresult 2>&1 | tee ~/tend-sp1-out/full-run1.log
+  sp1run run1
   ```
-- [ ] A4. **Run 2**, right after Run 1 (no restart): the same command with `run2` in both names.
+- [ ] A4. **Run 2**, right after Run 1 (no restart): `sp1run run2`.
+  If Run 1 or Run 2 has to be repeated (see "Run valid?" below: hot phone, Low Power Mode on, wrong build, or a
+  cable or trust problem), wait 10 minutes and use a new name: `sp1run run1b` or `sp1run run2b`. Keep the old files.
 - [ ] A5. **Make the short files** (only the `SP1|` lines):
   ```bash
-  for r in run0 run1 run2; do grep -o 'SP1|.*' ~/tend-sp1-out/full-$r.log > ~/tend-sp1-out/sp1-$r.txt; done
+  for f in ~/tend-sp1-out/full-run*.log; do n=$(basename "$f" .log); n=${n#full-}; grep -o 'SP1|.*' "$f" > ~/tend-sp1-out/sp1-$n.txt; done
   wc -l ~/tend-sp1-out/sp1-run*.txt
   ```
-  Each of `sp1-run1.txt` and `sp1-run2.txt` should have about 28 lines. If one has 0 lines, tell the Orchestrator.
+  This makes one short file for **every** try (for example `sp1-run0.txt`, `sp1-run0b.txt`, `sp1-run1.txt`,
+  `sp1-run2.txt`). Each finished Run 1 or Run 2 file should have about 28 lines. If one has 0 lines, do not run again;
+  tell the Orchestrator (the Tester can take the lines from the kept result bundle).
 
 ### Part B: speech (about 10 minutes; you tap and speak)
 
@@ -268,6 +303,7 @@ The phone stays plugged in and unlocked for all of Part A. Do not use it while a
     2>&1 | tee ~/tend-sp1-out/full-speech.log
   ```
   The **TendAITestHost** app opens on the iPhone with the buttons. Leave the Terminal window open.
+  If you have to open it again later, use a new file name (`full-speech-b.log`) so nothing is overwritten.
 - [ ] B2. Tap **[Speech status]**. If the line says `assetsNotInstalled`, tap **[Get speech model]**, wait until it says
   done, then tap **[Speech status]** again. It should say `ready(...)`.
 - [ ] B3. **First capture: the permission prompt (T-27).** Tap **[Start]**. Watch the screen carefully.
@@ -293,19 +329,32 @@ The phone stays plugged in and unlocked for all of Part A. Do not use it while a
   **Control-C** to end.
 - [ ] B9. Make the short file:
   ```bash
-  grep -o 'SP1|.*' ~/tend-sp1-out/full-speech.log > ~/tend-sp1-out/sp1-speech.txt; wc -l ~/tend-sp1-out/sp1-speech.txt
+  for f in ~/tend-sp1-out/full-speech*.log; do n=$(basename "$f" .log); n=${n#full-}; grep -o 'SP1|.*' "$f" > ~/tend-sp1-out/sp1-$n.txt; done
+  wc -l ~/tend-sp1-out/sp1-speech*.txt
   ```
   If it has 0 lines, keep the screenshot; it is enough for Part B.
 
 Say only the printed sentences while recording. If you said anything else, tell the Orchestrator before you send the
 files.
 
+### Part V: variant build (optional, about 15 minutes; only if the Values table names `SP1-VARIANT-COMMIT`)
+
+Do this last, after Part B, never before Run 1 and Run 2 (the baseline decides R-1). If the table says "none", skip it.
+- [ ] V1. In Terminal: `git switch --detach SP1-VARIANT-COMMIT && git status --porcelain` (must print nothing), then
+  `xcodegen generate --spec project.yml`, then
+  `{ git rev-parse HEAD; git status --porcelain; } > ~/tend-sp1-out/sp1-mac-header-variant.txt`.
+- [ ] V2. Restart the iPhone, unlock it, wait 2 minutes (as A2).
+- [ ] V3. `sp1run runv1`, then right after `sp1run runv2`. New names for any retry (`runv1b`, ...).
+- [ ] V4. Make the short files with the A5 loop again (it also makes `sp1-runv1.txt` and `sp1-runv2.txt`).
+- [ ] V5. Go back to the baseline: `git switch --detach SP1-COMMIT`.
+
 ### Send the results
 
 - [ ] R1. Set **Auto-Lock** back to what you had. You can unplug the iPhone.
 - [ ] R2. Send these to the Orchestrator (for example: copy them into the Tend folder
   `docs/milestones/M2/evidence/device/SP-1/` and say "SP-1 files are in"; you do not need to commit):
-  `sp1-mac-header.txt`, `sp1-run0.txt`, `sp1-run1.txt`, `sp1-run2.txt`, `sp1-speech.txt`, the screenshot, and your
+  **every** `sp1-*.txt` file in `~/tend-sp1-out` (all tries, also the ones that did not finish, and the variant ones if
+  you did Part V), the screenshot, and your
   notes (the run record below). **Do not send** the `full-*.log` files unless the Tester asks; they may hold your name.
   The Tester checks every file for personal data before the agent commits it.
 
@@ -316,8 +365,9 @@ files.
 | Who ran it (initials only); date; start time (local) | |
 | iPhone model (should be iPhone 15 Pro, `iPhone16,1` in the header line) | |
 | Bundle prefix chosen (S4) | |
-| Run 0: ended with `TEST SUCCEEDED`? Any trust or bundle steps needed? | |
-| Run 1 and Run 2: ended with `TEST SUCCEEDED`? | |
+| Run 0: every name used (`run0`, `run0b`, ...); which ended with `TEST SUCCEEDED`? Any trust or bundle steps needed? | |
+| Run 1 and Run 2: every name used; which ended with `TEST SUCCEEDED`? Why was any try repeated? | |
+| Part V done? Names used (`runv1`, `runv2`, ...) | |
 | B3: every message seen at the first **[Start]**, exact words. Any "Speech Recognition" message? Did the app close? | |
 | B4: dot gone / dot stayed (3 times) | |
 | B5: dot gone / dot stayed | |
@@ -334,7 +384,13 @@ files.
 2. `sp1-mac-header.txt`: the commit is `SP1-COMMIT` and `git status --porcelain` printed nothing.
 3. Each run file: the header says `device=iPhone16,1` and `model=available`; drop any line repeated with the same `seq`
    (an `xcodebuild` echo), and nothing else.
-4. Write the SP-1 result into `acceptance.md` as an **information-only** note under R-1 (not in the AC Results table),
+   If a short file has 0 lines but its run finished, take the lines from the kept result bundle
+   (`xcrun xcresulttool get log --type console --path build/results/SP1-<name>.xcresult`, or the Xcode 27.2 form
+   checked in D5.4) instead of asking for a re-run (review PR #48 i1). Only the `SP1|` lines are kept from it.
+5. **Which try counts.** For Run 1 and for Run 2, the **first valid try** counts (the first of `run1`, `run1b`, ...
+   that meets "Run valid?"). Earlier tries are kept and listed with their reason; later tries are not made once a valid
+   one exists. Variant tries (`runv*`) are reported in their own block and never mixed with the baseline.
+6. Write the SP-1 result into `acceptance.md` as an **information-only** note under R-1 (not in the AC Results table),
    with who, when, device, iOS build and `SP1-COMMIT`. AC-M2-16 stays AWAITING-DEVICE whatever SP-1 shows.
 
 ## Decision rules (from the PO R-1 ruling 2026-11-27; brief Q4)
@@ -342,7 +398,13 @@ files.
 **Run valid?** Run 1 and Run 2 each count only if: the header shows `iPhone16,1`, `model=available`, `lowPower=false`;
 the header and footer `thermal` are `nominal` or `fair`; every capture's outcome is `completed`; and the build is
 `SP1-COMMIT`. If a run is not valid for an environment reason (hot phone, Low Power Mode, wrong build), the owner waits
-10 minutes and runs it again; every file is kept (brief "Device-run rules" 4). Run 0 is information only.
+10 minutes and runs it again under a **new name** (`run1b`, `run2b`); every file is kept (brief "Device-run rules"
+4). Run 0 is information only.
+
+**A capture that is not `completed` on a clean phone** (no environment reason: the phone is cool, Low Power Mode off,
+the right build; for example a model error or a `timeout`) is **not** a reason to run again. That run is kept and
+reported to the Developer and the PO with all its numbers, and R-1 is **not met** until they rule (review PR #48 m2).
+A run is never repeated to get better numbers.
 
 **R-1 (timing).** Measured over the **48 warm captures** of Run 1 and Run 2 together (24 each). Each capture counts on
 its own, not an average (brief Q4).
@@ -351,6 +413,7 @@ its own, not an average (brief Q4).
 | **Every** warm `ttfi_ms` < 1500 | R-1 is **closed**; options (b) and (c) are closed (PO ruling (d)). |
 | **Any** warm `ttfi_ms` ≥ 1500, or any `timeout` | Not met. The Tester sends all numbers to the **PO**. Next step is option (b) (shorter guide sentences, PO approves the exact text). If it still is not met after (b), it goes to the **human owner**. Only the owner can change AC-M2-16. |
 | Cold `ttfi_ms` (Run 0, 1, 2) | Information only (as AC-M2-16's cold start). Reported, never decides R-1. |
+| Variant runs (`runv1`, `runv2`, Part V) | Information only, reported next to the baseline. They never close R-1. If the baseline is not met and the variant meets the rule, the PO decides whether to take the variant forward (PO ruling (b), "technical alternative"). |
 | Any warm `total_ms` > 5000 | Reported to the PO as a separate finding: AC-M2-16 also needs total ≤ 5.0 s. It does not change the R-1 rule above; the PO rules on it. |
 
 **One-call rule (AC-M2-07, PR #43).** Every capture must show `tool_answered` ≤ 1. A capture with 2 or more is a defect
@@ -390,3 +453,5 @@ These speech checks are spikes too. DS-1 (TendEval) repeats them on the gate bui
 | 2026-11-27 | Acceptance Tester | Orchestrator → Developer | sent | Part D (D1-D6): `m2/sp1-probe` with the timing probe, the speech screen, `TEND_BUNDLE_PREFIX`, the microphone usage sentence, and the D5 dry run. |
 | 2026-11-27 | Acceptance Tester | Orchestrator → human owner | pending | Q20: pick the bundle prefix (S4) and use the Personal Team. Run SP-1 after the Tester says "SP-1 ready for the owner". |
 | 2026-11-27 | Acceptance Tester | Orchestrator → PO | sent (info) | SP-1 uses the brief Q4 rule "each input, not an average" for R-1 (every warm TTFI < 1500 ms). A total > 5000 ms is reported to the PO separately. |
+| 2026-11-27 | Reviewer (via Orchestrator) | Acceptance Tester | accepted | Review PR #48 round 1 CHANGES REQUIRED (`review-pr48.md`). |
+| 2026-11-27 | Acceptance Tester | Orchestrator → Reviewer | sent | v2. M1: `sp1run <name>` gives each try its own result bundle and log, refuses a used name, retries use `run0b`/`run1b`/`run2b`, A5 and B9 loop over every log, R2 sends every short file, the Tester counts the first valid try. m1: DS-1 Part C wording. m2: a non-`completed` outcome on a clean phone is reported, not re-run; R-1 not met until the Developer and PO rule. m3: **allowed** as optional D7 / Part V, a separate labelled variant commit run after the baseline; the baseline alone decides R-1. m4: `@Suite struct SP1TimingProbe`. n1, n2, i1, i2 done. |
