@@ -6079,3 +6079,17 @@ the previous stop; the microphone indicator must go off each time and the next c
   lines in the Simulator (all `noModel`, expected). D5.3: the console line reaches the Terminal (self-check variable;
   the Simulator panel could not be tapped, so [Quick stop test] was not run there). The owner's commands are unchanged
   from round 1 (D5.4). The `quickstop` line has one new field, `restops=<n>`, for the Tester's reading.
+
+### SP-1 round 3 — quick stop timing (review round 2 m-4, n-4)
+- **m-4:** the 5 s re-stop limit now counts from the latest stop, never from the start of the try, so `restops` is above
+  0 only when a stop really went unanswered for 5 s. If tries 6–10 see no `transcriberChosen` within 5 s of their start,
+  the timer makes the first stop, and the line says `firststop=timer`; otherwise `firststop=planned`.
+- **n-4:** [Stop] during the quick stop test prints `quickstop|try=<n>|stop_tapped` and stops the current try; it no longer
+  prints a line for an old capture.
+- **Line format now:** `SP1|seq=<n>|quickstop|try=<1-10>|when=<beforeChosen|atChosen>|firststop=<planned|timer>|finished=<outcome>|ms_stop_to_finished=<ms|none>|restops=<0-3>`,
+  then `SP1|seq=<n>|quickstop|done`; and, only if the person taps [Stop] during the test,
+  `SP1|seq=<n>|quickstop|try=<n>|stop_tapped`.
+- **SP1-COMMIT = `ea3d195b1734df73117447756f95c3562671be63`.** Record: [`evidence/mac/SP-1-r3/`](evidence/mac/SP-1-r3/README.md). B1 TendCore 141; B2
+  TendIngestion 572, scan 67 files, 0 violations; B4 TendAI 90; B5 hosted 5 (probe skipped by design), also with a custom
+  prefix; B6 as MS-1; D5.2 28 `SP1|` lines in the Simulator; D5.3 the console line reaches the Terminal. All at this commit
+  with a clean tree.
