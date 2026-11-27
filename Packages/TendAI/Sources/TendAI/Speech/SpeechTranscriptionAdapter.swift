@@ -223,6 +223,9 @@ public struct SpeechCapture: Sendable {
             }
         }
         guard let (kind, format) = picked else { return .unavailable(.audioFormatUnavailable) }
+        // A capture cancelled during the transcriber choice never asks for audio, so the microphone is not opened even
+        // for a moment (PR #44 review round 4 m8).
+        if Task.isCancelled { return .cancelled }
         emit(.transcriberChosen(kind))
         let audio = AudioEndWatch(source.audio(in: format))
         var finals: [String] = []
