@@ -11,9 +11,10 @@ import TendIngestion
 public struct GeminiIngestionModel<C: Clock>: IngestionModel where C.Duration == Duration {
     let cloud: CloudIngestionModel<C>
 
-    public init(key: APIKey, transport: any CloudTransport, clock: C) {
+    /// - Parameter start: when the pipeline received the input (the deadline start, AC-M2-22).
+    public init(key: APIKey, transport: any CloudTransport, clock: C, start: C.Instant) {
         cloud = CloudIngestionModel(model: CloudModel.defaultModel(for: .gemini), key: key, transport: transport,
-                                    clock: clock)
+                                    clock: clock, start: start)
     }
 
     public var model: CloudModel { cloud.model }

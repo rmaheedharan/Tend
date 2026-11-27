@@ -327,7 +327,8 @@ struct OnDeviceModelTests {
 }
 
 /// A cloud source that must never be asked (P-1).
-struct NoCloud: CloudModelSource {
+struct NoCloud: CloudModelSource, CloudCaptureReceipt {
+    func receive() -> any CloudCaptureReceipt { self }
     func model(for provider: CloudProvider, key: APIKey) -> any IngestionModel {
         Issue.record("the cloud was asked for a model")
         return FailingModel()

@@ -5,7 +5,7 @@ a device AC.
 
 | Field | Value |
 |---|---|
-| Who ran it | The Developer agent (Claude), driving the owner's Mac over Remote Control, 2026-11-27 |
+| Who ran it | The Developer agent (Claude), driving the owner's Mac over Remote Control, 2026-11-27 (UTC; the log timestamps are in the Mac's local time, already 2026-11-28; review R50-N3) |
 | Mac | M1 Mac mini (`Macmini9,1`, Apple M1, 16 GB) |
 | macOS | 27.2.1 (26B131) |
 | Xcode | 27.2 (27B52), iOS 27.2 SDK, macOS 27.2 SDK; Swift 6.4.2 (swiftlang-6.4.2.1.9) |
