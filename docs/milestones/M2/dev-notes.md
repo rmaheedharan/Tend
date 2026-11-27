@@ -5746,3 +5746,60 @@ does not allow that word in our source identifiers, so `CloudFailureMapping` nam
 | Date | From | To | Result | Notes |
 |---|---|---|---|---|
 | 2026-11-27 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR. |
+
+## Pasted-key cleanup (PO ruling R28-F5) and the open review asks on the key store (PR #45 m1, n2) and transport (PR #46 m1, m2, n1, n2)
+
+- **Branch:** `m2/key-paste-cleanup`, from `origin/m2/cloud-transport` (`87e5710`) with `origin/m2/keychain-key-store`
+  merged in (merge commit `c60b335`; PR #45 and PR #46 were not yet merged to `main`). The only merge conflict was the
+  end of this file; both sections are kept.  ·  **Code commit:** `d447eb49ecb6299e4b9b10eea84f6b3a45756281`  ·  **Mac evidence
+  record:** [`evidence/mac/key-paste-cleanup/`](evidence/mac/key-paste-cleanup/README.md).
+- **Requirements:** AC-M2-21, AC-M2-23 (and AC-M2-18 through the router). P-3, UX-3.
+
+### PO ruling R28-F5, as built
+- **`TendIngestion/Routing/APIKeyText.swift`** (pure, Linux-tested): trims at both ends every Unicode whitespace
+  (including line breaks, U+2028, NBSP), every control character (Cc, so NUL and DEL too) and U+200B, U+200C, U+200D,
+  U+2060, U+FEFF; then refuses unless the result is non-empty and every character is in U+0021…U+007E. No length or
+  prefix check.
+- **One neutral result:** `CloudStoreError.keyTextNotAccepted` (a case with no payload: no key character, no
+  position). `CloudStoreError` has 3 cases now; the case-count test changed from 2 to 3 for that reason.
+- **Where it applies:** `InMemoryAPIKeyStore.save` and `KeychainAPIKeyStore.save` store the trimmed key or throw before
+  writing anything (an earlier key is kept); `ModelRouter.turnCloudOn` checks first, so a refused key records no consent
+  and leaves an earlier key and consent as they were; `APIKeyMask` masks the trimmed key (a refused key shows the dots
+  only).
+- **Transport:** `CloudRequestHeader.keyIsSendable`; `CloudHTTPTransport` refuses a request whose auth key is empty or
+  outside U+0021…U+007E before any session exists (`requestNotSent`, 0 requests at the stub).
+- **Expectations changed by the ruling (not weakened):** the WI-M2-M5 hosted test "any length and any characters"
+  is now "any length in U+0021…U+007E" (empty and non-ASCII keys are refused and tested as such); the mask case for a
+  non-ASCII key now expects the dots only, and a padded key's mask is from the trimmed key.
+
+### Review asks
+- **PR #45 m1 (kills mutant K2):** a synchronizable item with the same service and account, holding a sentinel, is not
+  seen by `hasKey` or `key`; after `save` it still holds the sentinel and a separate non-synchronizable item holds the
+  new key; `deleteKey` leaves it too. The Simulator accepted the planted synchronizable item. The K2 sentence in the
+  WI-M2-M5 section now names the update path.
+- **PR #45 n2:** stored data that is not UTF-8 reads as `storeUnavailable` (and `hasKey` is true).
+- **PR #46 m1:** the headers test now checks every builder header's exact value at the stub (auth byte for byte).
+- **PR #46 m2:** rows for the 7 untested codes, and a sweep over raw values −3000…0: only −999 (`cancelled`) maps to nil.
+- **PR #46 n1:** the comment and the test name say no cut makes a single-byte chunk; only the final remainder can be
+  shorter. **n2:** the WI-M2-M4 header backtick is closed and both sections name their PRs (#45, #46).
+
+### AC → test
+| Item | Test(s) | Command | Result |
+|---|---|---|---|
+| R28-F5 rule | `APIKeyTextTests`: 11 trimmed cases (`\n`, `\r\n`, spaces, tab, BOM, U+200B/U+200C, NBSP, U+2028, U+2060/U+200D, NUL/DEL, mixed); 12 refused cases (inner space, `\n`, tab, NUL, U+200B, é, DEL, empty, all-junk); every U+0021…U+007E kept; one-character key accepted; property seed `0x5EED_F5`, 2,000 padded keys, 0 mismatches | B2 | PASS |
+| In-memory store and router | "padded key stored trimmed; refused key … keeps the earlier key"; "The refusal holds no character of the key and no position (sentinel)"; "Router: turning cloud on with a refused key changes nothing"; "An auth header is sendable only for a key in U+0021…U+007E" | B2 | PASS |
+| Real Keychain | `KeyPasteCleanupHostedTests`: stored trimmed (item bytes read back raw) and mask from the trimmed key (5 cases); refused keeps the earlier item byte for byte (6 cases); short and full-ASCII keys; K2; non-UTF-8; the refusal never shows the key | B5 | PASS |
+| Transport | `CloudHTTPTransportHostedTests`: "an auth key outside U+0021…U+007E is refused before sending; nothing reaches the stub" (3 providers × 4 keys); exact header values; 18 code rows; the −3000…0 sweep | B5 | PASS |
+
+**Mutants (killed):** no trim (P1, 4 tests); invisible marks not trimmed (P1b, 2); transport check removed (P2); the
+Keychain store skips the rule (P3); the query matches synchronizable items (K2).
+
+### Test runs
+At `d447eb4` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 579 in 68, AC-M2-09 scan 62 files, 0 violations, AC-M2-12 0 violations; B4 TendAI 3 tests; B5 hosted 34 tests in 4 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-3 | pass | One neutral refusal (`keyTextNotAccepted`) that blames nobody; M3 copy by the Designer. |
+| P-2, P-3 | pass | A key that is not plain printable ASCII never reaches a header; nothing else is sent; the Keychain item stays this-device-only and not synchronised (K2 test). |
+| P-4 | pass | Nothing written or logged; the refusal holds no key text (sentinel tests). |
