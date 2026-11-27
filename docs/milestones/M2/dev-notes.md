@@ -5730,3 +5730,38 @@ At `118fcbe` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 5
 ### For the Acceptance Tester (DS-1, DS-2)
 Add a quick-stop step: start a voice capture and stop it at once (before speaking); the microphone indicator must go
 off and the capture must end with nothing heard.
+
+## WI-M2-M3 round 3 — review PR #42 round 2 M1-r2 (engine published only after it started) and m6 (stopping phase)
+
+- **Branch:** `m2/speech-adapter-v2`, on top of the round-2 review commit `99a4841`  ·  **Code commit:**
+  `33bab8051a427ae88c46de60b840b5c6a67b328c`  ·  **Mac evidence record:** [`evidence/mac/WI-M2-M3-r3/`](evidence/mac/WI-M2-M3-r3/README.md).
+
+### What changed
+- **M1-r2.** `MicrophoneAudioSource.start` now creates the engine, installs the tap, calls `prepare()` and `start()`,
+  and only then asks `markRunning(token)` and publishes the engine. Before that point no other party can reach the
+  engine: `stop()` and the stream's termination only set `stopRequested` (the state type's `stop` and `end` for a
+  starting capture). If `markRunning` answers no, the start path stops its own engine (tap removed, `stop()`), sets the
+  iOS session inactive and ends the stream normally. An engine that cannot start is torn down by the start path too
+  (`startGaveUp`). The type's header comment and the `@unchecked Sendable` justification say exactly this.
+- **m6.** `MicrophoneCaptureState` has a `stopping(token)` phase: `stop` of a running capture, `end` of a running
+  capture, `markRunning` after a stop and `startGaveUp` all move to `stopping`; `begin` refuses while stopping; the
+  teardown (engine stopped, session inactive) ends with `finishTeardown(token)`, and only then is the source idle.
+  So the old teardown's session deactivation can never stop a new capture.
+
+### AC → test (B4)
+| Item | Test(s) | Result |
+|---|---|---|
+| M1-r2 | `MicrophoneCaptureStateTests`: "a stop during engine prepare/start is seen after start; the engine is never published, and the start path tears down", "a stream termination during engine start acts as a stop; only the start path tears down", "a stop while the capture is starting is remembered; the session is never activated" | PASS |
+| m6 | "A stop while running hands the token to one caller; the source stays busy until finishTeardown", "a new capture cannot begin while the old one's teardown runs, after a termination too", "A start that gives up … holds the source until its teardown is done" | PASS |
+| m1 (kept) | "a second capture is refused while one is starting or running", "another capture's token never ends, stops or finishes this one" | PASS |
+
+**Mutants (killed):** a running stop goes straight to idle (m6); a stop during start ignored at `markRunning` (M1-r2,
+2 tests); a termination during start lost (1); `begin` allowed while stopping (5).
+
+### Test runs
+At `33bab80` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 571 in 67, AC-M2-09 scan 61 files, 0 violations; B4 TendAI 32 tests in 8 suites; B5 hosted 4 tests in 2 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings. The B1–B6 wall times are longer than earlier runs because the Mac was busy with another build at the
+time; no test was affected.
+
+### For the Acceptance Tester (DS-1, DS-2)
+The quick-stop step from round 2 also covers this: start a capture and stop it at once, and again within a second of
+the previous stop; the microphone indicator must go off each time and the next capture must record normally.
