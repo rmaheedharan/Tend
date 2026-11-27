@@ -773,3 +773,107 @@ Round-3 Nits n3 and n4 are still open (optional). Info i1-i8 stand. AC-M2-11 and
 |---|---|---|---|---|
 | 2026-11-27 | Developer | Reviewer (via Orchestrator) | accepted for review | PR #44 at `8c324a6` (code `a5b9f25`, merge `c36a89c`); round-4 m7, m8, n5, n6. |
 | 2026-11-27 | Reviewer | Merge Gatekeeper / Acceptance Tester / Designer / Planner (via Orchestrator) | accepted | Round 5: **APPROVE**. m7, m8, n5 and n6 closed; the merge is faithful; the evidence is verified; the `@unchecked Sendable` sign-off holds. New Minor m9: one `next` slot, so two captures armed at once share it (not new). Designer/Planner: the M3 capture screen keeps Start disabled until the previous capture's `.finished` (m9 option a), unless the Developer does option b. Nit n7 is optional. Tester: SP-1 B4 / DS-1 as in round 4; AC-M2-11/25 stay AWAITING-DEVICE. |
+
+## Round 6 (main merge) — PR #44 at `9faf35f` (merge `2a6931e` of `origin/main` `8371552` into round-5 head `910c11a`)
+
+**Verdict: APPROVE.** No open Blocker or Major.
+
+**Scope.** Only what is new since round 5: the merge commit `2a6931e` (parents `910c11a`, `8371552`; merge base
+`9e50012`), which brings in main's PR #43 (on-device adapter, FR-A1, AC-M2-06/07) and PR #49 (SP-1 script v3,
+AC-M2-16), and the docs-only commit `9faf35f` (evidence record `evidence/mac/WI-M2-M3-main-merge/` and one dev-notes
+section). The round-5 approved code is unchanged. FR-A1, P-4, AC-M2-09, AC-M2-11, AC-M2-25.
+
+### Merge faithfulness (scripted)
+- **Files changed on one side only:** 97 on the branch, 81 on main. For each branch-only file the blob at `2a6931e`
+  equals the blob at `910c11a`. For each main-only file it equals the blob at `8371552`. Deletions were compared as
+  absent on both sides. **0 mismatches.** `git diff --name-only 9e50012 2a6931e` lists no file outside those two sets.
+- **The branch's approved changes are intact:** `git diff 9e50012 910c11a` and `git diff 8371552 2a6931e` are
+  byte-identical (`cmp`) once `dev-notes.md` is excluded.
+- **Nothing from main was lost:** `git diff 9e50012 8371552` and `git diff 910c11a 2a6931e` are byte-identical once
+  `dev-notes.md` is excluded.
+- **The only file both sides changed is `docs/milestones/M2/dev-notes.md`.** At `2a6931e`, main's file is an unchanged
+  byte prefix, and what follows it is exactly the bytes the branch added to the base (`9e50012` is a byte prefix of
+  both parents). I split the file on `## ` headings outside code fences. It has 34 sections, no heading repeated and
+  no body repeated. Every branch section (31 plus the preamble) appears exactly once and unchanged. Every main section
+  (28 plus the preamble) appears exactly once, and all but the last are unchanged. Main's last section, "WI-M2-M2
+  round 2", now ends with one more blank line. That line is the separator at the start of the branch's own addition,
+  so no text changed. The `###`/`####` headings that repeat ("What changed", "Law check" …) are the standard
+  per-work-item subsections. They appear in both parents too and are not duplicated sections. `9faf35f` only appends
+  one section, "WI-M2-M3: brought up to date with main", after `2a6931e`'s file. Its counts (28 / 31, no heading
+  twice) match mine.
+
+### Swift files changed on both sides
+**None.** Both sides changed Swift files in the same `TendAI` module, but in different files. The branch changed
+`Sources/TendAI/Speech/*` (4), 6 `TendAITests` files and `HostedTests/SpeechHostedTests.swift`. Main changed
+`Sources/TendAI/OnDevice/*` (6), 7 `TendAITests` files, `HostedTests/KeychainAPIKeyStoreHostedTests.swift`, and
+`TendIngestion` `CloudOutputSchema.swift`, `ModelRouter.swift` and 2 tests. Neither side touched `Package.swift`,
+`project.yml` or `PrivacyInfo.xcprivacy`. A semantic clash in one module (duplicate type or helper names, the
+`model(household:)` signature change from main) would fail to compile, and B4/B5 compiled and passed at `2a6931e`.
+Test counts add up exactly. `@Test` in `TendAI/Tests` is 3 at the base, 42 on the branch, 57 on main and 96 merged
+(42 + 57 − 3), which matches "96 tests in 17 suites" in B4. `HostedTests` has 36 (branch) and 34 (main and base); the
+only main hosted change is `import TendCore` and the `model(household:)` stub. That gives 36, which matches B5.
+
+### Evidence record (`evidence/mac/WI-M2-M3-main-merge/`)
+- **Commit named:** the README and `mac-B0-header.log` name `2a6931e7ffa0d74b7af96adbb0d7a902e2208d52`.
+  `git diff 2a6931e 9faf35f` touches only `docs/` (18 files, insertions only).
+- **SHA-256:** all 16 lines in the README verify (`sha256sum -c`: 16 OK).
+- **Clean tree:** B0 and `mac-B9-after.log` both show an empty `git status --porcelain`. `timings.txt` shows every
+  step exit 0 except the expected `TendEval` archive (exit 66, "not configured for the archive action").
+- **Results match the logs:** B1 "141 tests in 18 suites passed". B2 "580 tests in 68 suites passed" and
+  "AC-M2-09 scan: 72 files in total, 0 violations". B4 "96 tests in 17 suites passed", `TEST SUCCEEDED`. B5 "36
+  tests in 5 suites passed", `TEST SUCCEEDED`. B6 `find` printed nothing for Release and Archive, and
+  `Products/Applications` holds only `Tend.app`. No `✘`, no skipped test, and no compiler `warning:`. The only
+  `warning:` lines are the known non-compiler ones (AppIntents metadata ×6, interface orientations ×3, ticket m1(a)).
+- **Script:** `run-evidence.sh` is identical to the round-5 record's (`WI-M2-M3-r5`) apart from the folder name.
+- **No personal data:** no user name, email or host path. Paths are tokenised (`$REPO`, `$HOME` …). The only
+  address-like string is the test fixture host in an AC-M2-22 test name. Every new commit (`2a6931e`, `9faf35f`) has
+  author and committer `Claude <noreply@anthropic.com>`.
+
+### What I ran (Linux container, `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, at `9faf35f`, source mounted read-only)
+| Package | Scratch | Result |
+|---|---|---|
+| TendCore | `/tmp/r44mc` | exit 0, "141 tests in 18 suites passed", 0 warnings, 0 failures |
+| TendIngestion | `/tmp/r44mi` | exit 0, "580 tests in 68 suites passed", "AC-M2-09 scan: 72 files in total, 0 violations", 0 warnings, 0 failures |
+
+The worktree was clean before and after (`git status --porcelain` empty). TendAI and the hosted tests need macOS or
+iOS; for those I rely on the verified B4/B5 logs above.
+
+### Round 6 findings
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| — | — | — | The merge brings in no new finding. | — | — |
+| m9 | Minor (not new) | `MicrophoneCaptureState.swift:60-67` | Unchanged by the merge (the file is byte-identical to `910c11a`). | As in round 5, before the M3 capture screen. | Open (non-blocking) |
+| n7 | Nit | `RoundFiveStopTests.swift:60-79` | Unchanged. | Optional. | Open (optional) |
+
+Round-3 Nits n3 and n4 are still open (optional). Info i1-i8 stand. AC-M2-11 and AC-M2-25 stay **AWAITING-DEVICE**.
+
+### Checklist (round 6)
+- [x] Correctness vs ACs: no change to the branch's code. Main's code arrives byte-for-byte as reviewed in PR #43 and
+  #49. AC-M2-09 scan: 72 files, 0 violations (my run and B2).
+- [x] Tests meaningful: no test changed by the merge on either side (one-sided blobs equal). No skip or
+  `withKnownIssue` was added.
+- [x] Swift 6 concurrency safe: no Swift file changed on both sides. The `@unchecked Sendable` sign-off from round 3
+  still holds (`MicrophoneAudioSource.swift` is unchanged).
+- [x] Privacy (P-1…P-4): unchanged by the merge. Main's on-device adapter files arrive as reviewed on main.
+- [x] UX-2/UX-3: n.a. for this delta (no UI and no user-facing copy added by the merge resolution).
+- [ ] Accessibility (UI): n.a. (no UI).
+- [x] No new dependency without ADR: `Package.swift` and `project.yml` are unchanged by the merge.
+- [x] Milestone lock: `STATUS.md` shows M1 ACCEPTED and M2 IN-BUILD; the branch is `m2/…`.
+
+### Law check (round 6)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No entry UI in the delta. |
+| UX-2 Rule of Three | n.a. | No selection surface in the delta. |
+| UX-3 Zero-Guilt | pass | The resolution adds no copy or state. Main's files arrive as reviewed. |
+| UX-4 Craft | n.a. | No UI. |
+| P-1 On device first | pass | The speech path is unchanged and on device. Main's `FoundationModels` adapter arrives as reviewed in PR #43. |
+| P-2 No data leaves device | pass | The resolution adds no networking. Main's cloud files are unchanged by the merge. |
+| P-3 Cloud per ADR-0005 | n.a. | No cloud change in the delta. |
+| P-4 Media not persisted without consent | pass (minor concern m9, unchanged) | Speech capture code is byte-identical to round 5. |
+
+### Handoff log (round 6)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Developer | Reviewer (via Orchestrator) | accepted for review | PR #44 at `9faf35f`: merge `2a6931e` of `origin/main` `8371552` (PR #43, #49); only dev-notes conflicted; docs-only evidence commit. |
+| 2026-11-27 | Reviewer | Merge Gatekeeper / Acceptance Tester (via Orchestrator) | accepted | Round 6: **APPROVE**. The merge is faithful (scripted: 0 one-sided mismatches, both diffs byte-identical, dev-notes = main prefix + branch additions, every section once). No Swift file changed on both sides. Evidence verified (16/16 hashes, clean tree, `2a6931e`). Linux TendCore 141 and TendIngestion 580 pass. m9 and n7 are unchanged and non-blocking. AC-M2-11/25 stay AWAITING-DEVICE. |
