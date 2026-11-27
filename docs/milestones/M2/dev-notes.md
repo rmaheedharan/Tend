@@ -6020,3 +6020,11 @@ this Mac (R-1 stays likely; the iPhone 15 Pro is the gate).
 
 ### Test runs
 At `fad715a` (clean run): B1 TendCore 141 tests in 18 suites; B2 TendIngestion 572 in 67, AC-M2-09 scan 63 files (TendAI 7), 0 violations; B4 TendAI 55 tests in 7 suites; B5 hosted 2; B6 as MS-1. All passed, 0 skipped, no compiler warnings.
+
+### WI-M2-M2: brought up to date with main (PRs #45, #46, #47 merged)
+- `origin/main` (`9e50012`) merged into `m2/on-device-adapter-v2` as `bd7be36` (merge commit; no rebase). The only
+  conflict was this file: main's text is kept as it is and the two WI-M2-M2 sections follow it. Build fix `f4dd2ab`: the
+  PR #45 hosted Keychain test helper now implements `OnDeviceModelSource.model(household:)` (the PR #43 rename); test
+  helper only. Mac evidence record for `f4dd2ab`: [`evidence/mac/WI-M2-M2-main-merge/`](evidence/mac/WI-M2-M2-main-merge/README.md):
+  B1 TendCore 141; B2 TendIngestion 580, scan 68 files, 0 violations; B4 TendAI 57; B5 hosted 34; B6 as MS-1; all passed,
+  0 skipped, clean tree before and after.
