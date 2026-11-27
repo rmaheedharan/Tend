@@ -91,6 +91,15 @@ public protocol CaptureAudioSource: Sendable {
     /// Starts the audio, converted to `format`. The stream finishes when the person stops (the end of the utterance)
     /// and throws if the audio stops by itself. Its termination stops the audio.
     func audio(in format: AVAudioFormat) -> AsyncThrowingStream<AnalyzerInput, any Error>
+
+    /// Called when a capture starts, before its transcriber is chosen and before `audio(in:)`. A source that can be
+    /// stopped by the person keeps a stop that comes after this (SP-1 review I-1): its next `audio(in:)` then ends at
+    /// once, empty. The default does nothing.
+    func captureWillStart()
+}
+
+extension CaptureAudioSource {
+    public func captureWillStart() {}
 }
 
 // MARK: - The choice of transcriber (pure; tested)
@@ -182,6 +191,8 @@ public struct SpeechCapture: Sendable {
                 continuation.finish()
                 return
             }
+            // Before anything is awaited: a stop from now on is kept by the source (SP-1 review I-1).
+            source.captureWillStart()
             let task = Task {
                 let outcome = await Self.run(engine: engine, locale: locale, source: source) { event in
                     continuation.yield(event)

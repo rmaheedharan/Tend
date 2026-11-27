@@ -1,8 +1,13 @@
 // The life cycle of one microphone capture (WI-M2-M3; review PR #42 M1, m1, round 2 M1-r2, m6). FR-A1, P-4.
 //
 // A plain value with no audio types, so the rules are unit-tested; `MicrophoneAudioSource` keeps one under its lock.
-// Phases: `idle` → `starting` → `running` → `stopping` → `idle`, with `stopRequested` for a stop (or a stream
-// termination) that arrives while the capture is still starting.
+// Phases: `idle` → (`armed`) → `starting` → `running` → `stopping` → `idle`, with `stopRequested` for a stop (or a
+// stream termination) that arrives while the capture is still starting.
+// - **A stop before the microphone is asked for is kept (SP-1 review I-1).** A capture arms the source when it starts
+//   (`arm`, from `SpeechCapture.events(from:)`), before the transcriber is chosen. A `stop` while armed is remembered
+//   (`armedStopped`), and the capture's `begin` then goes straight to `stopRequested`: the session is never activated
+//   and the utterance ends empty, the same as a quick stop. A stop with no capture armed or running still does nothing,
+//   and arming clears an old stop, so a stale [Stop] never ends a later capture.
 // - **One capture at a time.** `begin` gives a token only in `idle`: while a capture is starting, running **or still
 //   being torn down** (`stopping`), a second `audio(in:)` is refused (m6: the old teardown's session deactivation can
 //   then never stop a new capture).
@@ -18,6 +23,10 @@ import Foundation
 struct MicrophoneCaptureState: Hashable, Sendable {
     enum Phase: Hashable, Sendable {
         case idle
+        /// A capture has started and will ask for audio; the microphone is not asked for yet.
+        case armed
+        /// The person stopped while the capture was armed: its audio will end at once, empty.
+        case armedStopped
         case starting(UInt64)
         case running(UInt64)
         /// A stop or a termination arrived while this capture was still starting.
@@ -30,6 +39,8 @@ struct MicrophoneCaptureState: Hashable, Sendable {
     enum StopResult: Hashable, Sendable {
         /// Nothing to stop.
         case nothing
+        /// The capture had not asked for audio yet; its audio will end at once when it does.
+        case beforeAudio
         /// The capture was still starting; the start path will finish it.
         case wasStarting
         /// The capture was running; the caller tears down this capture, then calls `finishTeardown`.
@@ -39,17 +50,37 @@ struct MicrophoneCaptureState: Hashable, Sendable {
     private(set) var phase: Phase = .idle
     private var lastToken: UInt64 = 0
 
-    /// A new capture's token, or nil while another capture is starting, running or being torn down.
+    /// A capture has started (before its transcriber is chosen): from now on a stop is kept. Clears an old stop.
+    mutating func arm() {
+        switch phase {
+        case .idle, .armed, .armedStopped: phase = .armed
+        default: break
+        }
+    }
+
+    /// A new capture's token, or nil while another capture is starting, running or being torn down. After a stop
+    /// while armed, the capture begins already stopped (`stopRequested`), so its start path ends it empty.
     mutating func begin() -> UInt64? {
-        guard case .idle = phase else { return nil }
-        lastToken += 1
-        phase = .starting(lastToken)
-        return lastToken
+        switch phase {
+        case .idle, .armed:
+            lastToken += 1
+            phase = .starting(lastToken)
+            return lastToken
+        case .armedStopped:
+            lastToken += 1
+            phase = .stopRequested(lastToken)
+            return lastToken
+        default:
+            return nil
+        }
     }
 
     mutating func stop() -> StopResult {
         switch phase {
-        case .idle, .stopRequested, .stopping: return .nothing
+        case .idle, .armedStopped, .stopRequested, .stopping: return .nothing
+        case .armed:
+            phase = .armedStopped
+            return .beforeAudio
         case let .starting(token):
             phase = .stopRequested(token)
             return .wasStarting
