@@ -100,7 +100,7 @@ Sizes: S ≤ half a day, M ≤ 1 day. No item is L. WI-M2-11, 13 and M6 are at t
 | WI-M2-M5 | Keychain key store (MS-2): allowlist file 3; generic password, data-protection keychain, `WhenUnlockedThisDeviceOnly`, not synchronizable, proven by `kSecReturnAttributes`; masked form; delete leaves `errSecItemNotFound`; formatting test of every key-holding type; turn-off and remove-key delete the item | ● AC-M2-18, ● AC-M2-21 | M | WI-M2-M1, 09 | no | Developer | `m2/keychain-key-store` | Owner-run Mac (Simulator host) | ☐ deps merged |
 | WI-M2-M6 | Cloud adapters end to end (MS-2): the three provider `IngestionModel`s over the transport, every fixture through a mock transport; the cloud model is never given the `Tool`; **one real recording per provider** made by the owner (see "Real provider recordings") | ● AC-M2-24 | M | WI-M2-M4, M5, 13 | no | Developer + owner (recordings) | `m2/cloud-adapters` | Owner-run Mac | ☐ deps merged; owner keys available in MS-2; each model still meets the five Q18 conditions |
 | WI-M2-M7 | `TendEval` harness (MS-3): everything in AC-M2-28 "What it does", the results writer, file sharing in Debug only, the fixtures hash on screen, the Release and Archive check, and the Linux `project.yml` scan test | ● AC-M2-28 | M | WI-M2-M2, M3, M6, 15, 16 | no (debug tool, not product UI; brief) | Developer | `m2/eval-harness` | Owner-run Mac + Linux (scan) | ☐ deps merged |
-| WI-M2-M8 | M2 green run on the merge commit (MS-3): Linux CI link, Mac commands B1–B5, the AC → test table with the environment of every test, the skip rule (T-22), then `TendEval` installed on both iPhones at that commit | ● AC-M2-13 | S | every item above | no | Developer | `m2/gate-green-run` | Linux CI + Owner-run Mac | ☐ all merged |
+| WI-M2-M8 | M2 green run on the merge commit (MS-3): Linux CI link, Mac commands B1–B5, the AC → test table with the environment of every test, the skip rule (T-22), then `TendEval` installed on both iPhones at that commit (B7, with `TEND_COMMIT`) | ● AC-M2-13 | S | every item above | no | Developer | `m2/gate-green-run` | Linux CI + Owner-run Mac | ☑ all merged (PRs #43–#53, main `19675a3`); ☐ MS-3 booked; ☐ Q20 signing team |
 
 ### Phase C — Device (the human owner)
 
@@ -326,8 +326,10 @@ UX-4 (brief). It uses only the public API of `TendIngestion` and `TendAI`.
 - **Element counts (D-059, PO 2026-11-27; AC-M2-28, AC-M2-26).** The recorder writes `arrayCounts` and
   `userContentArrayCounts` in every `cloudRequests[]` entry, in the format under WI-M2-15. It wraps the transport and
   computes the counts, with the shared count function, from the exact bytes handed to the transport (the same bytes
-  that `bytes` and `keyPaths` describe). It adds no hook in `TendAI` or `TendIngestion`. This text is in place before
-  WI-M2-M7 is reviewed and before any DS-2 run; the Acceptance Tester re-froze the schema at `e014fab` (2026-11-28).
+  that `bytes` and `keyPaths` describe). It adds no hook in `TendAI` or `TendIngestion`. The WI-M2-M7 review (PR #52,
+  `review-pr52.md` round 1 APPROVE, merged `1b81e7b`) used D-059 and `po-m2-element-counts.md` directly; this plan
+  text was added after it, in PR #53 (`19675a3`), and before any DS-2 run. The Acceptance Tester re-froze the schema
+  at `e014fab` (2026-11-28). Planner confirmed this text and the WI-M2-15 text against D-059 (2026-11-28).
 
 ## Q6 time-phrase table (AC-M2-03; Tester review is a DoR condition for WI-M2-03)
 
@@ -529,7 +531,7 @@ WI-02 (Designer name) ───────────────────�
 |---|---|---|---|---|
 | **MS-1** (early) | WI-M2-M1: ADR-0003, `project.yml`, `TendAI` scaffold, T-27 check, command check, latency probe | Remote Control on; Xcode 26 installed and opened once (licence accepted, iOS 26 Simulator runtime downloaded) | ~2 h | WI-M2-01 merged |
 | **MS-2** (adapters) | WI-M2-M2, M3, M4, M5, M6; the Mac repeat of the `TendIngestion` suite (AC-M2-20 golden bytes) and of the `TendCore` suite (W3-F1 Darwin DST rerun); optional device spike SP-1 | Remote Control on. **The owner is needed in person for about 20 minutes** to paste each provider key for the real recordings (they never leave the Mac's shell; see below) and, for SP-1, to plug in the iPhone 15 Pro | 1–2 days, one setup | WI-M2-06, 07, 09, 10, 13, 14 merged |
-| **MS-3** (gate) | WI-M2-M7 final build, WI-M2-M8 green run (B1–B5), Release and Archive check, `TendEval` installed on both iPhones | Remote Control on; both iPhones connected, unlocked, Developer Mode on, signed into the signing team (Q20) | ~3 h | everything merged; eval frozen |
+| **MS-3** (gate) | WI-M2-M7 final build, WI-M2-M8 green run (B1–B5), Release and Archive check, `TendEval` installed on both iPhones (B7, with `TEND_COMMIT="$(git rev-parse HEAD)"` at the M2 merge commit) | Remote Control on; both iPhones connected, unlocked, Developer Mode on, signed into the signing team (Q20) | ~3 h | everything merged; eval frozen |
 | DS-1, DS-2 (device, not Mac) | WI-M2-D1, D2 | The owner runs the Tester's scripts; voice inputs are read aloud live | ~2 h + ~3 h (3 providers) | MS-3 |
 
 **SP-1 (optional, information only):** at the end of MS-2, install a development `TendEval` on the iPhone 15 Pro and
@@ -602,10 +604,15 @@ xcodebuild archive -project Tend.xcodeproj -scheme TendEval -destination 'generi
   -archivePath build/TendEval.xcarchive CODE_SIGNING_ALLOWED=NO 2>&1 | tee mac-B6-eval-archive.log
 
 # B7 — install TendEval on an iPhone (MS-3; <UDID> from the first command, <TEAM_ID> from Q20)
+# Run at the commit under test with B0 clean. TEND_COMMIT must be the full 40-hex SHA: it goes into the Debug
+# Info.plist as TendCommit, and without it TendEval will not start a run (EvalSession.commitIsKnown).
 xcrun devicectl list devices
 xcodebuild build -project Tend.xcodeproj -scheme TendEval -configuration Debug \
   -destination 'platform=iOS,id=<UDID>' -derivedDataPath build/dd-device \
-  -allowProvisioningUpdates DEVELOPMENT_TEAM=<TEAM_ID> 2>&1 | tee mac-B7-install-build.log
+  -allowProvisioningUpdates DEVELOPMENT_TEAM=<TEAM_ID> TEND_COMMIT="$(git rev-parse HEAD)" \
+  2>&1 | tee mac-B7-install-build.log
+/usr/libexec/PlistBuddy -c 'Print :TendCommit' \
+  build/dd-device/Build/Products/Debug-iphoneos/TendEval.app/Info.plist   # must equal `git rev-parse HEAD`
 xcrun devicectl device install app --device <UDID> build/dd-device/Build/Products/Debug-iphoneos/TendEval.app
 ```
 AC-M2-13(b) is B1, B2, B4 and B5 on the M2 merge commit. A test compiled out on Linux counts as run only if it appears
@@ -653,7 +660,7 @@ for the governance PR (owner merge).
   household, both over every request of every attempt, D-059); `info` (no pass rule; cold start and the iPhone 15 Pro cloud run).
 - **Command (Linux, from the repo root):**
 ```bash
-sha256sum -c Fixtures/M2/eval/MANIFEST.sha256
+(cd Fixtures/M2/eval && sha256sum -c MANIFEST.sha256)   # the manifest lists bare file names
 swift run --package-path Tools/TendTools -c release tend-eval-score \
   --profile ds1-gated \
   --fixtures Fixtures/M2/eval \
@@ -834,7 +841,7 @@ Phase A, not at the end.
 | Cites requirement IDs and AC IDs | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
 | ACs testable, verification type known | ☑ | ☑ | ☑ Q6 review APPROVED 2026-11-21 | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ (DS scripts pending) |
 | Design spec `Ready` (if UI, copy or naming) | n.a. | ☐ name | n.a. | n.a. | n.a. | n.a. | n.a. | n.a. | n.a. (debug tool) | n.a. |
-| Dependencies merged or stubbed | ☑ | ☑ | ☐ WI-01 | ☐ WI-01 | ☐ per table | ☐ WI-15, 11, fixtures | ☐ WI-01 | ☐ per table | ☐ all | ☐ M8, scripts, Q20 |
+| Dependencies merged or stubbed | ☑ | ☑ | ☐ WI-01 | ☐ WI-01 | ☐ per table | ☐ WI-15, 11, fixtures | ☐ WI-01 | ☐ per table | ☑ all merged (#43–#53, `19675a3`) | ☐ M8, scripts, Q20 |
 | Size ≤ 1 day; owner; branch | ☑ | ☑ | ☑ | ☑ | ☑ (R-23) | ☑ | ☑ | ☑ (R-23) | ☑ | ☑ |
 | Milestone lock (M1 `ACCEPTED`) | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
 | Owner condition | merge needs HM-1 | — | ☑ PO ack P1–P7 (2026-11-21) | — | WI-10: ☑ Q18 approved with 5 conditions; Q12/16/17 asked | PO composition approval | MS-1 booked; HM-2 | MS-2 booked; keys | MS-3 booked | Q16, Q20, keys |
@@ -894,3 +901,4 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | 2026-11-21 | Product Owner | Work Planner, Acceptance Tester, Developer | accepted | Plan text applied: R5 row, the note under the repeat table, and the invalid-anchor bullet (PO Q-T1 / Q-T2, 2026-11-21); E22–E26 added (UTC checked with Python `zoneinfo`, America/New_York); WI-M2-03 test scope is E1–E26. Tester confirms the changed rows before PR #18 review; Developer reworks PR #18. No AC wording changed (AC-M2-03). The `DECISIONS.md` entry "PO Q-T1 / Q-T2, 2026-11-21, M2 Q6 table" goes in the human-merged governance PR. |
 | 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q-T1/Q-T2 rows APPROVED with 3 findings, applied: `basis` defined as a diagnostic field (used by WI-M2-05 for the AC-M2-02 repair counts, not part of the AC-M2-03 table check; technical choice); the resolver returns ∅ sets and WI-M2-05 fills the Q5 step-3 defaults after step 5; E22–E25 labelled "resolver output", E26 "after Q5 settlement" with dayparts → `Daypart.defaultAllowed` (morning, afternoon, evening), checked against brief Q5 step 3 and `Daypart.swift`. No AC changed (AC-M2-02, AC-M2-03). |
 | 2026-11-28 | Product Documenter (Planner text per D-059) | Orchestrator → Work Planner, Reviewer | sent | D-059 element-count format written into WI-M2-15 and WI-M2-M7 (AC-M2-26, AC-M2-28); owner decision "Gemini now, others later" recorded under "Real provider recordings" (R50-F4): AC-M2-24 stays open for OpenAI and Anthropic. Planner to confirm the text. |
+| 2026-11-28 | Work Planner | Orchestrator → Developer, Acceptance Tester, Reviewer | confirmed | review-pr53 F2, F3 (plan part), i2 fixed in the plan. F2: the WI-M2-M7 bullet now says what happened (PR #52 reviewed and merged at `1b81e7b` first; D-059 plan text added after in PR #53, `19675a3`). Planner confirms the WI-M2-15 and WI-M2-M7 D-059 text (AC-M2-26, AC-M2-28). F3: B7 passes `TEND_COMMIT="$(git rev-parse HEAD)"` and checks `TendCommit` in the built Info.plist; MS-3 row says so (AC-M2-28, AC-M2-13). i2: scoring block uses `(cd Fixtures/M2/eval && sha256sum -c MANIFEST.sha256)` (AC-M2-14). WI-M2-M8 dependencies all merged (#43–#53); it still needs MS-3 booked and Q20. Appendix A in `acceptance.md` stays with the Tester. No AC changed. |

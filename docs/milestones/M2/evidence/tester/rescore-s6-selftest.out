@@ -1,0 +1,240 @@
+== independent-rescore.py self-test (S6 cloud checks), 2026-11-28T09:12Z
+commit under test: 19675a3462cdf2bf736abe51589dc402ae2ce669 + working-tree changes to the script
+script SHA-256: 2239f11c25235ae0fa32098a1a6dc7954bc6e22b9150e62ffb1be4933a844e14
+python: Python 3.13.18
+
+-- case good-gemini: expected exit 0, got 0: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case good-openai: expected exit 0, got 0: OK
+CLOUD provider openai: golden arrays 22, allowed key paths 47, seeded rooms 9
+CLOUD requests checked 9 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case good-anthropic: expected exit 0, got 0: OK
+CLOUD provider anthropic: golden arrays 22, allowed key paths 47, seeded rooms 9
+CLOUD requests checked 9 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case bad-arraycount-extra-entry: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts $.tools: expected absent, seen 1
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-arraycount-missing-entry: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts $.generationConfig.responseJsonSchema.properties.items.items.properties.sameAsItem.type: expected 2, seen absent
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-arraycount-off-by-one: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts $.generationConfig.responseJsonSchema.properties.items.items.properties.time.properties.anchor.enum: expected 12, seen 13
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-arraycounts-null: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts null
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-bad-only-in-2nd-request: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in01 att 1 req 2 keyPaths not valid, sorted and unique
+  CLOUD FAIL in01 att 1 req 2 key path $.contents[].parts[].inlineData not in the allowed list
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: FAIL (2)
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case bad-bad-only-in-retake: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in02 att 1 req 1 userContentArrayCounts $.rooms: expected 9, seen 7
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-bad-path-pattern: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts bad entry {'count': 1, 'path': '$.contents[01]'}
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-bool-count: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts bad entry {'count': True, 'path': '$.contents'}
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-duplicate-entry: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts not sorted by path or not unique
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-entry-extra-member: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts bad entry {'count': 1, 'path': '$.contents', 'value': 'x'}
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-existingtasks-11: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 userContentArrayCounts $.existingTasks: expected <= 10, seen 11
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-keypath-not-allowed: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 key path $.zzz not in the allowed list
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: FAIL (1)
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case bad-member-left-out: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 members ['arrayCounts', 'attempt', 'bytes', 'keyPaths']
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: FAIL (1)
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case bad-negative-count: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts bad entry {'count': -1, 'path': '$.contents'}
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-no-cloud-at-all: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in01 att 1 route onDevice, not gemini
+  CLOUD FAIL in02 att 1 route onDevice, not gemini
+  CLOUD FAIL in02 att 2 route onDevice, not gemini
+  CLOUD FAIL in03 att 1 route onDevice, not gemini
+  CLOUD FAIL in04 att 1 route onDevice, not gemini
+  CLOUD FAIL in05 att 1 route onDevice, not gemini
+  CLOUD FAIL in06 att 1 route onDevice, not gemini
+  CLOUD FAIL in07 att 1 route onDevice, not gemini
+  CLOUD FAIL in08 att 1 route onDevice, not gemini
+  CLOUD FAIL no cloud request in the file
+CLOUD requests checked 0 in 9 attempts
+CLOUD route and request records: FAIL (10)
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case bad-no-request-recorded: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in05 att 1 route gemini but no request recorded
+CLOUD requests checked 9 in 9 attempts
+CLOUD route and request records: FAIL (1)
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case bad-not-sorted: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 arrayCounts not sorted by path or not unique
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-request-attempts-not-sequential: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in01 att 1 request attempts not 1..2
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: FAIL (1)
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case bad-rooms-8: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 userContentArrayCounts $.rooms: expected 9, seen 8
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-route-other-provider: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in05 att 1 route openai, not gemini
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: FAIL (1)
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: PASS
+
+-- case bad-usercontent-extra-path: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 userContentArrayCounts paths ['$.existingTasks', '$.rooms', '$.zpeople'], expected exactly $.existingTasks and $.rooms
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-usercontent-missing-rooms: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 userContentArrayCounts paths ['$.existingTasks'], expected exactly $.existingTasks and $.rooms
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case bad-usercontent-null: expected exit 1, got 1: OK
+CLOUD provider gemini: golden arrays 22, allowed key paths 41, seeded rooms 9
+  CLOUD FAIL in03 att 1 req 1 userContentArrayCounts null
+CLOUD requests checked 10 in 9 attempts
+CLOUD route and request records: PASS
+CLOUD key paths subset of the allowed list: PASS
+CLOUD element counts match the golden body and the seeded household: FAIL (1)
+
+-- case good-gemini: expected exit 2, got 2: OK
+CLOUD arguments do not all name provider 'openai'
+   (above: provider arguments that do not match each other are refused)
+
+-- extra (not an exit-code case): a second, throw-away array walk over each G1/G2/G3 golden body vs the Developer test's literal oracle lists (data only)
+   g1-outcome-empty-openai: 22 arrays, equal to oracle: True
+   g2-typical-openai: 22 arrays, equal to oracle: True
+   g3-edge-openai: 22 arrays, equal to oracle: True
+   g1-outcome-empty-anthropic: 22 arrays, equal to oracle: True
+   g2-typical-anthropic: 22 arrays, equal to oracle: True
+   g3-edge-anthropic: 22 arrays, equal to oracle: True
+   g1-outcome-empty-gemini: 22 arrays, equal to oracle: True
+   g2-typical-gemini: 22 arrays, equal to oracle: True
+   g3-edge-gemini: 22 arrays, equal to oracle: True
+   all nine equal: yes
+
+-- case old-use-unchanged: no options, selftest-1 output equals the committed rescore-selftest-1.out
+   identical: OK
+
+== exit-code cases: 28 as expected, 0 not as expected
