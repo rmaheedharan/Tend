@@ -6350,7 +6350,8 @@ The owner chose "Gemini now, others later" (no credit yet). When there is credit
 provider. Run it as a script (with `zsh` or `bash` in front), not by pasting its lines, so its comments stay comments
 and nothing enters the shell history. It shows a hidden prompt for the key: type or paste the key, then press Return.
 Nothing is shown while you type. If no key is read, it stops and sends nothing. The key never appears on screen, in a
-file, or in any command's arguments (curl reads the auth header from its standard input). It is cleared when the
+file, or in any process's arguments (curl reads the auth header from its standard input, and the key is only ever
+passed to shell builtins; review R50-F5). It is cleared when the
 script ends. Only the response stream is saved, as `~/tend-rec-out/<provider>.sse`. No response headers are saved;
 the HTTP status code is printed. If the stream contains the key, the script deletes the file (review R50-F2, R50-F3).
 
@@ -6432,4 +6433,18 @@ warnings; clean tree before and after.
 |---|---|---|---|---|
 | 2026-11-27 | Coordinator | Developer (owner's Mac) | accepted | PR #50 round 1 (CHANGES REQUIRED, review at `463572d`). WI-M2-M7 paused at `1260c4a` (D-059 commit). |
 | 2026-11-27 | Developer | Reviewer (via the coordinator) | sent | F1, F2, F3, N1–N4 addressed; F4 for the PO or Planner. Re-review: m10 killed, zsh and bash probes in the record. |
+
+## WI-M2-M6 round 2 — PR #50 review round 2 (APPROVE at `18cf226`): R50-F5, no key in any argv (P-3)
+| Finding | Change | Test |
+|---|---|---|
+| R50-F5 (Minor) the leak check `grep -F -q -e "$key"` put the key in grep's arguments for a few ms | The check now runs in the shell: `content=$(cat -- "$stream")`, then `case $content in *"$key"*) leak=yes ;; esac`, with the key quoted in the pattern so glob characters match only themselves. `cat` gets only the file name. The key is now passed only to shell builtins (`read`, `printf`, `[`, `case`), so it is in no process's arguments. Script header and the owner-pending section above say so. | Probe in zsh 5.9 and bash, fake keys, local servers only: every process's arguments sampled about every 20 ms for the whole of each run, the key in none (including the run where the response echoes the key); a glob-character key matches only literally (a glob match of it is kept, the key itself is deleted). 112/112. Sampler sensitivity control: a planted 0.3 s argv exposure is seen (5 samples). Record: [`evidence/mac/WI-M2-M6-round2/`](evidence/mac/WI-M2-M6-round2/README.md). |
+
+A script and docs change only. No Swift code changed, so there is no new B0–B6 run; the last is the round-1 record at
+`990fffc`.
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Coordinator | Developer (owner's Mac) | accepted | R50-F5 from PR #50 round 2 (APPROVE at `18cf226`). |
+| 2026-11-28 | Developer | Reviewer (via the coordinator) | sent | Builtins-only leak check; whole-run argv probe 112/112 in zsh and bash. |
 

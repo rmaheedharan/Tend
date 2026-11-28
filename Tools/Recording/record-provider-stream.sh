@@ -7,7 +7,8 @@
 #     bash Tools/Recording/record-provider-stream.sh anthropic
 # It sends the committed golden request (Fixtures/M2/payload/golden/g1-outcome-empty-<provider>.head.txt and
 # .body.json) with the key typed at a hidden prompt. The key is never echoed, never written to a file, never in any
-# command's arguments (curl reads the auth header from its standard input) and is cleared when the script ends.
+# process's arguments (curl reads the auth header from its standard input; the key is only ever passed to shell
+# builtins: read, printf, [ and case) and is cleared when the script ends.
 # Only the response stream is kept, as <out-dir>/<provider>.sse (default ~/tend-rec-out); no response headers are
 # saved. The HTTP status code is printed. If the stream contains the typed key, the file is deleted.
 #
@@ -82,9 +83,15 @@ http_status=$(printf '%s: %s%s\n' "$auth_name" "$auth_prefix" "$key" |
     curl -sS -N -X POST -H @- "$@" --data-binary "@$body_file" -o "$stream" -w '%{http_code}' -- "$url")
 code=$?
 
+# The leak check runs in the shell itself (builtins only), so the key is never in any process's arguments (review
+# R50-F5). The key is quoted inside the pattern, so glob characters in it match only themselves.
 leak=no
-if [ -f "$stream" ] && grep -F -q -e "$key" -- "$stream"; then
-    leak=yes
+if [ -f "$stream" ]; then
+    content=$(cat -- "$stream")
+    case $content in
+        *"$key"*) leak=yes ;;
+    esac
+    content=
 fi
 key=
 trap - INT TERM HUP
