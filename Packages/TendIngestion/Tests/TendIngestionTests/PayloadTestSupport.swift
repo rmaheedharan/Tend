@@ -195,8 +195,9 @@ struct PayloadBuildingCloudModel: IngestionModel {
     }
 }
 
-final class PayloadBuildingCloudModels: CloudModelSource {
+final class PayloadBuildingCloudModels: CloudModelSource, CloudCaptureReceipt {
     let transport = PayloadRecordingTransport()
+    func receive() -> any CloudCaptureReceipt { self }
     func model(for provider: CloudProvider, key: APIKey) -> any IngestionModel {
         PayloadBuildingCloudModel(provider: provider, key: key, transport: transport)
     }

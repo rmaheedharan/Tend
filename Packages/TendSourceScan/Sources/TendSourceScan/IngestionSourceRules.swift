@@ -29,8 +29,10 @@
 // - Rule 6 imports (M2 Q24): the module is the first path component after `import` and any kind keyword
 //   (`import struct Darwin.C` is `Darwin`). Attributes are ignored, so `@_exported` and `@_implementationOnly` imports
 //   count. Rules 1–3 keep the stricter M1 form: the whole import target must be a listed module.
-// - The M2 Q23 fixtures-loader exception is **not** built here (WI-M2-01 stays strict, plan WI-M2-01); it comes in a
-//   scanner follow-up before WI-M2-M7 is reviewed. Until then `Data(contentsOf:` is a hit in every TendEval file.
+// - The M2 Q23 fixtures-loader exception (scanner follow-up `m2/scanner-loader-exception`; WI-M2-01 stayed strict): in
+//   the one named loader file only, a `contentsOf:` hit that is exactly the brief's allowed read is removed from the
+//   Rule 6 findings, and the loader's own checks always run in that file. See `FixturesLoaderRule.swift`. Everywhere
+//   else `Data(contentsOf:` is still a hit in every TendEval file.
 // - Rule 3 prefix rule (N-1): an identifier token is the **whole** Swift identifier, never split at camelCase, so
 //   `willPerformHTTPRedirection` is not a hit and `HTTPCookieStorage` is.
 // - Rule 4 (T-30): host-like is tested on the **whole** decoded literal segment (the lexer splits a literal at each
@@ -105,6 +107,9 @@ public struct IngestionScanConfiguration: Sendable, Equatable {
     /// Rule 4: the payload builder's provider table in `TendIngestion`, the only file where the bare hosts may appear
     /// (brief AC-M2-09 Rule 4 "Where they may appear"; review R1-F6, named in the plan by WI-M2-10).
     public var providerTableFile: String
+    /// Rule 6 (M2 Q23): the fixtures loader, the only `TendEval` file that may read bundled fixtures with
+    /// `Data(contentsOf: <name>)`, under the brief's conditions.
+    public var fixturesLoaderFile: String
 
     public init(
         cloudAdapterAllowlist: Set<String>,
@@ -112,7 +117,8 @@ public struct IngestionScanConfiguration: Sendable, Equatable {
         speechPermissionFile: String,
         speechPermissionExceptionEnabled: Bool,
         resultsWriterFile: String,
-        providerTableFile: String
+        providerTableFile: String,
+        fixturesLoaderFile: String
     ) {
         self.cloudAdapterAllowlist = cloudAdapterAllowlist
         self.speechAdapterFiles = speechAdapterFiles
@@ -120,6 +126,7 @@ public struct IngestionScanConfiguration: Sendable, Equatable {
         self.speechPermissionExceptionEnabled = speechPermissionExceptionEnabled
         self.resultsWriterFile = resultsWriterFile
         self.providerTableFile = providerTableFile
+        self.fixturesLoaderFile = fixturesLoaderFile
     }
 }
 
@@ -243,7 +250,7 @@ public enum IngestionSourceRules {
     public static var allPatterns: [String] {
         [hostLikePattern, speechExceptionCallPattern, delegateLabelPattern]
             + (writeCalls + logCalls + sessionMethodCalls).map(callPattern)
-            + methodReferenceNames.map(wholeTokenPattern) + SourceScanner.allPatterns
+            + methodReferenceNames.map(wholeTokenPattern) + loaderPatterns + SourceScanner.allPatterns
     }
 
     /// A whole identifier token: not preceded or followed by a letter, digit or `_`.
@@ -381,14 +388,21 @@ public enum IngestionSourceRules {
             .map { facts.violation(.rule5, check: "SFSpeech* API", hit: $0) }
     }
 
-    /// Rule 6, `TendEval`: the closed import list (M2 Q24); no networking pattern, including `contentsOf:` (no M2 Q23
-    /// loader exception yet); write APIs only in the results writer; no log API.
+    /// Rule 6, `TendEval`: the closed import list (M2 Q24); no networking pattern, including `contentsOf:`, except the
+    /// M2 Q23 read in the fixtures loader; in the loader file, the Q23 checks; write APIs only in the results writer;
+    /// no log API.
     static func rule6(_ facts: FileFacts) -> [RuleViolation] {
         var result = SourceScanner.imports(inCode: facts.lexed.code)
             .filter { !rule6Imports.contains(importedModule(of: $0.target)) }
             .map { RuleViolation(rule: .rule6, check: "import", file: facts.file.path, line: $0.line,
                                  excerpt: "import \($0.target)") }
-        result += facts.networkingViolations(.rule6)
+        var allowedReads: Set<Int> = []
+        if facts.file.path == facts.configuration.fixturesLoaderFile {
+            let loader = FixturesLoaderRule(facts: facts).run()
+            allowedReads = loader.allowedContentsOfOffsets
+            result += loader.violations
+        }
+        result += facts.networkingViolations(.rule6, allowedContentsOfOffsets: allowedReads)
         if facts.file.path != facts.configuration.resultsWriterFile {
             result += facts.writeViolations(.rule6)
         }
@@ -526,9 +540,15 @@ struct FileFacts {
                                  excerpt: "import \($0.target)") }
     }
 
-    func networkingViolations(_ rule: IngestionScanRule) -> [RuleViolation] {
+    /// `allowedContentsOfOffsets`: the M2 Q23 loader reads (Rule 6, the loader file only); empty everywhere else.
+    func networkingViolations(_ rule: IngestionScanRule, allowedContentsOfOffsets: Set<Int> = [])
+        -> [RuleViolation] {
         networkingHits
             .filter { !isSpeechException($0) }
+            .filter { hit in
+                !(hit.rule == SourceScanner.contentsOfRule
+                  && hit.offset.map { allowedContentsOfOffsets.contains($0) } == true)
+            }
             .map { violation(rule, check: "networking " + $0.rule, hit: $0) }
     }
 

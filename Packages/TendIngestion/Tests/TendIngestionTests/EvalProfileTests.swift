@@ -107,8 +107,9 @@ enum Synthetic {
     /// 20 right inputs with k items each, with `edit` applied per input (nil keeps it out of the file).
     static func request(
         _ profile: EvalProfile, inputs n: Int = 20, items k: Int = 3, provider: EvalProvider? = nil,
-        allowedKeyPaths: Set<String>? = nil, flipped: Set<Int> = [], retakes: Set<Int> = [],
-        edit: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 }
+        allowedKeyPaths: Set<String>? = nil, goldenBody: Data? = nil, flipped: Set<Int> = [], retakes: Set<Int> = [],
+        edit: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 },
+        firstAttempt: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt = { $1 }
     ) throws -> EvalScoringRequest {
         let route = provider.flatMap { EvalRoute(rawValue: $0.rawValue) } ?? .onDevice
         // `retakes`: those inputs get a first attempt with no draft and then the edited attempt as a retake (attempt 2).
@@ -119,23 +120,27 @@ enum Synthetic {
             var retake = edited
             retake.attempt = 2
             retake.retakeReason = "background noise"
-            return [attempt(i, drafts: [], route: route, outcome: .noModel, flipped: flipped), retake]
+            // `firstAttempt` edits the retaken (unscored) first attempt.
+            return [firstAttempt(i, attempt(i, drafts: [], route: route, outcome: .noModel, flipped: flipped)), retake]
         }
         let (inputs, household, golden) = try fixtures(inputs: n, items: k, flipped: flipped)
         return EvalScoringRequest(
             results: try CanonicalJSONWriter.data(file(provider: provider, attempts).canonicalJSON),
             schema: try EvalSelfTest.data(EvalSelfTest.schemaPath), inputs: inputs, household: household,
-            golden: golden, expectedFixturesSHA256: hash, profile: profile, allowedKeyPaths: allowedKeyPaths
+            golden: golden, expectedFixturesSHA256: hash, profile: profile, allowedKeyPaths: allowedKeyPaths,
+            goldenBody: goldenBody
         )
     }
 
     static func run(
         _ profile: EvalProfile, inputs n: Int = 20, items k: Int = 3, provider: EvalProvider? = nil,
-        allowedKeyPaths: Set<String>? = nil, flipped: Set<Int> = [],
-        edit: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 }
+        allowedKeyPaths: Set<String>? = nil, goldenBody: Data? = nil, flipped: Set<Int> = [], retakes: Set<Int> = [],
+        edit: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 },
+        firstAttempt: (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt = { $1 }
     ) throws -> EvalProfileResult {
         try EvalScorer.run(try request(profile, inputs: n, items: k, provider: provider,
-                                       allowedKeyPaths: allowedKeyPaths, flipped: flipped, edit: edit)).profileResult
+                                       allowedKeyPaths: allowedKeyPaths, goldenBody: goldenBody, flipped: flipped,
+                                       retakes: retakes, edit: edit, firstAttempt: firstAttempt)).profileResult
     }
 
     /// The scoring error for a run, or nil when it is scored.
@@ -262,14 +267,38 @@ struct EvalProfileTests {
 
     static let allowed: Set<String> = ["$.messages[].content", "$.model", "$.stream"]
 
+    /// The Anthropic golden body (`g1-outcome-empty-anthropic`) and its array counts (D-059).
+    static func goldenBody() throws -> Data {
+        try EvalSelfTest.data("Fixtures/M2/payload/golden/g1-outcome-empty-anthropic.body.json")
+    }
+
+    static func goldenCounts() throws -> [ArrayCount] {
+        try #require(CloudRequestKeyPaths.arrayCounts(ofBody: try goldenBody()))
+    }
+
+    /// The user-content counts of a capture in the synthetic household (1 room), with `titles` shortlist titles.
+    static func contentCounts(titles: Int = 2, rooms: Int = 1) -> [ArrayCount] {
+        [ArrayCount(path: "$.existingTasks", count: titles), ArrayCount(path: "$.rooms", count: rooms)]
+    }
+
+    static func request(keyPaths: [String] = ["$.messages[].content", "$.model"], counts: [ArrayCount]?,
+                        content: [ArrayCount]?) -> EvalResultsFileV1.CloudRequestRecord {
+        .init(attempt: 1, bytes: 900, keyPaths: keyPaths, arrayCounts: counts, userContentArrayCounts: content)
+    }
+
     static func cloudRun(
-        allowed: Set<String>? = allowed, edit: @escaping (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 }
+        allowed: Set<String>? = allowed, goldenBody: Data?? = nil, retakes: Set<Int> = [],
+        edit: @escaping (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt? = { $1 },
+        firstAttempt: @escaping (Int, EvalResultsFileV1.InputAttempt) -> EvalResultsFileV1.InputAttempt = { $1 }
     ) throws -> EvalProfileResult {
-        try Synthetic.run(.ds2Gated, provider: .anthropic, allowedKeyPaths: allowed) { i, a in
+        let counts = try goldenCounts()
+        let body: Data? = try goldenBody ?? Self.goldenBody()
+        return try Synthetic.run(.ds2Gated, provider: .anthropic, allowedKeyPaths: allowed, goldenBody: body,
+                                 retakes: retakes, edit: { i, a in
             var copy = a
-            copy.cloudRequests = [.init(attempt: 1, bytes: 900, keyPaths: ["$.messages[].content", "$.model"])]
+            copy.cloudRequests = [Self.request(counts: counts, content: Self.contentCounts())]
             return edit(i, copy)
-        }
+        }, firstAttempt: firstAttempt)
     }
 
     @Test("ds2-gated: a right cloud run passes; TTFI 2999/3000 ms and total 10000/10001 ms are the AC-M2-27 boundaries")
@@ -296,7 +325,8 @@ struct EvalProfileTests {
         let outside = try Self.cloudRun { i, a in
             guard i == 2 else { return a }
             var copy = a
-            copy.cloudRequests = [.init(attempt: 1, bytes: 900, keyPaths: ["$.metadata.user_id", "$.model"])]
+            copy.cloudRequests = [Self.request(keyPaths: ["$.metadata.user_id", "$.model"],
+                                               counts: try? Self.goldenCounts(), content: Self.contentCounts())]
             return copy
         }
         #expect(Synthetic.failing(outside) == [keyName])
@@ -308,6 +338,67 @@ struct EvalProfileTests {
             return copy
         }
         #expect(Synthetic.failing(otherRoute) == ["route anthropic for every scored input (AC-M2-26)"])
+    }
+
+    // MARK: ds2-gated per-array element counts (PO ruling on per-array element counts, D-059)
+
+    static let countsName = "per-array element counts match the golden body and the seeded household (AC-M2-26, D-059)"
+
+    /// A cloud run whose input 4 has the request `request`.
+    static func countsRun(_ request: @escaping ([ArrayCount]) -> EvalResultsFileV1.CloudRequestRecord)
+        throws -> EvalProfileResult {
+        let counts = try goldenCounts()
+        return try cloudRun { i, a in
+            guard i == 4 else { return a }
+            var copy = a
+            copy.cloudRequests = [request(counts)]
+            return copy
+        }
+    }
+
+    @Test("D-059: an extra element in a fixed array, a missing array or an extra array path stops ds2-gated")
+    func countsBodyMismatch() throws {
+        let extra = try Self.countsRun { counts in
+            var changed = counts
+            if let index = changed.firstIndex(where: { $0.path == "$.messages" }) { changed[index].count += 1 }
+            return Self.request(counts: changed, content: Self.contentCounts())
+        }
+        #expect(Synthetic.failing(extra) == [Self.countsName])
+        #expect(extra.checks.first { $0.name == Self.countsName }?.detail.contains("in04 attempt 1 request 1: $.messages expected 1, seen 2") == true)
+        let missing = try Self.countsRun { counts in
+            Self.request(counts: Array(counts.dropLast()), content: Self.contentCounts())
+        }
+        #expect(Synthetic.failing(missing) == [Self.countsName])
+        #expect(missing.checks.first { $0.name == Self.countsName }?.detail.contains("seen absent") == true)
+        let extraPath = try Self.countsRun { counts in
+            Self.request(counts: (counts + [ArrayCount(path: "$.zzz", count: 0)])
+                .sorted { TextFolding.utf8Precedes($0.path, $1.path) }, content: Self.contentCounts())
+        }
+        #expect(Synthetic.failing(extraPath) == [Self.countsName])
+        #expect(extraPath.checks.first { $0.name == Self.countsName }?.detail.contains("$.zzz expected absent, seen 0") == true)
+    }
+
+    @Test("D-059: rooms off by one, existingTasks = 11, an unexpected user-content path, or a null member stops ds2-gated")
+    func countsContentMismatch() throws {
+        let roomsOff = try Self.countsRun { Self.request(counts: $0, content: Self.contentCounts(rooms: 2)) }
+        #expect(Synthetic.failing(roomsOff) == [Self.countsName])
+        #expect(roomsOff.checks.first { $0.name == Self.countsName }?.detail.contains("$.rooms expected 1, seen 2") == true)
+        let eleven = try Self.countsRun { Self.request(counts: $0, content: Self.contentCounts(titles: 11)) }
+        #expect(Synthetic.failing(eleven) == [Self.countsName])
+        let ten = try Self.countsRun { Self.request(counts: $0, content: Self.contentCounts(titles: 10)) }
+        #expect(ten.passes)
+        let unexpected = try Self.countsRun { counts in
+            Self.request(counts: counts, content: [ArrayCount(path: "$.existingTasks", count: 0),
+                                                   ArrayCount(path: "$.notes", count: 1),
+                                                   ArrayCount(path: "$.rooms", count: 1)])
+        }
+        #expect(Synthetic.failing(unexpected) == [Self.countsName])
+        let nullBody = try Self.countsRun { _ in Self.request(counts: nil, content: Self.contentCounts()) }
+        #expect(Synthetic.failing(nullBody) == [Self.countsName])
+        #expect(nullBody.checks.first { $0.name == Self.countsName }?.detail.contains("arrayCounts is null") == true)
+        let nullContent = try Self.countsRun { Self.request(counts: $0, content: nil) }
+        #expect(Synthetic.failing(nullContent) == [Self.countsName])
+        #expect(Synthetic.failing(try Self.cloudRun(goldenBody: .some(nil))) == [Self.countsName])
     }
 
     // MARK: ds1-offline (AC-M2-11), ds2-offline / ds2-online (AC-M2-25), info
@@ -563,3 +654,140 @@ struct EvalProfileTests {
                                                         "ds2-gated", "info"])
     }
 }
+
+// D-059 per provider: the sent body's counts against that provider's G1 golden body.
+extension EvalProfileTests {
+    /// A ds2-gated run whose every request carries the counts of `body(i)`, checked against `golden`.
+    static func providerCountsRun(golden: Data, body: @escaping (Int) -> Data) throws -> EvalProfileResult {
+        try cloudRun(goldenBody: golden) { i, a in
+            var copy = a
+            copy.cloudRequests = [Self.request(counts: CloudRequestKeyPaths.arrayCounts(ofBody: body(i)),
+                                               content: Self.contentCounts())]
+            return copy
+        }
+    }
+
+    /// The fixed top-level array of each provider's body and one more element for it.
+    static let extraElement: [CloudProvider: (anchor: String, insert: String, path: String)] = [
+        .openAI: (#""messages":["#, #"{"role":"user","content":[]},"#, "$.messages"),
+        .anthropic: (#""messages":["#, #"{"role":"user","content":[]},"#, "$.messages"),
+        .gemini: (#""contents":["#, #"{"role":"user","parts":[]},"#, "$.contents"),
+    ]
+
+    @Test("D-059: the G1, G2 and G3 bodies of each provider pass against its G1 golden body; one extra element in a fixed array stops ds2-gated",
+          arguments: CloudProvider.allCases)
+    func providerExtraElement(provider: CloudProvider) throws {
+        let golden = try GoldenArrayCountsTests.body("g1-outcome-empty", provider)
+        for name in GoldenArrayCountsTests.goldenCases {
+            let same = try GoldenArrayCountsTests.body(name, provider)
+            #expect(try Self.providerCountsRun(golden: golden) { _ in same }.passes, "\(name)")
+        }
+        let extra = try #require(Self.extraElement[provider])
+        let text = String(decoding: golden, as: UTF8.self)
+        #expect(text.components(separatedBy: extra.anchor).count == 2, "the anchor is in the body once")
+        let mutated = Data(text.replacingOccurrences(of: extra.anchor, with: extra.anchor + extra.insert).utf8)
+        let expected = try #require(CloudRequestKeyPaths.arrayCounts(ofBody: golden)?.first { $0.path == extra.path })
+        let result = try Self.providerCountsRun(golden: golden) { i in i == 4 ? mutated : golden }
+        #expect(Synthetic.failing(result) == [Self.countsName])
+        let detail = result.checks.first { $0.name == Self.countsName }?.detail ?? ""
+        #expect(detail.contains("in04 attempt 1 request 1: \(extra.path) expected \(expected.count), seen \(expected.count + 1)"),
+                "\(detail)")
+    }
+}
+
+// Tester D-059 re-check F1: the count and key-path checks cover every attempt, retakes included.
+extension EvalProfileTests {
+    static let keyPathsName = "sent key paths are a subset of the allowed list (AC-M2-26)"
+
+    @Test("D-059 F1: only in02 attempt 1 (retaken) sends an extra message and rooms 99; ds2-gated still stops, naming input, attempt, path, expected, seen")
+    func countsOnRetakenAttempt() throws {
+        let golden = try Self.goldenCounts()
+        let good = try Self.cloudRun(retakes: [2])
+        #expect(good.passes, "a retake with a right first attempt passes")
+        let result = try Self.cloudRun(retakes: [2], firstAttempt: { i, first in
+            guard i == 2 else { return first }
+            var bad = golden
+            if let index = bad.firstIndex(where: { $0.path == "$.messages" }) { bad[index].count += 1 }
+            var copy = first
+            copy.cloudRequests = [Self.request(counts: bad, content: Self.contentCounts(rooms: 99))]
+            return copy
+        })
+        #expect(!result.passes)
+        #expect(Synthetic.failing(result) == [Self.countsName])
+        let detail = result.checks.first { $0.name == Self.countsName }?.detail ?? ""
+        #expect(detail.contains("in02 attempt 1 request 1: $.messages expected 1, seen 2"), "\(detail)")
+        #expect(detail.contains("in02 attempt 1 request 1: user content $.rooms expected 1, seen 99"), "\(detail)")
+        #expect(!detail.contains("in02 attempt 2"), "\(detail)")
+    }
+
+    @Test("D-059 F1: a key path outside the allowed list on a retaken first attempt stops ds2-gated, naming the attempt")
+    func keyPathsOnRetakenAttempt() throws {
+        let counts = try Self.goldenCounts()
+        let result = try Self.cloudRun(retakes: [2], firstAttempt: { i, first in
+            guard i == 2 else { return first }
+            var copy = first
+            copy.cloudRequests = [Self.request(keyPaths: ["$.messages[].content", "$.model", "$.secret"],
+                                               counts: counts, content: Self.contentCounts())]
+            return copy
+        })
+        #expect(Synthetic.failing(result) == [Self.keyPathsName])
+        let detail = result.checks.first { $0.name == Self.keyPathsName }?.detail ?? ""
+        #expect(detail == "outside: in02 attempt 1 request 1: $.secret", "\(detail)")
+    }
+}
+
+// Tester D-059 re-check F3: one extra element in a nested fixed array (a content part, an enum value) stops ds2-gated.
+extension EvalProfileTests {
+    /// A nested insertion: after the `occurrence`-th (1-based) `anchor` in the body, `insert` adds one element to the
+    /// array at `path`.
+    struct NestedPlant: Sendable {
+        let provider: CloudProvider
+        let anchor: String
+        let occurrence: Int
+        let insert: String
+        let path: String
+    }
+
+    static let effortEnum = #""effort":{"enum":["low","normal","high""#
+
+    static let nestedPlants: [NestedPlant] = [
+        NestedPlant(provider: .anthropic, anchor: #""content":["#, occurrence: 1,
+                    insert: #"{"type":"text","text":"x"},"#, path: "$.messages[0].content"),
+        NestedPlant(provider: .openAI, anchor: #""content":["#, occurrence: 2,
+                    insert: #"{"type":"text","text":"x"},"#, path: "$.messages[1].content"),
+        NestedPlant(provider: .gemini, anchor: #""parts":["#, occurrence: 1,
+                    insert: #"{"text":"x"},"#, path: "$.contents[0].parts"),
+        NestedPlant(provider: .gemini, anchor: effortEnum, occurrence: 1, insert: #","extra""#,
+                    path: "$.generationConfig.responseJsonSchema.properties.items.items.properties.effort.enum"),
+        NestedPlant(provider: .anthropic, anchor: effortEnum, occurrence: 1, insert: #","extra""#,
+                    path: "$.tools[0].input_schema.properties.items.items.properties.effort.enum"),
+        NestedPlant(provider: .openAI, anchor: effortEnum, occurrence: 1, insert: #","extra""#,
+                    path: "$.response_format.json_schema.schema.properties.items.items.properties.effort.enum"),
+    ]
+
+    static func inserting(_ plant: NestedPlant, into text: String) -> String? {
+        let parts = text.components(separatedBy: plant.anchor)
+        guard parts.count > plant.occurrence else { return nil }
+        let head = parts[..<plant.occurrence].joined(separator: plant.anchor)
+        let tail = parts[plant.occurrence...].joined(separator: plant.anchor)
+        return head + plant.anchor + plant.insert + tail
+    }
+
+    @Test("D-059 F3: one extra element in a nested fixed array (content part, parts, enum value) stops ds2-gated, naming the path",
+          arguments: nestedPlants.indices)
+    func nestedExtraElement(index: Int) throws {
+        let plant = Self.nestedPlants[index]
+        let golden = try GoldenArrayCountsTests.body("g1-outcome-empty", plant.provider)
+        let text = String(decoding: golden, as: UTF8.self)
+        let mutated = try #require(Self.inserting(plant, into: text))
+        let counts = try #require(CloudRequestKeyPaths.arrayCounts(ofBody: Data(mutated.utf8)), "still strict JSON")
+        let expected = try #require(CloudRequestKeyPaths.arrayCounts(ofBody: golden)?.first { $0.path == plant.path })
+        #expect(counts.first { $0.path == plant.path }?.count == expected.count + 1, "the plant adds one element")
+        let result = try Self.providerCountsRun(golden: golden) { i in i == 4 ? Data(mutated.utf8) : golden }
+        #expect(Synthetic.failing(result) == [Self.countsName])
+        let detail = result.checks.first { $0.name == Self.countsName }?.detail ?? ""
+        #expect(detail.contains("in04 attempt 1 request 1: \(plant.path) expected \(expected.count), seen \(expected.count + 1)"),
+                "\(detail)")
+    }
+}
+

@@ -15,10 +15,12 @@ public enum EvalScoreCommand {
     public static let usage = """
         usage: tend-eval-score --profile <ds1-gated|ds1-offline|ds2-offline|ds2-online|ds2-gated|info>
                                --fixtures <dir> --expected-fixtures-sha256 <hex> --results <file>
-                               [--log <file>] [--schema <file>] [--allowed-key-paths <file>]
+                               [--log <file>] [--schema <file>] [--allowed-key-paths <file>] [--golden-body <file>]
           <dir> holds inputs.json, household.json, golden.json and (unless --schema) results-v1.schema.json.
           --allowed-key-paths: the provider's allowed key-path list (ds2-gated): a JSON array of path strings, or an
           object whose "keyPaths" member is such an array or an array of objects with a "path" member.
+          --golden-body: the provider's Fixtures/M2/payload/golden/g1-outcome-empty-<provider>.body.json (ds2-gated):
+          every sent body's per-array element counts must equal its counts (D-059).
         fixed subsets (PO ruling F3): ds1-offline takes exactly in01 (text), in02 (voice), in10 (voice);
           ds2-offline and ds2-online take exactly in08 (voice), in16 (voice). Any other input set is rejected.
         exit: 0 profile passes, 1 profile does not pass, 2 file rejected, 64 usage error
@@ -38,7 +40,8 @@ public enum EvalScoreCommand {
         let resultsPath: String
         do throws(UsageError) {
             parsed = try ParsedArguments(arguments, options: ["profile", "fixtures", "expected-fixtures-sha256",
-                                                              "results", "log", "schema", "allowed-key-paths"],
+                                                              "results", "log", "schema", "allowed-key-paths",
+                                                              "golden-body"],
                                          flags: ["help"])
             if parsed.flags.contains("help") { io.standardOutput(usage); return exitPass }
             let profileName = try parsed.required("profile")
@@ -49,6 +52,9 @@ public enum EvalScoreCommand {
             resultsPath = try parsed.required("results")
             if profile == .ds2Gated, parsed.options["allowed-key-paths"] == nil {
                 throw UsageError("--allowed-key-paths is required for ds2-gated (AC-M2-26)")
+            }
+            if profile == .ds2Gated, parsed.options["golden-body"] == nil {
+                throw UsageError("--golden-body is required for ds2-gated (AC-M2-26, D-059)")
             }
         } catch {
             io.standardError("tend-eval-score: \(error.message)\n\(usage)")
@@ -74,10 +80,15 @@ public enum EvalScoreCommand {
             guard let list = allowedKeyPaths(data) else { return reject("\(path) is not an allowed key-path list") }
             allowed = list
         }
+        var goldenBody: Data?
+        if let path = parsed.options["golden-body"] {
+            guard let data = io.read(path) else { return reject("cannot read \(path)") }
+            goldenBody = data
+        }
         let request = EvalScoringRequest(
             results: files["results"] ?? Data(), schema: files["schema"] ?? Data(), inputs: files["inputs"] ?? Data(),
             household: files["household"] ?? Data(), golden: files["golden"] ?? Data(),
-            expectedFixturesSHA256: expected, profile: profile, allowedKeyPaths: allowed
+            expectedFixturesSHA256: expected, profile: profile, allowedKeyPaths: allowed, goldenBody: goldenBody
         )
         let report: EvalReport
         do throws(EvalScoringError) {

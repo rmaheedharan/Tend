@@ -95,4 +95,24 @@ struct IngestionSourceScanTests {
             #expect(found.contains { $0.rule == rule }, "\(rule) not caught in \(file.path): \(found)")
         }
     }
+
+    @Test("AC-M2-09 Rule 6, M2 Q23 (driver): the loader exception applies only to the named loader file in the committed configuration")
+    func loaderExceptionThroughDriverConfiguration() {
+        let loaderPath = "Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift"
+        #expect(ScanScope.configuration.fixturesLoaderFile == loaderPath)
+        let positive = """
+            guard let u = Bundle.main.url(forResource: "fixtures", withExtension: "json") else { throw LoaderError.missing }; return try Data(contentsOf: u)
+            """
+        let inLoader = ScannedFile(module: .tendEval, path: loaderPath, text: positive)
+        #expect(IngestionSourceRules.violations(in: [inLoader], configuration: ScanScope.configuration).isEmpty)
+        for path in ["Apps/TendEval/Sources/Run/X.swift", "Apps/TendEval/Sources/Results/EvalResultsWriter.swift"] {
+            let elsewhere = ScannedFile(module: .tendEval, path: path, text: positive)
+            #expect(IngestionSourceRules.violations(in: [elsewhere], configuration: ScanScope.configuration)
+                .contains { $0.rule == .rule6 && $0.check.contains("contentsOf:") }, "\(path)")
+        }
+        let nonLiteral = ScannedFile(module: .tendEval, path: loaderPath, text: positive
+            .replacingOccurrences(of: "\"fixtures\"", with: "name"))
+        #expect(IngestionSourceRules.violations(in: [nonLiteral], configuration: ScanScope.configuration)
+            .contains { $0.rule == .rule6 })
+    }
 }

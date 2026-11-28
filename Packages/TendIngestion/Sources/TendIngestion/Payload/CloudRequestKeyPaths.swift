@@ -51,6 +51,88 @@ public enum CloudRequestKeyPaths {
     }
 }
 
+/// One array of a request body (PO ruling on per-array element counts, 2026-11-27, D-059; AC-M2-26, AC-M2-28): the
+/// array's own path, with concrete indices for every enclosing array (`$.messages[1].content`), and its element count.
+/// Never a value.
+public struct ArrayCount: Sendable, Hashable {
+    public var path: String
+    public var count: Int
+
+    public init(path: String, count: Int) {
+        self.path = path
+        self.count = count
+    }
+}
+
+extension CloudRequestKeyPaths {
+    /// Every array in `value` (empty and nested ones too) with its element count, sorted by the UTF-8 bytes of the
+    /// path; paths are unique by construction (concrete indices). The one count function used by the harness, the
+    /// scorer and the tests.
+    public static func arrayCounts(of value: EvalJSON) -> [ArrayCount] {
+        var counts: [ArrayCount] = []
+        collectArrays(value, path: "$", into: &counts)
+        return counts.sorted { TextFolding.utf8Precedes($0.path, $1.path) }
+    }
+
+    /// The array counts of a body; nil when the body is not strict JSON.
+    public static func arrayCounts(ofBody body: Data) -> [ArrayCount]? {
+        guard let value = try? EvalJSONReader.parse(body) else { return nil }
+        return arrayCounts(of: value)
+    }
+
+    /// The array counts inside the user content: the string at the provider's `at` path (`CloudAllowedKeyPaths
+    /// .userContentPath`), parsed as one JSON object, with paths from that object's root (`$.rooms`,
+    /// `$.existingTasks`). Nil when the body is not strict JSON, the path is missing or not a string, or the string is
+    /// not a strict JSON object.
+    public static func userContentArrayCounts(ofBody body: Data, provider: CloudProvider) -> [ArrayCount]? {
+        guard let value = try? EvalJSONReader.parse(body),
+              case let .string(text)? = value.at(concretePath: CloudAllowedKeyPaths.userContentPath(provider)),
+              let content = try? EvalJSONReader.parse(Data(text.utf8)),
+              case .object = content else { return nil }
+        return arrayCounts(of: content)
+    }
+
+    private static func collectArrays(_ value: EvalJSON, path: String, into counts: inout [ArrayCount]) {
+        switch value {
+        case let .object(members):
+            for member in members { collectArrays(member.value, path: path + "." + member.key, into: &counts) }
+        case let .array(elements):
+            counts.append(ArrayCount(path: path, count: elements.count))
+            for (index, element) in elements.enumerated() {
+                collectArrays(element, path: path + "[\(index)]", into: &counts)
+            }
+        case .null, .bool, .integer, .string:
+            break
+        }
+    }
+}
+
+extension EvalJSON {
+    /// The value at a concrete path (`$`, then `.name` or `[index]`), or nil when any step is missing.
+    func at(concretePath path: String) -> EvalJSON? {
+        guard path.hasPrefix("$") else { return nil }
+        var current: EvalJSON = self
+        var rest = Substring(path.dropFirst())
+        while !rest.isEmpty {
+            if rest.hasPrefix(".") {
+                rest = rest.dropFirst()
+                let end = rest.firstIndex { $0 == "." || $0 == "[" } ?? rest.endIndex
+                guard let next = current[String(rest[..<end])] else { return nil }
+                current = next
+                rest = rest[end...]
+            } else if rest.hasPrefix("[") {
+                guard let close = rest.firstIndex(of: "]"), let index = Int(rest[rest.index(after: rest.startIndex)..<close]),
+                      case let .array(elements) = current, elements.indices.contains(index) else { return nil }
+                current = elements[index]
+                rest = rest[rest.index(after: close)...]
+            } else {
+                return nil
+            }
+        }
+        return current
+    }
+}
+
 public enum CloudAllowedKeyPaths {
 
     /// The concrete path of the user content in each provider's body.

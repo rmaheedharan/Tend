@@ -6283,3 +6283,449 @@ the previous stop; the microphone indicator must go off each time and the next c
 - Mac evidence record for `2a6931e`: [`evidence/mac/WI-M2-M3-main-merge/`](evidence/mac/WI-M2-M3-main-merge/README.md).
   B1 TendCore 141; B2 TendIngestion 580, scan 72 files, 0 violations; B4 TendAI 96 tests in 17 suites; B5 hosted 36
   tests in 5 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings, clean tree before and after.
+
+## WI-M2-M6 — cloud adapters end to end: OpenAI, Anthropic and Gemini `IngestionModel`s over the neutral transport (MS-2)
+
+- **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/cloud-adapters`, from `main` at
+  `65c06cd` (every M2 build PR through WI-M2-M5 merged)  ·  **PR:** opened by the orchestrator  ·  **Code commit:**
+  `035378e843c2a3665d7581ac512f3c4cca44bd49`  ·  **Mac evidence record:**
+  [`evidence/mac/WI-M2-M6/`](evidence/mac/WI-M2-M6/README.md).
+- **Requirements:** ● AC-M2-24 (the Mac half: adapters end to end over fixtures through a mock transport; the Linux half
+  is WI-M2-12, 13). AC-M2-22, AC-M2-23 through the transport contract; ADR-0005; Q18. FR-A1, P-1, P-2, P-3, P-4.
+
+### What changed
+- **`TendAI/Cloud/CloudIngestionModel.swift`** — the cloud `IngestionModel` (adapter contract 1–3):
+  - builds `CloudPayloadBuilder.request(CloudPayloadInput(request), model:, key:)`: only the capture, the room names and,
+    under Q12 = yes, the pipeline's shortlist titles (ADR-0005 Decision 3), for the provider's curated model (Q18); the
+    key goes only into the auth header;
+  - reads `CloudResponseBody` (WI-M2-14: the 10.0 s deadline from the moment the capture reached the model, on the
+    injected clock; per-attempt timeouts; the single 429/5xx retry) into `ProviderStreamReader` (WI-M2-13), yields its
+    snapshots, then `finish()`; a `ProviderStreamError` ends with its `stopReason`, a `ModelStopReason` passes through,
+    a cancellation ends quietly, anything else is `otherModelError`;
+  - **no Tool** (AC-M2-24): the type has none and its snapshots carry no lookup queries;
+  - a stream made in a cancelled task builds and sends nothing; `onTermination` cancels the reading task, which
+    releases the transport stream (and so the network task).
+  - It uses no networking type (Rule 2; the transport is the neutral `CloudTransport`).
+- **`OpenAIIngestionModel`, `AnthropicIngestionModel`, `GeminiIngestionModel`** (the plan's file names) — each the
+  provider's curated default model (`CloudModel.defaultModel(for:)`) over `CloudIngestionModel`.
+- **`CloudAdapters`** — the router's `CloudModelSource`: the asked provider's model with the key the router read at
+  request start, over one transport and one clock; `CloudAdapters()` uses `CloudHTTPTransport` and `ContinuousClock`.
+
+### AC → test (`CloudAdapterTests`, B4, macOS)
+| Item | Test | Result |
+|---|---|---|
+| AC-M2-24, every fixture | "every synthetic fixture through the cloud adapter gives the README's outcome and the reader's events" (33 cases: 11 per provider), each with the body in 4 chunkings (whole, 64, 7, 1 byte): outcome, draft count and skip count as in `Fixtures/M2/provider-streams/README.md`, and the event list equal to the provider stream reader read directly (the Linux oracle path) | PASS |
+| AC-M2-24, real recording | "the real Gemini recording (L2a, 2026-11-25) through the adapter gives 3 drafts, completed, no skip" (3 chunkings; titles "The AC needs servicing", "dishwasher pods", "deep clean the balcony") | PASS |
+| Request | "The request the adapter sends for the Outcome sentence is the committed golden request, byte for byte" (body and every header line of `g1-outcome-empty-<provider>`); "Q12 = yes: the request carries the pipeline's shortlist titles and room names, and nothing else of the household" | PASS |
+| Q18 | "each provider's model is pinned, streams structured output, and fixes sampling and reasoning at the lowest level": no `latest`/`preview`/`exp`; OpenAI `stream`, `reasoning_effort: "none"`, no `temperature`, `json_schema`; Anthropic `stream`, `temperature: 0`, no `thinking`, one forced tool; Gemini `alt=sse`, `application/json`, the schema member, `thinkingLevel: "minimal"`, no `temperature` | PASS |
+| No Tool | "A cloud model is never given the duplicate Tool" | PASS |
+| AC-M2-22/23 via the transport | "a key the provider does not accept ends noModel before any draft, with no retry"; "a 503 before any body is retried once inside the deadline, then the body is read" | PASS |
+| Contract 3 | "cancelling the capture ends it cancelled and releases the transport stream"; "A stream created inside a cancelled task sends nothing, even while the stream is still held" | PASS |
+| Routing | "CloudAdapters builds the asked provider's model with its curated model"; "Through the router: with Gemini turned on, a capture takes route cloud(gemini) and the recording gives 3 drafts" | PASS |
+
+**Fixtures used:** synthetic (WI-M2-13): 33, `Fixtures/M2/provider-streams/synthetic/<provider>/*.sse`. Recorded: 1,
+`gemini/recorded-outcome-sample.sse` (L2a, 2026-11-25, PR #37; valid for AC-M2-24: HTTP 200, a schema-valid stream, the
+served model `gemini-3.5-flash-lite` equal to the pinned ID, 0 thinking tokens reported). **OpenAI and Anthropic have no
+recording yet** (owner-pending, below).
+
+**Mutants (killed):** no `finish()` snapshot (A1); stream errors flattened to `otherModelError` (A2); the wrong
+provider's model for Gemini (A3, 8 tests); `onTermination` does not cancel (A4); shortlist titles dropped (A5); no
+cancelled-at-creation check (A6; it first survived because the consumer's termination also stops the request, so the
+test now holds the stream without reading it).
+
+### Q18 re-check before the recordings (plan WI-M2-10 conditions 1–5)
+| Condition | OpenAI `gpt-6-luna` | Anthropic `claude-haiku-4-5-20251001` | Gemini `gemini-3.5-flash-lite` |
+|---|---|---|---|
+| 1 Current | not checkable without a live call (owner-pending L2a) | not checkable without a live call (owner-pending L2a) | the recording's served model equals the pinned ID (2026-11-25) |
+| 2 Pinned | the provider's only listed snapshot name (ruling 7); drift check on the served `model` | dated snapshot ID | stable version ID; drift check on `modelVersion` |
+| 3 Structured streaming | `json_schema` strict, `stream` (test) | one forced tool, `stream` (test) | `responseJsonSchema`, `alt=sse` (test); confirmed live by the recording |
+| 4 Fixed sampling | no `temperature` (not documented) | `temperature: 0` | no `temperature` |
+| 5 Least reasoning | `reasoning_effort: "none"` | no `thinking` member | `thinkingLevel: "minimal"`; 0 thinking tokens in the recording |
+
+No live call was made in this item, and no key was read or printed.
+
+### Owner-pending: the OpenAI and Anthropic recordings (plan "Real provider recordings"; AC-M2-24 T-19; L2a)
+The owner chose "Gemini now, others later" (no credit yet). When there is credit, run the script
+`Tools/Recording/record-provider-stream.sh` on the Mac, from the repo root at a clean checkout of `main`, once per
+provider. Run it as a script (with `zsh` or `bash` in front), not by pasting its lines, so its comments stay comments
+and nothing enters the shell history. It shows a hidden prompt for the key: type or paste the key, then press Return.
+Nothing is shown while you type. If no key is read, it stops and sends nothing. The key never appears on screen, in a
+file, or in any process's arguments (curl reads the auth header from its standard input, and the key is only ever
+passed to shell builtins; review R50-F5). It is cleared when the
+script ends. Only the response stream is saved, as `~/tend-rec-out/<provider>.sse`. No response headers are saved;
+the HTTP status code is printed. If the stream contains the key, the script deletes the file (review R50-F2, R50-F3).
+
+```bash
+zsh Tools/Recording/record-provider-stream.sh openai
+```
+
+```bash
+zsh Tools/Recording/record-provider-stream.sh anthropic
+```
+
+The Gemini command (already recorded; not needed again):
+
+```bash
+zsh Tools/Recording/record-provider-stream.sh gemini
+```
+
+`bash` works the same in place of `zsh`. Each run sends the committed golden request
+(`Fixtures/M2/payload/golden/g1-outcome-empty-<provider>.head.txt` and `.body.json`) with the typed key in the
+provider's auth header. Then the Developer (or Tester) commits each `.sse` as
+`Fixtures/M2/provider-streams/<provider>/recorded-outcome-sample.sse`, adds it to `CloudAdapterTests` and
+`ProviderStreamRecordingTests` like the Gemini one, and records the served model ID and the reasoning-token count
+(Q18 conditions 1 and 5). A billing error is "not verified", not a failure; a 4xx naming a request field stops, and the
+golden bodies change only under a PO decision (L2a pass rule).
+
+### Test runs (clean, at `035378e`)
+B1 TendCore 141; B2 TendIngestion 580, AC-M2-09 scan 77 files, 0 violations, AC-M2-12 0 violations; B4 TendAI 108 tests
+in 18 suites; B5 hosted 36 tests in 5 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings; clean tree
+before and after.
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1, UX-2, UX-4 | n.a. | No UI. |
+| UX-3 | pass | No new outcome or reason name; the stream reasons are the neutral ones. |
+| P-1 | pass | The cloud model is reached only on route `cloud` (router test); on-device first is unchanged. |
+| P-2 | pass | The adapters use only the neutral transport; networking stays in the two allowlisted files (scan 0 violations). No dependency. |
+| P-3 | pass | The request is the golden request byte for byte; only the capture, room names and shortlist titles; no ID (test); the key only in its header. No live call made here. |
+| P-4 | pass | Bodies live in memory for one capture; nothing written or logged. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Coordinator | Developer (owner's Mac) | accepted | WI-M2-M6; Gemini recording reused, OpenAI and Anthropic owner-pending. |
+| 2026-11-28 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR (the orchestrator opens it). |
+
+## WI-M2-M6 round 1 — PR #50 review round 1: deadline from receipt, safe recording script (AC-M2-22, AC-M2-24, P-3)
+Code commit `990fffc` on `m2/cloud-adapters`; Mac record
+[`evidence/mac/WI-M2-M6-round1/`](evidence/mac/WI-M2-M6-round1/README.md).
+
+| Finding | Change | Test |
+|---|---|---|
+| R50-F1 (Major) deadline started after the consent check and the Keychain read | `CloudModelSource` now has `receive() -> any CloudCaptureReceipt`. `ModelRouter.events(...)` calls it first, before the route choice and before any consent or Keychain read. The receipt (`CloudAdapters.Receipt`) reads the start once, on the adapters' injected clock, and builds the routed model with it (`start:` on `CloudIngestionModel` and the three provider types). The router stays clock-free. The model never reads its own start. Headers of `CloudIngestionModel`, `CloudAdapters` and `ModelRouter` corrected. No product meaning changed: this is the brief's "from the moment the pipeline receives the input". | `CloudAdapterTests.deadlineFromReceipt` × 3 providers: on a manual clock, the Keychain read takes 2.5 s, the first attempt's timeouts are exactly resource 7.5 s / request 4.0 s. Kills m10 (start + 30 s), m11 (start at the model call, the round-1 code), m12 (start at model build). `CloudReceiptTests` (TendIngestion, Linux): the receipt comes before any store read, one receipt per capture, each model built from its own receipt after the key read; on-device captures build no cloud model. Kills m13 (receipt after the status read). |
+| R50-F2 (Major) the commands could echo the key and store it in zsh history | The commands are replaced by `Tools/Recording/record-provider-stream.sh`, run as `zsh <script>` or `bash <script>` (comments stay comments; nothing reaches interactive history). A hidden prompt that works in both shells (`stty -echo` on a terminal), stop if no key is read, the auth header on curl's stdin (`-H @-`, so not in any argv), the key cleared at the end, the stream deleted if it contains the key. The request is the golden head and body. Variable names avoid zsh's special `path` and `status`. | Probe in zsh 5.9 and bash with a fake key against a local server and an invalid endpoint: 90/90 (`probe.log`); on a pty from interactive zsh and bash with history on: 14/14 (`tty-probe.log`). Control: the round-1 line reproduces the review's echo and history leak. No real key, no network call. |
+| R50-F3 (Minor) `-D` saved headers; no Gemini command | No `-D`: only the stream is saved, the status code is printed. All three commands are written out. | Probe: only `<provider>.sse` in the out folder. |
+| R50-F4 (Minor) owner's "Gemini now, others later" not recorded | Not a Developer change: for the PO or Planner (`DECISIONS.md` or the plan row). AC-M2-24 stays open until both recordings are in. | — |
+| R50-N1 | `try #require(transport.requests.count == 2)` before indexing. | `retryOnce` |
+| R50-N2 | The no-Tool check walks every stored member and type to 4 levels (and checks the walk reaches `cloud.model` and `cloud.transport`); the guarantee itself is by type. | `noTool` |
+| R50-N3 | The WI-M2-M6 README states its date is UTC and the logs are in the Mac's local time; the record script now writes the UTC date with that note. | — |
+| R50-N4 | A comment on why setting `onTermination` after the task starts is safe (the stream is handed out only after the build closure returns). | — |
+
+### Test runs (clean, at `990fffc`)
+B1 TendCore 141; B2 TendIngestion 582 in 69 suites, AC-M2-09 scan 77 files, 0 violations; B4 TendAI 109 tests in 18
+suites; B5 hosted 36 tests in 5 suites; B6 as MS-1 (TendEval archive 66, expected). All passed, 0 skipped, no compiler
+warnings; clean tree before and after.
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1, UX-2, UX-4 | n.a. | No UI. |
+| UX-3 | pass | No new user-facing string; the script's messages are neutral. |
+| P-1 | pass | Routing unchanged; the receipt is taken for every capture but a cloud model is built only on route `cloud`. |
+| P-2 | pass | No networking type in Swift; the script talks only to the provider's golden host (or a test base URL). No dependency. |
+| P-3 | pass | The deadline now holds from receipt (AC-M2-27's total depends on it). The key is typed hidden, never echoed, never in argv, a file or history (probe). |
+| P-4 | pass | Only the response stream is saved; no headers. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Coordinator | Developer (owner's Mac) | accepted | PR #50 round 1 (CHANGES REQUIRED, review at `463572d`). WI-M2-M7 paused at `1260c4a` (D-059 commit). |
+| 2026-11-27 | Developer | Reviewer (via the coordinator) | sent | F1, F2, F3, N1–N4 addressed; F4 for the PO or Planner. Re-review: m10 killed, zsh and bash probes in the record. |
+
+## WI-M2-M6 round 2 — PR #50 review round 2 (APPROVE at `18cf226`): R50-F5, no key in any argv (P-3)
+| Finding | Change | Test |
+|---|---|---|
+| R50-F5 (Minor) the leak check `grep -F -q -e "$key"` put the key in grep's arguments for a few ms | The check now runs in the shell: `content=$(cat -- "$stream")`, then `case $content in *"$key"*) leak=yes ;; esac`, with the key quoted in the pattern so glob characters match only themselves. `cat` gets only the file name. The key is now passed only to shell builtins (`read`, `printf`, `[`, `case`), so it is in no process's arguments. Script header and the owner-pending section above say so. | Probe in zsh 5.9 and bash, fake keys, local servers only: every process's arguments sampled about every 20 ms for the whole of each run, the key in none (including the run where the response echoes the key); a glob-character key matches only literally (a glob match of it is kept, the key itself is deleted). 112/112. Sampler sensitivity control: a planted 0.3 s argv exposure is seen (5 samples). Record: [`evidence/mac/WI-M2-M6-round2/`](evidence/mac/WI-M2-M6-round2/README.md). |
+
+A script and docs change only. No Swift code changed, so there is no new B0–B6 run; the last is the round-1 record at
+`990fffc`.
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Coordinator | Developer (owner's Mac) | accepted | R50-F5 from PR #50 round 2 (APPROVE at `18cf226`). |
+| 2026-11-28 | Developer | Reviewer (via the coordinator) | sent | Builtins-only leak check; whole-run argv probe 112/112 in zsh and bash. |
+
+
+## M2 Q23 — scanner follow-up: the fixtures-loader exception in AC-M2-09 Rule 6
+
+- **Owner:** Developer  ·  **Branch:** `m2/scanner-loader-exception`, based on `main` at `65c06cd`  ·  **PR:** none
+  yet (committed locally, not pushed)  ·  **ADRs:** ADR-0006 (the scan library).
+- **Requirements:** AC-M2-09 Rule 6 "Fixtures-loader exception (M2 Q23)", the brief's Q23 plants and positive, the Q23
+  row of the brief's question table; plan "Named files" (fixtures loader row), WI-M2-01 timing note ("a scanner
+  follow-up … merged before WI-M2-M7 opens for review") and Developer constraints. P-2, P-4. No AC changed.
+
+### What changed
+- **`TendSourceScan/FixturesLoaderRule.swift` (new):** the Q23 checks. In the one file
+  `IngestionScanConfiguration.fixturesLoaderFile` (module `TendEval` only), a `contentsOf:` hit is removed from the
+  Rule 6 findings only when it is the allowed read, and the loader's own checks always run in that file. The file
+  header maps each brief condition to its check. In short:
+  - the read is exactly `return try Data(contentsOf: <name>)`, `<name>` one plain identifier, and only `}` or `;`
+    follows (the bytes are returned as `Data`, not kept or transformed);
+  - `<name>` is bound by `let` / `guard let` / `if let <name> = Bundle.main.url(forResource:` at the start of a
+    statement, the call ends the binding, `<name>` occurs exactly twice in the whole file (bound once, read once), the
+    binding comes first, and both sit in the same function body (the nearest `{` that is not a control-flow block);
+  - no `func`, `init`, `subscript`, accessor or closure declares a parameter (`$0` and closure signatures included);
+  - the whole token `URL` does not occur; every identifier containing `Bundle` is the `Bundle` of
+    `Bundle.main.url(`; every `forResource` is that call's first label; the brief's named hits (`.resourceURL`,
+    `.bundleURL`, `.urls(forResourcesWithExtension:`, `.path(forResource:`, `appendingPathComponent(`,
+    `appending(path:`, `appending(component:`, `deletingLastPathComponent`) are reported;
+  - the call's arguments are `forResource:` then optionally `withExtension:` then optionally `subdirectory:`, each one
+    string literal with no interpolation and no other code, decoded text matching the brief's pattern over the whole
+    text (`\A…\z`, because ICU's `$` also matches before a final newline);
+  - no literal (segments joined) contains `://`; write and log APIs stay caught by the existing Rule 6 checks.
+- **`IngestionSourceRules.swift`:** `IngestionScanConfiguration.fixturesLoaderFile` (new, required init parameter, so
+  a caller cannot forget it); Rule 6 calls the loader rule in that file and passes the allowed read offsets to
+  `networkingViolations`; the loader patterns join `allPatterns` (the compile self-test). Header note updated. Every
+  other rule and list is unchanged.
+- **`SourceScanner.swift` (lexer):** `LexedSource.stringLiterals`, one entry per whole literal (joined text,
+  interpolation flag, span in `code`). The existing `literals` segment list and `code` are unchanged; the lexer now
+  keeps a scalar count next to `code` so a span costs O(1).
+- **`TendIngestionTests/ScanScope.swift`:** the committed configuration names the loader file.
+
+### AC → test
+| AC / brief item | Test(s) (`TendSourceScanTests` unless noted) | Result |
+|---|---|---|
+| Q23 positive (brief, exact text) passes in the loader file | "AC-M2-09 M2 Q23 positive: the brief's exact loader form passes in the loader file"; "… in each of the three binding forms" (5 cases); "… a whole loader file with four fixtures …"; TendIngestion "AC-M2-09 Rule 6, M2 Q23 (driver) …" | PASS (Linux) |
+| "Caught in the fixtures-loader file" (brief, 6 plants, NSURL counted by the networking list) | "… each of the brief's plants is caught in the fixtures-loader file" (7 cases); "NSURL(fileURLWithPath:) … caught by the networking list"; "the brief's parameter plant is caught as a parameter …" | PASS (Linux) |
+| `Data(contentsOf: u)` in a TendEval file other than the loader (brief "Also caught"); everywhere else banned | "the brief's loader form is still caught in every other file of the three modules" (8 locations, including a second loader-named file, the loader's path under `TendAI`, and the results writer); existing R1-F1 table now also runs in the loader file; TendIngestion driver test | PASS (Linux) |
+| Each Q23 condition on its own (write API, non-literal names, `URL`, `Bundle`, parameters, scope, return form, `://` …) | "one plant per condition of the loader exception is caught in the loader file" (80 cases); "every condition plant's base form … passes on its own" | PASS (Linux) |
+| Other Rule 6 checks kept in the loader file | "the loader file keeps every other Rule 6 check (networking, imports, host literals)" | PASS (Linux) |
+| Case-sensitive; comments and string text never bind | "the exception is case-sensitive …"; "comments and string text do not count as the binding" | PASS (Linux) |
+| Brief text pins (named hits, both patterns, loader path) | "Pin (M2 Q23): …"; "the argument patterns accept and reject exactly as the brief's regexes" (13 cases) | PASS (Linux) |
+| Lexer spans | "Lexer (M2 Q23): whole string literals record …" | PASS (Linux) |
+| Repository scan | TendIngestion "AC-M2-09 scan": 72 files (TendIngestion 56, TendAI 15, TendEval 1), 0 violations | PASS (Linux) |
+
+**Changed test (not weakened):** `Q24RulesTests.loaderFileIsStrictUntilQ23` asserted that WI-M2-01 had no loader
+exception, so the brief's Q23 positive was a hit in the loader file. That was the planned temporary state; Q23 is the
+PO decision that ends it. It is replaced by `loaderFileExceptionIsNarrow`: the same positive now passes in the loader
+file and is still caught in another TendEval file, and its `String(contentsOf:` assertion is kept unchanged.
+
+**Mutants (each run, then reverted; all killed):** scope check off (3 issues); every `contentsOf:` in the loader allowed
+(37); literal pattern check off (14); parameter checks off (10).
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| `TendSourceScan` (`swift:6.2-noble`, `-warnings-as-errors`) | 78 tests in 5 suites passed, 0 warnings | — | — | — | — |
+| `TendIngestion` (same; includes the AC-M2-09 repository scan) | 581 tests in 68 suites passed, 0 warnings | — | — | — | — |
+| `TendCore` (same) | 141 tests in 18 suites passed, 0 warnings | — | — | — | — |
+| The real `EvalFixturesLoader.swift` (`e014fab`) | Round 2: repository scan with it, 79 files, 0 violations (below) | — | — | — | — |
+
+### Things the reviewer should look at closely
+- **The real loader (corrected in round 2, PR #51 F5).** Round 1 said the loader did not exist yet; that was out of
+  date. `origin/m2/eval-harness` at `e014fab` has `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift`: four
+  parameterless functions, each `guard let <x>File = Bundle.main.url(forResource: "<lit>", withExtension: "<lit>")
+  else { throw LoaderError.missing }` then `return try Data(contentsOf: <x>File)`. It fits the rule with 0 findings
+  (round 2 run below: 79 files, 0 violations).
+- **Where this is stricter than the brief's words** (all of them read "stricter only"; a PO ruling can loosen any one):
+  the read must be the `return try` form with nothing after it (my reading of "returns the bytes as `Data` and keeps
+  nothing"); `<name>` may occur only at its binding and its read; `{ () in` and capture-list closure signatures are
+  reported; accessors (`set(`, `willSet(`, `didSet(`) with a named parameter count as declaring one; any `subscript`
+  is reported; `Foundation.Bundle` and backticked `Bundle` / `Data` are rejected; any label other than the brief's
+  three (for example `localization:`) is rejected; the named hits match with or without a receiver.
+- **Text, not types:** control-flow blocks are recognised by keyword. A trailing closure written directly in an `if`
+  condition would be read as part of that `if` (Swift mostly forbids it there). The brief keeps "the loader reads only
+  bundle resources" as a Reviewer confirmation.
+- `IngestionScanConfiguration.init` gained a required parameter. Open branches that build their own configuration
+  will fail to compile until they pass `fixturesLoaderFile:` (loud on purpose).
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| Fit check against the real loader | — | Done in round 2 at `e014fab`; the repository scan re-checks it when WI-M2-M7 merges |
+| Traceability row for AC-M2-09 Q23 tests | — | Documenter |
+| `DECISIONS.md` entry for M2 Q23 | — | Human-merged governance PR (plan) |
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Test-only scan library; no UI. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No user copy; check names are neutral; the AC-M2-12 vocabulary scan stays green. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No model path touched. |
+| P-2 No data leaves device | pass | No networking added; the one new exception only lets one file read bundled resources named by literals; every networking pattern stays a hit there. |
+| P-3 Cloud AI per ADR-0005 | n.a. | No cloud path touched; Rule 3 and Rule 4 unchanged. |
+| P-4 Media not persisted | pass | The loader may only read bundle bytes and return them; write and log APIs stay hits in the loader file. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Developer | Reviewer (via the Orchestrator) | sent | Committed locally on `m2/scanner-loader-exception`; not pushed, no PR. Must merge before WI-M2-M7 opens for review (plan). |
+
+### Round 2 — PR #51 review round 1 (F1 Major, F2–F4 Minor, F5 Nit)
+
+- **Branch:** `m2/scanner-loader-exception`, on top of the review commit `0a3dc32`. Tests first for every finding.
+- **F1 (Major), compiler directives.** In the loader file every `#` left in lexed code is reported as
+  `fixtures loader: compiler directive or # name` (`#if`, `#elseif`, `#else`, `#endif`, `#sourceLocation`, `# if`,
+  `#warning`, any `#name`; fail closed). With any of them in the file, no read is allowed, so the read stays a
+  `networking contentsOf:` hit too. Comments and raw-string delimiters are removed by the lexer first, so they never
+  count. Tests: "every compiler directive in the loader file is reported …" (7 plants, including the review's proof
+  with `#if` around the binding and one with `#if` around the read); "the review's #if proof also leaves the read
+  reported as a contentsOf: hit"; "# in comments and raw string delimiters is not a directive".
+- **F2 (Minor), lexical scope.** "Same function body" is replaced by "in scope at the read" (`isInScope`): the read
+  comes after the call's `)` (`let`) or the `}` of the `else` block (`guard let`), and walking out from the read's
+  innermost `{` reaches the binding's block through control-flow blocks only. For `if let` that block is the `{ … }`
+  right after the call. Tests: "the binding must be in scope at the read" (7 plants: the review's four, plus the read
+  in the `guard`'s own `else` block, a `guard` inside `if`, and a `let` inside `do`); positive "reads where the
+  binding is in scope pass" (3 cases).
+- **F3 (Minor), shadowing.** In the loader file any `typealias`, and any declaration named `Data` or `Bundle` (after
+  `struct`, `class`, `enum`, `actor`, `protocol`, `extension`, `typealias`, `associatedtype`, `let`, `var`, `func`,
+  `case`, or a generic `<`), is reported. Test: 12 plants. **A text scan of the loader file cannot see shadowing
+  declared in another file.** Reviewer confirmation to add to the brief's "the loader reads only bundle resources":
+  *no TendEval file declares or extends a type named `Bundle` or `Data`, and no `typealias` names either.* Checked
+  at `e014fab`: no such declaration and no `typealias` in `Apps/TendEval/Sources`; the only other `Bundle` use is
+  `Bundle.main.object(forInfoDictionaryKey:)` in `EvalRunner.swift`.
+- **F4 (Minor), isolating plants.** Added: `return try Data(contentsOf: u); let u = Bundle.main.url(…)` (binding
+  after the read), `forResource: "\("fixtures")"` (literal inside an interpolation; kills m11), `"fix\( )tures"`
+  (only the interpolation flag catches it; kills m06) and `nonisolated(unsafe) let u = …` (only `startsStatement`
+  catches it; kills m03). The file header notes that `startsStatement` and the interpolation flag are defence in
+  depth. m09 (`binding.nameOffset < argument.startOffset` → `true`) now survives on its own because the F2 scope
+  start (`offset > scopeStart`, and `scopeStart` is after the bound name) implies it; with both off the suite fails
+  (2 issues). The order check is kept as defence in depth.
+- **F5 (Nit):** the "real loader" note above is corrected.
+
+**Mutants in round 2 (each run, then reverted):** directive reporting off (7 issues); reads allowed despite a
+directive (1); scope check off (10); control-flow-only walk off (9); shadow check off (12); `startsStatement` off (1);
+interpolation flag off (1); one-literal count `>= 1` (1); order check and scope start both off (2). Order check off
+alone survives (implied by the scope start, see F4).
+
+**Runs (Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, Linux only):**
+| Package | Result |
+|---|---|
+| `TendSourceScan` | 84 tests in 5 suites passed, 0 warnings |
+| `TendIngestion` | 581 tests in 68 suites passed, 0 warnings; AC-M2-09 scan 72 files, 0 violations |
+| `TendCore` | 141 tests in 18 suites passed, 0 warnings |
+| `TendIngestion` with the real `Apps/TendEval` from `origin/m2/eval-harness` `e014fab` (a scratch copy of this tree) | 581 tests in 68 suites passed; AC-M2-09 scan: TendIngestion 56, TendAI 15, TendEval 8, 79 files, 0 violations; AC-M2-12 scan 79 files, 0 violations |
+
+Nothing was verified on macOS, the Simulator or a device; nothing here needs them.
+
+**Law check (round 2):** UX-1, UX-2, UX-4, P-1, P-3 n.a. (test-only scan library). UX-3 pass (neutral check names;
+AC-M2-12 scan green). P-2 pass (no networking added). P-4 pass: the F1 concern is closed. An inactive `#if` can no
+longer hide the binding, so the loader file passes only when its reads are bundle resources named by literals (and
+the Reviewer confirmation above covers shadowing from other files).
+
+**Handoff log (round 2):**
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Reviewer | Developer (via Orchestrator) | received | PR #51 round 1: CHANGES REQUIRED (F1 Major; F2–F4 Minor; F5 Nit; I1 Info, no change). |
+| 2026-11-28 | Developer | Reviewer (via Orchestrator) | sent | F1–F5 fixed test-first and pushed to `m2/scanner-loader-exception` (PR #51). I1 unchanged (pre-existing lexer limit; its own ticket if the PO wants it). |
+
+### Round 3 — PR #51 review round 2 (APPROVE) tickets F6, F7 and Nit N1, fixed in this PR
+
+- **Branch:** `m2/scanner-loader-exception`, on top of the round 2 review commit `3aaf62a`. Tests first. The new
+  plants were red before the change, except the F7 plants, which pin behaviour that was already correct.
+- **F6 (Minor), regex literals hide directives.** In the loader file every `/` left in lexed code is reported as
+  `fixtures loader: slash in code (regex literal or division)`, and if there is any, no read is allowed. Comments and
+  string text are removed first, so they never count. Tests: "any / left in code in the loader file is reported, and
+  no read is allowed" (4 plants: the reviewer's R01 `/"""/` proof, the round 1 P08 `/"/` text, a plain regex literal
+  and a division); "/ in comments and string text is not reported".
+- **F7 (Minor), `bindingEnds` pinned.** "a let binding with ?? fallback, on the same line or the next, is not a
+  binding" (2 plants). Each one kills m04 (`bindingEnds` off: 2 issues).
+- **N1 (a).** The control-flow back-walk now stops at a newline that ends a statement (the line ends in a name or a
+  closing bracket). So a closure on the line after `repeat { } while false` is a closure, and the read inside it is
+  rejected. Test: "a closure on the line after `repeat { } while false` is a closure, not a while block". This can
+  only read a block as a closure, which is stricter: an Allman-style `{` on its own line would reject the read. The
+  real loader does not use that style.
+- **N1 (b).** The shadow check skips a backtick before the name. There are 3 new shadow plants (`` struct `Data` ``,
+  `` let `Bundle` ``, `` case `Data` ``).
+- **Separate ticket for the Planner:** the lexer-wide fix that lexes `/…/` and `#/…/#` regex literals. It would close
+  the known limit (header of `SourceScanner.swift`, risk R-12) for AC-M1-23 and every AC-M2-09 rule, in every file,
+  not only the loader. This PR closes it in the loader file only.
+
+**Mutants (each run, then reverted):** reads allowed despite a slash (4 issues); slash reporting off (4); m04
+`bindingEnds` off (2); newline stop off (1); backtick skip off (3). All were killed.
+
+**Runs (Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, Linux only, 0 warnings):**
+| Package | Result |
+|---|---|
+| `TendSourceScan` | 88 tests in 5 suites passed |
+| `TendIngestion` | 581 tests in 68 suites passed; AC-M2-09 scan 72 files, 0 violations |
+| `TendCore` | 141 tests in 18 suites passed |
+| `TendIngestion` with the real `Apps/TendEval` from `origin/m2/eval-harness` `32a6be8` (a scratch copy of this tree) | 581 tests in 68 suites passed; AC-M2-09 scan: TendIngestion 56, TendAI 15, TendEval 8, 79 files, 0 violations; AC-M2-12 scan 79 files, 0 violations |
+
+**Law check (round 3):** UX-1, UX-2, UX-4, P-1, P-3 n.a. (a test-only scan library). UX-3 pass (neutral check names).
+P-2 pass (no networking added). P-4 pass: a regex literal can no longer hide a directive or a non-bundle read in the
+loader file. The same lexer limit in other files is the separate ticket above.
+
+**Handoff log (round 3):**
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Reviewer | Developer (via Orchestrator) | received | PR #51 round 2: APPROVE, with tickets F6 and F7 (Minor) and Nit N1. |
+| 2026-11-28 | Developer | Reviewer / Merge Gatekeeper (via Orchestrator) | sent | F6, F7 and N1 (a, b) fixed test-first and pushed to `m2/scanner-loader-exception`. Lexer-wide regex fix to the Planner as its own ticket. |
+
+## WI-M2-M7 — the `TendEval` harness (MS-3; AC-M2-28, with AC-M2-16, AC-M2-17, AC-M2-26 and D-059)
+Branch `m2/eval-harness` from `m2/cloud-adapters`. Commits in order:
+- `1260c4a` — the PO's D-059 ruling (option a) as its own commit before the harness: per-array element counts in the
+  results file (`arrayCounts`, `userContentArrayCounts`), one shared Foundation-only count function next to
+  `CloudRequestKeyPaths`, the ds2-gated check against the provider's G1 golden body (`--golden-body`, required), the
+  schema change and the regenerated manifest (line 4 only), with an independent oracle for all nine golden bodies.
+- `3bd6e99` — merge of `m2/cloud-adapters` (PR #50 round 1: the deadline from receipt).
+- `543de78` — the harness code.
+- `e014fab` — Tester D-059 re-check F1–F3: both ds2-gated request checks over every attempt (retakes included),
+  `uniqueItems` on both count arrays (schema and manifest line 4 only), nested extra-element plants.
+- `32a6be8` — merge of `main` (PR #50 merged). `070ce05` — merge of `main` with PR #51 (the Q23 fixtures-loader
+  scanner exception); the code commit of the final run.
+
+### What it does (AC-M2-28) → where → test
+| AC-M2-28 point | Code | Test |
+|---|---|---|
+| Fixtures bundled; their SHA-256 manifest hash shown | `Fixtures/EvalFixturesLoader` (Q23 shape: one literal `Bundle.main.url(forResource:)` per file, then `Data(contentsOf:)`), `Fixtures/EvalBundle` (hash of the MANIFEST bytes; each data file checked against its line), the "Fixtures and build" section | `TendEvalTests.bundleHash`; B6 bundle log; Simulator screenshot |
+| A fresh seeded household per input, deterministic IDs (T-29) | `EvalRunner.run`: a new `InMemoryHouseholdRepository` with `EvalFixtures.household` per attempt, `EvalIDGenerator(inputNumber:attempt:)` | `EvalIDGeneratorTests` (WI-M2-16); `onDeviceText` |
+| Script shown; text fed verbatim; voice live through the M2 speech adapter | `EvalInputView`; `EvalSession.runText`, `startVoice` (`SpeechCapture` over `MicrophoneAudioSource`, microphone permission first) | `onDeviceText` (the model sees each fixture text exactly), `voiceAttempt` (the model sees the live transcript) |
+| Prewarm (AC-M2-16), TTFI and total on a monotonic clock, commit (AC-M2-17) | `show` and record start call `prewarm`; `ContinuousClock`, start at hand-off or at the final result; commit of every unmarked draft | `voiceAttempt` (total from the final result), `cloudRun` (committed = unmarked drafts) |
+| Device-run rules: retake reason, every attempt kept | one retake, voice only, reason required; attempts appended in run order | `voiceAttempt` × 2 (attempt 1, retake with reason) |
+| Cold start (Q4, information only) | input 1 once through its own fresh on-device source, before any scored attempt; only `coldStart.ttfiMs` is kept | — (device: DS-1) |
+| Cloud: key through the AC-M2-21 store, in-memory consent, "Remove key" | `EvalRunner.turnCloudOn` (`ModelRouter` with `KeychainAPIKeyStore` in the app), `InMemoryCloudConsentStore`, `removeKey` | `cloudRun` × 3 providers (fake key, in-memory store; removed at the end) |
+| Request metadata only: bytes, key paths, D-059 counts | `Run/RecordingTransport` | `cloudRun`: bytes, key paths, `arrayCounts` equal to the G1 golden body's, user content exactly `$.existingTasks` (≤ 10) and `$.rooms` (= seeded rooms); the file holds no key text |
+| Writes nothing except the results file; Documents; canonical v1 | `Results/EvalResultsWriter` (the only write API, Rule 6) | `writer` (name format, bytes = canonical JSON); every run's file read back by the scorer's reader |
+| Never shipped (project.yml) | Debug-only pre-build guard; `TendEvalTests` hosted target built only by the TendEval scheme; mic usage text; `TEND_COMMIT` → `TendCommit` in the Debug Info.plist | `ProjectSpecScanTests` (Linux): the committed spec passes, 11 negative plants each caught; B6: Release and Archive of `Tend` hold no TendEval, TendEval Release stops at the guard, TendEval archive is off |
+
+**Harness mutants (TendEval hosted tests, each restored after):** E1 counts not recorded, E2 wrong byte count, E3
+voice fed the script instead of the transcript (survived first; `voiceAttempt` now checks the model's input, then
+killed), E4 clock not from the final result, E5 the hash of the wrong file, E6 duplicates committed: all killed.
+
+**Build note.** Build TendEval for a device run with `TEND_COMMIT=$(git rev-parse HEAD)` (xcodebuild) so the results
+file's `appCommitSHA` is the commit under test; without it the harness shows the gap and will not start a run.
+
+**Open for the owner / Tester:** the screens are plain test controls (plan WI-M2-M7). Voice capture, the microphone
+prompt and the on-device model are device-only (DS-1, DS-2). The Simulator check covered launch, the fixtures hash
+and the setup screen.
+
+### D-059 on this branch (PO ruling option a; Tester re-check)
+- `1260c4a` is the one commit that reopened the freeze for `results-v1.schema.json` (with `MANIFEST.sha256` line 4).
+  `e014fab` adds `uniqueItems` to both count arrays under the same open freeze, again with only line 4 of the manifest
+  changed. `golden.json`, `household.json` and `inputs.json` are untouched in both (`EvalFreezeTests`).
+- Fixtures hash now: `7fdc056e92e419a4b416ea14493a7cc2ab9188bb559c796bd79ed45d2141de22`.
+- `RecordingTransport` fills both members with the one shared Foundation-only count function next to
+  `CloudRequestKeyPaths`: `arrayCounts(ofBody: request.body)` and `userContentArrayCounts(ofBody:provider:)` with the
+  request's provider. No second count implementation exists (`cloudRun` checks its output against the G1 golden body
+  of each provider).
+- ds2-gated checks the counts and the key-path subset over every request of every attempt, retakes included (F1).
+
+### Test runs (clean, at `070ce05`)
+B1 TendCore 141; B2 TendIngestion 597 in 71 suites, AC-M2-09 scan 84 files, 0 violations (Q23 loader exception
+included), AC-M2-12 0 violations, `ProjectSpecScanTests` 0 violations and 11 plants caught; B4 TendAI 109 tests in 18
+suites; B5 hosted 36 tests in 5 suites; B5-eval TendEval hosted 5 tests (9 cases); B6 as MS-1, plus TendEval Release
+stopped at the guard (exit 65) and the TendEval archive off (66). All passed, 0 skipped, no compiler warnings; clean
+tree before and after. Record: [`evidence/mac/WI-M2-M7/`](evidence/mac/WI-M2-M7/README.md).
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1, UX-2, UX-4 | n.a. | A debug test tool, never shipped; its screens are plain test controls (plan WI-M2-M7). |
+| UX-3 | pass | Neutral status text; AC-M2-12 vocabulary scan 0 violations over TendEval. |
+| P-1 | pass | The router chooses the route; on device first for on-device runs; cloud only on the run's provider. |
+| P-2 | pass | No networking type in TendEval (Rule 6, 0 violations); the cloud transport is the app's `CloudHTTPTransport` through the neutral protocol. No dependency. |
+| P-3 | pass | The key goes into the AC-M2-21 key store and is cleared from the field; consent in memory only; "Remove key"; the results file holds no key, body or header value (test). |
+| P-4 | pass | Only the results file is written (one write API, in the writer); audio is never stored; transcripts only of the scripted eval utterances. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Coordinator | Developer (owner's Mac) | accepted | WI-M2-M7 from `m2/cloud-adapters`; D-059 first as its own commit. |
+| 2026-11-28 | Coordinator | Developer | accepted | Tester D-059 re-check F1–F3 (one commit, `e014fab`). |
+| 2026-11-28 | Developer | Reviewer, Tester (via the coordinator) | sent | Final run at `070ce05` after PR #51; no PR opened (the coordinator opens it). |

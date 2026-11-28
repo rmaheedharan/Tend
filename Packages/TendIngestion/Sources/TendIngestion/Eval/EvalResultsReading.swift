@@ -183,7 +183,12 @@ extension EvalResultsFileV1 {
                 let sorted = zip(request.keyPaths, request.keyPaths.dropFirst()).allSatisfy {
                     TextFolding.utf8Precedes($0, $1)
                 }
-                guard request.attempt == index + 1, sorted else {
+                // Array counts: each list sorted by the UTF-8 bytes of its path and its paths unique.
+                let countsOrdered = [request.arrayCounts, request.userContentArrayCounts].allSatisfy { list in
+                    guard let list else { return true }
+                    return zip(list, list.dropFirst()).allSatisfy { TextFolding.utf8Precedes($0.path, $1.path) }
+                }
+                guard request.attempt == index + 1, sorted, countsOrdered else {
                     throw fail(.cloudRequestsInconsistent(inputID: id, attempt: n))
                 }
             }
@@ -241,7 +246,9 @@ struct ValueReader {
         for request in try array(entry["cloudRequests"]) {
             var paths: [String] = []
             for path in try array(request["keyPaths"]) { paths.append(try string(path)) }
-            requests.append(.init(attempt: try int(request["attempt"]), bytes: try int(request["bytes"]), keyPaths: paths))
+            requests.append(.init(attempt: try int(request["attempt"]), bytes: try int(request["bytes"]), keyPaths: paths,
+                                  arrayCounts: try counts(request["arrayCounts"]),
+                                  userContentArrayCounts: try counts(request["userContentArrayCounts"])))
         }
         return .init(
             inputID: try string(entry["inputID"]), mode: try enumValue(entry["mode"]), attempt: try int(entry["attempt"]),
@@ -291,6 +298,16 @@ struct ValueReader {
         guard case .object? = value, let value else { throw Unexpected() }
         return value
     }
+    /// `[{count, path}]` or `null`.
+    func counts(_ value: EvalJSON?) throws(Unexpected) -> [ArrayCount]? {
+        if value == .null { return nil }
+        var result: [ArrayCount] = []
+        for entry in try array(value) {
+            result.append(ArrayCount(path: try string(entry["path"]), count: try int(entry["count"])))
+        }
+        return result
+    }
+
     func array(_ value: EvalJSON?) throws(Unexpected) -> [EvalJSON] {
         guard case let .array(values)? = value else { throw Unexpected() }
         return values

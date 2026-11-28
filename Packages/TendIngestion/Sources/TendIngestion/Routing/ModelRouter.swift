@@ -17,8 +17,12 @@
 // - **Overlapping Settings actions:** a turn-off or remove-key that starts while a turn-on is running wins; the
 //   turn-on then removes what it wrote and returns `.off`.
 //
-// No clock, timer, dispatch queue, lock or `@unchecked Sendable`: the actor serialises the state. No networking: the
-// cloud model comes from an injected `CloudModelSource` (the `TendAI` adapters, WI-M2-M6).
+// - **The deadline starts at receipt.** `events` asks the cloud model source for a receipt first, before the route
+//   choice and before the consent and Keychain reads, and the cloud model is built from that receipt (AC-M2-22, Q22).
+//
+// No clock, timer, dispatch queue, lock or `@unchecked Sendable`: the actor serialises the state (the deadline start is
+// read on the cloud model source's clock). No networking: the cloud model comes from an injected `CloudModelSource`
+// (the `TendAI` adapters, WI-M2-M6).
 
 import Foundation
 import TendCore
@@ -32,9 +36,17 @@ public protocol OnDeviceModelSource: Sendable {
     func model(household: Household) -> any IngestionModel
 }
 
-/// Builds the cloud model for one provider with the key read for this request (the `TendAI` cloud adapters,
-/// WI-M2-M6). A cloud model is never given the duplicate `Tool` (AC-M2-24).
+/// The cloud models of the `TendAI` adapters (WI-M2-M6). The router calls `receive()` once per capture, at the moment
+/// the pipeline receives the input, before the route choice and before any consent or Keychain read. The returned
+/// receipt holds the start of the capture's 10.0 s cloud deadline on the source's own injected clock (AC-M2-22
+/// "Timeouts", Q22, T-17; review R50-F1), so the router itself stays clock-free.
 public protocol CloudModelSource: Sendable {
+    func receive() -> any CloudCaptureReceipt
+}
+
+/// One received capture's cloud models: builds the routed provider's model with the key read for this request, with
+/// the deadline running from the receipt. A cloud model is never given the duplicate `Tool` (AC-M2-24).
+public protocol CloudCaptureReceipt: Sendable {
     func model(for provider: CloudProvider, key: APIKey) -> any IngestionModel
 }
 
@@ -56,6 +68,8 @@ public actor ModelRouter {
     /// One routed cloud capture, from route choice until its event sequence has ended.
     private struct CloudCapture {
         let provider: CloudProvider
+        /// The capture's receipt, taken when the pipeline received the input (the deadline start).
+        let receipt: any CloudCaptureReceipt
         /// Cloud was turned off (or the key removed, or another provider selected) for this capture.
         var ended = false
         /// The capture's snapshot stream, attached as soon as the stream is created (before the key is read), so a
@@ -130,6 +144,8 @@ public actor ModelRouter {
 
     private func events(preference: RoutePreference, household: Household,
                         makePipeline: (Route) -> DraftPipeline) async -> RoutedDraftEvents {
+        // First, before any await: the moment the pipeline receives the input starts the cloud deadline (R50-F1).
+        let receipt = cloudModels.receive()
         let availability = onDevice.availability()
         let route = RouteRules.route(availability: availability, preference: preference, cloud: await cloudStatus())
         let pipeline = makePipeline(route)
@@ -149,7 +165,7 @@ public actor ModelRouter {
         case let .cloud(provider):
             lastCaptureID += 1
             let id = lastCaptureID
-            captures[id] = CloudCapture(provider: provider)
+            captures[id] = CloudCapture(provider: provider, receipt: receipt)
             let model = ConsentCheckedCloudModel(router: self, captureID: id)
             return RoutedDraftEvents(events: pipeline.events(from: .cloud(provider, model)), route: route,
                                      watch: RoutedDraftEvents.CaptureWatch(router: self, captureID: id))
@@ -256,7 +272,7 @@ public actor ModelRouter {
             endCaptures({ _ in true }, where: captureID)
             return nil
         }
-        return cloudModels.model(for: capture.provider, key: key)
+        return capture.receipt.model(for: capture.provider, key: key)
     }
 
     /// Whether the capture was ended by a turn-off (unknown captures count as ended: fail closed).

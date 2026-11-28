@@ -48,6 +48,9 @@ enum ScanScope {
         speechPermissionExceptionEnabled: speechPermissionExceptionEnabled,
         resultsWriterFile: "Apps/TendEval/Sources/Results/EvalResultsWriter.swift",
         // Rule 4 (review R1-F6, WI-M2-10): the payload builder's provider table, the only file with bare hosts.
-        providerTableFile: "Packages/TendIngestion/Sources/TendIngestion/Payload/CloudProviderTable.swift"
+        providerTableFile: "Packages/TendIngestion/Sources/TendIngestion/Payload/CloudProviderTable.swift",
+        // Rule 6 (M2 Q23): the fixtures loader, the only TendEval file allowed `Data(contentsOf:` under the brief's
+        // conditions (bundle resources named by string literals only).
+        fixturesLoaderFile: "Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift"
     )
 }

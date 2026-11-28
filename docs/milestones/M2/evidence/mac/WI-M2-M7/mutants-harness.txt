@@ -1,0 +1,7 @@
+E1-no-array-counts KILLED 0 
+E2-wrong-bytes KILLED 0 
+E3-voice-uses-script SURVIVED 0 
+E4-clock-not-from-final-result KILLED 0 
+E5-hash-of-wrong-file KILLED 1 ✘ Test "The bundled fixtures load through the loader, match MANIFEST.sha256, and the on-screen hash is the SHA
+E6-commit-duplicates KILLED 0 
+E3-voice-uses-script-rerun KILLED 0 
