@@ -1,0 +1,91 @@
+PASS zsh openai exit 0
+PASS zsh openai status 200 printed
+PASS zsh openai one request
+PASS zsh openai auth header exact
+PASS zsh openai golden headers sent
+PASS zsh openai body is the golden body
+PASS zsh openai path and query
+PASS zsh openai curl was running when ps sampled
+PASS zsh openai key not in any process argv
+PASS zsh openai key not on screen
+PASS zsh openai only the stream saved
+PASS zsh openai key not in saved files
+PASS zsh anthropic exit 0
+PASS zsh anthropic status 200 printed
+PASS zsh anthropic one request
+PASS zsh anthropic auth header exact
+PASS zsh anthropic golden headers sent
+PASS zsh anthropic body is the golden body
+PASS zsh anthropic path and query
+PASS zsh anthropic curl was running when ps sampled
+PASS zsh anthropic key not in any process argv
+PASS zsh anthropic key not on screen
+PASS zsh anthropic only the stream saved
+PASS zsh anthropic key not in saved files
+PASS zsh gemini exit 0
+PASS zsh gemini status 200 printed
+PASS zsh gemini one request
+PASS zsh gemini auth header exact
+PASS zsh gemini golden headers sent
+PASS zsh gemini body is the golden body
+PASS zsh gemini path and query
+PASS zsh gemini curl was running when ps sampled
+PASS zsh gemini key not in any process argv
+PASS zsh gemini key not on screen
+PASS zsh gemini only the stream saved
+PASS zsh gemini key not in saved files
+PASS zsh empty key exits 1
+PASS zsh empty key says so
+PASS zsh empty key sends nothing
+PASS zsh no input exits 1, sends nothing
+PASS zsh invalid endpoint exits non-zero (curl 7)
+PASS zsh invalid endpoint, key not on screen
+PASS zsh unknown provider is a usage error
+PASS bash openai exit 0
+PASS bash openai status 200 printed
+PASS bash openai one request
+PASS bash openai auth header exact
+PASS bash openai golden headers sent
+PASS bash openai body is the golden body
+PASS bash openai path and query
+PASS bash openai curl was running when ps sampled
+PASS bash openai key not in any process argv
+PASS bash openai key not on screen
+PASS bash openai only the stream saved
+PASS bash openai key not in saved files
+PASS bash anthropic exit 0
+PASS bash anthropic status 200 printed
+PASS bash anthropic one request
+PASS bash anthropic auth header exact
+PASS bash anthropic golden headers sent
+PASS bash anthropic body is the golden body
+PASS bash anthropic path and query
+PASS bash anthropic curl was running when ps sampled
+PASS bash anthropic key not in any process argv
+PASS bash anthropic key not on screen
+PASS bash anthropic only the stream saved
+PASS bash anthropic key not in saved files
+PASS bash gemini exit 0
+PASS bash gemini status 200 printed
+PASS bash gemini one request
+PASS bash gemini auth header exact
+PASS bash gemini golden headers sent
+PASS bash gemini body is the golden body
+PASS bash gemini path and query
+PASS bash gemini curl was running when ps sampled
+PASS bash gemini key not in any process argv
+PASS bash gemini key not on screen
+PASS bash gemini only the stream saved
+PASS bash gemini key not in saved files
+PASS bash empty key exits 1
+PASS bash empty key says so
+PASS bash empty key sends nothing
+PASS bash no input exits 1, sends nothing
+PASS bash invalid endpoint exits non-zero (curl 7)
+PASS bash invalid endpoint, key not on screen
+PASS bash unknown provider is a usage error
+PASS zsh echoed key: exit 1 and stream deleted
+PASS zsh echoed key: not on screen
+PASS bash echoed key: exit 1 and stream deleted
+PASS bash echoed key: not on screen
+probe: 90 passed, 0 not passed
