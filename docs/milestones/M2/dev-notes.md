@@ -6284,6 +6284,171 @@ the previous stop; the microphone indicator must go off each time and the next c
   B1 TendCore 141; B2 TendIngestion 580, scan 72 files, 0 violations; B4 TendAI 96 tests in 17 suites; B5 hosted 36
   tests in 5 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings, clean tree before and after.
 
+## WI-M2-M6 — cloud adapters end to end: OpenAI, Anthropic and Gemini `IngestionModel`s over the neutral transport (MS-2)
+
+- **Owner:** Developer, driving the owner's Mac over Remote Control  ·  **Branch:** `m2/cloud-adapters`, from `main` at
+  `65c06cd` (every M2 build PR through WI-M2-M5 merged)  ·  **PR:** opened by the orchestrator  ·  **Code commit:**
+  `035378e843c2a3665d7581ac512f3c4cca44bd49`  ·  **Mac evidence record:**
+  [`evidence/mac/WI-M2-M6/`](evidence/mac/WI-M2-M6/README.md).
+- **Requirements:** ● AC-M2-24 (the Mac half: adapters end to end over fixtures through a mock transport; the Linux half
+  is WI-M2-12, 13). AC-M2-22, AC-M2-23 through the transport contract; ADR-0005; Q18. FR-A1, P-1, P-2, P-3, P-4.
+
+### What changed
+- **`TendAI/Cloud/CloudIngestionModel.swift`** — the cloud `IngestionModel` (adapter contract 1–3):
+  - builds `CloudPayloadBuilder.request(CloudPayloadInput(request), model:, key:)`: only the capture, the room names and,
+    under Q12 = yes, the pipeline's shortlist titles (ADR-0005 Decision 3), for the provider's curated model (Q18); the
+    key goes only into the auth header;
+  - reads `CloudResponseBody` (WI-M2-14: the 10.0 s deadline from the moment the capture reached the model, on the
+    injected clock; per-attempt timeouts; the single 429/5xx retry) into `ProviderStreamReader` (WI-M2-13), yields its
+    snapshots, then `finish()`; a `ProviderStreamError` ends with its `stopReason`, a `ModelStopReason` passes through,
+    a cancellation ends quietly, anything else is `otherModelError`;
+  - **no Tool** (AC-M2-24): the type has none and its snapshots carry no lookup queries;
+  - a stream made in a cancelled task builds and sends nothing; `onTermination` cancels the reading task, which
+    releases the transport stream (and so the network task).
+  - It uses no networking type (Rule 2; the transport is the neutral `CloudTransport`).
+- **`OpenAIIngestionModel`, `AnthropicIngestionModel`, `GeminiIngestionModel`** (the plan's file names) — each the
+  provider's curated default model (`CloudModel.defaultModel(for:)`) over `CloudIngestionModel`.
+- **`CloudAdapters`** — the router's `CloudModelSource`: the asked provider's model with the key the router read at
+  request start, over one transport and one clock; `CloudAdapters()` uses `CloudHTTPTransport` and `ContinuousClock`.
+
+### AC → test (`CloudAdapterTests`, B4, macOS)
+| Item | Test | Result |
+|---|---|---|
+| AC-M2-24, every fixture | "every synthetic fixture through the cloud adapter gives the README's outcome and the reader's events" (33 cases: 11 per provider), each with the body in 4 chunkings (whole, 64, 7, 1 byte): outcome, draft count and skip count as in `Fixtures/M2/provider-streams/README.md`, and the event list equal to the provider stream reader read directly (the Linux oracle path) | PASS |
+| AC-M2-24, real recording | "the real Gemini recording (L2a, 2026-11-25) through the adapter gives 3 drafts, completed, no skip" (3 chunkings; titles "The AC needs servicing", "dishwasher pods", "deep clean the balcony") | PASS |
+| Request | "The request the adapter sends for the Outcome sentence is the committed golden request, byte for byte" (body and every header line of `g1-outcome-empty-<provider>`); "Q12 = yes: the request carries the pipeline's shortlist titles and room names, and nothing else of the household" | PASS |
+| Q18 | "each provider's model is pinned, streams structured output, and fixes sampling and reasoning at the lowest level": no `latest`/`preview`/`exp`; OpenAI `stream`, `reasoning_effort: "none"`, no `temperature`, `json_schema`; Anthropic `stream`, `temperature: 0`, no `thinking`, one forced tool; Gemini `alt=sse`, `application/json`, the schema member, `thinkingLevel: "minimal"`, no `temperature` | PASS |
+| No Tool | "A cloud model is never given the duplicate Tool" | PASS |
+| AC-M2-22/23 via the transport | "a key the provider does not accept ends noModel before any draft, with no retry"; "a 503 before any body is retried once inside the deadline, then the body is read" | PASS |
+| Contract 3 | "cancelling the capture ends it cancelled and releases the transport stream"; "A stream created inside a cancelled task sends nothing, even while the stream is still held" | PASS |
+| Routing | "CloudAdapters builds the asked provider's model with its curated model"; "Through the router: with Gemini turned on, a capture takes route cloud(gemini) and the recording gives 3 drafts" | PASS |
+
+**Fixtures used:** synthetic (WI-M2-13): 33, `Fixtures/M2/provider-streams/synthetic/<provider>/*.sse`. Recorded: 1,
+`gemini/recorded-outcome-sample.sse` (L2a, 2026-11-25, PR #37; valid for AC-M2-24: HTTP 200, a schema-valid stream, the
+served model `gemini-3.5-flash-lite` equal to the pinned ID, 0 thinking tokens reported). **OpenAI and Anthropic have no
+recording yet** (owner-pending, below).
+
+**Mutants (killed):** no `finish()` snapshot (A1); stream errors flattened to `otherModelError` (A2); the wrong
+provider's model for Gemini (A3, 8 tests); `onTermination` does not cancel (A4); shortlist titles dropped (A5); no
+cancelled-at-creation check (A6; it first survived because the consumer's termination also stops the request, so the
+test now holds the stream without reading it).
+
+### Q18 re-check before the recordings (plan WI-M2-10 conditions 1–5)
+| Condition | OpenAI `gpt-6-luna` | Anthropic `claude-haiku-4-5-20251001` | Gemini `gemini-3.5-flash-lite` |
+|---|---|---|---|
+| 1 Current | not checkable without a live call (owner-pending L2a) | not checkable without a live call (owner-pending L2a) | the recording's served model equals the pinned ID (2026-11-25) |
+| 2 Pinned | the provider's only listed snapshot name (ruling 7); drift check on the served `model` | dated snapshot ID | stable version ID; drift check on `modelVersion` |
+| 3 Structured streaming | `json_schema` strict, `stream` (test) | one forced tool, `stream` (test) | `responseJsonSchema`, `alt=sse` (test); confirmed live by the recording |
+| 4 Fixed sampling | no `temperature` (not documented) | `temperature: 0` | no `temperature` |
+| 5 Least reasoning | `reasoning_effort: "none"` | no `thinking` member | `thinkingLevel: "minimal"`; 0 thinking tokens in the recording |
+
+No live call was made in this item, and no key was read or printed.
+
+### Owner-pending: the OpenAI and Anthropic recordings (plan "Real provider recordings"; AC-M2-24 T-19; L2a)
+The owner chose "Gemini now, others later" (no credit yet). When there is credit, run the script
+`Tools/Recording/record-provider-stream.sh` on the Mac, from the repo root at a clean checkout of `main`, once per
+provider. Run it as a script (with `zsh` or `bash` in front), not by pasting its lines, so its comments stay comments
+and nothing enters the shell history. It shows a hidden prompt for the key: type or paste the key, then press Return.
+Nothing is shown while you type. If no key is read, it stops and sends nothing. The key never appears on screen, in a
+file, or in any process's arguments (curl reads the auth header from its standard input, and the key is only ever
+passed to shell builtins; review R50-F5). It is cleared when the
+script ends. Only the response stream is saved, as `~/tend-rec-out/<provider>.sse`. No response headers are saved;
+the HTTP status code is printed. If the stream contains the key, the script deletes the file (review R50-F2, R50-F3).
+
+```bash
+zsh Tools/Recording/record-provider-stream.sh openai
+```
+
+```bash
+zsh Tools/Recording/record-provider-stream.sh anthropic
+```
+
+The Gemini command (already recorded; not needed again):
+
+```bash
+zsh Tools/Recording/record-provider-stream.sh gemini
+```
+
+`bash` works the same in place of `zsh`. Each run sends the committed golden request
+(`Fixtures/M2/payload/golden/g1-outcome-empty-<provider>.head.txt` and `.body.json`) with the typed key in the
+provider's auth header. Then the Developer (or Tester) commits each `.sse` as
+`Fixtures/M2/provider-streams/<provider>/recorded-outcome-sample.sse`, adds it to `CloudAdapterTests` and
+`ProviderStreamRecordingTests` like the Gemini one, and records the served model ID and the reasoning-token count
+(Q18 conditions 1 and 5). A billing error is "not verified", not a failure; a 4xx naming a request field stops, and the
+golden bodies change only under a PO decision (L2a pass rule).
+
+### Test runs (clean, at `035378e`)
+B1 TendCore 141; B2 TendIngestion 580, AC-M2-09 scan 77 files, 0 violations, AC-M2-12 0 violations; B4 TendAI 108 tests
+in 18 suites; B5 hosted 36 tests in 5 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings; clean tree
+before and after.
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1, UX-2, UX-4 | n.a. | No UI. |
+| UX-3 | pass | No new outcome or reason name; the stream reasons are the neutral ones. |
+| P-1 | pass | The cloud model is reached only on route `cloud` (router test); on-device first is unchanged. |
+| P-2 | pass | The adapters use only the neutral transport; networking stays in the two allowlisted files (scan 0 violations). No dependency. |
+| P-3 | pass | The request is the golden request byte for byte; only the capture, room names and shortlist titles; no ID (test); the key only in its header. No live call made here. |
+| P-4 | pass | Bodies live in memory for one capture; nothing written or logged. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Coordinator | Developer (owner's Mac) | accepted | WI-M2-M6; Gemini recording reused, OpenAI and Anthropic owner-pending. |
+| 2026-11-28 | Developer | Reviewer, Tester, PO (via the coordinator) | sent | Branch pushed, no PR (the orchestrator opens it). |
+
+## WI-M2-M6 round 1 — PR #50 review round 1: deadline from receipt, safe recording script (AC-M2-22, AC-M2-24, P-3)
+Code commit `990fffc` on `m2/cloud-adapters`; Mac record
+[`evidence/mac/WI-M2-M6-round1/`](evidence/mac/WI-M2-M6-round1/README.md).
+
+| Finding | Change | Test |
+|---|---|---|
+| R50-F1 (Major) deadline started after the consent check and the Keychain read | `CloudModelSource` now has `receive() -> any CloudCaptureReceipt`. `ModelRouter.events(...)` calls it first, before the route choice and before any consent or Keychain read. The receipt (`CloudAdapters.Receipt`) reads the start once, on the adapters' injected clock, and builds the routed model with it (`start:` on `CloudIngestionModel` and the three provider types). The router stays clock-free. The model never reads its own start. Headers of `CloudIngestionModel`, `CloudAdapters` and `ModelRouter` corrected. No product meaning changed: this is the brief's "from the moment the pipeline receives the input". | `CloudAdapterTests.deadlineFromReceipt` × 3 providers: on a manual clock, the Keychain read takes 2.5 s, the first attempt's timeouts are exactly resource 7.5 s / request 4.0 s. Kills m10 (start + 30 s), m11 (start at the model call, the round-1 code), m12 (start at model build). `CloudReceiptTests` (TendIngestion, Linux): the receipt comes before any store read, one receipt per capture, each model built from its own receipt after the key read; on-device captures build no cloud model. Kills m13 (receipt after the status read). |
+| R50-F2 (Major) the commands could echo the key and store it in zsh history | The commands are replaced by `Tools/Recording/record-provider-stream.sh`, run as `zsh <script>` or `bash <script>` (comments stay comments; nothing reaches interactive history). A hidden prompt that works in both shells (`stty -echo` on a terminal), stop if no key is read, the auth header on curl's stdin (`-H @-`, so not in any argv), the key cleared at the end, the stream deleted if it contains the key. The request is the golden head and body. Variable names avoid zsh's special `path` and `status`. | Probe in zsh 5.9 and bash with a fake key against a local server and an invalid endpoint: 90/90 (`probe.log`); on a pty from interactive zsh and bash with history on: 14/14 (`tty-probe.log`). Control: the round-1 line reproduces the review's echo and history leak. No real key, no network call. |
+| R50-F3 (Minor) `-D` saved headers; no Gemini command | No `-D`: only the stream is saved, the status code is printed. All three commands are written out. | Probe: only `<provider>.sse` in the out folder. |
+| R50-F4 (Minor) owner's "Gemini now, others later" not recorded | Not a Developer change: for the PO or Planner (`DECISIONS.md` or the plan row). AC-M2-24 stays open until both recordings are in. | — |
+| R50-N1 | `try #require(transport.requests.count == 2)` before indexing. | `retryOnce` |
+| R50-N2 | The no-Tool check walks every stored member and type to 4 levels (and checks the walk reaches `cloud.model` and `cloud.transport`); the guarantee itself is by type. | `noTool` |
+| R50-N3 | The WI-M2-M6 README states its date is UTC and the logs are in the Mac's local time; the record script now writes the UTC date with that note. | — |
+| R50-N4 | A comment on why setting `onTermination` after the task starts is safe (the stream is handed out only after the build closure returns). | — |
+
+### Test runs (clean, at `990fffc`)
+B1 TendCore 141; B2 TendIngestion 582 in 69 suites, AC-M2-09 scan 77 files, 0 violations; B4 TendAI 109 tests in 18
+suites; B5 hosted 36 tests in 5 suites; B6 as MS-1 (TendEval archive 66, expected). All passed, 0 skipped, no compiler
+warnings; clean tree before and after.
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1, UX-2, UX-4 | n.a. | No UI. |
+| UX-3 | pass | No new user-facing string; the script's messages are neutral. |
+| P-1 | pass | Routing unchanged; the receipt is taken for every capture but a cloud model is built only on route `cloud`. |
+| P-2 | pass | No networking type in Swift; the script talks only to the provider's golden host (or a test base URL). No dependency. |
+| P-3 | pass | The deadline now holds from receipt (AC-M2-27's total depends on it). The key is typed hidden, never echoed, never in argv, a file or history (probe). |
+| P-4 | pass | Only the response stream is saved; no headers. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Coordinator | Developer (owner's Mac) | accepted | PR #50 round 1 (CHANGES REQUIRED, review at `463572d`). WI-M2-M7 paused at `1260c4a` (D-059 commit). |
+| 2026-11-27 | Developer | Reviewer (via the coordinator) | sent | F1, F2, F3, N1–N4 addressed; F4 for the PO or Planner. Re-review: m10 killed, zsh and bash probes in the record. |
+
+## WI-M2-M6 round 2 — PR #50 review round 2 (APPROVE at `18cf226`): R50-F5, no key in any argv (P-3)
+| Finding | Change | Test |
+|---|---|---|
+| R50-F5 (Minor) the leak check `grep -F -q -e "$key"` put the key in grep's arguments for a few ms | The check now runs in the shell: `content=$(cat -- "$stream")`, then `case $content in *"$key"*) leak=yes ;; esac`, with the key quoted in the pattern so glob characters match only themselves. `cat` gets only the file name. The key is now passed only to shell builtins (`read`, `printf`, `[`, `case`), so it is in no process's arguments. Script header and the owner-pending section above say so. | Probe in zsh 5.9 and bash, fake keys, local servers only: every process's arguments sampled about every 20 ms for the whole of each run, the key in none (including the run where the response echoes the key); a glob-character key matches only literally (a glob match of it is kept, the key itself is deleted). 112/112. Sampler sensitivity control: a planted 0.3 s argv exposure is seen (5 samples). Record: [`evidence/mac/WI-M2-M6-round2/`](evidence/mac/WI-M2-M6-round2/README.md). |
+
+A script and docs change only. No Swift code changed, so there is no new B0–B6 run; the last is the round-1 record at
+`990fffc`.
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Coordinator | Developer (owner's Mac) | accepted | R50-F5 from PR #50 round 2 (APPROVE at `18cf226`). |
+| 2026-11-28 | Developer | Reviewer (via the coordinator) | sent | Builtins-only leak check; whole-run argv probe 112/112 in zsh and bash. |
+
+
 ## M2 Q23 — scanner follow-up: the fixtures-loader exception in AC-M2-09 Rule 6
 
 - **Owner:** Developer  ·  **Branch:** `m2/scanner-loader-exception`, based on `main` at `65c06cd`  ·  **PR:** none

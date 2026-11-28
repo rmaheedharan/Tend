@@ -197,7 +197,8 @@ struct UnavailableOnDevice: OnDeviceModelSource {
     func model(household: Household) -> any IngestionModel { NeverModel() }
 }
 
-struct NoCloudModels: CloudModelSource {
+struct NoCloudModels: CloudModelSource, CloudCaptureReceipt {
+    func receive() -> any CloudCaptureReceipt { self }
     func model(for provider: CloudProvider, key: APIKey) -> any IngestionModel { NeverModel() }
 }
 
