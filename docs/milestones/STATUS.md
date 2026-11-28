@@ -10,10 +10,58 @@ States: `NOT-STARTED` → `PLANNING` → `IN-BUILD` → `IN-ACCEPTANCE` → (`AW
 | Milestone | State | Brief | Acceptance report | Gate signed |
 |---|---|---|---|---|
 | M1 Core Engine & Cognitive Shielding | **ACCEPTED** | [M1/brief.md](M1/brief.md) | [M1/acceptance.md](M1/acceptance.md) (25/25 PASS) | 2026-11-20, Product Owner ([signature](#m1--accepted--2026-11-20)) |
-| M2 On-Device AI Ingestion | **IN-BUILD** (since 2026-11-21; build unlocked by M1 ACCEPTED. Brief Draft v4, Tester testability review ticked, recorded at `29e2d74`; plan at `81fd80a`; meaning changes in D-031. Seven device ACs will need a human run: AC-M2-11, 15, 16, 17, 25, 26, 27) | [M2/brief.md](M2/brief.md), [M2/plan.md](M2/plan.md) | — | — |
+| M2 On-Device AI Ingestion | **IN-BUILD** (since 2026-11-21; build unlocked by M1 ACCEPTED. Brief Draft v4, Tester testability review ticked, recorded at `29e2d74`; plan at `81fd80a`; meaning changes in D-031. All build PRs merged up to #54, `main` at `9c44bc0`; eval frozen 2026-11-25 and re-frozen 2026-11-28 under D-059. Next: SP-1, MS-3 green run, DS-1, DS-2. Seven device ACs are `AWAITING-DEVICE`: AC-M2-11, 15, 16, 17, 25, 26, 27. See [M2 build progress](#m2--build-progress-not-a-gate-decision)) | [M2/brief.md](M2/brief.md), [M2/plan.md](M2/plan.md) | — | — |
 | M3 Award-Caliber Liquid Glass UI | NOT-STARTED (locked) | — | — | — |
 | M4 Multimodal & System Surfaces | NOT-STARTED (locked) | — | — | — |
 | M5 Household Sync & Polish | NOT-STARTED (locked) | — | — | — |
+
+## M2 — build progress (not a gate decision)
+
+Updated 2026-11-28 by the Product Owner. M2 stays **IN-BUILD**. Nothing here accepts an AC: a merge never means a
+milestone or an AC is accepted. ACs are taken at the M2 merge commit in [M2/acceptance.md](M2/acceptance.md).
+
+**Merged since the last ledger update (PRs #43 to #54).** The Mac-only PRs were merged by the owner under D-032 (read
+as in D-064).
+
+| PR | Branch | What it delivered | IDs |
+|---|---|---|---|
+| #43 | `m2/on-device-adapter-v2` | WI-M2-M2: the `FoundationModels` on-device adapter (re-creates PR #41), with the one-`Tool`-call cap from the R-1 ruling (D-062) | FR-A1, AC-M2-05, AC-M2-06, AC-M2-07, AC-M2-16 (harness side), P-1 |
+| #44 | `m2/speech-adapter-v2` | WI-M2-M3: the on-device speech adapter (re-creates PR #42), audio kept in memory only | AC-M2-11 (voice path), P-1, P-4 |
+| #45 | `m2/keychain-key-store` | WI-M2-M5: the Keychain key store and the key mask | AC-M2-21, AC-M2-18 (a), P-3 |
+| #46 | `m2/cloud-transport` | WI-M2-M4: the cloud HTTPS transport and its failure mapping (landed through #47, branch merge `c60b335`) | AC-M2-22, AC-M2-23, P-2, P-3 |
+| #47 | `m2/key-paste-cleanup` | Pasted-key clean-up (D-063) and the PR #45 and #46 follow-ups | AC-M2-21, AC-M2-22, AC-M2-23 |
+| #48 | `m2/sp1-device-script` | The SP-1 device script for the iPhone 15 Pro latency spike, and DS-1 Part C | R-1, AC-M2-16, AC-M2-11 |
+| #49 | `m2/sp1-script-r3` | SP-1 script v3, matched to the probe build | R-1, SP-1 |
+| #50 | `m2/cloud-adapters` | WI-M2-M6: the OpenAI, Anthropic and Gemini adapters end to end; the cloud deadline counted from receipt | AC-M2-24, AC-M2-22, AC-M2-23, AC-M2-27, P-3 |
+| #51 | `m2/scanner-loader-exception` | The AC-M2-09 source scanner with the M2 Q23 fixtures-loader rule (D-037) | AC-M2-09, P-2, P-4 |
+| #52 | `m2/eval-harness` | WI-M2-M7: the `TendEval` debug harness, results file v1 with per-array element counts, and the scorer checking every request of every attempt (D-059). Merge `1b81e7b` | AC-M2-28, AC-M2-26, AC-M2-14 |
+| #53 | `m2/d059-docs` | D-059 docs: the AC-M2-28 wording, the plan text, the DS-2 S4 command, the re-freeze record. Merge `19675a3` | AC-M2-26, AC-M2-28, R50-F4 |
+| #54 | `m2/pre-ms3-fixes` | Review PR #53 fixes: `TEND_COMMIT` in the install steps (B7, Appendix A), and the Tester's independent re-score with key-path and count checks (DS-2 S6). `main` now at `9c44bc0` | AC-M2-13, AC-M2-14, AC-M2-26, AC-M2-28 |
+
+**Eval freeze.** Frozen 2026-11-25. Reopened for `results-v1.schema.json` only under D-059 and re-frozen 2026-11-28 by
+the Acceptance Tester at `e014fab`. Fixtures hash `7fdc056e92e419a4b416ea14493a7cc2ab9188bb559c796bd79ed45d2141de22`.
+The data files are unchanged ([M2/eval-composition.md](M2/eval-composition.md)).
+
+**What is next (in this order).**
+1. **SP-1 on the iPhone 15 Pro** (owner runs the Tester's script, [M2/device-scripts/SP-1.md](M2/device-scripts/SP-1.md)).
+   It decides R-1 (D-062). It is a spike, not AC-M2-16 evidence. It should run before DS-1, because a result of 1.5 s or more may lead to
+   option (b), which changes the cloud golden bodies and needs L2a again.
+2. **WI-M2-M8 green run at MS-3**: Linux CI link, Mac B1 to B5 on the M2 merge commit, the AC-to-test table, then
+   `TendEval` installed on both iPhones with `TEND_COMMIT` (B7) (AC-M2-13).
+3. **DS-1** (iPhone 15 Pro, on device): AC-M2-11, 15, 16, 17.
+4. **DS-2** (iPhone 13, cloud): AC-M2-25, 26, 27, per provider, each only after its L2a PASS (D-061).
+
+**Device ACs.** AC-M2-11, 15, 16, 17, 25, 26 and 27 stay `AWAITING-DEVICE` until the owner runs DS-1 and DS-2 and
+the results are recorded. AC-M2-24 stays open for OpenAI and Anthropic until their real recordings are made and
+reviewed (D-061).
+
+**Waiting on the human owner.**
+- **Q20 signing team:** name the team for B7 (a free personal team is enough, D-034; profiles last 7 days).
+- **Book MS-3** (both iPhones connected, unlocked, Developer Mode on) and the SP-1 session.
+- **OpenAI and Anthropic:** add credit, then run their L2a check and the real recordings (AC-M2-24; D-061).
+- **review-pr52 m6:** a local folder name is in branch history (already in `main`'s history since `02c1d84`). Whether
+  to rewrite history is the owner's call. The tree at `main` is clean.
+- **Merge the governance PR** that records D-059 to D-064 (protected paths).
 
 ## Gate signatures
 
