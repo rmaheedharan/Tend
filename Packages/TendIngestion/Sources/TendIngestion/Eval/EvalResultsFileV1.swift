@@ -147,17 +147,27 @@ public struct EvalResultsFileV1: Sendable, Hashable {
         }
     }
 
-    /// Per cloud request attempt: the byte count and the JSON key paths, never a value (AC-M2-26, AC-M2-28).
+    /// Per cloud request attempt: the byte count, the JSON key paths and the per-array element counts, never a value
+    /// (AC-M2-26, AC-M2-28; PO ruling on per-array element counts, 2026-11-27, D-059).
     public struct CloudRequestRecord: Sendable, Hashable {
         public var attempt: Int
         public var bytes: Int
         /// Sorted by UTF-8 bytes and unique. Array indices are written as `[]`.
         public var keyPaths: [String]
+        /// Every array in the sent body with its element count (`CloudRequestKeyPaths.arrayCounts(ofBody:)`); nil only
+        /// when the body is not strict JSON.
+        public var arrayCounts: [ArrayCount]?
+        /// Every array in the parsed user content, paths from its root (`$.rooms`, `$.existingTasks`); nil only when
+        /// the body is not strict JSON, the user-content path is missing, or its string is not a strict JSON object.
+        public var userContentArrayCounts: [ArrayCount]?
 
-        public init(attempt: Int, bytes: Int, keyPaths: [String]) {
+        public init(attempt: Int, bytes: Int, keyPaths: [String], arrayCounts: [ArrayCount]?,
+                    userContentArrayCounts: [ArrayCount]?) {
             self.attempt = attempt
             self.bytes = bytes
             self.keyPaths = keyPaths
+            self.arrayCounts = arrayCounts
+            self.userContentArrayCounts = userContentArrayCounts
         }
     }
 }
@@ -367,6 +377,14 @@ extension EvalResultsFileV1 {
         ])
     }
 
+    /// `[{count, path}]` sorted by the UTF-8 bytes of the path, or `null`.
+    static func counts(_ counts: [ArrayCount]?) -> CanonicalJSON {
+        guard let counts else { return .null }
+        return .array(counts.sorted { TextFolding.utf8Precedes($0.path, $1.path) }.map { entry in
+            .object([.init("count", .integer(entry.count)), .init("path", .string(entry.path))])
+        })
+    }
+
     static func optional(_ value: Int?) -> CanonicalJSON { value.map { .integer($0) } ?? .null }
     static func optional(_ value: String?) -> CanonicalJSON { value.map { .string($0) } ?? .null }
 }
@@ -409,6 +427,8 @@ extension EvalResultsFileV1.InputAttempt {
                 .object([
                     .init("attempt", .integer(request.attempt)), .init("bytes", .integer(request.bytes)),
                     .init("keyPaths", .array(request.keyPaths.sorted(by: TextFolding.utf8Precedes).map { .string($0) })),
+                    .init("arrayCounts", EvalResultsFileV1.counts(request.arrayCounts)),
+                    .init("userContentArrayCounts", EvalResultsFileV1.counts(request.userContentArrayCounts)),
                 ])
             })),
         ])

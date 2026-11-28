@@ -6656,3 +6656,76 @@ loader file. The same lexer limit in other files is the separate ticket above.
 |---|---|---|---|---|
 | 2026-11-28 | Reviewer | Developer (via Orchestrator) | received | PR #51 round 2: APPROVE, with tickets F6 and F7 (Minor) and Nit N1. |
 | 2026-11-28 | Developer | Reviewer / Merge Gatekeeper (via Orchestrator) | sent | F6, F7 and N1 (a, b) fixed test-first and pushed to `m2/scanner-loader-exception`. Lexer-wide regex fix to the Planner as its own ticket. |
+
+## WI-M2-M7 — the `TendEval` harness (MS-3; AC-M2-28, with AC-M2-16, AC-M2-17, AC-M2-26 and D-059)
+Branch `m2/eval-harness` from `m2/cloud-adapters`. Commits in order:
+- `1260c4a` — the PO's D-059 ruling (option a) as its own commit before the harness: per-array element counts in the
+  results file (`arrayCounts`, `userContentArrayCounts`), one shared Foundation-only count function next to
+  `CloudRequestKeyPaths`, the ds2-gated check against the provider's G1 golden body (`--golden-body`, required), the
+  schema change and the regenerated manifest (line 4 only), with an independent oracle for all nine golden bodies.
+- `3bd6e99` — merge of `m2/cloud-adapters` (PR #50 round 1: the deadline from receipt).
+- `543de78` — the harness code.
+- `e014fab` — Tester D-059 re-check F1–F3: both ds2-gated request checks over every attempt (retakes included),
+  `uniqueItems` on both count arrays (schema and manifest line 4 only), nested extra-element plants.
+- `32a6be8` — merge of `main` (PR #50 merged). `070ce05` — merge of `main` with PR #51 (the Q23 fixtures-loader
+  scanner exception); the code commit of the final run.
+
+### What it does (AC-M2-28) → where → test
+| AC-M2-28 point | Code | Test |
+|---|---|---|
+| Fixtures bundled; their SHA-256 manifest hash shown | `Fixtures/EvalFixturesLoader` (Q23 shape: one literal `Bundle.main.url(forResource:)` per file, then `Data(contentsOf:)`), `Fixtures/EvalBundle` (hash of the MANIFEST bytes; each data file checked against its line), the "Fixtures and build" section | `TendEvalTests.bundleHash`; B6 bundle log; Simulator screenshot |
+| A fresh seeded household per input, deterministic IDs (T-29) | `EvalRunner.run`: a new `InMemoryHouseholdRepository` with `EvalFixtures.household` per attempt, `EvalIDGenerator(inputNumber:attempt:)` | `EvalIDGeneratorTests` (WI-M2-16); `onDeviceText` |
+| Script shown; text fed verbatim; voice live through the M2 speech adapter | `EvalInputView`; `EvalSession.runText`, `startVoice` (`SpeechCapture` over `MicrophoneAudioSource`, microphone permission first) | `onDeviceText` (the model sees each fixture text exactly), `voiceAttempt` (the model sees the live transcript) |
+| Prewarm (AC-M2-16), TTFI and total on a monotonic clock, commit (AC-M2-17) | `show` and record start call `prewarm`; `ContinuousClock`, start at hand-off or at the final result; commit of every unmarked draft | `voiceAttempt` (total from the final result), `cloudRun` (committed = unmarked drafts) |
+| Device-run rules: retake reason, every attempt kept | one retake, voice only, reason required; attempts appended in run order | `voiceAttempt` × 2 (attempt 1, retake with reason) |
+| Cold start (Q4, information only) | input 1 once through its own fresh on-device source, before any scored attempt; only `coldStart.ttfiMs` is kept | — (device: DS-1) |
+| Cloud: key through the AC-M2-21 store, in-memory consent, "Remove key" | `EvalRunner.turnCloudOn` (`ModelRouter` with `KeychainAPIKeyStore` in the app), `InMemoryCloudConsentStore`, `removeKey` | `cloudRun` × 3 providers (fake key, in-memory store; removed at the end) |
+| Request metadata only: bytes, key paths, D-059 counts | `Run/RecordingTransport` | `cloudRun`: bytes, key paths, `arrayCounts` equal to the G1 golden body's, user content exactly `$.existingTasks` (≤ 10) and `$.rooms` (= seeded rooms); the file holds no key text |
+| Writes nothing except the results file; Documents; canonical v1 | `Results/EvalResultsWriter` (the only write API, Rule 6) | `writer` (name format, bytes = canonical JSON); every run's file read back by the scorer's reader |
+| Never shipped (project.yml) | Debug-only pre-build guard; `TendEvalTests` hosted target built only by the TendEval scheme; mic usage text; `TEND_COMMIT` → `TendCommit` in the Debug Info.plist | `ProjectSpecScanTests` (Linux): the committed spec passes, 11 negative plants each caught; B6: Release and Archive of `Tend` hold no TendEval, TendEval Release stops at the guard, TendEval archive is off |
+
+**Harness mutants (TendEval hosted tests, each restored after):** E1 counts not recorded, E2 wrong byte count, E3
+voice fed the script instead of the transcript (survived first; `voiceAttempt` now checks the model's input, then
+killed), E4 clock not from the final result, E5 the hash of the wrong file, E6 duplicates committed: all killed.
+
+**Build note.** Build TendEval for a device run with `TEND_COMMIT=$(git rev-parse HEAD)` (xcodebuild) so the results
+file's `appCommitSHA` is the commit under test; without it the harness shows the gap and will not start a run.
+
+**Open for the owner / Tester:** the screens are plain test controls (plan WI-M2-M7). Voice capture, the microphone
+prompt and the on-device model are device-only (DS-1, DS-2). The Simulator check covered launch, the fixtures hash
+and the setup screen.
+
+### D-059 on this branch (PO ruling option a; Tester re-check)
+- `1260c4a` is the one commit that reopened the freeze for `results-v1.schema.json` (with `MANIFEST.sha256` line 4).
+  `e014fab` adds `uniqueItems` to both count arrays under the same open freeze, again with only line 4 of the manifest
+  changed. `golden.json`, `household.json` and `inputs.json` are untouched in both (`EvalFreezeTests`).
+- Fixtures hash now: `7fdc056e92e419a4b416ea14493a7cc2ab9188bb559c796bd79ed45d2141de22`.
+- `RecordingTransport` fills both members with the one shared Foundation-only count function next to
+  `CloudRequestKeyPaths`: `arrayCounts(ofBody: request.body)` and `userContentArrayCounts(ofBody:provider:)` with the
+  request's provider. No second count implementation exists (`cloudRun` checks its output against the G1 golden body
+  of each provider).
+- ds2-gated checks the counts and the key-path subset over every request of every attempt, retakes included (F1).
+
+### Test runs (clean, at `070ce05`)
+B1 TendCore 141; B2 TendIngestion 597 in 71 suites, AC-M2-09 scan 84 files, 0 violations (Q23 loader exception
+included), AC-M2-12 0 violations, `ProjectSpecScanTests` 0 violations and 11 plants caught; B4 TendAI 109 tests in 18
+suites; B5 hosted 36 tests in 5 suites; B5-eval TendEval hosted 5 tests (9 cases); B6 as MS-1, plus TendEval Release
+stopped at the guard (exit 65) and the TendEval archive off (66). All passed, 0 skipped, no compiler warnings; clean
+tree before and after. Record: [`evidence/mac/WI-M2-M7/`](evidence/mac/WI-M2-M7/README.md).
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1, UX-2, UX-4 | n.a. | A debug test tool, never shipped; its screens are plain test controls (plan WI-M2-M7). |
+| UX-3 | pass | Neutral status text; AC-M2-12 vocabulary scan 0 violations over TendEval. |
+| P-1 | pass | The router chooses the route; on device first for on-device runs; cloud only on the run's provider. |
+| P-2 | pass | No networking type in TendEval (Rule 6, 0 violations); the cloud transport is the app's `CloudHTTPTransport` through the neutral protocol. No dependency. |
+| P-3 | pass | The key goes into the AC-M2-21 key store and is cleared from the field; consent in memory only; "Remove key"; the results file holds no key, body or header value (test). |
+| P-4 | pass | Only the results file is written (one write API, in the writer); audio is never stored; transcripts only of the scripted eval utterances. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Coordinator | Developer (owner's Mac) | accepted | WI-M2-M7 from `m2/cloud-adapters`; D-059 first as its own commit. |
+| 2026-11-28 | Coordinator | Developer | accepted | Tester D-059 re-check F1–F3 (one commit, `e014fab`). |
+| 2026-11-28 | Developer | Reviewer, Tester (via the coordinator) | sent | Final run at `070ce05` after PR #51; no PR opened (the coordinator opens it). |

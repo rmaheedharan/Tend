@@ -1,0 +1,12 @@
+B1 exit=0 seconds=53
+B2 exit=0 seconds=137
+B3 exit=0 seconds=0
+B4 exit=0 seconds=25
+B5 exit=0 seconds=29
+B5-eval exit=0 seconds=9
+B6-eval-release exit=65 seconds=30
+B6-release exit=0 seconds=6
+B6-archive exit=0 seconds=3
+B6-eval-debug exit=0 seconds=18
+B6-eval-archive exit=66 seconds=2
+DONE

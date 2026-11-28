@@ -1,0 +1,23 @@
+bundle:
+Info.plist
+MANIFEST.sha256
+PkgInfo
+TendEval
+TendEval.debug.dylib
+__preview.dylib
+golden.json
+household.json
+inputs.json
+results-v1.schema.json
+--- Info.plist keys:
+  "CFBundleIdentifier" => "com.tend.eval"
+  "LSSupportsOpeningDocumentsInPlace" => true
+  "NSMicrophoneUsageDescription" => "TendEval records the eval sentences you read aloud. The audio stays on this iPhone and is not saved."
+  "TendCommit" => "070ce0598868fece8986126c40e10eb93ef25108"
+  "UIFileSharingEnabled" => true
+--- fixture hashes (bundle vs repo):
+b32e45afeb25a6d8972ce9f3b78a6dd051686d4ac6b7d87564769bf92c7ebcec b32e45afeb25a6d8972ce9f3b78a6dd051686d4ac6b7d87564769bf92c7ebcec inputs.json
+089a22bd5a0b3da9ef6b057b186f61b459963f02bbee322c30a47b2af8e17f66 089a22bd5a0b3da9ef6b057b186f61b459963f02bbee322c30a47b2af8e17f66 household.json
+0e819a89fcb65adb0a764d296f1d0dc8f30275cfe074495a4fe9c793a0f4b771 0e819a89fcb65adb0a764d296f1d0dc8f30275cfe074495a4fe9c793a0f4b771 golden.json
+096161326b049b9f0f3aa62756d7e98e8d43bb3705619620623d40bbbd97869a 096161326b049b9f0f3aa62756d7e98e8d43bb3705619620623d40bbbd97869a results-v1.schema.json
+7fdc056e92e419a4b416ea14493a7cc2ab9188bb559c796bd79ed45d2141de22 7fdc056e92e419a4b416ea14493a7cc2ab9188bb559c796bd79ed45d2141de22 MANIFEST.sha256
