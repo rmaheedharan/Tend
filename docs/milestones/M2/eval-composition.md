@@ -1,11 +1,19 @@
 # M2 eval composition (WI-M2-16, AC-M2-14): fixtures for PO approval
 
-- **Owner:** Acceptance Tester  ·  **Base commit:** `1d1caa3` (branch `m2/eval-fixtures-freeze`; v6 on `m2/eval-freeze`)  ·  **Date:** 2026-11-24, v6 2026-11-25
+- **Owner:** Acceptance Tester  ·  **Base commit:** `1d1caa3` (branch `m2/eval-fixtures-freeze`; v6 on `m2/eval-freeze`)  ·  **Date:** 2026-11-24, v6 2026-11-25, v7 2026-11-28
 - **Status:** composition **APPROVED by the PO with conditions** (`po-m2-wi16.md` ruling 1, 2026-11-24) for the three
   fixture files at commit `95491ed`, re-approved for `golden.json` with the EC-Q8 relabel (hashes in "PO approval"
   below). **FROZEN 2026-11-25** by the Acceptance Tester (WI-M2-16, AC-M2-14): `Fixtures/M2/eval/MANIFEST.sha256` is
   committed, written by the documented command, and lists `golden.json` `0e819a89…`, `household.json` `089a22bd…`,
-  `inputs.json` `b32e45af…` (the PO-approved hashes) and `results-v1.schema.json` `ffc01f37…`. Ruling 1 conditions:
+  `inputs.json` `b32e45af…` (the PO-approved hashes) and `results-v1.schema.json` `ffc01f37…`. **Reopened 2026-11-27 for `results-v1.schema.json` only under D-059**
+  (PO, `po-m2-element-counts.md`; per-array element counts). **Re-frozen 2026-11-28 by the Acceptance Tester at commit
+  `e014fab` on `m2/eval-harness`:** `results-v1.schema.json`
+  `096161326b049b9f0f3aa62756d7e98e8d43bb3705619620623d40bbbd97869a`. `MANIFEST.sha256` changed on line 4 only and
+  verifies (`sha256sum -c`, 4 × OK). The three data files are unchanged (`0e819a89…`, `089a22bd…`, `b32e45af…`). The
+  fixtures hash (SHA-256 of `MANIFEST.sha256`, shown by TendEval) is
+  **`7fdc056e92e419a4b416ea14493a7cc2ab9188bb559c796bd79ed45d2141de22`** (was `e85dde40…5e39`). This hash is valid on
+  `main` only once `m2/eval-harness` (with `e014fab`) is merged; until then `main` still holds the old schema and
+  manifest. The D-054 / D-058 composition approval stands. Tester re-check: `tester-freeze-recheck-d059.md`. Ruling 1 conditions:
   (a) GR-1, (b) GR-2 and (c) GR-3 CLOSED at PR #32 head `02f944e` (merged; the golden payload files on `main` equal
   `02f944e`'s), GR-5 CLOSED there too; (d) L2a (GR-4): Gemini **PASS** on the committed golden body, OpenAI and
   Anthropic **deferred by the owner's decision** ("L2a outcome", 2026-11-25: their calls returned billing errors only,
@@ -17,8 +25,10 @@
   closed; GR-9 and GR-10 added; AQ-2/AQ-4 answered (PO follow-up rulings F3, F4). v4: review WI-M2-16 round 1 F2 answered
   (rule 9 states that the person's verb decides; EC-Q8 to the PO: relabel `g16-carservice` effort `low`). v5: PO approved EC-Q8; `golden.json` relabelled in that one value (`$.items[43].effort`, `g16-carservice`,
   `normal` → `low`), new SHA-256 recorded; EC-Q8 and review F2 closed. `inputs.json` and `household.json` are
-  **unchanged**. v6 (this text, 2026-11-25): **frozen** (Status above; GR-4 row; the
+  **unchanged**. v6 (2026-11-25): **frozen** (Status above; GR-4 row; the
   manifest). No fixture data changed.
+  v7 (2026-11-28): D-059. Only `results-v1.schema.json` changed (two required count members,
+  `uniqueItems`); manifest line 4 and the fixtures hash updated. No fixture data changed.
 - **Requirement IDs:** FR-A1, UX-3, P-3, AC-M2-14 (also feeds AC-M2-11, 15, 16, 17, 25, 26, 27), brief rubric Q3,
   Q5, Q6, Q12, brief "Eval scoring rules", PO WI-M2-15 ruling 1 ("Distinguishable targets").
 
@@ -386,3 +396,5 @@ Done since v1:
 | 2026-11-25 | Orchestrator | Acceptance Tester | accepted | Freeze after the owner's L2a outcome (Gemini PASS; OpenAI, Anthropic deferred). |
 | 2026-11-25 | Acceptance Tester | Orchestrator → PO, Documenter, Developer, Reviewer | sent | v6: **frozen**. `MANIFEST.sha256` written by the documented command; `EvalFreeze.declaredFrozen = true`; GR-4 Gemini PASS, OpenAI/Anthropic L2a deferred by owner decision and a precondition of their DS-2 runs (`acceptance.md`). No fixture data changed. |
 | 2026-11-25 | Acceptance Tester | Orchestrator → Reviewer | sent | v6 after review PR #36 round 1: header date; GR-4 row points at the repo evidence (PR #37 stream, `l2a-real-call-check.md`); m3 (DECISIONS.md entry) noted open. |
+| 2026-11-28 | Acceptance Tester | Orchestrator → PO, Documenter, Developer | sent | D-059 freeze re-check at e014fab PASS (F1–F3 closed); schema 09616132…, fixtures hash 7fdc056e…; data files unchanged. |
+| 2026-11-28 | Product Documenter | Orchestrator | sent | v7 text applied from `tester-freeze-recheck-d059.md` R2-7 (Status, Revisions, this row). The fixtures hash holds on `main` only after `m2/eval-harness` (`e014fab`) merges. |

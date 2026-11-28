@@ -271,6 +271,33 @@ missing = 0); retry only if ≥ 3.0 s remain after the pause.
 T-26). It rejects a file that does not conform to v1. The conformance check is hand-written in Foundation for the
 schema's subset (types, required keys, enums, `additionalProperties: false`). A test checks that every constraint in
 `results-v1.schema.json` has a matching check (R-22).
+- **Per-array element counts (D-059, PO 2026-11-27, `po-m2-element-counts.md`; AC-M2-26, AC-M2-28).** Each
+  `inputs[].cloudRequests[]` object has exactly five required members: `arrayCounts`, `attempt`, `bytes`, `keyPaths`,
+  `userContentArrayCounts` (`additionalProperties: false` stays).
+  - `arrayCounts`: an array or `null`. One entry for every JSON array in the sent body bytes, at any depth, including
+    empty arrays and arrays inside arrays. Each entry has exactly `count` (integer, minimum 0) and `path` (string).
+    `path` names the array: `$`, then `.name` for an object member or `[n]` for an element of an enclosing array, with
+    `n` the concrete decimal index and no leading zero. Pattern `^\$(\.[A-Za-z0-9_-]+|\[(0|[1-9][0-9]*)\])*$`.
+    Entries are sorted by the UTF-8 bytes of `path` and unique (`uniqueItems: true`).
+  - `userContentArrayCounts`: the same entry shape, path form, order and uniqueness, over every array in the parsed
+    user content (the string at `CloudAllowedKeyPaths.userContentPath`, parsed as strict JSON; paths from that
+    object's root, for example `$.rooms`, `$.existingTasks`).
+  - `null` only when it cannot be computed: `arrayCounts` if the body is not strict JSON; `userContentArrayCounts` if
+    the body is not strict JSON, the `at` path is missing, or its string is not a strict JSON object. A member is never
+    left out and a value is never guessed. Integers and paths only, never a value.
+  - Swift: `EvalResultsFileV1.CloudRequestRecord` gains `arrayCounts: [ArrayCount]?` and
+    `userContentArrayCounts: [ArrayCount]?` (`ArrayCount`: `path: String`, `count: Int`). One shared Foundation-only
+    count function sits next to `CloudRequestKeyPaths`; the recorder, the scorer and the tests all use it.
+    `schemaVersion` stays `1` and the file name stays `results-v1.schema.json`.
+  - **`ds2-gated` rule:** for each provider, over every `cloudRequests[]` entry of every attempt (retakes included),
+    the run fails (exit 1) unless both members are non-null; `arrayCounts` has exactly the paths and counts of the
+    provider's golden body `Fixtures/M2/payload/golden/g1-outcome-empty-<p>.body.json` (required `--golden-body`
+    argument, same count function); and `userContentArrayCounts` has exactly `$.existingTasks` (≤ 10 while Q12 = yes,
+    D-050; 0 if Q12 is ever no) and `$.rooms` (= the seeded household's room count). The log names each failure by
+    input ID, attempt, path, expected and seen count. A file that leaves out a member or breaks the entry shape or path
+    pattern is rejected (exit 2). The other profiles ignore the counts but still require the shape.
+  - Tests (Linux): the golden bodies of all three providers give the expected counts; the `ds2-gated` negative
+    self-tests and the schema rejection tests listed in the ruling; the right-answer self-tests carry correct counts.
 
 **WI-M2-M1 — `m2/xcodegen-project`** (first Mac item; it settles project generation)
 - **ADR-0003 → `Accepted`.** XcodeGen, one exact release version, installed from the GitHub release binary with its
@@ -296,6 +323,11 @@ share a name and first label with any session-method call in the AC-M2-09 networ
 **WI-M2-M7 — `m2/eval-harness`**: the harness's debug screens are plain test controls (input list, script text, start,
 retake reason, network fields, key field, export, "Remove key"). They are not product UI and are not judged against
 UX-4 (brief). It uses only the public API of `TendIngestion` and `TendAI`.
+- **Element counts (D-059, PO 2026-11-27; AC-M2-28, AC-M2-26).** The recorder writes `arrayCounts` and
+  `userContentArrayCounts` in every `cloudRequests[]` entry, in the format under WI-M2-15. It wraps the transport and
+  computes the counts, with the shared count function, from the exact bytes handed to the transport (the same bytes
+  that `bytes` and `keyPaths` describe). It adds no hook in `TendAI` or `TendIngestion`. This text is in place before
+  WI-M2-M7 is reviewed and before any DS-2 run; the Acceptance Tester re-froze the schema at `e014fab` (2026-11-28).
 
 ## Q6 time-phrase table (AC-M2-03; Tester review is a DoR condition for WI-M2-03)
 
@@ -600,6 +632,14 @@ The Anthropic and Gemini commands are the same, with the path and auth header fr
 `anthropic-version`; `x-goog-api-key`). WI-M2-M6 writes the three commands into `dev-notes.md`. The Reviewer checks
 that no recorded file contains a request header or the key.
 
+**Owner decision: "Gemini now, others later" (2026-11-25; R50-F4).** The owner chose to lock the eval with Gemini
+verified and to defer the other two providers. The OpenAI and Anthropic real calls returned billing errors only, so
+nothing was verified for them. OpenAI and Anthropic stay in the app (Q16 unchanged). Their real recordings and their
+L2a real check wait until the owner adds credit, and their L2a must pass before their DS-2 runs count
+(`acceptance.md` P11). **AC-M2-24 stays open for OpenAI and Anthropic** until their real recordings are made and
+reviewed; the Gemini recording does not stand in for them. The matching `DECISIONS.md` entry is a protected-path change
+for the governance PR (owner merge).
+
 ## Scoring tool and command (AC-M2-14, 15, 17, 26; T-26)
 
 - **Tool:** `tend-eval-score`, an executable in `Tools/TendTools` (outside `TendIngestion/Sources`). It reads the files,
@@ -609,7 +649,8 @@ that no recorded file contains a request header or the key.
 - **Profiles:** `ds1-gated` (AC-M2-15, 16, 17: the Q3 thresholds, on-device timing < 1.5 s / ≤ 5.0 s, 0 duplicates, ≤ 1
   false merge); `ds1-offline` (AC-M2-11 per-input rules); `ds2-offline` and `ds2-online` (AC-M2-25); `ds2-gated`
   (AC-M2-26, 27: the Q3 thresholds, cloud timing < 3.0 s / ≤ 10.0 s, 0 duplicates, ≤ 1 false merge, sent key paths a
-  subset of the provider's allowed list); `info` (no pass rule; cold start and the iPhone 15 Pro cloud run).
+  subset of the provider's allowed list, per-array element counts equal to the provider's G1 golden body and the seeded
+  household, both over every request of every attempt, D-059); `info` (no pass rule; cold start and the iPhone 15 Pro cloud run).
 - **Command (Linux, from the repo root):**
 ```bash
 sha256sum -c Fixtures/M2/eval/MANIFEST.sha256
@@ -852,3 +893,4 @@ other DoR problem was found. All other items fail only the boxes shown, and each
 | 2026-11-21 | Developer | Product Owner | answered | Q-T1, Q-T2 answered (FR-A1, Q5, Q6, UX-3). |
 | 2026-11-21 | Product Owner | Work Planner, Acceptance Tester, Developer | accepted | Plan text applied: R5 row, the note under the repeat table, and the invalid-anchor bullet (PO Q-T1 / Q-T2, 2026-11-21); E22–E26 added (UTC checked with Python `zoneinfo`, America/New_York); WI-M2-03 test scope is E1–E26. Tester confirms the changed rows before PR #18 review; Developer reworks PR #18. No AC wording changed (AC-M2-03). The `DECISIONS.md` entry "PO Q-T1 / Q-T2, 2026-11-21, M2 Q6 table" goes in the human-merged governance PR. |
 | 2026-11-21 | Acceptance Tester | Work Planner | accepted | Q-T1/Q-T2 rows APPROVED with 3 findings, applied: `basis` defined as a diagnostic field (used by WI-M2-05 for the AC-M2-02 repair counts, not part of the AC-M2-03 table check; technical choice); the resolver returns ∅ sets and WI-M2-05 fills the Q5 step-3 defaults after step 5; E22–E25 labelled "resolver output", E26 "after Q5 settlement" with dayparts → `Daypart.defaultAllowed` (morning, afternoon, evening), checked against brief Q5 step 3 and `Daypart.swift`. No AC changed (AC-M2-02, AC-M2-03). |
+| 2026-11-28 | Product Documenter (Planner text per D-059) | Orchestrator → Work Planner, Reviewer | sent | D-059 element-count format written into WI-M2-15 and WI-M2-M7 (AC-M2-26, AC-M2-28); owner decision "Gemini now, others later" recorded under "Real provider recordings" (R50-F4): AC-M2-24 stays open for OpenAI and Anthropic. Planner to confirm the text. |

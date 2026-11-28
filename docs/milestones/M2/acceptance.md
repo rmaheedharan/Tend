@@ -136,7 +136,7 @@ Orchestrator once the eval is frozen and the M2 merge commit exists):
 | Name | Value |
 |---|---|
 | `APP-COMMIT` (the M2 merge commit TendEval was built from, WI-M2-M8) | *to be filled in* |
-| `FIXTURE-HASH` (SHA-256 of `Fixtures/M2/eval/MANIFEST.sha256`, shown by TendEval) | *to be filled in at the freeze* |
+| `FIXTURE-HASH` (SHA-256 of `Fixtures/M2/eval/MANIFEST.sha256`, shown by TendEval) | `7fdc056e92e419a4b416ea14493a7cc2ab9188bb559c796bd79ed45d2141de22` (re-frozen 2026-11-28 under D-059, commit `e014fab` on `m2/eval-harness`; valid on `main` only once that branch is merged) |
 
 **About the app.** `TendEval` is a test app, not Tend. Its screens are plain test controls (AC-M2-28). In the steps,
 names in **[square brackets]** are the controls AC-M2-28 and plan WI-M2-M7 require (input list, script text, start,
@@ -429,9 +429,13 @@ cloud compares on the faster phone. It never replaces AC-M2-16.
 - S1. As DS-1 S1: `(cd Fixtures/M2/eval && sha256sum -c MANIFEST.sha256)` → every line `OK`, exit 0; then from the repo root `H=$(sha256sum Fixtures/M2/eval/MANIFEST.sha256 | cut -d' ' -f1)`; `H` must equal `FIXTURE-HASH` and each results file's `run.fixturesSHA256`.
 - S2. Part B offline: `tend-eval-score --profile ds2-offline …` (same arguments as DS-1 S2).
 - S3. Part B online: `--profile ds2-online`.
-- S4. Part C, per provider `<p>`: `--profile ds2-gated --allowed-key-paths Fixtures/M2/payload/allowed-key-paths-<p>.json`.
+- S4. Part C, per provider `<p>` (`openai`, `anthropic`, `gemini`):
+  `swift run --package-path Tools/TendTools -c release tend-eval-score --profile ds2-gated --fixtures Fixtures/M2/eval --expected-fixtures-sha256 "$H" --results docs/milestones/M2/evidence/device/<part-C-file-<p>>.json --allowed-key-paths Fixtures/M2/payload/allowed-key-paths-<p>.json --golden-body Fixtures/M2/payload/golden/g1-outcome-empty-<p>.body.json --log docs/milestones/M2/evidence/device/<part-C-file-<p>>.score.log`
+  (`--golden-body` is required, D-059; both checks cover every request of every attempt, retakes included).
 - S5. Part D: `--profile info`.
-- S6. My independent re-score of every file (as DS-1 S4); totals must agree.
+- S6. My independent re-score of every file (as DS-1 S4); totals must agree. For Part C it also checks, independently,
+  every request of every attempt: key paths ⊆ the allowed list, and array counts against the G1 golden body, rooms 9
+  and existingTasks ≤ 10. Its verdict must agree with the S4 key-path and counts lines.
 - S7. By hand, as a second control to the tool's subset check (A-F1, closed; PO F4): Part B files hold exactly in08 and in16, both voice, and the S2/S3 logs show `check PASS: inputs in08 (voice), in16 (voice)`; both Part B files name the same provider;
   in the offline file each attempt has a non-empty `transcript` and a non-null `transcriber`, `cloudRequests` is empty
   and nothing is committed; the two offline screenshots show the calm outcome with the plain-note offer; served models
@@ -441,7 +445,7 @@ cloud compares on the faster phone. It never replaces AC-M2-16.
 | AC | Pass rule | Read from |
 |---|---|---|
 | AC-M2-25 | P11 holds for the Part B provider (its L2a row is PASS) **and** S2 exits 0 (provider selected, 2 voice inputs, each `noModel` with no draft and nothing committed) **and** S3 exits 0 (each: route `cloud(<provider>)`, `completed`, every golden item found, 0 extras, all drafts valid, 0 duplicates created) **and** S7 holds (on-device transcript and transcriber recorded while offline; plain-note offer seen). | P11 L2a row, S2, S3, S7 |
-| AC-M2-26 | For **each** of the three providers, P11 holds (its L2a row is PASS) **and** the S4 log shows: the Q3 thresholds as in DS-1 AC-M2-15 (N = 58; 56 / 56 / 53 / 50 / 56 / 56 / 56; extras ≤ 2; validity 100%; 0 introduced banned tokens); route = that provider for every input; 0 duplicates created; false merges ≤ 1; "sent key paths are a subset of the allowed list" holds. S6 agrees. S7 served-model check holds. | P11 L2a rows, S4 check lines (except the timing line), S6, S7 |
+| AC-M2-26 | For **each** of the three providers, P11 holds (its L2a row is PASS) **and** the S4 log shows: the Q3 thresholds as in DS-1 AC-M2-15 (N = 58; 56 / 56 / 53 / 50 / 56 / 56 / 56; extras ≤ 2; validity 100%; 0 introduced banned tokens); route = that provider for every input; 0 duplicates created; false merges ≤ 1; "sent key paths are a subset of the allowed list" holds; and "per-array element counts match the golden body and the seeded household (AC-M2-26, D-059)" holds (every request of every attempt: fixed arrays equal the provider's G1 golden counts, user content exactly $.existingTasks ≤ 10 and $.rooms = 9). S6 agrees. S7 served-model check holds. | P11 L2a rows, S4 check lines (except the timing line), S4 counts line, S6, S7 |
 | AC-M2-27 | For each provider, P11 holds (its L2a row is PASS) **and** the S4 check "every input TTFI < 3000 ms and total <= 10000 ms (AC-M2-27)" holds. Part D figures are reported in this file for information only. | P11 L2a rows, S4 timing line; S5 |
 
 If the owner narrows Q16 to fewer providers, that needs a PO decision first; a provider left out is hidden in the app
@@ -503,3 +507,4 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
 | 2026-11-25 | Acceptance Tester | Orchestrator → PO, Documenter, Developer, Reviewer | sent | WI-M2-16 freeze: `MANIFEST.sha256` committed, `EvalFreeze.declaredFrozen = true`, `eval-composition.md` v6 Frozen. GR-4: Gemini PASS; OpenAI and Anthropic L2a deferred (owner decision), now DS-2 precondition P11 and an AC-M2-26 note. |
 | 2026-11-25 | Reviewer (via Orchestrator) | Acceptance Tester | accepted | Review PR #36 round 1 CHANGES REQUIRED (`review-WI-M2-16-freeze.md`). |
 | 2026-11-25 | Acceptance Tester | Orchestrator → Reviewer | sent | M1: P11 covers Parts B, C, D and AC-M2-25/26/27; Part B and Part D use an L2a-PASS provider (Gemini today); L2a record row per provider; pass rules and Results rows cite P11. m1: freeze-state test display name and header comment (text only). m2: L2a procedure committed as `l2a-real-call-check.md`; Gemini evidence referenced at PR #37's path; no `.status` file committed. n1: dates and dev-notes pointer. m3 open (governance PR). |
+| 2026-11-28 | Product Documenter | Orchestrator | sent | D-059 edits from `tester-freeze-recheck-d059.md` R2-7: `FIXTURE-HASH` filled in (valid on `main` once `m2/eval-harness` with `e014fab` merges); DS-2 S4 command with `--golden-body`; AC-M2-26 counts clause (every request of every attempt); S6 extended. No AC weakened. |
