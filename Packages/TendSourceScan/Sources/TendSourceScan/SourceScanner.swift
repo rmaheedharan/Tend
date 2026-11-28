@@ -45,6 +45,23 @@ public struct LexedSource: Sendable {
     public var code: String
     /// The decoded text of every string-literal segment (segments are split at interpolations).
     public var literals: [Literal]
+
+    /// One whole string literal (all its segments) and where it sits in `code` (M2 Q23, the fixtures-loader argument
+    /// check). In `code` the literal's own text is blank (spaces, newlines kept); an interpolated expression is code.
+    public struct StringLiteral: Sendable, Equatable {
+        /// The decoded segments joined in order (interpolations removed).
+        public var text: String
+        /// `true` when the literal has at least one interpolation `\(…)`.
+        public var hasInterpolation: Bool
+        /// Unicode-scalar offsets in `code`: the literal covers `codeStart..<codeEnd`.
+        public var codeStart: Int
+        public var codeEnd: Int
+        public var line: Int
+    }
+
+    /// Every whole string literal, in the order its closing delimiter is reached (a literal nested in an interpolation
+    /// comes before the literal that holds it).
+    public var stringLiterals: [StringLiteral] = []
 }
 
 /// One reported scanner finding.
@@ -499,7 +516,7 @@ public enum SourceScanner {
     public static func lex(_ source: String) -> LexedSource {
         var lexer = Lexer(Array(source.unicodeScalars))
         lexer.lexCode(stopAtUnbalancedCloseParen: false)
-        return LexedSource(code: String(lexer.code), literals: lexer.literals)
+        return LexedSource(code: String(lexer.code), literals: lexer.literals, stringLiterals: lexer.stringLiterals)
     }
 
     private struct Lexer {
@@ -507,7 +524,15 @@ public enum SourceScanner {
         var position = 0
         var line = 1
         var code = String.UnicodeScalarView()
+        /// The number of scalars in `code` (kept alongside, so recording an offset is O(1)).
+        var codeCount = 0
         var literals: [LexedSource.Literal] = []
+        var stringLiterals: [LexedSource.StringLiteral] = []
+
+        mutating func appendCode(_ scalar: Unicode.Scalar) {
+            code.append(scalar)
+            codeCount += 1
+        }
 
         init(_ input: [Unicode.Scalar]) { self.input = input }
 
@@ -531,9 +556,9 @@ public enum SourceScanner {
             position += 1
             if scalar == "\n" {
                 line += 1
-                code.append("\n")
+                appendCode("\n")
             } else if emitToCode {
-                code.append(scalar)
+                appendCode(scalar)
             }
         }
 
@@ -543,10 +568,10 @@ public enum SourceScanner {
             while position < input.count {
                 if startsWith("//") {
                     while let scalar = peek(), scalar != "\n" { advance(emitToCode: false) }
-                    code.append(" ")
+                    appendCode(" ")
                 } else if startsWith("/*") {
                     skipBlockComment()
-                    code.append(" ")
+                    appendCode(" ")
                 } else if let hashes = rawStringHashCount() {
                     lexString(hashes: hashes)
                 } else if peek() == "\"" {
@@ -594,10 +619,19 @@ public enum SourceScanner {
 
         /// Lexes a string literal starting at `position` (at the first `#` for raw strings, else at `"`).
         mutating func lexString(hashes: Int) {
+            let start = codeCount
+            let startLine = line
+            var whole = String.UnicodeScalarView()
+            var interpolated = false
+            defer {
+                stringLiterals.append(LexedSource.StringLiteral(
+                    text: String(whole), hasInterpolation: interpolated, codeStart: start, codeEnd: codeCount,
+                    line: startLine))
+            }
             position += hashes
             let isMultiline = startsWith("\"\"\"")
             position += isMultiline ? 3 : 1
-            code.append(" ")
+            appendCode(" ")
 
             let hashSuffix = String(repeating: "#", count: hashes)
             let closing = (isMultiline ? "\"\"\"" : "\"") + hashSuffix
@@ -609,12 +643,14 @@ public enum SourceScanner {
             while position < input.count {
                 if startsWith(closing) {
                     position += closing.unicodeScalars.count
+                    whole.append(contentsOf: text)
                     flush(&text, line: segmentLine)
-                    code.append(" ")
+                    appendCode(" ")
                     return
                 }
                 if !isMultiline && peek() == "\n" {
                     // Unterminated single-line string: stop at end of line (keeps the lexer in sync).
+                    whole.append(contentsOf: text)
                     flush(&text, line: segmentLine)
                     return
                 }
@@ -622,11 +658,13 @@ public enum SourceScanner {
                     let after = escape.unicodeScalars.count
                     if peek(after) == "(" {
                         // Interpolation: the expression is code.
+                        interpolated = true
+                        whole.append(contentsOf: text)
                         flush(&text, line: segmentLine)
                         position += after + 1
-                        code.append(" ")
+                        appendCode(" ")
                         lexCode(stopAtUnbalancedCloseParen: true)
-                        code.append(" ")
+                        appendCode(" ")
                         segmentLine = line
                         continue
                     }
@@ -638,6 +676,7 @@ public enum SourceScanner {
                 if scalar == "\n" { advance(emitToCode: false) } else { position += 1 }
                 text.append(scalar)
             }
+            whole.append(contentsOf: text)
             flush(&text, line: segmentLine)
         }
 
