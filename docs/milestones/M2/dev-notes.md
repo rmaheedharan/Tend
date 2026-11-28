@@ -6283,3 +6283,111 @@ the previous stop; the microphone indicator must go off each time and the next c
 - Mac evidence record for `2a6931e`: [`evidence/mac/WI-M2-M3-main-merge/`](evidence/mac/WI-M2-M3-main-merge/README.md).
   B1 TendCore 141; B2 TendIngestion 580, scan 72 files, 0 violations; B4 TendAI 96 tests in 17 suites; B5 hosted 36
   tests in 5 suites; B6 as MS-1. All passed, 0 skipped, no compiler warnings, clean tree before and after.
+
+## M2 Q23 — scanner follow-up: the fixtures-loader exception in AC-M2-09 Rule 6
+
+- **Owner:** Developer  ·  **Branch:** `m2/scanner-loader-exception`, based on `main` at `65c06cd`  ·  **PR:** none
+  yet (committed locally, not pushed)  ·  **ADRs:** ADR-0006 (the scan library).
+- **Requirements:** AC-M2-09 Rule 6 "Fixtures-loader exception (M2 Q23)", the brief's Q23 plants and positive, the Q23
+  row of the brief's question table; plan "Named files" (fixtures loader row), WI-M2-01 timing note ("a scanner
+  follow-up … merged before WI-M2-M7 opens for review") and Developer constraints. P-2, P-4. No AC changed.
+
+### What changed
+- **`TendSourceScan/FixturesLoaderRule.swift` (new):** the Q23 checks. In the one file
+  `IngestionScanConfiguration.fixturesLoaderFile` (module `TendEval` only), a `contentsOf:` hit is removed from the
+  Rule 6 findings only when it is the allowed read, and the loader's own checks always run in that file. The file
+  header maps each brief condition to its check. In short:
+  - the read is exactly `return try Data(contentsOf: <name>)`, `<name>` one plain identifier, and only `}` or `;`
+    follows (the bytes are returned as `Data`, not kept or transformed);
+  - `<name>` is bound by `let` / `guard let` / `if let <name> = Bundle.main.url(forResource:` at the start of a
+    statement, the call ends the binding, `<name>` occurs exactly twice in the whole file (bound once, read once), the
+    binding comes first, and both sit in the same function body (the nearest `{` that is not a control-flow block);
+  - no `func`, `init`, `subscript`, accessor or closure declares a parameter (`$0` and closure signatures included);
+  - the whole token `URL` does not occur; every identifier containing `Bundle` is the `Bundle` of
+    `Bundle.main.url(`; every `forResource` is that call's first label; the brief's named hits (`.resourceURL`,
+    `.bundleURL`, `.urls(forResourcesWithExtension:`, `.path(forResource:`, `appendingPathComponent(`,
+    `appending(path:`, `appending(component:`, `deletingLastPathComponent`) are reported;
+  - the call's arguments are `forResource:` then optionally `withExtension:` then optionally `subdirectory:`, each one
+    string literal with no interpolation and no other code, decoded text matching the brief's pattern over the whole
+    text (`\A…\z`, because ICU's `$` also matches before a final newline);
+  - no literal (segments joined) contains `://`; write and log APIs stay caught by the existing Rule 6 checks.
+- **`IngestionSourceRules.swift`:** `IngestionScanConfiguration.fixturesLoaderFile` (new, required init parameter, so
+  a caller cannot forget it); Rule 6 calls the loader rule in that file and passes the allowed read offsets to
+  `networkingViolations`; the loader patterns join `allPatterns` (the compile self-test). Header note updated. Every
+  other rule and list is unchanged.
+- **`SourceScanner.swift` (lexer):** `LexedSource.stringLiterals`, one entry per whole literal (joined text,
+  interpolation flag, span in `code`). The existing `literals` segment list and `code` are unchanged; the lexer now
+  keeps a scalar count next to `code` so a span costs O(1).
+- **`TendIngestionTests/ScanScope.swift`:** the committed configuration names the loader file.
+
+### AC → test
+| AC / brief item | Test(s) (`TendSourceScanTests` unless noted) | Result |
+|---|---|---|
+| Q23 positive (brief, exact text) passes in the loader file | "AC-M2-09 M2 Q23 positive: the brief's exact loader form passes in the loader file"; "… in each of the three binding forms" (5 cases); "… a whole loader file with four fixtures …"; TendIngestion "AC-M2-09 Rule 6, M2 Q23 (driver) …" | PASS (Linux) |
+| "Caught in the fixtures-loader file" (brief, 6 plants, NSURL counted by the networking list) | "… each of the brief's plants is caught in the fixtures-loader file" (7 cases); "NSURL(fileURLWithPath:) … caught by the networking list"; "the brief's parameter plant is caught as a parameter …" | PASS (Linux) |
+| `Data(contentsOf: u)` in a TendEval file other than the loader (brief "Also caught"); everywhere else banned | "the brief's loader form is still caught in every other file of the three modules" (8 locations, including a second loader-named file, the loader's path under `TendAI`, and the results writer); existing R1-F1 table now also runs in the loader file; TendIngestion driver test | PASS (Linux) |
+| Each Q23 condition on its own (write API, non-literal names, `URL`, `Bundle`, parameters, scope, return form, `://` …) | "one plant per condition of the loader exception is caught in the loader file" (80 cases); "every condition plant's base form … passes on its own" | PASS (Linux) |
+| Other Rule 6 checks kept in the loader file | "the loader file keeps every other Rule 6 check (networking, imports, host literals)" | PASS (Linux) |
+| Case-sensitive; comments and string text never bind | "the exception is case-sensitive …"; "comments and string text do not count as the binding" | PASS (Linux) |
+| Brief text pins (named hits, both patterns, loader path) | "Pin (M2 Q23): …"; "the argument patterns accept and reject exactly as the brief's regexes" (13 cases) | PASS (Linux) |
+| Lexer spans | "Lexer (M2 Q23): whole string literals record …" | PASS (Linux) |
+| Repository scan | TendIngestion "AC-M2-09 scan": 72 files (TendIngestion 56, TendAI 15, TendEval 1), 0 violations | PASS (Linux) |
+
+**Changed test (not weakened):** `Q24RulesTests.loaderFileIsStrictUntilQ23` asserted that WI-M2-01 had no loader
+exception, so the brief's Q23 positive was a hit in the loader file. That was the planned temporary state; Q23 is the
+PO decision that ends it. It is replaced by `loaderFileExceptionIsNarrow`: the same positive now passes in the loader
+file and is still caught in another TendEval file, and its `String(contentsOf:` assertion is kept unchanged.
+
+**Mutants (each run, then reverted; all killed):** scope check off (3 issues); every `contentsOf:` in the loader allowed
+(37); literal pattern check off (14); parameter checks off (10).
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| `TendSourceScan` (`swift:6.2-noble`, `-warnings-as-errors`) | 78 tests in 5 suites passed, 0 warnings | — | — | — | — |
+| `TendIngestion` (same; includes the AC-M2-09 repository scan) | 581 tests in 68 suites passed, 0 warnings | — | — | — | — |
+| `TendCore` (same) | 141 tests in 18 suites passed, 0 warnings | — | — | — | — |
+| The real `EvalFixturesLoader.swift` | — | — | — | — | Not on any branch yet (see below) |
+
+### Things the reviewer should look at closely
+- **The real loader file does not exist yet.** `origin/m2/eval-harness` (at `1260c4a`) and every local worktree have no
+  `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift` (only `TendEvalApp.swift`), so I could not fit the
+  exception to its four `Data(contentsOf:` calls. The exception follows the brief's Q23 text. The whole-file positive
+  test shows a loader in the plan's shape (four fixtures, each with its own literal lookup) passes. The WI-M2-M7 loader
+  must then use a **different bound name per fixture** ("bound exactly once in the file"), `return try
+  Data(contentsOf: name)` as the read, and no parameters.
+- **Where this is stricter than the brief's words** (all of them read "stricter only"; a PO ruling can loosen any one):
+  the read must be the `return try` form with nothing after it (my reading of "returns the bytes as `Data` and keeps
+  nothing"); `<name>` may occur only at its binding and its read; `{ () in` and capture-list closure signatures are
+  reported; accessors (`set(`, `willSet(`, `didSet(`) with a named parameter count as declaring one; any `subscript`
+  is reported; `Foundation.Bundle` and backticked `Bundle` / `Data` are rejected; any label other than the brief's
+  three (for example `localization:`) is rejected; the named hits match with or without a receiver.
+- **Text, not types:** control-flow blocks are recognised by keyword. A trailing closure written directly in an `if`
+  condition would be read as part of that `if` (Swift mostly forbids it there). The brief keeps "the loader reads only
+  bundle resources" as a Reviewer confirmation.
+- `IngestionScanConfiguration.init` gained a required parameter. Open branches that build their own configuration
+  will fail to compile until they pass `fixturesLoaderFile:` (loud on purpose).
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| Fit check against the real loader once WI-M2-M7 adds it | — | WI-M2-M7 (the repository scan covers it automatically) |
+| Traceability row for AC-M2-09 Q23 tests | — | Documenter |
+| `DECISIONS.md` entry for M2 Q23 | — | Human-merged governance PR (plan) |
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Test-only scan library; no UI. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No user copy; check names are neutral; the AC-M2-12 vocabulary scan stays green. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No model path touched. |
+| P-2 No data leaves device | pass | No networking added; the one new exception only lets one file read bundled resources named by literals; every networking pattern stays a hit there. |
+| P-3 Cloud AI per ADR-0005 | n.a. | No cloud path touched; Rule 3 and Rule 4 unchanged. |
+| P-4 Media not persisted | pass | The loader may only read bundle bytes and return them; write and log APIs stay hits in the loader file. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Developer | Reviewer (via the Orchestrator) | sent | Committed locally on `m2/scanner-loader-exception`; not pushed, no PR. Must merge before WI-M2-M7 opens for review (plan). |
