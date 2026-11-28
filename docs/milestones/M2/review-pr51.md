@@ -1,6 +1,6 @@
 # M2 Code Review — PR #51 (`m2/scanner-loader-exception`, head `b88c384`, base `main` `65c06cd`)
 
-- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** **APPROVE** (round 2, head `9126548`; round 1 was CHANGES REQUIRED)  ·  **Round:** 2
+- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** **APPROVE** (round 3, head `7fbe9d8`; round 2 APPROVE; round 1 was CHANGES REQUIRED)  ·  **Round:** 3
 - **Scope:** `git diff 65c06cd b88c384`, 9 files (+1237 / -25): `TendSourceScan/FixturesLoaderRule.swift` (new),
   `IngestionSourceRules.swift`, `SourceScanner.swift` (lexer), `Q23LoaderTests.swift` (new), `Q24RulesTests.swift`,
   `IngestionSourceRulesTests.swift`, TendIngestion `ScanScope.swift` and `IngestionSourceScanTests.swift`,
@@ -275,3 +275,108 @@ them.
 |---|---|---|---|---|
 | 2026-11-28 | Developer (via Orchestrator) | Reviewer | received | PR #51 round 2, head `9126548` (round 1 review at `0a3dc32`). |
 | 2026-11-28 | Reviewer | Merge Gatekeeper / Orchestrator; Developer for tickets | accepted | **APPROVE.** F1–F5 closed with evidence. New Minors F6 (regex-literal-hidden directives in the loader; a loader-local `/` ban suggested; lexer-wide fix as its own ticket) and F7 (pin `bindingEnds` with the `?? fallback` plants), and Nit N1, all to be ticketed; none blocks. Merge before WI-M2-M7 opens for review (plan). Re-confirm the loader's bundle-only reads at the WI-M2-M7 review. |
+
+---
+
+## Round 3 — head `7fbe9d8` (review of `git diff 3aaf62a 7fbe9d8`)
+
+- **Verdict:** **APPROVE**. No Blocker, Major or Minor is open, and no new findings.
+- **Scope:** `FixturesLoaderRule.swift` (+33 / -1), `Q23LoaderTests.swift` (+77), `dev-notes.md` (round 3 section).
+  No other source file changed.
+- **Real loader:** `origin/m2/eval-harness` at `32a6be8` (unchanged since round 2).
+- **IDs:** AC-M2-09 (Rule 6, M2 Q23), AC-M2-28, WI-M2-M7, P-2, P-4.
+
+### Summary (round 3)
+
+F6, F7 and N1 from round 2 are fixed, and I checked each one in the new code:
+- **F6:** in the loader file every `/` left in lexed code is reported, and with any of them no read is allowed (`:252-261`).
+- **F7:** the two `?? fallback` plants pin `bindingEnds`.
+- **N1 (a):** the back-walk from `{` stops at a newline that ends a statement (`:413`, `endsStatement` `:437`).
+- **N1 (b):** the shadow check skips a backtick (`:461`).
+
+Results:
+- My F6 regex proof is now caught. The scan gives 4 slash findings plus the read as a `contentsOf:` hit.
+- Every earlier bypass attempt gives the same result as in round 2, or a stricter one.
+- I tried 8 more bypass ideas. They are handled correctly.
+- 23 of 24 mutants are killed. The one survivor, m09, is the equivalent mutant explained in round 2.
+- The real loader still fits with 0 findings.
+
+**Why any `/` or `#` closes the regex gap:** a regex literal can start only as `/…/` or `#/…/#`. The opening
+delimiter is always lexed as code before any quote inside it can mislead the lexer, so the slash check or the `#`
+check always sees it. The lexer has no other place where it can drift from the compiler: it already handles `//`,
+nested `/* */`, raw strings and interpolation, and Swift has no other literal that holds a quote. I also checked that
+Swift does not normalise Unicode identifiers: `café` written precomposed and `café` written with a combining accent are
+different names to the compiler. So a look-alike name cannot shadow the binding while the scanner sees two different
+names.
+
+### Round 2 findings, re-checked
+
+| # | Round 2 | Evidence (round 3) | Status |
+|---|---|---|---|
+| F6 | Minor | My two-file regex proof loader (R01, the one that compiles with `-warnings-as-errors` and reads a non-bundle path) is now caught: `slash in code (regex literal or division)` ×4 + `networking contentsOf:`. Also caught: P08 (`/"/` hiding a call), R18 `#/"/#` (both `#` and `/`), R21 `/=`, and R26 `"\(4 / 2)"` (a slash inside an interpolation is code; fail closed). R22 `"\u{2F}"` (a slash only inside string text) gives 0 findings, as it should. The PR's 4 slash plants and the comment/string negative pass. Mutants killed: m21 (reads allowed despite a slash, 4 issues) and m22 (slash reporting off, 4). | **Closed** |
+| F7 | Minor | m04 (`bindingEnds` off) is now killed (2 issues). My R27 and PROBE2 forms (same line and next line `?? fallback`) are caught by the real code. | **Closed** |
+| N1 | Nit | (a) R05, a closure after `repeat { } while false`, is now caught. m23 (newline stop off) is killed (1). R25, an `if` condition split across lines with `,`, still passes, because a line ending in `,` continues the statement. R19, an Allman `if flag` / `{` on its own line, is now rejected. That is stricter only, and it is documented in the header. The real loader and the plan's shape do not use Allman braces. (b) R06 `` struct `Data` `` and R24 `` let `Bundle` `` now give `declaration shadows …`. m24 (backtick skip off) is killed (3). | **Closed** |
+
+### Bypass attempts (round 3, full set re-run on `7fbe9d8`)
+
+- Round 1 and round 2 plants P01–P29 and R01–R17: every result is the same as in round 2 or stricter. The two that
+  passed in round 2 and should not have are now caught: R01 by the slash check and R05 by the newline stop.
+- Valid forms still pass: P06, P11, P21, P26, R08, R16 and the new R25.
+- The round 1 `#if` proof is still caught: directive ×2 + `contentsOf:`.
+- P04, a static `u` in another file, still gives 0 findings, as expected: a text scan of that file cannot tell. The
+  loader side now rejects every way I found to reach it from the loader file.
+- Cross-file shadowing (`extension EvalFixturesLoader { typealias Data … / enum Bundle … }` in another file) is still a
+  Reviewer check, as the dev-notes say. I confirmed it is absent at `32a6be8`.
+
+### Mutants (round 3; 24 total, each in its own scratch copy of `7fbe9d8`; full `TendSourceScan` suite)
+
+| Killed (issues) | Survived |
+|---|---|
+| m01 (1), m02 (11), m03 (1), **m04 (2)**, m05 (2), m06 (1), m07 (2), m08 (4), m10 (10), m11 (1), m12 (10), m13 (17), m14 (6), m15 reads allowed despite directives or slashes (5), m16 (15), m17 (1), m18 (3), m19 (2), m20 (7), **m21** reads allowed despite a slash (4), **m22** slash reporting off (4), **m23** newline stop off (1), **m24** backtick skip off (3) | m09 only (equivalent: `offset > scopeStart` implies it; see round 2 F4) |
+
+### Lexer and real loader (round 3)
+- The lexer is not touched. The differential re-run (base `65c06cd` lexer against the head lexer, 228 inputs) found
+  **0 differences**.
+- **Real loader `32a6be8`:** 0 findings at the loader path, 4 `networking contentsOf:` at any other TendEval path. It
+  has no `/` or `#` in code (its comments are removed), no `typealias`, no shadowing declaration and no Allman braces,
+  and each read is in its `guard`'s scope.
+- **Reviewer confirmation (brief AC-M2-09 Rule 6):** the loader reads only bundle resources named by literals. No other
+  TendEval file at `32a6be8` shadows `Bundle` or `Data` or extends `EvalFixturesLoader`. Re-confirm at the WI-M2-M7
+  review.
+
+### Runs (round 3; Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, fresh scratch copies of `7fbe9d8`)
+
+| Package | Result |
+|---|---|
+| `TendSourceScan` | 88 tests in 5 suites passed, 0 warnings |
+| `TendIngestion` | 581 tests in 68 suites passed, 0 warnings; AC-M2-09 scan 72 files (TendEval 1), 0 violations; AC-M2-12 72 files, 0 violations |
+| `TendCore` | 141 tests in 18 suites passed, 0 warnings |
+| `TendIngestion` with `Apps/TendEval` from `origin/m2/eval-harness` `32a6be8` | 581 tests in 68 suites passed, 0 warnings; AC-M2-09 scan TendIngestion 56, TendAI 15, TendEval 8 (each file listed), "79 files in total, 0 violations"; AC-M2-12 79 files, 0 violations |
+
+Every check here was run on Linux. I verified nothing on macOS, the Simulator or a device; nothing in this PR needs
+them.
+
+### Checklist (round 3)
+- [x] Correctness vs ACs (AC-M2-09 Rule 6 Q23; all brief plants and positives; every review finding closed)
+- [x] Tests meaningful (23 of 24 mutants killed; the survivor is equivalent)
+- [x] Swift 6 concurrency safe  - [x] No force unwraps / `try!` in product paths  - [x] Privacy (P-1…P-4)
+- [x] UX-2/UX-3 n.a. / pass  - [x] Accessibility n.a.  - [x] Performance (linear passes; the back-walk is per block)
+- [x] No new dependency without ADR
+
+### Law check (round 3)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Test-only scan library. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No user copy; neutral check names; AC-M2-12 scan green (72 and 79 files, 0 violations). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No model path touched. |
+| P-2 No data leaves device (except user iCloud) | pass | No networking added; every networking pattern is still a hit in the loader file. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | n.a. | No cloud path touched. |
+| P-4 Media not persisted without consent | pass | In the loader file, no `#if`, no regex literal, no out-of-scope binding and no shadowing declaration can make the read reach a non-bundle file. Write and log APIs stay hits there. Shadowing from other files is a Reviewer check, confirmed at `32a6be8`. The same regex-literal limit in other files is the Planner's separate lexer ticket and is not part of this PR. |
+
+### Handoff log (round 3)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Developer (via Orchestrator) | Reviewer | received | PR #51 round 3, head `7fbe9d8` (round 2 review at `3aaf62a`). |
+| 2026-11-28 | Reviewer | Merge Gatekeeper / Orchestrator | accepted | **APPROVE.** F6, F7 and N1 closed with evidence; no open finding. The lexer-wide regex-literal fix stays a separate Planner ticket. Merge before WI-M2-M7 opens for review (plan). Re-confirm the loader's bundle-only reads at the WI-M2-M7 review. |
