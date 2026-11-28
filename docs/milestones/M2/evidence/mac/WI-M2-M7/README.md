@@ -28,7 +28,9 @@ HEAD)` on the TendEval Debug build. It deletes `build/`, `Tend.xcodeproj`, every
 `REPO=/path/to/Tend zsh run-evidence.sh`. B7 belongs to MS-3.
 
 Personal and machine paths were replaced before hashing, with the MS-1 tokens: `$REPO` (the checkout), `$HOME`,
-`$USER`, `$TMPDIR`, `$SCRATCH`. Nothing else was edited.
+`$USER`, `$TMPDIR`, `$SCRATCH`, and `$REPO_PARENT` for every folder between `$HOME` and `$REPO` (applied to the two
+TendEval B6 build logs after the first commit of this record, where an `SCRIPT_INPUT_ANCESTOR_3` value showed the
+folder above the checkout). Nothing else was edited.
 
 ## Results
 | Step | Command (plan.md) | Exit | Result |
@@ -75,8 +77,8 @@ orientation set).
     67454b7558c550c0e0e058d558e11f0dd680fb7bc8a8f40f2b0655cd0f9214b0  logs/mac-B6-archive.log
     b56d93425d47ac7ad786437d62017f70d146bd536f0c7f9a555f8a95c2a9f4e1  logs/mac-B6-eval-archive.log
     39264c4d9830a1aba5e60de27a67b99ebe6b1a6255768a0d63bec0fa3cd816e3  logs/mac-B6-eval-bundle.log
-    2b72bfb1691df49043ce7f376bec619c82e77a8db7bdc07a39e10835320386ec  logs/mac-B6-eval-debug.log
-    6367c0fd09c66aeb77ee2dc861599ff6d1c83524e3f67957b95b65d9c164e708  logs/mac-B6-eval-release.log
+    6ac8039e85c1af26015232f27da6f7fbf2da089d1d3bed0510a41f1dc40e449d  logs/mac-B6-eval-debug.log
+    c42c410fc01de1c695ec04315be72c62068a275e52e2b91fc3b5976af4302d11  logs/mac-B6-eval-release.log
     65ca1525bd711f65d07aab1eae27bea50064478b1094df16b05a47f2f4ab2f1a  logs/mac-B6-release-find.log
     979efef98c64df4db399fec3b074ec0d0f995a89f71ac1bd1bddf9151f76eaac  logs/mac-B6-release.log
     80e7817e404a7089e796d4e1dc1d4143dc05024999e1195079403b29b3cc29b5  logs/mac-B9-after.log
