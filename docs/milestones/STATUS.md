@@ -28,7 +28,7 @@ as in D-064).
 | #43 | `m2/on-device-adapter-v2` | WI-M2-M2: the `FoundationModels` on-device adapter (re-creates PR #41), with the one-`Tool`-call cap from the R-1 ruling (D-062) | FR-A1, AC-M2-05, AC-M2-06, AC-M2-07, AC-M2-16 (harness side), P-1 |
 | #44 | `m2/speech-adapter-v2` | WI-M2-M3: the on-device speech adapter (re-creates PR #42), audio kept in memory only | AC-M2-11 (voice path), P-1, P-4 |
 | #45 | `m2/keychain-key-store` | WI-M2-M5: the Keychain key store and the key mask | AC-M2-21, AC-M2-18 (a), P-3 |
-| #46 | `m2/cloud-transport` | WI-M2-M4: the cloud HTTPS transport and its failure mapping | AC-M2-22, AC-M2-23, P-2, P-3 |
+| #46 | `m2/cloud-transport` | WI-M2-M4: the cloud HTTPS transport and its failure mapping (landed through #47, branch merge `c60b335`) | AC-M2-22, AC-M2-23, P-2, P-3 |
 | #47 | `m2/key-paste-cleanup` | Pasted-key clean-up (D-063) and the PR #45 and #46 follow-ups | AC-M2-21, AC-M2-22, AC-M2-23 |
 | #48 | `m2/sp1-device-script` | The SP-1 device script for the iPhone 15 Pro latency spike, and DS-1 Part C | R-1, AC-M2-16, AC-M2-11 |
 | #49 | `m2/sp1-script-r3` | SP-1 script v3, matched to the probe build | R-1, SP-1 |
