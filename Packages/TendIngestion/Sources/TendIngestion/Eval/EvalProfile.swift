@@ -319,18 +319,23 @@ enum EvalProfileChecks {
             q3Thresholds()
             if let provider { routes(EvalRoute(rawValue: provider.rawValue) ?? .none, ac: "AC-M2-26") }
             timing(ttfiBelow: 3000, totalAtMost: 10000, ac: "AC-M2-27")
+            // Every request of every attempt, retakes included, not only the scored (last) attempt (Tester D-059
+            // re-check F1).
             if let allowed = allowedKeyPaths {
-                var outside: Set<String> = []
-                for input in score.inputs {
-                    for request in input.cloudRequests { outside.formUnion(request.keyPaths.filter { !allowed.contains($0) }) }
+                var outside: [String] = []
+                for input in file.inputs {
+                    for request in input.cloudRequests {
+                        for path in request.keyPaths where !allowed.contains(path) {
+                            outside.append("\(input.inputID) attempt \(input.attempt) request \(request.attempt): \(path)")
+                        }
+                    }
                 }
                 check("sent key paths are a subset of the allowed list (AC-M2-26)", outside.isEmpty,
-                      outside.isEmpty ? "ok" : "outside: " + outside.sorted(by: TextFolding.utf8Precedes)
-                        .joined(separator: ", "))
+                      outside.isEmpty ? "ok" : "outside: " + outside.joined(separator: ", "))
             } else {
                 check("sent key paths are a subset of the allowed list (AC-M2-26)", false, "no allowed list given")
             }
-            let failures = arrayCountFailures(score.inputs, goldenBody: goldenBody, roomCount: fixtures.rooms.count)
+            let failures = arrayCountFailures(file.inputs, goldenBody: goldenBody, roomCount: fixtures.rooms.count)
             check("per-array element counts match the golden body and the seeded household (AC-M2-26, D-059)",
                   failures.isEmpty, failures.isEmpty ? "ok" : failures.joined(separator: "; "))
         }
@@ -339,11 +344,13 @@ enum EvalProfileChecks {
 }
 
 extension EvalProfileChecks {
-    /// PO ruling on per-array element counts (D-059), for every cloud request: both members present; `arrayCounts`
+    /// PO ruling on per-array element counts (D-059), for every cloud request of every attempt in the file (retakes
+    /// included; Tester D-059 re-check F1): both members present; `arrayCounts`
     /// equal, path for path and count for count, to the golden body's; `userContentArrayCounts` exactly
     /// `$.existingTasks` and `$.rooms`, with `rooms` equal to the seeded household's room count and `existingTasks` at
     /// most 10. Each failure names the input, attempt, path, expected and seen count.
-    static func arrayCountFailures(_ inputs: [EvalInputScore], goldenBody: Data?, roomCount: Int) -> [String] {
+    static func arrayCountFailures(_ inputs: [EvalResultsFileV1.InputAttempt], goldenBody: Data?,
+                                   roomCount: Int) -> [String] {
         guard let goldenBody else { return ["no golden body given"] }
         guard let golden = CloudRequestKeyPaths.arrayCounts(ofBody: goldenBody) else {
             return ["the golden body is not strict JSON"]

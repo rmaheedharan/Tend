@@ -144,6 +144,12 @@ struct EvalResultsFileTests {
              "/inputs/0/cloudRequests/0/arrayCounts/0/path", "pattern"),
             ("a path without the root", request(.null, .array([entry(.integer(1), .string("rooms"))])),
              "/inputs/0/cloudRequests/0/userContentArrayCounts/0/path", "pattern"),
+            ("two equal entries (uniqueItems, Tester D-059 F2)", request(.array([
+                entry(.integer(1), .string("$.a")), entry(.integer(1), .string("$.a"))]), .null),
+             "/inputs/0/cloudRequests/0/arrayCounts", "uniqueItems"),
+            ("two equal user-content entries (uniqueItems)", request(.null, .array([
+                entry(.integer(1), .string("$.rooms")), entry(.integer(1), .string("$.rooms"))])),
+             "/inputs/0/cloudRequests/0/userContentArrayCounts", "uniqueItems"),
         ]
         for (name, value, path, keyword) in countCases {
             let broken = root.setting("/inputs/0/route", to: .string("openai"))
@@ -254,7 +260,7 @@ struct EvalResultsFileTests {
                 .init("keyPaths", .array([])),
                 .init("userContentArrayCounts", .array([
                     .object([.init("count", .integer(1)), .init("path", .string("$.rooms"))]),
-                    .object([.init("count", .integer(1)), .init("path", .string("$.rooms"))]),
+                    .object([.init("count", .integer(2)), .init("path", .string("$.rooms"))]),
                 ]))]))],
          .cloudRequestsInconsistent(inputID: "in01", attempt: 1)),
         ("start time not real", [("/run/startedAtUTC", .string("2026-02-30T00:00:00Z"))], .invalidStartTime),

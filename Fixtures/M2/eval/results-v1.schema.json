@@ -506,6 +506,7 @@
                     "array",
                     "null"
                   ],
+                  "uniqueItems": true,
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
@@ -546,6 +547,7 @@
                     "array",
                     "null"
                   ],
+                  "uniqueItems": true,
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
