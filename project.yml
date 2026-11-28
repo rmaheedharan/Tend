@@ -5,8 +5,12 @@
 #
 # Targets (M2 plan WI-M2-M1):
 #   Tend               the app skeleton, shipped later. It has no dependency on TendEval (AC-M2-28).
-#   TendEval           the debug-only eval harness: own bundle ID, Debug only, file sharing in Debug only,
-#                      the frozen eval fixtures bundled, its scheme's Archive action off (AC-M2-28).
+#   TendEval           the debug-only eval harness: own bundle ID, Debug only (a pre-build guard stops any other
+#                      configuration), file sharing in Debug only, the frozen eval fixtures bundled, its scheme's
+#                      Archive action off (AC-M2-28). Build it with TEND_COMMIT=<the commit under test> so the
+#                      results file records the commit (WI-M2-M7).
+# The AC-M2-28 rules on this file are checked on Linux by `ProjectSpecScanTests` (TendIngestion tests).
+#   TendEvalTests      the harness's own hosted tests (WI-M2-M7), hosted by TendEval, built only by its scheme's test.
 #   TendAITestHost     a blank, never-shipped iOS host app for the hosted tests.
 #   TendAIHostedTests  Packages/TendAI/HostedTests, hosted by TendAITestHost (AC-M2-13(b), 18(a), 21, 22, 23).
 
@@ -76,11 +80,23 @@ targets:
       - package: TendCore
       - package: TendIngestion
       - package: TendAI
+    preBuildScripts:
+      # AC-M2-28: TendEval is built only in the Debug configuration; any other configuration stops here.
+      - name: Debug only (AC-M2-28)
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "${CONFIGURATION}" != "Debug" ]; then
+            echo "error: TendEval is built only in the Debug configuration (AC-M2-28), not ${CONFIGURATION}."
+            exit 1
+          fi
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tend.eval
         PRODUCT_NAME: TendEval
         INFOPLIST_KEY_CFBundleDisplayName: TendEval
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "TendEval records the eval sentences you read aloud. The audio stays on this iPhone and is not saved."
+        # The commit under test, written into the Debug Info.plist as TendCommit (empty unless passed).
+        TEND_COMMIT: ""
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
       configs:
@@ -89,6 +105,21 @@ targets:
           # (Xcode has no INFOPLIST_KEY_ setting for UIFileSharingEnabled, so a Debug-only partial Info.plist
           # is merged with the generated keys.)
           INFOPLIST_FILE: Apps/TendEval/Support/Debug-Info.plist
+
+  # Hosted tests of the harness itself (WI-M2-M7), on the iOS Simulator. Never shipped: only the TendEval scheme's
+  # test action builds it.
+  TendEvalTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Apps/TendEval/Tests
+    dependencies:
+      - target: TendEval
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tend.evaltests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TendEval.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TendEval"
+        BUNDLE_LOADER: "$(TEST_HOST)"
 
   TendAITestHost:
     type: application
@@ -140,10 +171,13 @@ schemes:
     build:
       targets:
         TendEval: [running, testing, profiling, analyzing]
+        TendEvalTests: [testing]
     run:
       config: Debug
     test:
       config: Debug
+      targets:
+        - TendEvalTests
     profile:
       config: Debug
     analyze:

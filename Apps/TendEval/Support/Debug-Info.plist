@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- TendEval, Debug configuration only (project.yml): file sharing, so the owner can copy the results file off the
-     iPhone (AC-M2-28). Merged with the generated Info.plist keys. -->
+     iPhone (AC-M2-28), and the commit under test (build setting TEND_COMMIT) for the results file's appCommitSHA.
+     Merged with the generated Info.plist keys. -->
 <plist version="1.0">
 <dict>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>TendCommit</key>
+	<string>$(TEND_COMMIT)</string>
 </dict>
 </plist>
