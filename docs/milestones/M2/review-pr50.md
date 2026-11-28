@@ -120,3 +120,118 @@ Two Majors block the merge:
 |---|---|---|---|---|
 | 2026-11-27 | Orchestrator | Reviewer | accepted | PR #50 at `e039a4d` (code `035378e`), base `65c06cd`. |
 | 2026-11-27 | Reviewer | Developer (via Orchestrator) | returned | CHANGES REQUIRED: R50-F1 Major (deadline start at receipt, with a test), R50-F2 Major (zsh-safe, history-safe recording commands). R50-F3, F4 Minor; N1-N4 Nit. R50-F4 needs the PO or Planner to record the owner's "Gemini now, others later" choice. Re-review checks F1 with a killing test for m10 and F2 with a zsh and bash probe. |
+
+---
+
+# Round 2 — PR #50 (`m2/cloud-adapters`, head `33e1997`, code commit `990fffc`, evidence commit `33e1997`)
+
+- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** **APPROVE**  ·  **Round:** 2
+- **Scope:** `git diff 463572d 33e1997` (39 files). Code: `CloudModelSource.receive()` and the new
+  `CloudCaptureReceipt` (`ModelRouter.swift`), the receipt in `CloudAdapters.swift`, `start:` on
+  `CloudIngestionModel` and the three provider types, the test-double conformances, `CloudAdapterTests`
+  (`deadlineFromReceipt` × 3, N1, N2), the new `CloudReceiptTests.swift` (TendIngestion), and the new script
+  `Tools/Recording/record-provider-stream.sh`. Docs: the dev-notes section and the Mac record
+  `evidence/mac/WI-M2-M6-round1/`. No change in `Fixtures/` (frozen eval files untouched), `TendCore`, `project.yml`
+  or any protected path. `git diff --name-only 990fffc 33e1997` is all under `docs/`.
+- **IDs:** AC-M2-22 "Timeouts", Q22, T-17, AC-M2-27, AC-M2-24, T-19, Q18; ADR-0005; P-1, P-2, P-3, P-4; UX-3.
+- **Milestone lock:** M1 ACCEPTED, M2 IN-BUILD (`STATUS.md`). This M2 work item is allowed.
+- **Commits:** `990fffc` and `33e1997` are both by `Claude <noreply@anthropic.com>`.
+
+## Summary
+Both Majors are closed. The deadline start is now read once, when the pipeline receives the input. This happens before
+the route choice and before any consent or Keychain read, on the adapters' injected clock (AC-M2-22, Q22). Tests now
+pin it: all my round-1 and round-2 deadline mutants are killed. The recording commands are replaced by a script that
+works in zsh and bash. In my own pty probe it did not echo the key, kept it out of the history and out of `curl`'s
+argv, saved only the stream, and deleted a stream that contained the key (P-3).
+
+One new Minor finding (R50-F5): the leak check passes the key to `grep` as an argument. So the key is in one process's
+argv for a moment, and the script and dev-notes claim it never is. R50-F4 stays open for the PO or Planner. It is
+Minor and does not block this PR, but it keeps AC-M2-24 not PASS.
+
+## Runs (this review)
+| Run | Where | Result |
+|---|---|---|
+| `swift test --package-path Packages/TendCore -Xswiftc -warnings-as-errors` at `33e1997`, scratch `/tmp/m6r2c` | Docker `swift:6.2-noble` | 141 tests in 18 suites passed, exit 0, 0 `warning:` lines |
+| `swift test --package-path Packages/TendIngestion -Xswiftc -warnings-as-errors` at `33e1997`, scratch `/tmp/m6r2i` | Docker `swift:6.2-noble` | 582 tests in 69 suites passed, exit 0, 0 warnings. Both `CloudReceiptTests` pass. AC-M2-09 scan: 77 files, 0 violations. AC-M2-12: 77 files, 9 exempted, 0 violations |
+| Linux harness: the `TendAI/Cloud` adapter sources at `33e1997` (`CloudIngestionModel`, the three provider types, `CloudAdapters` without the Mac-only `init()`), `CloudAdapterTests.swift` unchanged, plus `FailingModel` and the `DraftStreamSummary(_:)` helper copied from the TendAI test target | Docker `swift:6.2-noble`, `-warnings-as-errors` | 13 tests in 1 suite passed (incl. `deadlineFromReceipt` × 3), 0 warnings. Swift 6 strict concurrency is clean for the changed product code |
+| Mac record `evidence/mac/WI-M2-M6-round1/` | read only | 23/23 SHA-256 lines verify (16 B0–B9 files and 7 extras). B0 names `990fffc34da4…`. The B0 and B9 `git status --porcelain` output is empty. B1 141, B2 582/69, B4 109/18 (incl. `deadlineFromReceipt` × 3), B5 36/5, all passed. The logs hold only `$HOME`/`$REPO`/`$USER`/`$TMPDIR` tokens and toolchain paths: no personal data. `mutants-r50-f1.txt` matches what I found myself |
+
+### Mutation table, round 2 (one at a time, each on a scratch copy; the worktree was never edited)
+| # | Mutant | Result |
+|---|---|---|
+| m10 | Receipt start 30 s later (`CloudAdapters.receive()`) | killed (`deadlineFromReceipt` × 3) |
+| m11 | Start read at the model call (`snapshots(for:)` uses `clock.now`, the round-1 behaviour) | killed (`deadlineFromReceipt`) |
+| m12 | Start read when the model is built (`Receipt.model(for:key:)` uses `clock.now`) | killed (`deadlineFromReceipt`) |
+| m13 | Router takes the receipt after the `cloudStatus()` read | killed (`CloudReceiptTests.receiptFirst`, `onDeviceReceipt`) |
+| m14 | Gemini only: start 1 s later | killed (`deadlineFromReceipt` gemini case) |
+| m15 | Start 1 s earlier | killed (`deadlineFromReceipt`: exact equality, resource 7.5 s) |
+| m16 | `beginRequest` builds the model from a fresh `cloudModels.receive()`, not the capture's receipt | killed (`CloudReceiptTests.receiptFirst`) |
+
+### Recording-script probe (this container: zsh 5.9, bash 5.2; fake keys; local HTTP server on 127.0.0.1 and `invalid.invalid` via `TEND_REC_BASE`; no real provider host or key)
+| Check | zsh (`zsh -i`, history on, INC_APPEND_HISTORY) | bash (`bash -i`, history on, `history -a`) |
+|---|---|---|
+| Run as `<shell> Tools/Recording/record-provider-stream.sh <p> <out>` from a real pty; key typed at the prompt | openai, gemini: prompt shown, key not in the pty transcript | anthropic, openai: same |
+| History file | holds the command lines only, never the key | same |
+| Request at the server | auth header exact (`Authorization: Bearer …` / `x-api-key` / `x-goog-api-key`), other golden headers, body 4343 / 4294 bytes | same |
+| Key in `/proc/*/cmdline` or `environ` (polled every 20 ms while `curl` waited 3 s) | 0 hits (the key variable is not exported) | 0 hits |
+| argv of `curl` and `grep` (PATH shims logging argv) | `curl`: `-H @-` only, no key. **`grep`: `-F -q -e <key> -- <stream>`, so the key is in argv** (R50-F5) | same code path |
+| Saved files | only `<provider>.sse`. No headers (the server's `X-Org-Id` header was not saved) | same |
+| Response that echoes the key | stream deleted, "the response contained the key, so … was deleted", exit 1 | same |
+| Empty key | "no key read; nothing was sent", exit 1, server request count unchanged, no output folder | — |
+| Invalid host | `curl: (6) Could not resolve host`, status 000, exit 6, the out folder is empty | — |
+
+## Findings, round 2
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| R50-F1 | Major | `ModelRouter.swift:148`, `CloudAdapters.swift:21-22`, `CloudIngestionModel.swift:45` | Fixed. `events(preference:household:makePipeline:)` calls `cloudModels.receive()` first, before `onDevice.availability()` and before any await, so before the cloud-status and Keychain reads. The receipt reads `clock.now` once, on the adapters' injected clock. `beginRequest` builds the model from `capture.receipt` (`:275`), and `CloudIngestionModel` never reads its own start. The router stays clock-free. The headers at `CloudIngestionModel.swift:11-14` now state the brief's definition. Tests: `deadlineFromReceipt` (manual `StepClock`, Keychain read 2.5 s, first attempt `resource 7.5 / request 4.0`) and `CloudReceiptTests` (order, one receipt per capture, model from its own receipt after the key read). m10–m16 are all killed. | — | **Closed** |
+| R50-F2 | Major | `Tools/Recording/record-provider-stream.sh`; `dev-notes.md` owner-pending section | Fixed. The steps are now a script run as `zsh <script>` / `bash <script>`, with no inline comments in the commands the owner copies. It has a hidden `stty -echo` prompt on a tty, stops on an empty key, sends the auth header on `curl`'s stdin (`printf` is a builtin in both shells), uses a non-exported variable that is cleared at the end, and has a trap that restores echo. My zsh and bash pty probes: no echo, no history entry, nothing in `curl`'s argv or any process environment. The `grep` argv point is a separate Minor (R50-F5). | — | **Closed** |
+| R50-F3 | Minor | same | Fixed. There is no `-D`, the status is printed with `-w '%{http_code}'`, and only `<provider>.sse` is saved (probe: the server's headers did not reach disk). The Gemini command is written out. | — | **Closed** |
+| R50-F4 | Minor | `dev-notes.md` owner-pending section; plan row WI-M2-M6 | Still open, correctly routed. The Developer marked it "for the PO or Planner". `DECISIONS.md` and `plan.md` still do not record the owner's "Gemini now, others later" choice. | PO or Planner records it. The Tester keeps AC-M2-24 not PASS until the OpenAI and Anthropic recordings are in. | Open (not a merge block) |
+| R50-F5 | Minor | `Tools/Recording/record-provider-stream.sh` (leak check, `grep -F -q -e "$key" -- "$stream"`); script header ("never in any command's arguments"); `dev-notes.md` owner-pending prose and the round-1 table; `evidence/.../probe/probe.sh:13,26` | **The leak check puts the key in `grep`'s argv** while `grep` runs, where `ps` can see it. The window is milliseconds, on the owner's own Mac. The developer's probe sampled `ps` only while `curl` ran, so it missed this, and the script and dev-notes claim the opposite. Plan "Real provider recordings" and P-3 key hygiene: the claim the owner relies on must be true. | Check without argv, for example in pure shell: `content=$(cat -- "$stream"); case $content in *"$key"*) leak=yes ;; esac`. That works in zsh and bash; `$key` is quoted, so it is matched literally. Or use `printf '%s\n' "$key" \| grep -F -q -f - -- "$stream"`, after checking that BSD `grep` accepts `-f -` on macOS. Extend the probe with a `grep` argv shim or a `ps` sample during the check. Fix it in this PR or before the owner's first OpenAI or Anthropic run, whichever comes first. | Open |
+| R50-N1 | Nit | `CloudAdapterTests.swift:330` | `try #require(transport.requests.count == 2)` before indexing. | — | Closed |
+| R50-N2 | Nit | `CloudAdapterTests.swift:297-313` | The stored-member walk goes 4 levels deep and asserts that it reaches `cloud.model` and `cloud.transport`. The comment says the guarantee is by type. | — | Closed |
+| R50-N3 | Nit | `evidence/mac/WI-M2-M6/README.md:8` | The README states UTC and that the logs use the Mac's local time. | — | Closed |
+| R50-N4 | Nit | `CloudIngestionModel.swift:61-63` | A comment explains why the order is safe. | — | Closed |
+| R50-I1 | Info | — | Unchanged. | — | — |
+| R50-I3 | Info | `CloudAdapterTests.swift` `StepClock`, `SlowKeyStore` | They are `@unchecked Sendable` with an `NSLock`, test-only, and every access is under the lock. There is no `@unchecked Sendable` or `nonisolated(unsafe)` in the changed product code. | None. | — |
+
+## Checks asked for in round 2
+- **P-1, no silent escalation:** the receipt is taken for every capture, but it only reads a clock. `onDevice.model`
+  is still chosen for `.onDevice` and `.none`, and the route rules are unchanged. `CloudReceiptTests.onDeviceReceipt`
+  shows that an on-device capture builds no cloud model. `OnDeviceModelTests.NoCloud` (`Issue.record` if asked) still
+  passes in Mac B4. An on-device error still never re-routes.
+- **No test weakened:** the round-2 test edits make tests stronger (N1 `#require`, N2 deeper walk) or add tests. The
+  test doubles gain `receive() -> self` with no change in behaviour. The frozen eval files are unchanged (no
+  `Fixtures/` diff).
+- **Script vs P-3 / ADR-0005:** the script sends only the committed golden request (a synthetic capture, no household
+  data) to the provider host in the golden head line, with the owner's own key. It saves no headers. It is a
+  developer tool and not shipped in the app (not in `project.yml` targets). No dependency is added.
+
+## Checklist
+- [x] Correctness vs ACs: AC-M2-22 deadline from receipt (R50-F1 closed). AC-M2-24 recordings still open (R50-F4, not a code defect)
+- [x] Tests meaningful: 7 of 7 deadline/receipt mutants killed
+- [x] Swift 6 concurrency safe (Linux `-warnings-as-errors` clean; the router actor reads the receipt before its first await)
+- [x] No force unwraps / `try!` in product code paths
+- [x] Privacy (P-1…P-4): pass. One Minor hygiene point in the owner script (R50-F5)
+- [x] UX-2/UX-3 enforced in engine (UX-2 n.a.; UX-3 neutral, AC-M2-12 scan 0)
+- [x] Accessibility (UI): n.a.
+- [x] Performance: one clock read per capture
+- [x] No new dependency without ADR
+
+## Law check
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | No UI. |
+| UX-2 Rule of Three | n.a. | No surface. |
+| UX-3 Zero-Guilt | pass | No new user-facing string. The script's messages are neutral. AC-M2-12 scan: 0 violations. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | pass | The route rules are unchanged. On device, the receipt builds no cloud model (`onDeviceReceipt`), and there is no silent escalation. |
+| P-2 No data leaves device (except user iCloud) | pass | No networking type added to Swift. AC-M2-09 scan: 77 files, 0 violations. The script talks only to the golden provider host (or a test base URL). No dependency. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | pass | The deadline holds from receipt (AC-M2-22, AC-M2-27). The request is unchanged (golden). Owner key hygiene: hidden prompt, no history, not in `curl` argv or the environment, not saved. Minor: the key is briefly in `grep` argv (R50-F5). |
+| P-4 Media not persisted without consent | pass | Only the response stream is saved by the owner tool. No headers. The app path persists nothing. |
+
+## Handoff log
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-27 | Orchestrator | Reviewer | accepted | Round 2 at `33e1997` (code `990fffc`), diff from `463572d`. |
+| 2026-11-28 | Reviewer | Orchestrator → Merge Gatekeeper; Developer; PO/Planner | sent | APPROVE. R50-F1, F2, F3, N1–N4 closed. Open Minors: R50-F5 (Developer: argv-free leak check, fix the claim, extend the probe; before the owner's next recording) and R50-F4 (PO or Planner: record the "Gemini now, others later" choice). AC-M2-24 stays not PASS for the Tester. |
