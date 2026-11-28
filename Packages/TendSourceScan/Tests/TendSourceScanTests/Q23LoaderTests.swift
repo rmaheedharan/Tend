@@ -397,7 +397,179 @@ struct Q23LoaderTests {
         ("write API", wrap("try Data().write(to: u); return try Data(contentsOf: u)"), "write API write(to:"),
         ("FileManager", "let m = FileManager.default\n" + wrap(), "write API FileManager"),
         ("log API", "print(1)\n" + wrap(), "log API print("),
+        // PR #51 review F4: plants that isolate conditions the other plants cover only together.
+        ("bound after the read, read ended by ;", """
+            func f() throws -> Data {
+                return try Data(contentsOf: u); let u = Bundle.main.url(forResource: "fixtures")
+            }
+            """, "contentsOf:"),
+        ("literal inside an interpolation", wrap(resource: "\"\\(\"fixtures\")\""), "resource argument"),
+        // Not valid Swift; only the interpolation flag rejects it (defence in depth: the code inside is blank).
+        ("empty interpolation", wrap(resource: "\"fix\\( )tures\""), "resource argument"),
+        // Only the statement-start check rejects it: `let` follows an attribute, not a statement boundary.
+        ("binding after an attribute", """
+            func f() throws -> Data {
+                nonisolated(unsafe) let u = Bundle.main.url(forResource: "fixtures")
+                return try Data(contentsOf: u)
+            }
+            """, "contentsOf:"),
     ]
+
+    /// PR #51 review F1 (Major): compiler directives in the loader file. An inactive `#if` hides a binding from the
+    /// compiler, so the read could resolve to a same-named value declared in another TendEval file. Every directive
+    /// and every `#name` (fail closed) is reported, and the read is not allowed. (description, code)
+    static let directivePlants: [(String, String)] = [
+        ("#if around the binding (the review's proof)", """
+            static func inputs() throws -> Data {
+            #if NEVER_DEFINED
+                guard let inputsFile = Bundle.main.url(forResource: "inputs", withExtension: "json") else { throw LoaderError.missing }
+            #endif
+                return try Data(contentsOf: inputsFile)
+            }
+            """),
+        ("#if around the read", """
+            static func inputs() throws -> Data {
+                guard let inputsFile = Bundle.main.url(forResource: "inputs", withExtension: "json") else { throw LoaderError.missing }
+            #if NEVER_DEFINED
+                return try Data(contentsOf: inputsFile)
+            #else
+                throw LoaderError.missing
+            #endif
+            }
+            """),
+        ("#elseif", "#if A\n#elseif B\n#endif\n" + wrap()),
+        ("indented #if", "    #if DEBUG\n    #endif\n" + wrap()),
+        ("#sourceLocation", "#sourceLocation(file: \"x.swift\", line: 1)\n" + wrap()),
+        ("other # directive", "#warning(\"x\")\n" + wrap()),
+        ("spaced directive", "# if A\n# endif\n" + wrap()),
+    ]
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 F1): every compiler directive in the loader file is reported, and a read next to one is not allowed",
+          arguments: directivePlants.indices)
+    func directivePlantCaught(index: Int) {
+        let (description, code) = Self.directivePlants[index]
+        let found = scanLoader(code)
+        #expect(found.contains { $0.rule == .rule6 && $0.check.contains("compiler directive") },
+                "\(description): \(found)")
+    }
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 F1): the review's #if proof also leaves the read reported as a contentsOf: hit")
+    func directiveProofReadCaught() {
+        let found = scanLoader(Self.directivePlants[0].1)
+        #expect(found.contains { $0.check == "networking contentsOf:" }, "\(found)")
+    }
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 F1): # in comments and raw string delimiters is not a directive")
+    func hashInCommentsAndRawStrings() {
+        let code = "// #if NEVER\n/* #endif */\nlet s = #\"raw\"#\n" + Self.wrap()
+        let found = scanLoader(code)
+        #expect(found.isEmpty, "\(found)")
+    }
+
+    /// PR #51 review F2: the binding must be in scope at the read. Each of these reads an outer name, not the binding.
+    static let scopePlants: [(String, String)] = [
+        ("empty if-let block, read after it", """
+            func f() throws -> Data {
+                if let u = Bundle.main.url(forResource: "fixtures") { }
+                return try Data(contentsOf: u)
+            }
+            """),
+        ("guard let inside do, read after it", """
+            func f() throws -> Data {
+                do { guard let u = Bundle.main.url(forResource: "fixtures") else { throw LoaderError.missing } }
+                return try Data(contentsOf: u)
+            }
+            """),
+        ("guard let inside for, read after it", """
+            func f() throws -> Data {
+                for _ in 0..<1 { guard let u = Bundle.main.url(forResource: "fixtures") else { throw LoaderError.missing } }
+                return try Data(contentsOf: u)
+            }
+            """),
+        ("guard let inside if, read after it", """
+            func f() throws -> Data {
+                if flag { guard let u = Bundle.main.url(forResource: "fixtures") else { throw LoaderError.missing } }
+                return try Data(contentsOf: u)
+            }
+            """),
+        ("read in the else of an if let", """
+            func f() throws -> Data {
+                if let u = Bundle.main.url(forResource: "fixtures") { throw LoaderError.missing } else { return try Data(contentsOf: u) }
+            }
+            """),
+        ("read in the else block of the guard", """
+            func f() throws -> Data {
+                guard let u = Bundle.main.url(forResource: "fixtures") else { return try Data(contentsOf: u) }
+                throw LoaderError.missing
+            }
+            """),
+        ("let binding inside a nested block, read after it", """
+            func f() throws -> Data {
+                do { let u = Bundle.main.url(forResource: "fixtures") }
+                return try Data(contentsOf: u)
+            }
+            """),
+    ]
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 F2): the binding must be in scope at the read", arguments: scopePlants.indices)
+    func scopePlantCaught(index: Int) {
+        let (description, code) = Self.scopePlants[index]
+        let found = scanLoader(code)
+        #expect(found.contains { $0.rule == .rule6 && $0.check.contains("contentsOf:") }, "\(description): \(found)")
+    }
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 F2) positive: reads where the binding is in scope pass", arguments: [
+        """
+        func f() throws -> Data {
+            guard let u = Bundle.main.url(forResource: "fixtures") else { throw LoaderError.missing }
+            if flag { return try Data(contentsOf: u) }
+            throw LoaderError.missing
+        }
+        """,
+        """
+        func f() throws -> Data {
+            if let u = Bundle.main.url(forResource: "fixtures") {
+                if flag { return try Data(contentsOf: u) }
+            }
+            throw LoaderError.missing
+        }
+        """,
+        """
+        func f() throws -> Data {
+            do {
+                guard let u = Bundle.main.url(forResource: "fixtures") else { throw LoaderError.missing }
+                return try Data(contentsOf: u)
+            }
+        }
+        """,
+    ])
+    func scopePositivePasses(code: String) {
+        let found = scanLoader(code)
+        #expect(found.isEmpty, "\(found)")
+    }
+
+    /// PR #51 review F3: in the loader file, any `typealias` and any declaration named `Data` or `Bundle`.
+    static let shadowPlants: [String] = [
+        "typealias Data = String",
+        "typealias Bytes = Foundation.Data",
+        "struct Data {}",
+        "enum Bundle { static let main = 0 }",
+        "class Data {}",
+        "actor Bundle {}",
+        "protocol Data {}",
+        "extension Data {}",
+        "let Data = 1",
+        "func Bundle() {}",
+        "enum E { case Data }",
+        "struct S<Data> {}",
+    ]
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 F3): a typealias or a declaration that shadows Data or Bundle in the loader file is reported",
+          arguments: shadowPlants)
+    func shadowPlantCaught(code: String) {
+        let found = scanLoader(code + "\n" + Self.wrap())
+        #expect(found.contains { $0.rule == .rule6 && $0.check.contains("shadow") }, "`\(code)`: \(found)")
+    }
 
     @Test("AC-M2-09 M2 Q23: one plant per condition of the loader exception is caught in the loader file",
           arguments: conditionPlants.indices)

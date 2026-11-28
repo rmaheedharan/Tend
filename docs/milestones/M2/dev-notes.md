@@ -6347,15 +6347,14 @@ file and is still caught in another TendEval file, and its `String(contentsOf:` 
 | `TendSourceScan` (`swift:6.2-noble`, `-warnings-as-errors`) | 78 tests in 5 suites passed, 0 warnings | — | — | — | — |
 | `TendIngestion` (same; includes the AC-M2-09 repository scan) | 581 tests in 68 suites passed, 0 warnings | — | — | — | — |
 | `TendCore` (same) | 141 tests in 18 suites passed, 0 warnings | — | — | — | — |
-| The real `EvalFixturesLoader.swift` | — | — | — | — | Not on any branch yet (see below) |
+| The real `EvalFixturesLoader.swift` (`e014fab`) | Round 2: repository scan with it, 79 files, 0 violations (below) | — | — | — | — |
 
 ### Things the reviewer should look at closely
-- **The real loader file does not exist yet.** `origin/m2/eval-harness` (at `1260c4a`) and every local worktree have no
-  `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift` (only `TendEvalApp.swift`), so I could not fit the
-  exception to its four `Data(contentsOf:` calls. The exception follows the brief's Q23 text. The whole-file positive
-  test shows a loader in the plan's shape (four fixtures, each with its own literal lookup) passes. The WI-M2-M7 loader
-  must then use a **different bound name per fixture** ("bound exactly once in the file"), `return try
-  Data(contentsOf: name)` as the read, and no parameters.
+- **The real loader (corrected in round 2, PR #51 F5).** Round 1 said the loader did not exist yet; that was out of
+  date. `origin/m2/eval-harness` at `e014fab` has `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift`: four
+  parameterless functions, each `guard let <x>File = Bundle.main.url(forResource: "<lit>", withExtension: "<lit>")
+  else { throw LoaderError.missing }` then `return try Data(contentsOf: <x>File)`. It fits the rule with 0 findings
+  (round 2 run below: 79 files, 0 violations).
 - **Where this is stricter than the brief's words** (all of them read "stricter only"; a PO ruling can loosen any one):
   the read must be the `return try` form with nothing after it (my reading of "returns the bytes as `Data` and keeps
   nothing"); `<name>` may occur only at its binding and its read; `{ () in` and capture-list closure signatures are
@@ -6371,7 +6370,7 @@ file and is still caught in another TendEval file, and its `String(contentsOf:` 
 ### Known limitations / follow-ups
 | Item | Severity | Ticket |
 |---|---|---|
-| Fit check against the real loader once WI-M2-M7 adds it | — | WI-M2-M7 (the repository scan covers it automatically) |
+| Fit check against the real loader | — | Done in round 2 at `e014fab`; the repository scan re-checks it when WI-M2-M7 merges |
 | Traceability row for AC-M2-09 Q23 tests | — | Documenter |
 | `DECISIONS.md` entry for M2 Q23 | — | Human-merged governance PR (plan) |
 
@@ -6391,3 +6390,61 @@ file and is still caught in another TendEval file, and its `String(contentsOf:` 
 | Date | From | To | Result | Notes |
 |---|---|---|---|---|
 | 2026-11-28 | Developer | Reviewer (via the Orchestrator) | sent | Committed locally on `m2/scanner-loader-exception`; not pushed, no PR. Must merge before WI-M2-M7 opens for review (plan). |
+
+### Round 2 — PR #51 review round 1 (F1 Major, F2–F4 Minor, F5 Nit)
+
+- **Branch:** `m2/scanner-loader-exception`, on top of the review commit `0a3dc32`. Tests first for every finding.
+- **F1 (Major), compiler directives.** In the loader file every `#` left in lexed code is reported as
+  `fixtures loader: compiler directive or # name` (`#if`, `#elseif`, `#else`, `#endif`, `#sourceLocation`, `# if`,
+  `#warning`, any `#name`; fail closed). With any of them in the file, no read is allowed, so the read stays a
+  `networking contentsOf:` hit too. Comments and raw-string delimiters are removed by the lexer first, so they never
+  count. Tests: "every compiler directive in the loader file is reported …" (7 plants, including the review's proof
+  with `#if` around the binding and one with `#if` around the read); "the review's #if proof also leaves the read
+  reported as a contentsOf: hit"; "# in comments and raw string delimiters is not a directive".
+- **F2 (Minor), lexical scope.** "Same function body" is replaced by "in scope at the read" (`isInScope`): the read
+  comes after the call's `)` (`let`) or the `}` of the `else` block (`guard let`), and walking out from the read's
+  innermost `{` reaches the binding's block through control-flow blocks only. For `if let` that block is the `{ … }`
+  right after the call. Tests: "the binding must be in scope at the read" (7 plants: the review's four, plus the read
+  in the `guard`'s own `else` block, a `guard` inside `if`, and a `let` inside `do`); positive "reads where the
+  binding is in scope pass" (3 cases).
+- **F3 (Minor), shadowing.** In the loader file any `typealias`, and any declaration named `Data` or `Bundle` (after
+  `struct`, `class`, `enum`, `actor`, `protocol`, `extension`, `typealias`, `associatedtype`, `let`, `var`, `func`,
+  `case`, or a generic `<`), is reported. Test: 12 plants. **A text scan of the loader file cannot see shadowing
+  declared in another file.** Reviewer confirmation to add to the brief's "the loader reads only bundle resources":
+  *no TendEval file declares or extends a type named `Bundle` or `Data`, and no `typealias` names either.* Checked
+  at `e014fab`: no such declaration and no `typealias` in `Apps/TendEval/Sources`; the only other `Bundle` use is
+  `Bundle.main.object(forInfoDictionaryKey:)` in `EvalRunner.swift`.
+- **F4 (Minor), isolating plants.** Added: `return try Data(contentsOf: u); let u = Bundle.main.url(…)` (binding
+  after the read), `forResource: "\("fixtures")"` (literal inside an interpolation; kills m11), `"fix\( )tures"`
+  (only the interpolation flag catches it; kills m06) and `nonisolated(unsafe) let u = …` (only `startsStatement`
+  catches it; kills m03). The file header notes that `startsStatement` and the interpolation flag are defence in
+  depth. m09 (`binding.nameOffset < argument.startOffset` → `true`) now survives on its own because the F2 scope
+  start (`offset > scopeStart`, and `scopeStart` is after the bound name) implies it; with both off the suite fails
+  (2 issues). The order check is kept as defence in depth.
+- **F5 (Nit):** the "real loader" note above is corrected.
+
+**Mutants in round 2 (each run, then reverted):** directive reporting off (7 issues); reads allowed despite a
+directive (1); scope check off (10); control-flow-only walk off (9); shadow check off (12); `startsStatement` off (1);
+interpolation flag off (1); one-literal count `>= 1` (1); order check and scope start both off (2). Order check off
+alone survives (implied by the scope start, see F4).
+
+**Runs (Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, Linux only):**
+| Package | Result |
+|---|---|
+| `TendSourceScan` | 84 tests in 5 suites passed, 0 warnings |
+| `TendIngestion` | 581 tests in 68 suites passed, 0 warnings; AC-M2-09 scan 72 files, 0 violations |
+| `TendCore` | 141 tests in 18 suites passed, 0 warnings |
+| `TendIngestion` with the real `Apps/TendEval` from `origin/m2/eval-harness` `e014fab` (a scratch copy of this tree) | 581 tests in 68 suites passed; AC-M2-09 scan: TendIngestion 56, TendAI 15, TendEval 8, 79 files, 0 violations; AC-M2-12 scan 79 files, 0 violations |
+
+Nothing was verified on macOS, the Simulator or a device; nothing here needs them.
+
+**Law check (round 2):** UX-1, UX-2, UX-4, P-1, P-3 n.a. (test-only scan library). UX-3 pass (neutral check names;
+AC-M2-12 scan green). P-2 pass (no networking added). P-4 pass: the F1 concern is closed. An inactive `#if` can no
+longer hide the binding, so the loader file passes only when its reads are bundle resources named by literals (and
+the Reviewer confirmation above covers shadowing from other files).
+
+**Handoff log (round 2):**
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Reviewer | Developer (via Orchestrator) | received | PR #51 round 1: CHANGES REQUIRED (F1 Major; F2–F4 Minor; F5 Nit; I1 Info, no change). |
+| 2026-11-28 | Developer | Reviewer (via Orchestrator) | sent | F1–F5 fixed test-first and pushed to `m2/scanner-loader-exception` (PR #51). I1 unchanged (pre-existing lexer limit; its own ticket if the PO wants it). |

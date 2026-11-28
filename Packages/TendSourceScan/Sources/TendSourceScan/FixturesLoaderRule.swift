@@ -17,11 +17,21 @@
 //   properties with modifiers are not bindings. The `Bundle.main.url(` call must pass the argument checks, and it must
 //   end the binding: `else` follows for `guard`, `{` follows for `if`, and a new statement follows for `let`.
 // - "<name> is bound exactly once in the file, in the same function body and before the call": the identifier
-//   `<name>` occurs exactly twice in the whole file, once as the bound name and once as the read's argument. The
-//   binding comes first. Both sit in the same innermost function body: the nearest enclosing `{` that is not a
-//   control-flow block (`if`, `guard … else`, `else`, `for`, `while`, `repeat`, `do`, `catch`, `switch`, `defer`).
-//   A closure body or a type body is not the function's body, so a read inside a closure or a binding as a stored
-//   property is rejected.
+//   `<name>` occurs exactly twice in the whole file, once as the bound name and once as the read's argument, and the
+//   binding is **in scope** at the read (PR #51 review F2): for `let`, the read comes after the call's `)`; for
+//   `guard let`, after the `}` of its `else` block; and walking out from the read's innermost `{` reaches the block
+//   that holds the binding through control-flow blocks only (`if`, `guard … else`, `else`, `for`, `while`, `repeat`,
+//   `do`, `catch`, `switch`, `defer`). For `if let`, that block is the `{ … }` that directly follows the call. So a
+//   read after an empty `if let` block, after a `do` / `for` / `if` block holding the `guard`, in the `else` of an
+//   `if let` or in a nested closure is rejected. The binding must also start a statement (`startsStatement`); every
+//   current plant that this catches is also caught by `bindingEnds` except a `let` after an attribute, which has its
+//   own plant. It is kept as defence in depth.
+// - Compiler directives (PR #51 review F1): an inactive `#if` hides code from the compiler, so a binding inside one
+//   might not exist in the built program and the read would use a same-named value from another file. Every `#` left
+//   in code (comments and raw-string delimiters are gone) is reported, and with any of them no read is allowed.
+// - Shadowing (PR #51 review F3): any `typealias`, and any declaration named `Data` or `Bundle`, is reported in the
+//   loader file. Shadowing declared in **another** TendEval file cannot be seen by a text scan of this file; the
+//   Reviewer confirms it (dev-notes).
 // - "No function, initialiser, subscript or closure in the loader file declares a parameter": `func`, `init`
 //   (`init?`, `init!`, generic), `subscript` and the accessors `set`, `willSet`, `didSet` must have an empty
 //   parameter list. A closure signature (`{ x in`, `{ (x: Int) in`, also `{ [c] in` and `{ () in`) and an implicit
@@ -34,7 +44,9 @@
 //   `forResource:`, then optionally `withExtension:`, then optionally `subdirectory:`. Each value is one string literal
 //   with no interpolation and no other code (so identifiers, array elements, `nil`, `+` and interpolation are
 //   rejected). The decoded literal text must match the brief's pattern over the whole text (`\A…\z`, so a trailing
-//   newline does not slip past `$`). Any other label (for example `localization:`) is reported.
+//   newline does not slip past `$`). Any other label (for example `localization:`) is reported. The interpolation flag
+//   is defence in depth: an interpolation holds code, so the blank-code check rejects it first, unless it holds only
+//   whitespace (not valid Swift; own plant) or only a literal (rejected by the one-literal count; own plant).
 // - "No literal contains ://": every whole literal (segments joined) in the file.
 // - "No write or log API occurs": Rule 6 already reports write APIs outside the results writer and log APIs everywhere;
 //   the loader file is not the results writer, so nothing extra is needed.
@@ -93,13 +105,16 @@ extension IngestionSourceRules {
         #"(?<![\p{L}\p{N}_.`])return\s+try\s+Data\s*\(\s*contentsOf\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\)"#
     /// `func` with its name; the parameter list is the next `(`.
     static let loaderFuncPattern = #"(?<![\p{L}\p{N}_.`])func\s+"#
+    /// Every `#` left in lexed code: compiler directives (`#if`, `#elseif`, `#else`, `#endif`, `#sourceLocation`) and
+    /// any other `#name` (PR #51 review F1, fail closed).
+    static let loaderDirectivePattern = #"#\s*[\p{L}_]*"#
     /// Implicit closure parameters.
     static let loaderImplicitParameterPattern = #"\$[0-9]"#
     static let loaderLabelPattern = #"\A\s*([\p{L}_][\p{L}\p{N}_]*)\s*:"#
 
     /// The fixed regexes of the loader rule (the pattern self-test compiles each one).
     static var loaderPatterns: [String] {
-        [loaderBundleCallPattern, loaderBindingPattern, loaderReadPattern, loaderFuncPattern,
+        [loaderBundleCallPattern, loaderBindingPattern, loaderReadPattern, loaderFuncPattern, loaderDirectivePattern,
          loaderImplicitParameterPattern, loaderLabelPattern,
          wholeTextPattern(loaderResourceNamePattern), wholeTextPattern(loaderExtensionPattern)]
             + loaderNamedHits.map(loaderNamedHitPattern)
@@ -134,6 +149,10 @@ struct FixturesLoaderRule {
         "extension", "protocol", "actor",
     ]
     static let accessorKeywords: Set<String> = ["set", "willSet", "didSet"]
+    static let shadowKeywords: Set<String> = [
+        "typealias", "associatedtype", "struct", "class", "enum", "actor", "protocol", "extension", "let", "var",
+        "func", "case",
+    ]
 
     init(facts: FileFacts) {
         self.facts = facts
@@ -215,6 +234,16 @@ struct FixturesLoaderRule {
         }
 
         result.violations += parameterViolations()
+        result.violations += shadowViolations()
+
+        // Compiler directives (PR #51 review F1): an inactive `#if` hides code from the compiler, so a binding inside
+        // one may not exist in the built program. Fail closed: every `#` left in code (comments and raw-string
+        // delimiters are already gone) is reported, and with any of them no read is allowed.
+        let directives = SourceScanner.matches(of: IngestionSourceRules.loaderDirectivePattern, in: code)
+        for match in directives {
+            result.violations.append(violation("compiler directive or # name", line: match.line, excerpt: match.text))
+        }
+        guard directives.isEmpty else { return result }
 
         // The allowed reads.
         let bindings = validBindings(validCallOpenParens: validCallOpenParens)
@@ -236,6 +265,12 @@ struct FixturesLoaderRule {
         var name: String
         /// Offset of the bound name.
         var nameOffset: Int
+        /// The binding is in scope only after this offset: the call's `)` for `let`, the `}` of the `else` block for
+        /// `guard let`, the `{` of the block for `if let`.
+        var scopeStart: Int
+        /// The `{` whose block the binding is visible in: the enclosing block for `let` and `guard let`, the `if`
+        /// block itself for `if let` (-1 at top level).
+        var scopeBrace: Int
     }
 
     func validBindings(validCallOpenParens: Set<Int>) -> [Binding] {
@@ -252,8 +287,11 @@ struct FixturesLoaderRule {
                   })
             else { continue }
             let keyword = match.groups.first ?? ""
-            guard bindingEnds(after: close, keyword: keyword) else { continue }
-            result.append(Binding(name: name, nameOffset: nameMatch.startOffset))
+            guard bindingEnds(after: close, keyword: keyword),
+                  let scope = bindingScope(keyword: keyword, statementStart: match.startOffset, close: close)
+            else { continue }
+            result.append(Binding(name: name, nameOffset: nameMatch.startOffset, scopeStart: scope.start,
+                                  scopeBrace: scope.brace))
         }
         return result
     }
@@ -275,7 +313,38 @@ struct FixturesLoaderRule {
               occurrences.contains(where: { $0.startOffset == binding.nameOffset }),
               binding.nameOffset < argument.startOffset
         else { return false }
-        return functionBody(of: binding.nameOffset) == functionBody(of: read.startOffset)
+        return isInScope(binding, at: read.startOffset)
+    }
+
+    /// Where a binding becomes visible (PR #51 review F2): see `Binding`. `nil` when the block cannot be found.
+    func bindingScope(keyword: String, statementStart: Int, close: Int) -> (start: Int, brace: Int)? {
+        let enclosing = enclosingBrace[statementStart]
+        switch keyword {
+        case "guard":
+            guard let elseStart = SourceScanner.nextNonWhitespace(in: scalars, from: close + 1),
+                  let open = SourceScanner.nextNonWhitespace(in: scalars, from: elseStart + 4), scalars[open] == "{",
+                  let end = matchingClose(from: open)
+            else { return nil }
+            return (end, enclosing)
+        case "if":
+            guard let open = SourceScanner.nextNonWhitespace(in: scalars, from: close + 1), scalars[open] == "{"
+            else { return nil }
+            return (open, open)
+        default:
+            return (close, enclosing)
+        }
+    }
+
+    /// The read at `offset` sees the binding: it comes after `scopeStart`, and walking out from the read's innermost
+    /// `{` reaches the binding's block through control-flow blocks only (no function, closure or type boundary).
+    func isInScope(_ binding: Binding, at offset: Int) -> Bool {
+        guard offset > binding.scopeStart else { return false }
+        var brace = enclosingBrace[min(offset, enclosingBrace.count - 1)]
+        while brace != binding.scopeBrace {
+            guard brace >= 0, isControlFlowBlock(brace) else { return false }
+            brace = parentBrace[brace] ?? -1
+        }
+        return true
     }
 
     /// The binding's `Bundle.main.url(…)` call is the whole value: `else` follows for `guard`, `{` for `if`, and for
@@ -311,16 +380,6 @@ struct FixturesLoaderRule {
 
     // MARK: - Scopes
 
-    /// The innermost function body enclosing `offset`: the nearest `{` that is not a control-flow block (-1 at top
-    /// level).
-    func functionBody(of offset: Int) -> Int {
-        var brace = enclosingBrace[min(offset, enclosingBrace.count - 1)]
-        while brace >= 0, isControlFlowBlock(brace) {
-            brace = parentBrace[brace] ?? -1
-        }
-        return brace
-    }
-
     /// Walks back from the `{` at `brace` through its statement (balanced brackets skipped) and reads the keywords.
     func isControlFlowBlock(_ brace: Int) -> Bool {
         var depth = 0
@@ -351,6 +410,39 @@ struct FixturesLoaderRule {
             index -= 1
         }
         return false
+    }
+
+    // MARK: - Shadowing (PR #51 review F3)
+
+    /// Any `typealias`, and any declaration named `Data` or `Bundle` (after a declaration keyword, `case`, or `<` of a
+    /// generic parameter list). Shadowing from another file cannot be seen by a text scan of this file; the Reviewer
+    /// confirms it (dev-notes).
+    func shadowViolations() -> [RuleViolation] {
+        var result: [RuleViolation] = []
+        let identifiers = facts.identifiers
+        for (position, identifier) in identifiers.enumerated() {
+            if identifier.text == "typealias" {
+                result.append(violation("typealias (may shadow Data or Bundle)", line: identifier.line,
+                                        excerpt: identifier.text))
+                continue
+            }
+            guard identifier.text == "Data" || identifier.text == "Bundle" else { continue }
+            var index = identifier.startOffset - 1
+            while index >= 0, scalars[index].properties.isWhitespace { index -= 1 }
+            let declared: Bool
+            if index >= 0 && scalars[index] == "<" {
+                declared = true
+            } else if position > 0, identifiers[position - 1].endOffset == index + 1 {
+                declared = FixturesLoaderRule.shadowKeywords.contains(identifiers[position - 1].text)
+            } else {
+                declared = false
+            }
+            if declared {
+                result.append(violation("declaration shadows \(identifier.text)", line: identifier.line,
+                                        excerpt: identifier.text))
+            }
+        }
+        return result
     }
 
     // MARK: - Parameters
@@ -504,6 +596,22 @@ struct FixturesLoaderRule {
         }
         guard inside.count == 1, let literal = inside.first, !literal.hasInterpolation else { return nil }
         return literal.text
+    }
+
+    /// The index of the bracket that closes the one at `open` (any kind), or `nil`.
+    func matchingClose(from open: Int) -> Int? {
+        var depth = 0
+        var index = open
+        while index < scalars.count {
+            let scalar = scalars[index]
+            if scalar == "(" || scalar == "[" || scalar == "{" { depth += 1 }
+            if scalar == ")" || scalar == "]" || scalar == "}" {
+                depth -= 1
+                if depth == 0 { return index }
+            }
+            index += 1
+        }
+        return nil
     }
 
     func closingParen(from open: Int) -> Int? {
