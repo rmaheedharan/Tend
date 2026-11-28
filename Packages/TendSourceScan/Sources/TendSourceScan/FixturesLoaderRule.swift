@@ -29,6 +29,12 @@
 // - Compiler directives (PR #51 review F1): an inactive `#if` hides code from the compiler, so a binding inside one
 //   might not exist in the built program and the read would use a same-named value from another file. Every `#` left
 //   in code (comments and raw-string delimiters are gone) is reported, and with any of them no read is allowed.
+// - Slashes (PR #51 review round 2, F6): a regex literal can make the lexer read a quote as a string start and hide
+//   directive lines or calls. Every `/` left in code is reported, and with any of them no read is allowed. A lexer that
+//   understands `/…/` and `#/…/#` would close this for every rule; that is its own ticket.
+// - Statements (PR #51 N1 a): the control-flow back-walk stops at a newline that ends a statement, so a closure on the
+//   line after `repeat { } while false` is a closure. An Allman-style `{` on its own line is then read as a closure
+//   body, which is only stricter.
 // - Shadowing (PR #51 review F3): any `typealias`, and any declaration named `Data` or `Bundle`, is reported in the
 //   loader file. Shadowing declared in **another** TendEval file cannot be seen by a text scan of this file; the
 //   Reviewer confirms it (dev-notes).
@@ -243,7 +249,16 @@ struct FixturesLoaderRule {
         for match in directives {
             result.violations.append(violation("compiler directive or # name", line: match.line, excerpt: match.text))
         }
-        guard directives.isEmpty else { return result }
+        // Slashes (PR #51 review round 2, F6): a regex literal such as `/"""/` makes the lexer read a quote as the start
+        // of a string, which can hide directive lines or calls (the lexer's known limit, header of `SourceScanner`).
+        // Comments are already removed and the loader needs no division, so every `/` left in code is reported, and
+        // with any of them no read is allowed.
+        let slashes = SourceScanner.matches(of: "/", in: code)
+        for match in slashes {
+            result.violations.append(violation("slash in code (regex literal or division)", line: match.line,
+                                               excerpt: match.text))
+        }
+        guard directives.isEmpty, slashes.isEmpty else { return result }
 
         // The allowed reads.
         let bindings = validBindings(validCallOpenParens: validCallOpenParens)
@@ -395,6 +410,10 @@ struct FixturesLoaderRule {
                 depth -= 1
             } else if scalar == ";" && depth == 0 {
                 return false
+            } else if scalar == "\n" && depth == 0 && endsStatement(beforeNewline: index) {
+                // PR #51 N1 (a): a line that ends in a name or a closing bracket ends the statement before this one
+                // (`repeat { } while false`, then `let g = {` on the next line).
+                return false
             } else if SourceScanner.isIdentifierScalar(scalar) {
                 var start = index
                 while start > 0, SourceScanner.isIdentifierScalar(scalars[start - 1]) { start -= 1 }
@@ -410,6 +429,17 @@ struct FixturesLoaderRule {
             index -= 1
         }
         return false
+    }
+
+    /// The line before the newline at `newline` ends with a name or a closing bracket, so the statement ends there.
+    /// A line that ends with an operator, `,`, `(` or `.` continues. This can only make a block look like a closure
+    /// (stricter), for example an `if` whose `{` is on its own line.
+    func endsStatement(beforeNewline newline: Int) -> Bool {
+        var index = newline - 1
+        while index >= 0, scalars[index] != "\n", scalars[index].properties.isWhitespace { index -= 1 }
+        guard index >= 0, scalars[index] != "\n" else { return false }
+        let last = scalars[index]
+        return SourceScanner.isIdentifierScalar(last) || last == ")" || last == "]" || last == "}"
     }
 
     // MARK: - Shadowing (PR #51 review F3)
@@ -428,6 +458,7 @@ struct FixturesLoaderRule {
             }
             guard identifier.text == "Data" || identifier.text == "Bundle" else { continue }
             var index = identifier.startOffset - 1
+            if index >= 0 && scalars[index] == "`" { index -= 1 }   // a backticked name (PR #51 N1 b)
             while index >= 0, scalars[index].properties.isWhitespace { index -= 1 }
             let declared: Bool
             if index >= 0 && scalars[index] == "<" {

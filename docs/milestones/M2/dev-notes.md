@@ -6448,3 +6448,46 @@ the Reviewer confirmation above covers shadowing from other files).
 |---|---|---|---|---|
 | 2026-11-28 | Reviewer | Developer (via Orchestrator) | received | PR #51 round 1: CHANGES REQUIRED (F1 Major; F2–F4 Minor; F5 Nit; I1 Info, no change). |
 | 2026-11-28 | Developer | Reviewer (via Orchestrator) | sent | F1–F5 fixed test-first and pushed to `m2/scanner-loader-exception` (PR #51). I1 unchanged (pre-existing lexer limit; its own ticket if the PO wants it). |
+
+### Round 3 — PR #51 review round 2 (APPROVE) tickets F6, F7 and Nit N1, fixed in this PR
+
+- **Branch:** `m2/scanner-loader-exception`, on top of the round 2 review commit `3aaf62a`. Tests first. The new
+  plants were red before the change, except the F7 plants, which pin behaviour that was already correct.
+- **F6 (Minor), regex literals hide directives.** In the loader file every `/` left in lexed code is reported as
+  `fixtures loader: slash in code (regex literal or division)`, and if there is any, no read is allowed. Comments and
+  string text are removed first, so they never count. Tests: "any / left in code in the loader file is reported, and
+  no read is allowed" (4 plants: the reviewer's R01 `/"""/` proof, the round 1 P08 `/"/` text, a plain regex literal
+  and a division); "/ in comments and string text is not reported".
+- **F7 (Minor), `bindingEnds` pinned.** "a let binding with ?? fallback, on the same line or the next, is not a
+  binding" (2 plants). Each one kills m04 (`bindingEnds` off: 2 issues).
+- **N1 (a).** The control-flow back-walk now stops at a newline that ends a statement (the line ends in a name or a
+  closing bracket). So a closure on the line after `repeat { } while false` is a closure, and the read inside it is
+  rejected. Test: "a closure on the line after `repeat { } while false` is a closure, not a while block". This can
+  only read a block as a closure, which is stricter: an Allman-style `{` on its own line would reject the read. The
+  real loader does not use that style.
+- **N1 (b).** The shadow check skips a backtick before the name. There are 3 new shadow plants (`` struct `Data` ``,
+  `` let `Bundle` ``, `` case `Data` ``).
+- **Separate ticket for the Planner:** the lexer-wide fix that lexes `/…/` and `#/…/#` regex literals. It would close
+  the known limit (header of `SourceScanner.swift`, risk R-12) for AC-M1-23 and every AC-M2-09 rule, in every file,
+  not only the loader. This PR closes it in the loader file only.
+
+**Mutants (each run, then reverted):** reads allowed despite a slash (4 issues); slash reporting off (4); m04
+`bindingEnds` off (2); newline stop off (1); backtick skip off (3). All were killed.
+
+**Runs (Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, Linux only, 0 warnings):**
+| Package | Result |
+|---|---|
+| `TendSourceScan` | 88 tests in 5 suites passed |
+| `TendIngestion` | 581 tests in 68 suites passed; AC-M2-09 scan 72 files, 0 violations |
+| `TendCore` | 141 tests in 18 suites passed |
+| `TendIngestion` with the real `Apps/TendEval` from `origin/m2/eval-harness` `32a6be8` (a scratch copy of this tree) | 581 tests in 68 suites passed; AC-M2-09 scan: TendIngestion 56, TendAI 15, TendEval 8, 79 files, 0 violations; AC-M2-12 scan 79 files, 0 violations |
+
+**Law check (round 3):** UX-1, UX-2, UX-4, P-1, P-3 n.a. (a test-only scan library). UX-3 pass (neutral check names).
+P-2 pass (no networking added). P-4 pass: a regex literal can no longer hide a directive or a non-bundle read in the
+loader file. The same lexer limit in other files is the separate ticket above.
+
+**Handoff log (round 3):**
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Reviewer | Developer (via Orchestrator) | received | PR #51 round 2: APPROVE, with tickets F6 and F7 (Minor) and Nit N1. |
+| 2026-11-28 | Developer | Reviewer / Merge Gatekeeper (via Orchestrator) | sent | F6, F7 and N1 (a, b) fixed test-first and pushed to `m2/scanner-loader-exception`. Lexer-wide regex fix to the Planner as its own ticket. |

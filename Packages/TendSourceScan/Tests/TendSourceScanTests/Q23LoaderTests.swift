@@ -415,6 +415,80 @@ struct Q23LoaderTests {
             """, "contentsOf:"),
     ]
 
+    /// PR #51 review round 2, F7: `bindingEnds` on its own. The value would be `fallback`, not the bundle lookup.
+    static let fallbackPlants: [String] = [
+        """
+        func f() throws -> Data {
+            let u = Bundle.main.url(forResource: "inputs") ?? fallback
+            return try Data(contentsOf: u)
+        }
+        """,
+        """
+        func f() throws -> Data {
+            let u = Bundle.main.url(forResource: "inputs")
+                ?? fallback
+            return try Data(contentsOf: u)
+        }
+        """,
+    ]
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 F7): a let binding with ?? fallback, on the same line or the next, is not a binding",
+          arguments: fallbackPlants)
+    func fallbackPlantCaught(code: String) {
+        let found = scanLoader(code)
+        #expect(found.contains { $0.rule == .rule6 && $0.check == "networking contentsOf:" }, "\(found)")
+    }
+
+    /// PR #51 review round 2, F6: a regex literal can make the lexer read a quote as the start of a string and hide
+    /// directive lines or calls. In the loader file any `/` left in code is reported, and no read is allowed.
+    static let slashPlants: [(String, String)] = [
+        ("R01: #if hidden by /\"\"\"/ regex literals", """
+            static func inputs() throws -> Data {
+                _ = /\"\"\"/
+            #if NEVER_DEFINED
+                _ = /\"\"\"/
+                guard let inputsFile = Bundle.main.url(forResource: "inputs", withExtension: "json") else { throw LoaderError.missing }
+                _ = /\"\"\"/
+            #endif
+                _ = /\"\"\"/
+                return try Data(contentsOf: inputsFile)
+            }
+            """),
+        ("P08: a call hidden by /\"/ regex literals",
+         "let a = /\"/, b = try String(contentsOf: Bundle.main.resourceURL!), c = /\"/\n" + wrap()),
+        ("plain regex literal", "let r = /fixtures/\n" + wrap()),
+        ("division", "let half = 4 / 2\n" + wrap()),
+    ]
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 F6): any / left in code in the loader file is reported, and no read is allowed",
+          arguments: slashPlants.indices)
+    func slashPlantCaught(index: Int) {
+        let (description, code) = Self.slashPlants[index]
+        let found = scanLoader(code)
+        #expect(found.contains { $0.rule == .rule6 && $0.check.contains("slash") }, "\(description): \(found)")
+        #expect(found.contains { $0.check.contains("contentsOf:") }, "\(description): \(found)")
+    }
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 F6): / in comments and string text is not reported")
+    func slashInCommentsAndStrings() {
+        let code = "// a / b\n/* c / d */\n/// e/f\nlet s = \"g/h\"\n" + Self.wrap()
+        let found = scanLoader(code)
+        #expect(found.isEmpty, "\(found)")
+    }
+
+    @Test("AC-M2-09 M2 Q23 (PR #51 N1 a): a closure on the line after `repeat { } while false` is a closure, not a while block")
+    func closureAfterRepeatWhile() {
+        let code = """
+            func f() throws -> Data {
+                guard let u = Bundle.main.url(forResource: "fixtures") else { throw LoaderError.missing }
+                repeat { } while false
+                let g = { return try Data(contentsOf: u) }
+                return try g()
+            }
+            """
+        #expect(scanLoader(code).contains { $0.check == "networking contentsOf:" })
+    }
+
     /// PR #51 review F1 (Major): compiler directives in the loader file. An inactive `#if` hides a binding from the
     /// compiler, so the read could resolve to a same-named value declared in another TendEval file. Every directive
     /// and every `#name` (fail closed) is reported, and the read is not allowed. (description, code)
@@ -562,6 +636,9 @@ struct Q23LoaderTests {
         "func Bundle() {}",
         "enum E { case Data }",
         "struct S<Data> {}",
+        "struct `Data` {}",             // PR #51 N1 (b): backticked names
+        "let `Bundle` = 1",
+        "enum E { case `Data` }",
     ]
 
     @Test("AC-M2-09 M2 Q23 (PR #51 F3): a typealias or a declaration that shadows Data or Bundle in the loader file is reported",
