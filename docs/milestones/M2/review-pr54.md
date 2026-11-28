@@ -1,6 +1,6 @@
 # M2 Code Review — PR #54 (`m2/pre-ms3-fixes`, head `ca9badf`, base `main` `19675a3`)
 
-- **Owner:** Reviewer (fresh context; did not write these edits)  ·  **Verdict:** **APPROVE**  ·  **Round:** 1
+- **Owner:** Reviewer (fresh context; did not write these edits)  ·  **Verdict:** **APPROVE**  ·  **Round:** 2 (round 1 APPROVE at `ca9badf`; round 2 APPROVE at `2dbd14d`)
 - **Scope:** `git diff 19675a3..ca9badf`: 7 files, docs and Tester evidence only. `docs/milestones/M2/acceptance.md`,
   `eval-composition.md`, `plan.md`; `docs/milestones/M2/evidence/tester/independent-rescore.py` (changed),
   `rescore-s6-selftest-build.py`, `rescore-s6-selftest-run.sh`, `rescore-s6-selftest.out` (new). No product code, no
@@ -96,11 +96,35 @@ UX-3 banned words: no hits. The self-test log has repo-relative paths only (the 
 ## Findings
 | # | Severity | File:line | Finding | Required change | Status |
 |---|---|---|---|---|---|
-| R54-F1 | Minor | `docs/milestones/M2/acceptance.md:448` | Says "24 mutated files exit 1". The build script writes 23 `bad-*.json` files and the log has 23 "expected exit 1" cases (3 + 23 + 1 + 1 = 28, matching "28/28"). Evidence text must match the log (CLAUDE.md §4 rule 2). | Change "24" to "23". | Open (Tester) |
-| R54-n1 | Nit | `docs/milestones/M2/acceptance.md:503-505`, `:540` | The Appendix A note and the handoff row say B7's line "stays with the Planner" / "is the Planner's to update", but this same PR already updates B7 (`plan.md:612`). | Say B7 now passes `TEND_COMMIT` (plan B7). | Open (Tester) |
-| R54-n2 | Nit | `docs/milestones/M2/acceptance.md:486-489` | Step 7 ends "Change nothing else", then step 7a changes a build setting. A careful owner may hesitate. | e.g. "Change nothing else on this tab." | Open (Tester) |
-| R54-i1 | Info | `independent-rescore.py` (route check); `acceptance.md:442-447` | The script's route line is stricter than the Swift scorer: it checks every attempt (Swift `routes` checks scored inputs only) and fails an attempt routed to `<p>` with no request. On iPhone 13 Part C both should hold, so this is a sensible extra control, but S6 only says the verdict must agree with the S4 key-path and counts lines. If the route line alone fails, the Tester must investigate before accepting. | Optional: one sentence in S6 on how a route-line-only FAIL is handled. | Info |
-| R54-i2 | Info | `independent-rescore.py` option parsing; `acceptance.md:477` | A repeated option is silently overwritten by the earlier one (options are read from the end). Step 3a compares 40 characters with `APP-COMMIT`; that only works if `APP-COMMIT` is recorded in full. | Optional: refuse repeated options; record `APP-COMMIT` as the full 40-hex SHA. | Info |
+| R54-F1 | Minor | `docs/milestones/M2/acceptance.md:448` | Says "24 mutated files exit 1". The build script writes 23 `bad-*.json` files and the log has 23 "expected exit 1" cases (3 + 23 + 1 + 1 = 28, matching "28/28"). Evidence text must match the log (CLAUDE.md §4 rule 2). | Change "24" to "23". | Closed (round 2, `acceptance.md:448-451`) |
+| R54-n1 | Nit | `docs/milestones/M2/acceptance.md:503-505`, `:540` | The Appendix A note and the handoff row say B7's line "stays with the Planner" / "is the Planner's to update", but this same PR already updates B7 (`plan.md:612`). | Say B7 now passes `TEND_COMMIT` (plan B7). | Closed (round 2, `acceptance.md:511-513`, `:548`) |
+| R54-n2 | Nit | `docs/milestones/M2/acceptance.md:486-489` | Step 7 ends "Change nothing else", then step 7a changes a build setting. A careful owner may hesitate. | e.g. "Change nothing else on this tab." | Closed (round 2, `acceptance.md:494-495`) |
+| R54-i1 | Info | `independent-rescore.py` (route check); `acceptance.md:442-447` | The script's route line is stricter than the Swift scorer: it checks every attempt (Swift `routes` checks scored inputs only) and fails an attempt routed to `<p>` with no request. On iPhone 13 Part C both should hold, so this is a sensible extra control, but S6 only says the verdict must agree with the S4 key-path and counts lines. If the route line alone fails, the Tester must investigate before accepting. | Optional: one sentence in S6 on how a route-line-only FAIL is handled. | Closed (round 2, `acceptance.md:454-458`) |
+| R54-i2 | Info | `independent-rescore.py` option parsing; `acceptance.md:477` | A repeated option is silently overwritten by the earlier one (options are read from the end). Step 3a compares 40 characters with `APP-COMMIT`; that only works if `APP-COMMIT` is recorded in full. | Optional: refuse repeated options; record `APP-COMMIT` as the full 40-hex SHA. | Closed for `APP-COMMIT` (round 2, `acceptance.md:483-484`); repeated-option part not taken, accepted (optional, Info) |
+
+## Round 2 (head `2dbd14d`, diff `ca9badf..2dbd14d`)
+
+- **Scope:** 2 files. `docs/milestones/M2/review-pr54.md` (this file, round 1, committed unchanged) and
+  `docs/milestones/M2/acceptance.md` (4 hunks, text only). No script, fixture, evidence log, plan or protected path
+  changed, so the round 1 checks of the script, self-test and `TEND_COMMIT` steps still hold (script SHA-256 still
+  `2239f11c…4e14`, as `acceptance.md:54` says).
+- **R54-F1:** now "23 mutated files", with the case sum "3 + 23 + 1 + 1 = 28" (`acceptance.md:448-451`). Matches the
+  build script (23 `bad-*.json`) and the log (23 "expected exit 1"). Closed.
+- **R54-n1:** the Appendix A note now says B7 already passes `TEND_COMMIT="$(git rev-parse HEAD)"` and checks
+  `TendCommit` (`acceptance.md:511-513`), which is true at `plan.md:612-615`; the handoff row is corrected
+  (`acceptance.md:548`). Closed.
+- **R54-n2:** step 7 now says "On this tab change nothing else" and points to step 7a (`acceptance.md:494-495`). Closed.
+- **R54-i1:** new S6 paragraph (`acceptance.md:454-458`): a fail only on the script's extra lines means AC-M2-26 for
+  that provider is not PASS yet; the Tester investigates and records a finding; a wrong file means a redo; a wrong
+  check means a script fix, a self-test re-run and a re-score before the S4 result stands. This is stricter, not
+  weaker: no route to PASS skips a recorded cause. Any script change is itself a PR and gets reviewed. Closed.
+- **R54-i2:** step 3a now says `APP-COMMIT` is always the full 40-character SHA (`acceptance.md:483-484`). The
+  repeated-option part was optional and is not taken; accepted (no effect on a correct command). Closed.
+- **ACs:** no AC text changed; the device ACs stay `AWAITING-DEVICE` (not in the diff).
+- **Hygiene:** added lines grepped for local paths, e-mail addresses, the owner's name, "Hearth" and the UX-3 banned
+  words: no hits.
+- **Law Check:** unchanged from round 1 (all pass or n.a.).
+- **Verdict round 2: APPROVE.** No open finding of any severity.
 
 ## Checklist
 - [x] Correctness vs ACs (AC-M2-13 B7, AC-M2-14 re-score, AC-M2-26 S6 checks, AC-M2-28 `TendCommit`) checked against code
@@ -132,3 +156,5 @@ UX-3 banned words: no hits. The self-test log has repo-relative paths only (the 
 |---|---|---|---|---|
 | 2026-11-28 | Orchestrator | Reviewer | accepted | PR #54, head `ca9badf`, base `main` `19675a3`. Fixes for review-pr53 F1, F2, F3, i1, i2. |
 | 2026-11-28 | Reviewer | Orchestrator → Merge Gatekeeper; Acceptance Tester (R54-F1, n1, n2, i1, i2) | sent | **APPROVE**, round 1. No Blocker or Major. review-pr53 F1–F3, i1, i2 verified fixed. `TEND_COMMIT` steps checked against `project.yml`, `Debug-Info.plist`, `EvalRunner`, `EvalSession`. Self-test re-run 28/28; 18 data + 11 script mutants of my own as expected; no-option output byte-identical. Minor R54-F1 (23, not 24, mutated files). Not run: Xcode/device steps (no Mac here; checked by reading). File not committed. |
+| 2026-11-28 | Orchestrator | Reviewer | accepted | Round 2: head `2dbd14d`, Tester fixes for R54-F1, n1, n2, i1, i2 in `acceptance.md`. |
+| 2026-11-28 | Reviewer | Orchestrator → Merge Gatekeeper | sent | **APPROVE**, round 2. R54-F1, n1, n2, i1 closed; i2 closed (APP-COMMIT part; optional option-parsing part not taken, accepted). No open finding. File not committed. |
