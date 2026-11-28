@@ -445,11 +445,17 @@ cloud compares on the faster phone. It never replaces AC-M2-16.
   UTF-8 bytes and unique; userContentArrayCounts holds exactly `$.existingTasks` and `$.rooms`; every attempt is
   routed to `<p>` and records at least one request, numbered 1, 2, …. Written from the brief, plan WI-M2-15 and
   the schema, not from the Swift scorer. Self-test (review-pr53 i1, 2026-11-28): 3 good files (one per provider)
-  exit 0, 24 mutated files exit 1 (a fault only in a retake, or only in a 2nd request, is caught), mismatched
-  provider arguments exit 2; the script's G1 counts equal the Developer test's literal oracle for all three
-  providers; the old use (no options) gives byte-identical `rescore-selftest-1.out`. Log:
+  exit 0, 23 mutated files exit 1 (a fault only in a retake, or only in a 2nd request, is caught), mismatched
+  provider arguments exit 2 (1 case); the script's G1 counts equal the Developer test's literal oracle for all three
+  providers; the old use (no options) gives byte-identical `rescore-selftest-1.out` (1 case); 3 + 23 + 1 + 1 = 28
+  cases, all as expected. Log:
   `docs/milestones/M2/evidence/tester/rescore-s6-selftest.out` (inputs from `rescore-s6-selftest-build.py`, runner
   `rescore-s6-selftest-run.sh`, same folder).
+  If S6 fails **only** on its extra lines (an attempt not routed to `<p>`, an attempt with no request, or requests
+  not numbered 1, 2, …) while S4 passes: the AC-M2-26 result for that provider is not PASS yet. I look into it
+  (read the attempt in the file, and ask the Developer through the Orchestrator), and record the cause as a
+  finding in this file. If the file is wrong, the S6 result stands and the run is redone; if my check is wrong,
+  I fix the script, re-run its self-test, re-score, and record that, and then the S4 result stands.
 - S7. By hand, as a second control to the tool's subset check (A-F1, closed; PO F4): Part B files hold exactly in08 and in16, both voice, and the S2/S3 logs show `check PASS: inputs in08 (voice), in16 (voice)`; both Part B files name the same provider;
   in the offline file each attempt has a non-empty `transcript` and a non-null `transcriber`, `cloudRequests` is empty
   and nothing is committed; the two offline screenshots show the calm outcome with the plain-note offer; served models
@@ -474,7 +480,8 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
 2. Run `git checkout <APP-COMMIT>` and then `git status --porcelain`. The second command must print **nothing**. If it
    prints anything, stop and tell the Orchestrator.
 3. Run `xcodegen generate --spec project.yml`, then `open Tend.xcodeproj`.
-3a. Run `git rev-parse HEAD`. It prints 40 characters (0–9 and a–f). They must be the same as `APP-COMMIT`; if not,
+3a. Run `git rev-parse HEAD`. It prints 40 characters (0–9 and a–f). They must be the same as `APP-COMMIT`, which
+   is always the full 40-character commit SHA, never a short one (in step 2 too); if not,
    stop and tell the Orchestrator. Then run `git rev-parse HEAD | tr -d '\n' | pbcopy` to copy them. (Why: TendEval
    reads the commit from the build setting `TEND_COMMIT`, which `project.yml` leaves empty. With an empty or short
    value TendEval shows "Build with TEND_COMMIT set to the commit under test" and will not start a run. A Run
@@ -484,7 +491,8 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
    passcode.
 6. In Xcode's top bar, pick the scheme **TendEval** and, next to it, your iPhone.
 7. In the left column click the blue **Tend** project icon → under Targets click **TendEval** → tab **Signing &
-   Capabilities** → **Team**: choose **<your name> (Personal Team)**. Change nothing else. If Xcode shows a red error
+   Capabilities** → **Team**: choose **<your name> (Personal Team)**. On this tab change nothing else (step 7a sets one build
+   setting on another tab; change nothing beyond that either). If Xcode shows a red error
    about the bundle identifier or the number of apps, take a screenshot and stop: tell the Orchestrator.
 7a. Still on target **TendEval**, open the tab **Build Settings** → pick **All** (not Basic) → type `TEND_COMMIT` in
    the search field. Under **User-Defined**, double-click the value of **TEND_COMMIT** (it is empty), paste (⌘V) the
@@ -500,9 +508,9 @@ Only if TendEval is missing or expired (7-day limit). It installs the same `APP-
 9. TendEval opens on the phone. Check that it shows the full 40-character `APP-COMMIT` (not `unknown`) and
    `FIXTURE-HASH`, and that it does not show "Build with TEND_COMMIT set to the commit under test". If it shows
    `unknown` or that message, go back to step 7a. Unplug the cable.
-(The Developer's Terminal route for the same install is plan "B7"; either is fine. On that route add
-`TEND_COMMIT=$(git rev-parse HEAD)` to the `xcodebuild build` line, next to `DEVELOPMENT_TEAM=<TEAM_ID>`; the plan's
-B7 line is the Planner's to update, review-pr53 F3.)
+(The Developer's Terminal route for the same install is plan "B7"; either is fine. B7's `xcodebuild build` line
+already passes `TEND_COMMIT="$(git rev-parse HEAD)"` and checks `TendCommit` in the built app (Planner, review-pr53
+F3, same PR), so on that route nothing needs adding.)
 
 ## Law check
 | Law | Status (pass / n.a. / concern) | Note |
@@ -537,4 +545,4 @@ B7 line is the Planner's to update, review-pr53 F3.)
 | 2026-11-25 | Reviewer (via Orchestrator) | Acceptance Tester | accepted | Review PR #36 round 1 CHANGES REQUIRED (`review-WI-M2-16-freeze.md`). |
 | 2026-11-25 | Acceptance Tester | Orchestrator → Reviewer | sent | M1: P11 covers Parts B, C, D and AC-M2-25/26/27; Part B and Part D use an L2a-PASS provider (Gemini today); L2a record row per provider; pass rules and Results rows cite P11. m1: freeze-state test display name and header comment (text only). m2: L2a procedure committed as `l2a-real-call-check.md`; Gemini evidence referenced at PR #37's path; no `.status` file committed. n1: dates and dev-notes pointer. m3 open (governance PR). |
 | 2026-11-28 | Product Documenter | Orchestrator | sent | D-059 edits from `tester-freeze-recheck-d059.md` R2-7: `FIXTURE-HASH` filled in (valid on `main` once `m2/eval-harness` with `e014fab` merges); DS-2 S4 command with `--golden-body`; AC-M2-26 counts clause (every request of every attempt); S6 extended. No AC weakened. |
-| 2026-11-28 | Acceptance Tester | Orchestrator → Reviewer, Planner, owner | sent | review-pr53 F3 (Appendix A part): steps 3a, 7a and 9 now set and check the 40-hex `TEND_COMMIT` build setting for the Xcode ⌘R install; B7's `xcodebuild` line stays with the Planner. i1: `independent-rescore.py` now does the S6 key-path and element-count checks (D-059); self-test 28/28 as expected (`rescore-s6-selftest.out`). No AC changed; all device ACs stay AWAITING-DEVICE. |
+| 2026-11-28 | Acceptance Tester | Orchestrator → Reviewer, Planner, owner | sent | review-pr53 F3 (Appendix A part): steps 3a, 7a and 9 now set and check the 40-hex `TEND_COMMIT` build setting for the Xcode ⌘R install; B7's `xcodebuild` line was updated by the Planner in the same PR (#54). i1: `independent-rescore.py` now does the S6 key-path and element-count checks (D-059); self-test 28/28 as expected (`rescore-s6-selftest.out`). No AC changed; all device ACs stay AWAITING-DEVICE. |
