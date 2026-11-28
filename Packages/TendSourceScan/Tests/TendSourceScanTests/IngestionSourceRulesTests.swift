@@ -30,7 +30,8 @@ enum PlanPaths {
             speechPermissionFile: speechPermission,
             speechPermissionExceptionEnabled: speechException,
             resultsWriterFile: resultsWriter,
-            providerTableFile: providerTable
+            providerTableFile: providerTable,
+            fixturesLoaderFile: fixturesLoader
         )
     }
 }
@@ -599,6 +600,7 @@ struct IngestionSourceRulesTests {
         (.tendAI, PlanPaths.speechAdapter, .rule2),
         (.tendEval, PlanPaths.evalFile, .rule6),         // review P03
         (.tendEval, PlanPaths.resultsWriter, .rule6),    // the write exception is not a read exception
+        (.tendEval, PlanPaths.fixturesLoader, .rule6),   // M2 Q23: none of these is the loader's exact form
         (.tendIngestion, PlanPaths.ingestionFile, .rule1),
     ]
 

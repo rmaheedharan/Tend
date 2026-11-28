@@ -1,13 +1,13 @@
 // AC-M2-09, PO decision M2 Q24: the stricter lists, the exact call-pattern rule, method references, Rule 3 session
 // methods, and the closed Rule 6 import list. Every plant and positive test the brief names for Q24 is here, written by
-// hand from the brief text. M2 Q23 (the fixtures-loader exception) is not built in WI-M2-01 (plan WI-M2-01), so the
-// loader file is as strict as every other TendEval file; see `loaderFileIsStrictUntilQ23`. P-2, P-3, P-4.
+// hand from the brief text. M2 Q23 (the fixtures-loader exception) was not built in WI-M2-01 (plan WI-M2-01); it is
+// built in the scanner follow-up `m2/scanner-loader-exception` and tested in `Q23LoaderTests`. P-2, P-3, P-4.
 
 import Testing
 import TendSourceScan
 
 extension PlanPaths {
-    /// Plan "Named files" (M2 Q23). Named here only to show it has no exception yet.
+    /// Plan "Named files" (M2 Q23): the only file with the fixtures-loader exception.
     static let fixturesLoader = "Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift"
 }
 
@@ -124,12 +124,13 @@ struct Q24RulesTests {
         #expect(scan(.tendEval, PlanPaths.evalFile, code).contains { $0.rule == .rule6 && $0.check.contains("contentsOf:") })
     }
 
-    @Test("AC-M2-09 (WI-M2-01 strict, no M2 Q23 yet): the fixtures-loader file has no exception, so even the brief's Q23 positive form is caught")
-    func loaderFileIsStrictUntilQ23() {
+    @Test("AC-M2-09 M2 Q23 (replaces the WI-M2-01 strict-until-Q23 test): the brief's Q23 positive form passes only in the fixtures-loader file; String(contentsOf: is still caught there")
+    func loaderFileExceptionIsNarrow() {
         let q23Positive = """
             guard let u = Bundle.main.url(forResource: "fixtures", withExtension: "json") else { throw LoaderError.missing }; return try Data(contentsOf: u)
             """
-        #expect(scan(.tendEval, PlanPaths.fixturesLoader, q23Positive)
+        #expect(scan(.tendEval, PlanPaths.fixturesLoader, q23Positive).isEmpty)
+        #expect(scan(.tendEval, PlanPaths.evalFile, q23Positive)
             .contains { $0.rule == .rule6 && $0.check.contains("contentsOf:") })
         #expect(scan(.tendEval, PlanPaths.fixturesLoader, "let s = try String(contentsOf: u)")
             .contains { $0.rule == .rule6 })

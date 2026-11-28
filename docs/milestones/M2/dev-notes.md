@@ -6448,3 +6448,211 @@ A script and docs change only. No Swift code changed, so there is no new B0–B6
 | 2026-11-28 | Coordinator | Developer (owner's Mac) | accepted | R50-F5 from PR #50 round 2 (APPROVE at `18cf226`). |
 | 2026-11-28 | Developer | Reviewer (via the coordinator) | sent | Builtins-only leak check; whole-run argv probe 112/112 in zsh and bash. |
 
+
+## M2 Q23 — scanner follow-up: the fixtures-loader exception in AC-M2-09 Rule 6
+
+- **Owner:** Developer  ·  **Branch:** `m2/scanner-loader-exception`, based on `main` at `65c06cd`  ·  **PR:** none
+  yet (committed locally, not pushed)  ·  **ADRs:** ADR-0006 (the scan library).
+- **Requirements:** AC-M2-09 Rule 6 "Fixtures-loader exception (M2 Q23)", the brief's Q23 plants and positive, the Q23
+  row of the brief's question table; plan "Named files" (fixtures loader row), WI-M2-01 timing note ("a scanner
+  follow-up … merged before WI-M2-M7 opens for review") and Developer constraints. P-2, P-4. No AC changed.
+
+### What changed
+- **`TendSourceScan/FixturesLoaderRule.swift` (new):** the Q23 checks. In the one file
+  `IngestionScanConfiguration.fixturesLoaderFile` (module `TendEval` only), a `contentsOf:` hit is removed from the
+  Rule 6 findings only when it is the allowed read, and the loader's own checks always run in that file. The file
+  header maps each brief condition to its check. In short:
+  - the read is exactly `return try Data(contentsOf: <name>)`, `<name>` one plain identifier, and only `}` or `;`
+    follows (the bytes are returned as `Data`, not kept or transformed);
+  - `<name>` is bound by `let` / `guard let` / `if let <name> = Bundle.main.url(forResource:` at the start of a
+    statement, the call ends the binding, `<name>` occurs exactly twice in the whole file (bound once, read once), the
+    binding comes first, and both sit in the same function body (the nearest `{` that is not a control-flow block);
+  - no `func`, `init`, `subscript`, accessor or closure declares a parameter (`$0` and closure signatures included);
+  - the whole token `URL` does not occur; every identifier containing `Bundle` is the `Bundle` of
+    `Bundle.main.url(`; every `forResource` is that call's first label; the brief's named hits (`.resourceURL`,
+    `.bundleURL`, `.urls(forResourcesWithExtension:`, `.path(forResource:`, `appendingPathComponent(`,
+    `appending(path:`, `appending(component:`, `deletingLastPathComponent`) are reported;
+  - the call's arguments are `forResource:` then optionally `withExtension:` then optionally `subdirectory:`, each one
+    string literal with no interpolation and no other code, decoded text matching the brief's pattern over the whole
+    text (`\A…\z`, because ICU's `$` also matches before a final newline);
+  - no literal (segments joined) contains `://`; write and log APIs stay caught by the existing Rule 6 checks.
+- **`IngestionSourceRules.swift`:** `IngestionScanConfiguration.fixturesLoaderFile` (new, required init parameter, so
+  a caller cannot forget it); Rule 6 calls the loader rule in that file and passes the allowed read offsets to
+  `networkingViolations`; the loader patterns join `allPatterns` (the compile self-test). Header note updated. Every
+  other rule and list is unchanged.
+- **`SourceScanner.swift` (lexer):** `LexedSource.stringLiterals`, one entry per whole literal (joined text,
+  interpolation flag, span in `code`). The existing `literals` segment list and `code` are unchanged; the lexer now
+  keeps a scalar count next to `code` so a span costs O(1).
+- **`TendIngestionTests/ScanScope.swift`:** the committed configuration names the loader file.
+
+### AC → test
+| AC / brief item | Test(s) (`TendSourceScanTests` unless noted) | Result |
+|---|---|---|
+| Q23 positive (brief, exact text) passes in the loader file | "AC-M2-09 M2 Q23 positive: the brief's exact loader form passes in the loader file"; "… in each of the three binding forms" (5 cases); "… a whole loader file with four fixtures …"; TendIngestion "AC-M2-09 Rule 6, M2 Q23 (driver) …" | PASS (Linux) |
+| "Caught in the fixtures-loader file" (brief, 6 plants, NSURL counted by the networking list) | "… each of the brief's plants is caught in the fixtures-loader file" (7 cases); "NSURL(fileURLWithPath:) … caught by the networking list"; "the brief's parameter plant is caught as a parameter …" | PASS (Linux) |
+| `Data(contentsOf: u)` in a TendEval file other than the loader (brief "Also caught"); everywhere else banned | "the brief's loader form is still caught in every other file of the three modules" (8 locations, including a second loader-named file, the loader's path under `TendAI`, and the results writer); existing R1-F1 table now also runs in the loader file; TendIngestion driver test | PASS (Linux) |
+| Each Q23 condition on its own (write API, non-literal names, `URL`, `Bundle`, parameters, scope, return form, `://` …) | "one plant per condition of the loader exception is caught in the loader file" (80 cases); "every condition plant's base form … passes on its own" | PASS (Linux) |
+| Other Rule 6 checks kept in the loader file | "the loader file keeps every other Rule 6 check (networking, imports, host literals)" | PASS (Linux) |
+| Case-sensitive; comments and string text never bind | "the exception is case-sensitive …"; "comments and string text do not count as the binding" | PASS (Linux) |
+| Brief text pins (named hits, both patterns, loader path) | "Pin (M2 Q23): …"; "the argument patterns accept and reject exactly as the brief's regexes" (13 cases) | PASS (Linux) |
+| Lexer spans | "Lexer (M2 Q23): whole string literals record …" | PASS (Linux) |
+| Repository scan | TendIngestion "AC-M2-09 scan": 72 files (TendIngestion 56, TendAI 15, TendEval 1), 0 violations | PASS (Linux) |
+
+**Changed test (not weakened):** `Q24RulesTests.loaderFileIsStrictUntilQ23` asserted that WI-M2-01 had no loader
+exception, so the brief's Q23 positive was a hit in the loader file. That was the planned temporary state; Q23 is the
+PO decision that ends it. It is replaced by `loaderFileExceptionIsNarrow`: the same positive now passes in the loader
+file and is still caught in another TendEval file, and its `String(contentsOf:` assertion is kept unchanged.
+
+**Mutants (each run, then reverted; all killed):** scope check off (3 issues); every `contentsOf:` in the loader allowed
+(37); literal pattern check off (14); parameter checks off (10).
+
+### Verification environment
+| Check | Linux `swift test` | macOS CI | Simulator | Device | Not verified (why) |
+|---|---|---|---|---|---|
+| `TendSourceScan` (`swift:6.2-noble`, `-warnings-as-errors`) | 78 tests in 5 suites passed, 0 warnings | — | — | — | — |
+| `TendIngestion` (same; includes the AC-M2-09 repository scan) | 581 tests in 68 suites passed, 0 warnings | — | — | — | — |
+| `TendCore` (same) | 141 tests in 18 suites passed, 0 warnings | — | — | — | — |
+| The real `EvalFixturesLoader.swift` (`e014fab`) | Round 2: repository scan with it, 79 files, 0 violations (below) | — | — | — | — |
+
+### Things the reviewer should look at closely
+- **The real loader (corrected in round 2, PR #51 F5).** Round 1 said the loader did not exist yet; that was out of
+  date. `origin/m2/eval-harness` at `e014fab` has `Apps/TendEval/Sources/Fixtures/EvalFixturesLoader.swift`: four
+  parameterless functions, each `guard let <x>File = Bundle.main.url(forResource: "<lit>", withExtension: "<lit>")
+  else { throw LoaderError.missing }` then `return try Data(contentsOf: <x>File)`. It fits the rule with 0 findings
+  (round 2 run below: 79 files, 0 violations).
+- **Where this is stricter than the brief's words** (all of them read "stricter only"; a PO ruling can loosen any one):
+  the read must be the `return try` form with nothing after it (my reading of "returns the bytes as `Data` and keeps
+  nothing"); `<name>` may occur only at its binding and its read; `{ () in` and capture-list closure signatures are
+  reported; accessors (`set(`, `willSet(`, `didSet(`) with a named parameter count as declaring one; any `subscript`
+  is reported; `Foundation.Bundle` and backticked `Bundle` / `Data` are rejected; any label other than the brief's
+  three (for example `localization:`) is rejected; the named hits match with or without a receiver.
+- **Text, not types:** control-flow blocks are recognised by keyword. A trailing closure written directly in an `if`
+  condition would be read as part of that `if` (Swift mostly forbids it there). The brief keeps "the loader reads only
+  bundle resources" as a Reviewer confirmation.
+- `IngestionScanConfiguration.init` gained a required parameter. Open branches that build their own configuration
+  will fail to compile until they pass `fixturesLoaderFile:` (loud on purpose).
+
+### Known limitations / follow-ups
+| Item | Severity | Ticket |
+|---|---|---|
+| Fit check against the real loader | — | Done in round 2 at `e014fab`; the repository scan re-checks it when WI-M2-M7 merges |
+| Traceability row for AC-M2-09 Q23 tests | — | Documenter |
+| `DECISIONS.md` entry for M2 Q23 | — | Human-merged governance PR (plan) |
+
+### Law check
+| Law | Status | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Test-only scan library; no UI. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No user copy; check names are neutral; the AC-M2-12 vocabulary scan stays green. |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No model path touched. |
+| P-2 No data leaves device | pass | No networking added; the one new exception only lets one file read bundled resources named by literals; every networking pattern stays a hit there. |
+| P-3 Cloud AI per ADR-0005 | n.a. | No cloud path touched; Rule 3 and Rule 4 unchanged. |
+| P-4 Media not persisted | pass | The loader may only read bundle bytes and return them; write and log APIs stay hits in the loader file. |
+
+### Handoff log
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Developer | Reviewer (via the Orchestrator) | sent | Committed locally on `m2/scanner-loader-exception`; not pushed, no PR. Must merge before WI-M2-M7 opens for review (plan). |
+
+### Round 2 — PR #51 review round 1 (F1 Major, F2–F4 Minor, F5 Nit)
+
+- **Branch:** `m2/scanner-loader-exception`, on top of the review commit `0a3dc32`. Tests first for every finding.
+- **F1 (Major), compiler directives.** In the loader file every `#` left in lexed code is reported as
+  `fixtures loader: compiler directive or # name` (`#if`, `#elseif`, `#else`, `#endif`, `#sourceLocation`, `# if`,
+  `#warning`, any `#name`; fail closed). With any of them in the file, no read is allowed, so the read stays a
+  `networking contentsOf:` hit too. Comments and raw-string delimiters are removed by the lexer first, so they never
+  count. Tests: "every compiler directive in the loader file is reported …" (7 plants, including the review's proof
+  with `#if` around the binding and one with `#if` around the read); "the review's #if proof also leaves the read
+  reported as a contentsOf: hit"; "# in comments and raw string delimiters is not a directive".
+- **F2 (Minor), lexical scope.** "Same function body" is replaced by "in scope at the read" (`isInScope`): the read
+  comes after the call's `)` (`let`) or the `}` of the `else` block (`guard let`), and walking out from the read's
+  innermost `{` reaches the binding's block through control-flow blocks only. For `if let` that block is the `{ … }`
+  right after the call. Tests: "the binding must be in scope at the read" (7 plants: the review's four, plus the read
+  in the `guard`'s own `else` block, a `guard` inside `if`, and a `let` inside `do`); positive "reads where the
+  binding is in scope pass" (3 cases).
+- **F3 (Minor), shadowing.** In the loader file any `typealias`, and any declaration named `Data` or `Bundle` (after
+  `struct`, `class`, `enum`, `actor`, `protocol`, `extension`, `typealias`, `associatedtype`, `let`, `var`, `func`,
+  `case`, or a generic `<`), is reported. Test: 12 plants. **A text scan of the loader file cannot see shadowing
+  declared in another file.** Reviewer confirmation to add to the brief's "the loader reads only bundle resources":
+  *no TendEval file declares or extends a type named `Bundle` or `Data`, and no `typealias` names either.* Checked
+  at `e014fab`: no such declaration and no `typealias` in `Apps/TendEval/Sources`; the only other `Bundle` use is
+  `Bundle.main.object(forInfoDictionaryKey:)` in `EvalRunner.swift`.
+- **F4 (Minor), isolating plants.** Added: `return try Data(contentsOf: u); let u = Bundle.main.url(…)` (binding
+  after the read), `forResource: "\("fixtures")"` (literal inside an interpolation; kills m11), `"fix\( )tures"`
+  (only the interpolation flag catches it; kills m06) and `nonisolated(unsafe) let u = …` (only `startsStatement`
+  catches it; kills m03). The file header notes that `startsStatement` and the interpolation flag are defence in
+  depth. m09 (`binding.nameOffset < argument.startOffset` → `true`) now survives on its own because the F2 scope
+  start (`offset > scopeStart`, and `scopeStart` is after the bound name) implies it; with both off the suite fails
+  (2 issues). The order check is kept as defence in depth.
+- **F5 (Nit):** the "real loader" note above is corrected.
+
+**Mutants in round 2 (each run, then reverted):** directive reporting off (7 issues); reads allowed despite a
+directive (1); scope check off (10); control-flow-only walk off (9); shadow check off (12); `startsStatement` off (1);
+interpolation flag off (1); one-literal count `>= 1` (1); order check and scope start both off (2). Order check off
+alone survives (implied by the scope start, see F4).
+
+**Runs (Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, Linux only):**
+| Package | Result |
+|---|---|
+| `TendSourceScan` | 84 tests in 5 suites passed, 0 warnings |
+| `TendIngestion` | 581 tests in 68 suites passed, 0 warnings; AC-M2-09 scan 72 files, 0 violations |
+| `TendCore` | 141 tests in 18 suites passed, 0 warnings |
+| `TendIngestion` with the real `Apps/TendEval` from `origin/m2/eval-harness` `e014fab` (a scratch copy of this tree) | 581 tests in 68 suites passed; AC-M2-09 scan: TendIngestion 56, TendAI 15, TendEval 8, 79 files, 0 violations; AC-M2-12 scan 79 files, 0 violations |
+
+Nothing was verified on macOS, the Simulator or a device; nothing here needs them.
+
+**Law check (round 2):** UX-1, UX-2, UX-4, P-1, P-3 n.a. (test-only scan library). UX-3 pass (neutral check names;
+AC-M2-12 scan green). P-2 pass (no networking added). P-4 pass: the F1 concern is closed. An inactive `#if` can no
+longer hide the binding, so the loader file passes only when its reads are bundle resources named by literals (and
+the Reviewer confirmation above covers shadowing from other files).
+
+**Handoff log (round 2):**
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Reviewer | Developer (via Orchestrator) | received | PR #51 round 1: CHANGES REQUIRED (F1 Major; F2–F4 Minor; F5 Nit; I1 Info, no change). |
+| 2026-11-28 | Developer | Reviewer (via Orchestrator) | sent | F1–F5 fixed test-first and pushed to `m2/scanner-loader-exception` (PR #51). I1 unchanged (pre-existing lexer limit; its own ticket if the PO wants it). |
+
+### Round 3 — PR #51 review round 2 (APPROVE) tickets F6, F7 and Nit N1, fixed in this PR
+
+- **Branch:** `m2/scanner-loader-exception`, on top of the round 2 review commit `3aaf62a`. Tests first. The new
+  plants were red before the change, except the F7 plants, which pin behaviour that was already correct.
+- **F6 (Minor), regex literals hide directives.** In the loader file every `/` left in lexed code is reported as
+  `fixtures loader: slash in code (regex literal or division)`, and if there is any, no read is allowed. Comments and
+  string text are removed first, so they never count. Tests: "any / left in code in the loader file is reported, and
+  no read is allowed" (4 plants: the reviewer's R01 `/"""/` proof, the round 1 P08 `/"/` text, a plain regex literal
+  and a division); "/ in comments and string text is not reported".
+- **F7 (Minor), `bindingEnds` pinned.** "a let binding with ?? fallback, on the same line or the next, is not a
+  binding" (2 plants). Each one kills m04 (`bindingEnds` off: 2 issues).
+- **N1 (a).** The control-flow back-walk now stops at a newline that ends a statement (the line ends in a name or a
+  closing bracket). So a closure on the line after `repeat { } while false` is a closure, and the read inside it is
+  rejected. Test: "a closure on the line after `repeat { } while false` is a closure, not a while block". This can
+  only read a block as a closure, which is stricter: an Allman-style `{` on its own line would reject the read. The
+  real loader does not use that style.
+- **N1 (b).** The shadow check skips a backtick before the name. There are 3 new shadow plants (`` struct `Data` ``,
+  `` let `Bundle` ``, `` case `Data` ``).
+- **Separate ticket for the Planner:** the lexer-wide fix that lexes `/…/` and `#/…/#` regex literals. It would close
+  the known limit (header of `SourceScanner.swift`, risk R-12) for AC-M1-23 and every AC-M2-09 rule, in every file,
+  not only the loader. This PR closes it in the loader file only.
+
+**Mutants (each run, then reverted):** reads allowed despite a slash (4 issues); slash reporting off (4); m04
+`bindingEnds` off (2); newline stop off (1); backtick skip off (3). All were killed.
+
+**Runs (Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, Linux only, 0 warnings):**
+| Package | Result |
+|---|---|
+| `TendSourceScan` | 88 tests in 5 suites passed |
+| `TendIngestion` | 581 tests in 68 suites passed; AC-M2-09 scan 72 files, 0 violations |
+| `TendCore` | 141 tests in 18 suites passed |
+| `TendIngestion` with the real `Apps/TendEval` from `origin/m2/eval-harness` `32a6be8` (a scratch copy of this tree) | 581 tests in 68 suites passed; AC-M2-09 scan: TendIngestion 56, TendAI 15, TendEval 8, 79 files, 0 violations; AC-M2-12 scan 79 files, 0 violations |
+
+**Law check (round 3):** UX-1, UX-2, UX-4, P-1, P-3 n.a. (a test-only scan library). UX-3 pass (neutral check names).
+P-2 pass (no networking added). P-4 pass: a regex literal can no longer hide a directive or a non-bundle read in the
+loader file. The same lexer limit in other files is the separate ticket above.
+
+**Handoff log (round 3):**
+| Date | From | To | Result | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Reviewer | Developer (via Orchestrator) | received | PR #51 round 2: APPROVE, with tickets F6 and F7 (Minor) and Nit N1. |
+| 2026-11-28 | Developer | Reviewer / Merge Gatekeeper (via Orchestrator) | sent | F6, F7 and N1 (a, b) fixed test-first and pushed to `m2/scanner-loader-exception`. Lexer-wide regex fix to the Planner as its own ticket. |
