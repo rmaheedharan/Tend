@@ -11,9 +11,9 @@
   `096161326b049b9f0f3aa62756d7e98e8d43bb3705619620623d40bbbd97869a`. `MANIFEST.sha256` changed on line 4 only and
   verifies (`sha256sum -c`, 4 × OK). The three data files are unchanged (`0e819a89…`, `089a22bd…`, `b32e45af…`). The
   fixtures hash (SHA-256 of `MANIFEST.sha256`, shown by TendEval) is
-  **`7fdc056e92e419a4b416ea14493a7cc2ab9188bb559c796bd79ed45d2141de22`** (was `e85dde40…5e39`). This hash is valid on
-  `main` only once `m2/eval-harness` (with `e014fab`) is merged; until then `main` still holds the old schema and
-  manifest. The D-054 / D-058 composition approval stands. Tester re-check: `tester-freeze-recheck-d059.md`. Ruling 1 conditions:
+  **`7fdc056e92e419a4b416ea14493a7cc2ab9188bb559c796bd79ed45d2141de22`** (was `e85dde40…5e39`). `m2/eval-harness`
+  (with `e014fab`) is merged to `main` in PR #52 (merge commit `1b81e7b`), so this hash is valid on `main`; `main`'s
+  `MANIFEST.sha256` hashes to it. The D-054 / D-058 composition approval stands. Tester re-check: `tester-freeze-recheck-d059.md`. Ruling 1 conditions:
   (a) GR-1, (b) GR-2 and (c) GR-3 CLOSED at PR #32 head `02f944e` (merged; the golden payload files on `main` equal
   `02f944e`'s), GR-5 CLOSED there too; (d) L2a (GR-4): Gemini **PASS** on the committed golden body, OpenAI and
   Anthropic **deferred by the owner's decision** ("L2a outcome", 2026-11-25: their calls returned billing errors only,
