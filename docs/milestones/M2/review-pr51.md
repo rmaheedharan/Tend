@@ -1,6 +1,6 @@
 # M2 Code Review — PR #51 (`m2/scanner-loader-exception`, head `b88c384`, base `main` `65c06cd`)
 
-- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** **CHANGES REQUIRED**  ·  **Round:** 1
+- **Owner:** Reviewer (fresh context; did not write this code)  ·  **Verdict:** **APPROVE** (round 2, head `9126548`; round 1 was CHANGES REQUIRED)  ·  **Round:** 2
 - **Scope:** `git diff 65c06cd b88c384`, 9 files (+1237 / -25): `TendSourceScan/FixturesLoaderRule.swift` (new),
   `IngestionSourceRules.swift`, `SourceScanner.swift` (lexer), `Q23LoaderTests.swift` (new), `Q24RulesTests.swift`,
   `IngestionSourceRulesTests.swift`, TendIngestion `ScanScope.swift` and `IngestionSourceScanTests.swift`,
@@ -148,3 +148,130 @@ them.
 |---|---|---|---|---|
 | 2026-11-28 | Developer (via Orchestrator) | Reviewer | received | PR #51 `m2/scanner-loader-exception` head `b88c384`, base `65c06cd`. |
 | 2026-11-28 | Reviewer | Developer (via Orchestrator) | returned | CHANGES REQUIRED: F1 Major (inactive `#if` binding bypass, proof built). F2–F4 Minor (ticket; F2 and F4 are best fixed with F1), F5 Nit, I1 Info. Re-review checks the F1 plants and re-runs the real-loader fit. Must merge before WI-M2-M7 opens for review (plan). |
+
+---
+
+## Round 2 — head `9126548` (review of `git diff 0a3dc32 9126548`)
+
+- **Verdict:** **APPROVE**. There is no open Blocker or Major. Two new Minors (F6, F7) and one Nit (N1) need a ticket
+  and do not block.
+- **Scope:** `FixturesLoaderRule.swift` (+148 / -28), `Q23LoaderTests.swift` (+172), `dev-notes.md` (round 2 section).
+  No other source file changed, so every other rule and list is still the round 1 state I checked.
+- **Real loader:** `origin/m2/eval-harness` at `32a6be8`. `EvalFixturesLoader.swift` is byte-identical to `e014fab`.
+- **IDs:** AC-M2-09 (Rule 6, M2 Q23), AC-M2-28, WI-M2-M7, P-2, P-4.
+
+### Summary (round 2)
+
+All five round 1 findings are fixed, and I checked each one in the new code:
+- **F1:** every `#` left in code in the loader file is reported, and with any of them no read is allowed.
+- **F2:** "in scope at the read" replaces "same function body".
+- **F3:** a `typealias`, or any declaration named `Data` or `Bundle`, is reported in the loader file.
+- **F4:** the new plants kill m03, m06 and m11. m09 is now an equivalent mutant (explained below).
+- **F5:** the dev-notes text is corrected.
+
+Results:
+- My #if proof and the four F2 forms are caught.
+- 12 new bypass attempts aimed at the new scope logic are handled correctly, with one exception (F6).
+- 18 of 20 mutants are killed.
+- The real loader still fits with 0 findings.
+
+**F6 (Minor):** a regex literal can still hide `#if` lines from the lexer. This revives the F1 effect: a two-file
+program compiles cleanly with `-warnings-as-errors` and reads a file outside the bundle. It is the pre-existing
+regex-literal limit of the lexer (round 1 I1), not new logic in this PR. Unlike F1, nobody writes it by accident: it
+needs deliberate `_ = /"""/` lines around the directives. So it is Minor with a cheap fix, not a block.
+
+### Round 1 findings, re-checked
+
+| # | Round 1 | Fix (code) | Evidence (round 2) | Status |
+|---|---|---|---|---|
+| F1 | Major | `FixturesLoaderRule.swift:237-246`: `loaderDirectivePattern` `#\s*[\p{L}_]*` over lexed code; each hit reported; `guard directives.isEmpty else { return result }` | My round 1 proof loader now gives `compiler directive or # name` ×2 + `networking contentsOf:`. My P03: the same. `#` inside an interpolation (`"\(#line)"`) is reported (fail closed). `#if` text inside a multi-line raw string is literal text to the compiler too, and it is correctly not reported. The PR's 7 directive plants, the proof test, and the comment/raw-delimiter negative pass. Mutants m15 (reads allowed despite directives) and m20 (directive reporting off) are killed (1 and 7 issues). | **Closed** |
+| F2 | Minor | `bindingScope` (`:320`), `isInScope` (`:340`); `functionBody` removed | My P01, P02, P12 and P29 are all caught now. New tries, all caught: R02 (labelled `outer: do { guard … }`, read after), R03 (read in the `catch` of the binding's `do`), R12 (`guard` inside a `switch` case, read after the `switch`), R13 (read in a closure inside the `if let` block), R14 (`guard` at type level), R17 (read in a closure inside `defer`), P28 (nested `func`). Positives still pass: P06 (multi-line), P11, P21 (a parameterless closure holding both), P26 (read in a `switch` case in scope), R08 (`else` on the next line), R16 (read inside `while` in scope). Mutants killed: m02 (scope check → `true`, 10 issues), m17 (scope-start check off, 1), m18 (control-flow-only walk off, 2), m19 (`if let` scope = the enclosing block, 2). | **Closed** |
+| F3 | Minor | `shadowViolations` (`:420`) | My P07 (`typealias Data = String`) is now caught twice (typealias, and shadows `Data`). R07 (`enum L<T, Bundle: P>`, `Bundle` after `,` rather than `<`) is caught by the Bundle-use check. R06 (`` struct `Data` ``, backticked) is missed by the shadow check but caught by the `init` parameter check, and a usable `Data(contentsOf:)` shadow always needs that `init` (see N1). m16 (shadow check off) is killed (12 issues). Shadowing from another file is still a Reviewer check, as the dev-notes say. Confirmed at `32a6be8`: no TendEval file declares or extends `Bundle` or `Data`, there is no `typealias` and no `extension EvalFixturesLoader`, and the only other `Bundle` use is `Bundle.main.object(forInfoDictionaryKey:)` in `EvalRunner.swift:170`. | **Closed** |
+| F4 | Minor | 4 new plants (`Q23LoaderTests.swift`) | m03, m06 and m11 are now killed (1 issue each). m09 survives. It is equivalent: `isInScope` requires `offset > scopeStart`, and `scopeStart` (the call's `)`, the `else` block's `}`, or the `if` block's `{`) is always after `nameOffset`. So `nameOffset < argument.startOffset` can never decide the result alone. Keeping it as defence in depth is fine. | **Closed** |
+| F5 | Nit | `dev-notes.md` round 2 section | The note is corrected, and the "Not verified" row now records the fit check. | **Closed** |
+| I1 | Info | — | Superseded by F6 below. | Replaced by F6 |
+
+### New findings (round 2)
+
+| # | Severity | File:line | Finding | Required change | Status |
+|---|---|---|---|---|---|
+| F6 | Minor | `SourceScanner.swift:30` (pre-existing known limit); `FixturesLoaderRule.swift:237-246` | **Regex literals hide directives from the F1 check.** The loader text below gives **0 findings** (my R01). A bare regex `/"""/` is lexed as the start of a multi-line string, so the lexer treats everything up to the next `"""` as string text. Each of the two hidden regions holds one directive line. The binding between them stays visible to the scanner, but the compiler drops it. I built it in a Swift 6 package, using the round 1 `Other.swift` (a `static let inputsFile` in another file). With `-warnings-as-errors` it reported "Build complete", with no warning, and printed `read 13 bytes from a non-bundle path`. Correcting round 1: I1 was understated there. Round 1 plant P08 already showed that a regex literal can hide any call in the loader (and in every other scanned file), including a non-bundle read. Not Major, because it is the documented lexer limit (R-12 header note) and only deliberately evasive code triggers it. An innocent `#if` (F1's realistic case) is now caught. The brief keeps "the loader reads only bundle resources" as a Reviewer confirmation, and I confirm it for `32a6be8`: the real loader has no `/` outside comments. Loader text: `static func inputs() throws -> Data {` / `_ = /"""/` / `#if NEVER_DEFINED` / `_ = /"""/` / `guard let inputsFile = Bundle.main.url(forResource: "inputs", withExtension: "json") else { throw LoaderError.missing }` / `_ = /"""/` / `#endif` / `_ = /"""/` / `return try Data(contentsOf: inputsFile)` / `}` | Ticket. Cheapest fix, stricter only: in the loader file, report any `/` left in lexed code (comments are already removed, and the loader needs no division), and allow no read when there is one. Add the R01 text and the P08 text as plants. The lexer-wide fix (lex `/…/` and `#/…/#` regex literals) would close the limit for AC-M1-23 and AC-M2-09 everywhere and belongs in its own ticket. | Open (ticket) |
+| F7 | Minor | `FixturesLoaderRule.swift:290` (`bindingEnds`), `:353` | **m04 (`bindingEnds` off) now survives.** In round 1 it was killed, but the plants that killed it are now also caught by `bindingScope`. `bindingEnds` still guards a real case on its own: `let u = Bundle.main.url(forResource: "inputs") ?? fallback` (or `?? fallback` on the next line) followed by `return try Data(contentsOf: u)`. The real code reports `networking contentsOf:` for both forms. Under m04 both give **0 findings**, although `u` would then be `fallback`, a value that can come from another file. The behaviour is correct today, but no test pins it. | Add both `??` forms as condition plants (each kills m04). | Open (ticket) |
+| N1 | Nit | `FixturesLoaderRule.swift:384` (`isControlFlowBlock`), `:420` | (a) Walking back from a closure's `{` does not stop at a newline, so `repeat { } while false` followed by a line holding `let g = { return try Data(contentsOf: u) }` makes the closure look like a `while` block, and the read is allowed (R05). This is harmless: `u` is still the in-scope bundle binding, captured by the closure. It is only looser than "same function body". (b) The shadow check does not see backticked names such as `` struct `Data` `` (R06). Other checks cover it today. | Optional: stop the back-walk at a newline that ends a statement, or note it in the header's known limits. Strip backticks in `shadowViolations`. | Open (optional) |
+
+### Bypass attempts (round 2)
+
+| Plant | Result | Expected? |
+|---|---|---|
+| P01, P02, P12, P29 (round 1 F2 forms); R02 labelled `do`; R03 `catch`; R12 `switch` then after; R14 type-level `guard` | caught (`networking contentsOf:`) | yes |
+| P03 and the round 1 proof file (`#if` around the binding) | caught (directive ×2 + contentsOf:) | yes |
+| R09 `"\(#line)"` in the loader | caught (directive) | yes (fail closed) |
+| R10 a single-line raw string broken by a newline, leaving `#if X"#` in code | caught | yes (fail closed) |
+| R11 `#if` text inside a multi-line raw string `#"""…"""#` | not reported | yes (it is string text to the compiler) |
+| **R01 `#if` hidden by `/"""/` regex literals** | **0 findings; compiles cleanly; non-bundle read** | **no: F6** |
+| P08 call hidden by a `/"/` regex literal (round 1) | 0 findings | no: F6 |
+| P07 `typealias Data = String`; R07 `<T, Bundle: P>` | caught | yes |
+| R06 `` struct `Data` { init(contentsOf: Int) {} } `` | caught (init parameter; not by the shadow check) | yes (N1 b) |
+| R04 read in an immediately-called closure; R13 closure in an `if let`; R17 closure in `defer`; P28 nested `func` | caught (stricter than needed) | yes |
+| R05 closure after `repeat {} while false` | 0 findings | harmless (N1 a) |
+| `let u = Bundle.main.url(…) ?? fallback` (same line and next line) | caught by the real code; 0 findings under m04 | yes (F7: untested) |
+| P05 second read; P10 code in an interpolation; P16 `Logger`; P17 `write(to:`; P13, P14, P18 shape outside the loader or module | caught | yes |
+| P06 multi-line, P11, P21, P26, R08, R15, R16 (valid forms) | 0 findings | yes |
+| P04 static `u` in the results writer (another file) | 0 findings | yes: a text scan of that file cannot know; the loader side is what must stop it, and it does except via F6 |
+
+### Mutants (round 2; 20 total, each in its own scratch copy of `9126548`; full `TendSourceScan` suite)
+
+| Killed (issues) | Survived |
+|---|---|
+| m01 `>= 2` occurrences (1); m02 scope → `true` (10); m03 `startsStatement` off (1); m05 follow check off (2); m06 interpolation flag off (1); m07 `://` off (2); m08 `URL` token off (4); m10 parameter checks off (10); m11 `>= 1` literal (1); m12 loose resource pattern (10); m13 lexer span count frozen (16); m14 exception in every TendEval file (6); m15 reads allowed despite directives (1); m16 shadow check off (12); m17 scope start off (1); m18 control-flow-only walk off (2); m19 `if let` scope = enclosing (2); m20 directive reporting off (7) | m04 `bindingEnds` off (F7); m09 order check off (equivalent, see F4) |
+
+### Lexer and real loader (round 2)
+- The lexer is not touched in this round. The differential re-run (base `65c06cd` lexer against the head lexer, 227
+  repository files with the `32a6be8` harness, plus my edge file, 228 inputs) found **0 differences**.
+- **Real loader `32a6be8`:** 0 findings at the loader path, 4 `networking contentsOf:` at any other TendEval path. It
+  fits cleanly: no `#`, no `/` in code, no `typealias`, no shadowing declaration. Each read is inside the scope of its
+  own `guard` (read after the `else` block's `}`, in the same function block).
+- **Reviewer confirmation (brief AC-M2-09 Rule 6):** at `32a6be8` the loader reads only bundle resources named by
+  literals (`inputs`, `household`, `golden`, `MANIFEST`; `json`, `sha256`). No other TendEval file shadows `Bundle` or
+  `Data`, extends `EvalFixturesLoader`, or declares a global with one of the loader's bound names. Re-confirm at the
+  WI-M2-M7 review.
+
+### Runs (round 2; Docker `swift:6.2-noble`, `-Xswiftc -warnings-as-errors`, fresh scratch copies of `9126548`)
+
+| Package | Result |
+|---|---|
+| `TendSourceScan` | 84 tests in 5 suites passed, 0 warnings |
+| `TendIngestion` | 581 tests in 68 suites passed, 0 warnings; AC-M2-09 scan TendIngestion 56, TendAI 15, TendEval 1, 72 files, 0 violations; AC-M2-12 72 files, 0 violations |
+| `TendCore` | 141 tests in 18 suites passed, 0 warnings |
+| `TendIngestion` with `Apps/TendEval` from `origin/m2/eval-harness` `32a6be8` | 581 tests in 68 suites passed, 0 warnings; AC-M2-09 scan TendIngestion 56, TendAI 15, TendEval 8, "79 files in total, 0 violations"; AC-M2-12 79 files, 0 violations |
+| Proof builds (Linux Foundation, Swift 6 language mode, `-warnings-as-errors`) | Round 1 `#if` proof: now caught by the scan. F6 regex proof: build complete, no warnings, non-bundle read, 0 scan findings |
+
+Every check here was run on Linux. I verified nothing on macOS, the Simulator or a device; nothing in this PR needs
+them.
+
+### Checklist (round 2)
+- [x] Correctness vs ACs (AC-M2-09 Rule 6 Q23: positive passes, all brief plants caught, F1/F2/F3 closed)
+- [x] Tests meaningful: 18 of 20 mutants killed; m09 equivalent; m04 is F7 (Minor)
+- [x] Swift 6 concurrency safe (value types, no shared state)  - [x] No force unwraps / `try!` in product paths
+- [x] Privacy (P-1…P-4): no open Major. F6 is a Minor gap in a pre-existing, documented lexer limit, and the Reviewer
+  confirmation for the real loader is given above.
+- [x] UX-2/UX-3: n.a. / pass  - [x] Accessibility: n.a.  - [x] Performance: linear passes over one file
+- [x] No new dependency without ADR
+
+### Law check (round 2)
+| Law | Status (pass / n.a. / concern) | Note |
+|---|---|---|
+| UX-1 Zero-Form Entry | n.a. | Test-only scan library. |
+| UX-2 Rule of Three | n.a. | No selection surface. |
+| UX-3 Zero-Guilt | pass | No user copy; neutral check names; AC-M2-12 vocabulary scan green (72 and 79 files, 0 violations). |
+| UX-4 Design craft | n.a. | No UI. |
+| P-1 On-device inference | n.a. | No model path touched. |
+| P-2 No data leaves device (except user iCloud) | pass | No networking added; every networking pattern is still a hit in the loader file. |
+| P-3 Cloud AI only opt-in, BYOK, minimised, per ADR-0005 | n.a. | No cloud path touched. |
+| P-4 Media not persisted without consent | pass | The F1 concern is closed: an ordinary or accidental `#if` can no longer hide the binding, and an out-of-scope or shadowed `Data`/`Bundle` is reported. Write and log APIs stay hits in the loader file. The remaining gap (F6) needs deliberately evasive regex literals, is the documented lexer limit, and is ticketed. |
+
+### Handoff log (round 2)
+| Date | From | To | Result (accepted / returned) | Notes |
+|---|---|---|---|---|
+| 2026-11-28 | Developer (via Orchestrator) | Reviewer | received | PR #51 round 2, head `9126548` (round 1 review at `0a3dc32`). |
+| 2026-11-28 | Reviewer | Merge Gatekeeper / Orchestrator; Developer for tickets | accepted | **APPROVE.** F1–F5 closed with evidence. New Minors F6 (regex-literal-hidden directives in the loader; a loader-local `/` ban suggested; lexer-wide fix as its own ticket) and F7 (pin `bindingEnds` with the `?? fallback` plants), and Nit N1, all to be ticketed; none blocks. Merge before WI-M2-M7 opens for review (plan). Re-confirm the loader's bundle-only reads at the WI-M2-M7 review. |
